@@ -1,0 +1,9 @@
+{
+  "$schema": "https://anthropic.com/claude-code/marketplace.schema.json",
+  "name": "annetaan",
+  "description": "Claude Code plugins maintained by Annetaan Inc.",
+  "owner": {
+    "name": "Annetaan Inc."
+  },
+  "plugins": []
+}
