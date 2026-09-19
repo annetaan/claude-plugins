@@ -5,5 +5,19 @@
   "owner": {
     "name": "Annetaan Inc."
   },
-  "plugins": []
+  "plugins": [
+    {
+      "name": "annetaan",
+      "source": "./plugins/annetaan",
+      "description": "The Claude Code skills we use internally at Annetaan Inc. Holds workflow, which runs one implementation as design, approval, per-task implement and review rounds, an integration review, and a finish step that can open a pull request.",
+      "category": "workflow",
+      "keywords": [
+        "annetaan",
+        "skills",
+        "difit",
+        "code-review",
+        "workflow"
+      ]
+    }
+  ]
 }

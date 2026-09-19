@@ -1,0 +1,17 @@
+{
+  "name": "annetaan",
+  "version": "0.1.0",
+  "description": "Claude Code skills we use internally at Annetaan Inc.",
+  "author": {
+    "name": "Annetaan Inc."
+  },
+  "repository": "https://github.com/annetaan/claude-plugins",
+  "keywords": [
+    "annetaan",
+    "skills",
+    "workflow",
+    "difit",
+    "code-review"
+  ],
+  "license": "MIT"
+}

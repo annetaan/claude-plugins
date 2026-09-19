@@ -22,7 +22,9 @@ To pick up later changes:
 
 ## Plugins
 
-None published yet.
+| Plugin | Install | What is in it |
+| --- | --- | --- |
+| [annetaan](plugins/annetaan) | `/plugin install annetaan@annetaan` | [workflow](plugins/annetaan/skills/workflow), which runs one implementation as design, approval, per-task implement and review rounds, an integration review, and a pull request. The review rounds go through [difit](https://github.com/yoshiko-pg/difit). |
 
 ## License
 
