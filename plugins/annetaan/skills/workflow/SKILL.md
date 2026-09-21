@@ -51,17 +51,29 @@ Agent(subagent_type: "annetaan:workflow-design", description: "design",
 
 `annetaan:workflow-design` ships with this plugin and is pinned to Fable at medium effort with code changes disabled.
 
-- **If the call fails because Fable is not available in this environment, use `annetaan:workflow-design-fallback`** (Opus, xhigh). **Tell the user in one line that you fell back.** Do not swallow the failure.
-- In an environment where the `annetaan:` prefix finds nothing, drop the prefix and call `workflow-design`. If that fails too, use `Plan`.
+**Fable has a weekly limit, and `annetaan:workflow-design` cannot start once you are over it.** When the design
+session fails to start with a limit, a rate limit, or a model that is not available, **start it again once, with the
+same prompt and `subagent_type` changed to `annetaan:workflow-design-fallback`** (opus / xhigh). Tell the user in one
+line that Fable is at its limit and the design runs on opus. Do not ask whether to continue. The role instruction and
+the shape of the output are the same, so nothing later in the flow changes. The session you keep alive, and the one
+you send `SendMessage` to, is whichever one actually started.
+
+**An error that has nothing to do with the model does not earn a switch.** A role instruction that cannot be read, or
+a request that never arrived, gets fixed, and then `annetaan:workflow-design` runs again.
+
+In an environment where the `annetaan:` prefix finds nothing, drop the prefix and call `workflow-design`. If that
+fails too, use `Plan`.
 
 When the design comes back:
 
 - **If feasibility is "no" or "conditional"**, hand that to the user and wait. Do not walk past it.
-- **Keep the plan.** It is an ordered list of tasks, each with the files it touches and a complexity of `1`, `2` or `3`. The **maximum** complexity picks the implementation and review agents (see **Complexity and agents**). If the plan or the complexity is missing, use `SendMessage` to make the design session produce it.
+- **Keep the plan.** It is an ordered list of tasks, each with the files it touches and a complexity of `1`, `2` or `3`. **Each task's own complexity picks the agents for that task**, and the maximum picks the ones for the integration review (see **Complexity and agents**). If the plan or the complexity is missing, use `SendMessage` to make the design session produce it.
 - **If the design raises open questions**, ask the user with `AskUserQuestion`, then send the answers back with `SendMessage` so the design session can settle them.
 - **The round cap is five per task and it is fixed.** Mention it once at approval. Do not negotiate the number (see **The round cap**).
 
-**Keep the design session alive for the whole flow.** When the plan breaks during implementation, `SendMessage` makes it redraw the remaining tasks.
+**Keep the design session alive for the whole flow.** You go back to it twice. Before every task from task 2
+onward, to have it detail that task against the code as it now stands (phase 4 (a)). And whenever the plan breaks,
+to have it redraw the remaining tasks.
 
 ### The approval dialog
 
@@ -101,9 +113,13 @@ If this is not zero, the pull request will show those commits too, and they neve
 
 ### Complexity and agents
 
-The **maximum** complexity in the plan picks the implementation and review agents. It does not change per task.
-A plan of `1, 2, 1, 1, 2` runs every task on the `2` agents. Rebuilding a session and rereading the context costs
-more time and more tokens than a smaller model saves.
+**The implementation and review sessions start fresh for every task, and that task's own complexity picks them.**
+A plan of `1, 2, 1, 1, 2` runs task 1 on the `1` agents and task 2 on the `2` agents. Phase 5 is the exception. The
+integration review looks at the whole change, so it takes **the maximum** complexity in the plan.
+
+**A task boundary throws away almost nothing.** The code is in git, the design and the plan are in your hands, and
+the unresolved threads are zero because the task was approved. What is left is how this repository wants to be
+worked in, and that travels as the handover notes (phase 4 (e)).
 
 Complexity is the number of files a task touches (1 to 5 gives `1`, 6 to 10 gives `2`, 11 or more gives `3`).
 Every agent ships with this plugin, and the model and effort are pinned in `agents/*.md`.
@@ -114,7 +130,8 @@ Every agent ships with this plugin, and the model and effort are pinned in `agen
 | 2 | `annetaan:workflow-worker-2` (sonnet / high) | `annetaan:workflow-reviewer-2` (opus / high) |
 | 3 | `annetaan:workflow-worker-3` (opus / high) | `annetaan:workflow-reviewer-3` (opus / xhigh) |
 
-Replace `annetaan:workflow-worker-<N>` and `annetaan:workflow-reviewer-<N>` below with the names from this table. Do
+Replace `annetaan:workflow-worker-<N>` and `annetaan:workflow-reviewer-<N>` below with the names for the complexity
+of the task you are on. Do
 not pass a `model` argument to `Agent`, because the definition holds the right value. In an environment where the
 `annetaan:` prefix finds nothing, drop it.
 
@@ -185,11 +202,14 @@ The timestamp is local time. Directories sort by time, so the newest report is t
 
 **Tell the user `START` and `$WORKDIR` right away, in one short line.** Your context gets summarised on a long flow, and that message is the copy that survives.
 
-## Phase 3: start the implementation session
+## Phase 3: the implementation prompt
+
+**Every task starts a new implementation session, task 1 included.** This is the shape of the call. Phase 4 (a) is
+where you make it.
 
 ```
-Agent(subagent_type: "annetaan:workflow-worker-<N>", description: "implementation",
-      prompt: "Read $FLOW/roles/work.md first and follow the role it describes.\n\nApproved design:\n<the full design>\n\nPlan:\n<the full plan>\n\nStart point START: <the SHA>\nBranch: <branch name>\n\nImplement task 1 of the plan. **Do not commit yet.** Report back once the tests pass.")
+Agent(subagent_type: "annetaan:workflow-worker-<N>", description: "implementation, task k",
+      prompt: "Read $FLOW/roles/work.md first and follow the role it describes.\n\nApproved design:\n<the full design>\n\nPlan:\n<the full plan>\n\nDetail design for this task:\n<what the design session returned for task k. For task 1, the part of the approved design that covers it>\n\nStart point START: <the SHA>\nBranch: <branch name>\n\nProgress:\n<the tasks already done and the commit that closed each, as the matching `git log --oneline` lines. \"none\" for task 1>\n\nHandover notes from the earlier sessions:\n<the notes you have been accumulating. \"none\" for task 1>\n\nImplement task k, \"<task name>\", of the plan. **Do not commit yet.** Report back once the tests pass.")
 ```
 
 ### Screenshots
@@ -198,20 +218,35 @@ Agent(subagent_type: "annetaan:workflow-worker-<N>", description: "implementatio
 
 > If this change shows on screen, take screenshots. When an existing screen changes how it looks or behaves, **take the current state (before) first, before you touch anything**, then implement, then take the after shot. When you only add a new screen or component, the after shot alone is enough. Save them in `<absolute path of WORKDIR>`. **Do not create files anywhere else** (`work-reports/` is ignored, and anything outside it ends up in a commit). Report the path of each file and what it shows.
 
-**The before shot cannot be taken afterwards.** Saying it once implementation has started is too late, so it goes in the first prompt. Leave it out for a change that never reaches a screen (internals, CI, documentation).
+**The before shot cannot be taken afterwards.** Saying it once implementation has started is too late, so it goes in the prompt that opens the task. Leave it out for a change that never reaches a screen (internals, CI, documentation).
 
-**Keep this implementation session alive for the whole flow.** Later tasks and every review round continue through `SendMessage` to the same agent. Carrying what it wrote in the last task into the next one is the point of this flow.
+### How long the session lives
+
+**One implementation session covers one task.** Every review round for that task continues through `SendMessage` to
+the same agent, because answering a finding on your own code needs the context that wrote it. The commit in phase 4
+(e) ends it. You never message it again, and the next task starts a new one.
 
 ## Phase 4: the task loop
 
 Work the plan one task at a time. Nothing runs in parallel, because there is one working tree.
-A task is **(a) implement, (b) show the diff in difit, (c) review, (d) respond, back to (c), then (e) commit on approve**.
+A task is **(a) detail it and implement, (b) show the diff in difit, (c) review, (d) respond, back to (c), then (e) commit on approve**.
 
-**(a) Implement**
+**(a) Detail the task, then implement**
 
-Task 1 already started with the phase 3 prompt. For task 2 onward, use `SendMessage`.
+**Task 1 needs no detailing.** The design session read the repository in the state task 1 starts from, so the detail
+it wrote for task 1 cannot have gone stale.
 
-> Implement task k, "<task name>", of the plan. Do not commit yet. Report back once the tests pass.
+**From task 2 onward, go back to the design session first.** `SendMessage`:
+
+> Task k-1 is committed as `<short SHA>`. Detail task k, "<task name>", against the code as it stands now. What the earlier tasks actually produced outranks what the design predicted. Follow **Detailing a task** in your role instruction. If the task boundary itself no longer holds, say that instead.
+
+**This is where a broken plan gets caught before anyone writes code against it.** An answer that says the boundary no
+longer holds goes to **When the plan breaks**.
+
+**When the detail design moves the file count into another level, take the new level.** Complexity is the number of
+files the task touches, and the detail pass is the first time that number is real.
+
+Then start a new implementation session with the phase 3 prompt, on the agent for this task's complexity.
 
 Check that the tests pass before you send anything to review. `git status --porcelain` shows the change sitting in the working tree, and `git log -1` shows HEAD has not moved.
 
@@ -239,14 +274,16 @@ A restart drops the comments on the server, so `refresh` **carries unresolved th
 
 **(c) Review**
 
-First time (task 1, round 1):
-```
-Agent(subagent_type: "annetaan:workflow-reviewer-<N>", description: "review",
-      prompt: "Read $FLOW/roles/review.md first and follow the role it describes.\n\nApproved design and acceptance criteria:\n<the full design>\n\nPlan:\n<the full plan>\n\nUnder review: task 1, \"<task name>\". The diff sits between the working tree and HEAD (`git diff HEAD` plus untracked files). difit shows the same diff.")
-```
-After that, continue with `SendMessage` to the same review session. For another round of the same task, "the diff has been updated, review it again". For the first round of a new task, "task k, \"<task name>\", is in the working tree. The previous task is committed, so `git diff HEAD` is what to review."
+**Round 1 of every task starts a new review session**, on the agent for this task's complexity.
 
-**Keep the review session alive for the whole flow too.**
+```
+Agent(subagent_type: "annetaan:workflow-reviewer-<N>", description: "review, task k",
+      prompt: "Read $FLOW/roles/review.md first and follow the role it describes.\n\nApproved design and acceptance criteria:\n<the full design>\n\nPlan:\n<the full plan>\n\nDetail design for this task:\n<the same one the implementation session got>\n\nProgress:\n<the tasks already done and the commit that closed each. \"none\" for task 1>\n\nUnder review: task k, \"<task name>\". The diff sits between the working tree and HEAD (`git diff HEAD` plus untracked files). difit shows the same diff.")
+```
+
+Every round after that goes to the same session with `SendMessage`, as "the diff has been updated, review it again".
+A reviewer has to remember what it asked for and what the implementation side answered back. The session ends with
+the task, at (e).
 
 An `approve` with zero unresolved threads goes to (e). Anything else goes to (d).
 
@@ -262,17 +299,22 @@ Go back to the `refresh` in (b), then to (c). Count one round.
 
 `SendMessage` to the implementation session.
 
-> Task k, "<task name>", passed review. Turn its changes into **one commit**. Match the commit message style this repository already uses and make the task recognisable. Check that `git status --porcelain` is empty afterwards and report back.
+> Task k, "<task name>", passed review. Turn its changes into **one commit**. Match the commit message style this repository already uses and make the task recognisable. Check that `git status --porcelain` is empty afterwards and report back. End the report with **notes for the next session, five lines at most**: the commands that run the tests and the type checks, the conventions you kept and the traps you hit, and anything that bears on the tasks still to come. No explanation of the code.
 
 Check it yourself with `git log -1 --oneline`, `git status --porcelain`, and `git branch --show-current` to confirm the branch has not moved. Anything left in the working tree needs an explanation from the implementation session. Screenshots inside `$WORKDIR` are ignored by git and can stay.
 
+**Add those notes to the handover notes you keep.** Fold the duplicates together. Once the whole thing runs past
+fifteen lines, drop the oldest. The next task's implementation prompt carries this, and it is the only thing that
+outlives a session.
+
 **Give the user a one-line progress report**: `task k/N done: <short SHA> <commit subject> (commit k since START <short SHA>)`. A long context can be summarised away, and the plan, `START` and the progress all rebuild from that line.
 
-Go to the next task. After the last one, go to phase 5.
+**This task's implementation and review sessions are finished here.** Do not send them anything after this. The next
+task starts a new pair. After the last task, go to phase 5.
 
 ### When the plan breaks
 
-When the implementation session reports that the design will not work or the task boundary is wrong, stop that task and `SendMessage` the situation to the design session so it **redraws the remaining plan**. Tell the user what the new plan is. Do not take approval again. A change to the design itself goes back to the user the same way a "no" or "conditional" in phase 1 does. A higher maximum complexity does not change the agents.
+When the detail pass in (a) says the boundary no longer holds, or the implementation session reports that the design will not work, stop that task and have the design session **redraw the remaining plan** with `SendMessage`. Tell the user what the new plan is. Do not take approval again. A change to the design itself goes back to the user the same way a "no" or "conditional" in phase 1 does. The redrawn tasks carry their own complexity, and the sessions for them get picked from it.
 
 ### The round cap
 
@@ -296,11 +338,21 @@ $FLOW/scripts/difit-session.sh start . <START>
 
 That shows the working tree, which should be empty at this point, against `START`, which is every commit put together. Fixes from the integration review land uncommitted in the working tree, so later rounds follow with `refresh` on the same target.
 
-`SendMessage` to the review session.
+**The integration review starts a new review session, on the agent for the maximum complexity in the plan.** It
+reads the whole change, so it goes to the level of the heaviest task.
 
-> Every task is committed. This is the integration review. The target is `git diff <START>..HEAD`, plus the working tree from the next round onward. You have already seen the tasks individually, so look at **the boundaries**: types and contracts between functions that call each other across tasks, names that do not match, duplicated implementations, and acceptance criteria for the whole design that are still unmet.
+```
+Agent(subagent_type: "annetaan:workflow-reviewer-<max>", description: "integration review",
+      prompt: "Read $FLOW/roles/review.md first and follow the role it describes.\n\nApproved design and acceptance criteria:\n<the full design>\n\nPlan, with the commit that closed each task:\n<the plan plus the matching `git log --oneline` lines>\n\n<the request below>")
+```
 
-From here the (c), (d), (b) loop is the same as phase 4, and the cap is the same **five rounds**. Fixes become **one commit** after approval, with a subject that says what it is, such as "integration review fixes". No fixes means no commit.
+> Every task is committed. This is the integration review. The target is `git diff <START>..HEAD`, plus the working tree from the next round onward. The tasks were reviewed one at a time, so look at **the boundaries**: types and contracts between functions that call each other across tasks, names that do not match, duplicated implementations, and acceptance criteria for the whole design that are still unmet.
+
+**`changes-requested` starts a new implementation session as well**, on the same maximum complexity, with the phase 3
+prompt. The progress is every task, the handover notes are everything you have collected, and the request is to
+answer the integration review. From there the (c), (d), (b) loop is the same as phase 4, and the cap is the same
+**five rounds**. Neither session gets rebuilt during those rounds. Fixes become **one commit** after approval, with a
+subject that says what it is, such as "integration review fixes". No fixes means no commit.
 
 Review says `approve`, zero unresolved threads, tests pass. Phase 6 starts when all three hold.
 
@@ -308,9 +360,19 @@ Review says `approve`, zero unresolved threads, tests pass. Phase 6 starts when 
 
 ### The work report
 
-**The implementation session writes the work report, in every mode.** It is the only session that holds the context of the implementation and the review rounds, so do not write it yourself. `SendMessage`:
+**A session that worked on the code writes the work report, in every mode. Do not write it yourself.**
 
-> Write a work report at `<WORKDIR>/report.md`. If this repository has `.github/PULL_REQUEST_TEMPLATE.md`, use it as the skeleton. Otherwise read a few recent merged pull requests (`gh pr list --state merged --limit 5`) and follow how they are written. With nothing to go on, choose a structure yourself. Whatever structure you choose, a reader has to come away with: what changed, how you verified it (the commands you actually ran and what they printed), what the review changed, the screenshots if the change shows on screen, and which commit answers which task in the plan. Screenshots sit in the same directory, so link them relatively, as `![before](./before.png)`. Write it in the language this repository uses. **Do not create files outside this directory.**
+- When the integration review asked for fixes, that implementation session is still alive. `SendMessage` it.
+- When the integration review approved with nothing to fix, no session is left. Start one with the phase 3 prompt, on
+  the maximum complexity, carrying the progress and the handover notes, and ask it for the report and nothing else.
+
+The request:
+
+> Write a work report at `<WORKDIR>/report.md`. If this repository has `.github/PULL_REQUEST_TEMPLATE.md`, use it as the skeleton. Otherwise read a few recent merged pull requests (`gh pr list --state merged --limit 5`) and follow how they are written. With nothing to go on, choose a structure yourself. Whatever structure you choose, a reader has to come away with: what changed, how it was verified (the commands that were run and what they printed), what the review changed, the screenshots if the change shows on screen, and which commit answers which task in the plan. Screenshots sit in the same directory, so link them relatively, as `![before](./before.png)`. Write it in the language this repository uses. **Do not create files outside this directory.**
+
+**Hand it what only you still have.** One line per task on what the review changed, and the test and type check
+results the earlier sessions reported. Those sessions are gone, and that part of the history now lives in your
+context and nowhere else.
 
 Drop the diff next to it, so the change stays readable once difit is gone.
 
@@ -335,7 +397,7 @@ git push -u origin <branch>
 - **A change visible on an existing screen**: **before and after, both of them.** One on its own leaves a reviewer unable to tell what moved.
 - **A change that never reaches a screen** (internals, CI, documentation): none.
 
-Use the shots the implementation session took in phase 3. If they are missing, `SendMessage` and have it take them before the pull request goes up. **Do not start the app and take them yourself.**
+Use the shots the implementation sessions took while they worked the tasks. If they are missing, `SendMessage` the session that wrote the report and have it take them before the pull request goes up. **Do not start the app and take them yourself.**
 
 ```bash
 cd "$WORKDIR"
@@ -390,7 +452,8 @@ Whichever ending ran, close with: `START`, the commits stacked on it matched aga
 - **You do not write code.** The implementation session implements and the review session reviews. Code you write yourself never passes through a review.
 - **The review session never changes code.** It writes findings. The implementation session fixes them.
 - **One difit server per repository.** Start, restart and stop all go through `difit-session.sh`. Calling `difit` by hand multiplies ports and tabs.
-- **The design, implementation and review sessions live for the whole flow and continue through `SendMessage`.** Throwing the context away repeats arguments that were already settled. Agents do not change per task either.
+- **The design session lives for the whole flow. An implementation session and a review session live for one task.** Inside a task they continue through `SendMessage`, because throwing the context away between rounds repeats arguments that were already settled. At the commit they are finished, and the next task starts a new pair on that task's complexity.
+- **Keep the reports from the sub-agents short.** The role instructions cap them. A report that pastes a diff or a log fills the one context that holds the whole plan, which is yours. When a long one arrives, say so, and ask for the gist next time.
 - **One task is one commit, and a commit happens only after approval.** A commit mid-round drops the diff out of difit's working-tree view and out of the review.
 - **No branches, no history rewriting from the sub-sessions.** The main session owns `git checkout -b`. `git rebase`, `git reset --hard` and `--amend` break the `START` comparison. The role instructions say the same.
 - **Do not lose `START`.** The phase 2 message to the user and the per-task progress lines in phase 4 are the copies that survive a summarised context.

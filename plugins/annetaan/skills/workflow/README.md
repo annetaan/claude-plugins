@@ -36,11 +36,21 @@ After the approval it runs by itself. Each task goes through implementation and 
 passes review becomes one commit. After the last task comes one integration review over the whole diff, then the
 ending you picked.
 
+**The approval settles the boundaries. The tasks get detailed one at a time.** What you approve up front is what
+crosses from one task into the next: the contracts, the types, the names, and the order things have to land in. The
+interior of task 1 comes with it, because task 1 starts from the repository the design session just read. Every task
+after that is detailed by the same design session right before it starts, against the code the earlier tasks actually
+produced. A plan that turns out to be wrong surfaces there, before anybody writes code against it.
+
 **Five review rounds per task, fixed.** A task that does not settle in five comes back to you with the open points
 laid out, and its changes stay uncommitted in the working tree. Saying "stop" partway through the rounds works too.
 
-The implementation and review sessions are chosen from the **highest complexity** in the plan, which is the number
-of files a task touches (1 to 5, 6 to 10, 11 or more). They stay for the whole flow and are never rebuilt per task.
+The implementation and review sessions **start fresh for every task**, on the agent for that task's complexity,
+which is the number of files the task touches (1 to 5, 6 to 10, 11 or more). A task boundary is a cheap place to
+start over. The code is in git, the plan is with the orchestrator, and every review thread is resolved. What is left
+is how this repository wants to be worked in, and that rides along as **handover notes**: five lines from each
+session, folded together, capped at fifteen. The integration review takes the highest complexity in the plan, because
+it reads the whole change at once.
 
 ## What it leaves behind
 

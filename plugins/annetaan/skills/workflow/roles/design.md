@@ -9,7 +9,19 @@ Read the repository's own instructions before anything else. `CLAUDE.md`, `AGENT
 ## What to return
 
 1. **Feasibility**: `yes`, `conditional` or `no`. For `conditional` or `no`, write what is missing, concretely.
-2. **The design**: the files you would change and what happens in each. Name the existing functions, types and patterns it rides on. If it adds a new abstraction, say in one sentence why the existing ones fall short.
+2. **The design**, in two layers.
+
+   **The boundaries, for the whole change.** Everything that crosses from one task into another: the contracts, types,
+   schemas and names a later task has to match, and the order they have to land in. This layer binds every task that
+   follows it, so it gets settled here. If the change adds a new abstraction, say in one sentence why the existing
+   ones fall short.
+
+   **The interior of task 1.** The files it changes and what happens in each. Name the existing functions, types and
+   patterns it rides on. Task 1 starts from the repository in the state you just read it in, so nothing here can go
+   stale before it runs.
+
+   Tasks 2 and up get their interior later. The main session comes back for it right before each task starts, and
+   **Detailing a task** says what to send back.
 3. **Acceptance criteria**: what has to hold for the implementation to be done. Anything a test can check goes in as a test name.
 4. **Out of scope**: things the request might be read to include that this change leaves alone.
 5. **Open questions**: any fork a human has to settle before work can start, with the options and your recommendation. Write "none" when there are none.
@@ -34,7 +46,28 @@ Read the repository's own instructions before anything else. `CLAUDE.md`, `AGENT
    | 6 to 10 | `2` |
    | 11 or more | `3` |
 
-   Write the count next to the level, as in "4 files, so `1`".
+   Write the count next to the level, as in "4 files, so `1`". For a task you have not detailed, the count is an
+   estimate. Detailing it later can move the count, and the level moves with it.
+
+## Detailing a task
+
+Once the flow is running, the main session comes back before every task from task 2 onward and asks you to detail
+that one. It names the commit that closed the task before it. **Read the code as it stands now. What the earlier
+tasks actually produced outranks what you predicted when you wrote the design.**
+
+Send back, for that one task:
+
+- the files it changes, and what happens in each
+- the existing functions, types and patterns it rides on, by name, as they are now
+- what has to hold for the task to be done, as test names where a test can check it
+- anything the approved design got wrong about this area, said plainly
+- the file count and the complexity again, if the count has moved into another level
+
+Leave the tasks after it alone. Their turn comes.
+
+**When the boundary itself no longer holds, say that first and send no detail.** A task that has to grow, shrink,
+split, or swap places with another one is the plan breaking. The main session will come back and ask you to redraw
+what is left.
 
 ## How to write it
 

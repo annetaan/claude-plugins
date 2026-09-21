@@ -21,9 +21,10 @@ Either is enough reason to wait, so each skill here starts only when you name it
 
 `/annetaan:workflow` ([details](skills/workflow))
 
-Runs one implementation through four sessions with different jobs. A design session writes the plan. An
-implementation session writes the code. A review session reads it and posts findings. You approve once, near the
-start, and answer two questions about where the commits go and how the run should end.
+Runs one implementation through sessions with different jobs. A design session writes the plan, then details each
+task as its turn comes. An implementation session writes the code for one task. A review session reads it and posts
+findings. Those last two are new for every task. You approve once, near the start, and answer two questions about
+where the commits go and how the run should end.
 
 The review rounds happen in [difit](https://github.com/yoshiko-pg/difit), a local diff viewer. difit is the wire
 between the implementation session and the review session, and it is also a web page. Open it and your comments
@@ -31,24 +32,25 @@ land in the same threads, on the same footing as the reviewer's.
 
 ```mermaid
 flowchart TD
-    req(["your request"]) --> design["design session<br/>plan, acceptance criteria,<br/>complexity 1, 2 or 3 per task"]
+    req(["your request"]) --> design["design session<br/>boundaries, acceptance criteria,<br/>plan with a complexity per task"]
     design --> ask["one approval<br/>1. proceed with this plan?<br/>2. new branch, or the branch you are on?<br/>3. pull request, push, or nothing?"]
     ask -->|rework| design
     ask -->|approved| setup["branch if asked<br/>work-reports/ ignored?<br/>record START"]
-    setup --> impl
+    setup --> detail
 
     subgraph task["per task"]
         direction TB
-        impl["implementation session<br/>writes the task, commits nothing"]
+        detail["design session<br/>details this task against<br/>the code as it now stands"]
+        impl["implementation session<br/>new for this task<br/>writes it, commits nothing"]
         difit["difit<br/>working tree vs HEAD"]
-        review["review session<br/>posts findings as threads"]
+        review["review session<br/>new for this task<br/>posts findings as threads"]
         respond["implementation session<br/>replies, then fixes"]
-        commit["one commit"]
-        impl --> difit --> review
+        commit["one commit<br/>plus 5 lines of handover notes"]
+        detail --> impl --> difit --> review
         review -->|"changes requested<br/>5 rounds per task, fixed"| respond
         respond --> difit
         review -->|approve| commit
-        commit -->|tasks left| impl
+        commit -->|tasks left| detail
     end
 
     commit -->|last task| integ["integration review<br/>difit: working tree vs START"]
