@@ -12,8 +12,10 @@ Install it once. As skills get added, `/plugin marketplace update annetaan` and
 
 ## Skills
 
-A skill whose `description` matches a request normally starts without being named. The ones here do not. They run
-long-lived local servers, open browsers and add commits, so each waits to be named or invoked by its slash form.
+A skill whose `description` matches a request normally starts without being named. The ones here do not. `workflow`
+runs a long-lived local server, opens a browser and adds commits on its own. The doc skills make a file next to
+your document, rewrite the document itself, and can add one commit of their own to `.gitignore` after asking.
+Either is enough reason to wait, so each skill here starts only when you name it or invoke its slash form.
 
 ### workflow
 
@@ -72,6 +74,45 @@ Every run leaves a work report behind, inside the repository under `work-reports
 up. The skill checks that git ignores that directory before it writes anything, and asks before touching
 `.gitignore`.
 
+### doc-meta
+
+`/annetaan:doc-meta <path>` ([details](skills/doc-meta/SKILL.md))
+
+Splits a document into blocks and writes them into a sidecar file next to it, so you can write an opinion onto the
+sentences that matter instead of asking a model to guess. A sub-agent reads the document and the sidecar whole, for
+the repetition and the broken promises a single flagged sentence cannot catch. Run it again any time: it matches
+old text against new, so a flag and a review survive as long as the words they sit on stay put.
+
+`doc-review` and `doc-revise` complete the loop `doc-meta` starts.
+
+```mermaid
+flowchart LR
+    meta["doc-meta<br/>splits into blocks,<br/>writes the sidecar"] --> you(["you<br/>write flag: on the<br/>blocks you have an opinion about"])
+    you --> review["doc-review<br/>answers each flag<br/>with a review: line"]
+    review --> revise["doc-revise<br/>applies the flags,<br/>repairs the document,<br/>reruns doc-meta"]
+    revise --> meta
+
+    classDef human fill:#fff,stroke:#888,stroke-dasharray: 5 5
+    class you human
+```
+
+### doc-review
+
+`/annetaan:doc-review <path>` ([details](skills/doc-review/SKILL.md))
+
+Reads the flags you wrote onto a `doc-meta` sidecar and answers each one with a `review:` line: what a `[delete]`
+would cost, the other half of a duplication for a `[keep]`, a proposed sentence for an `[edit]`, an answer to a
+`[question]`. It never touches the document, and it never touches a flag.
+
+### doc-revise
+
+`/annetaan:doc-revise <path>` ([details](skills/doc-revise/SKILL.md))
+
+Applies the flags you wrote, with `doc-review`'s answers as advice: deletes what you flagged, edits what you asked
+to edit, and holds `[keep]` and `[question]` blocks to their exact words while it rewrites the paragraphs around
+them. It then checks the whole document for what the edit could have broken elsewhere, and reruns `doc-meta` so the
+sidecar matches again.
+
 ## Agents
 
 These are the sub-agents the skills spawn. Anything under `agents/` becomes callable as `annetaan:<name>`.
@@ -87,6 +128,7 @@ The model and the effort are pinned here, and a skill selects one by name alone.
 | `annetaan:workflow-reviewer-1` | opus | medium | review (complexity 1) |
 | `annetaan:workflow-reviewer-2` | opus | high | review (complexity 2) |
 | `annetaan:workflow-reviewer-3` | opus | xhigh | review (complexity 3) |
+| `annetaan:doc-meta-overview` | opus | high | overview for `doc-meta`. finds what a per-sentence flag misses |
 
 The agent definitions are thin. The substance of each role lives in the skill's `roles/*.md`, and an agent reads
 that path out of the prompt the main session hands it.

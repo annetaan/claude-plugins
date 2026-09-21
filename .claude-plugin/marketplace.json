@@ -9,14 +9,15 @@
     {
       "name": "annetaan",
       "source": "./plugins/annetaan",
-      "description": "The Claude Code skills we use internally at Annetaan Inc. Holds workflow, which runs one implementation as design, approval, per-task implement and review rounds, an integration review, and a finish step that can open a pull request.",
+      "description": "The Claude Code skills we use internally at Annetaan Inc. Holds workflow, which runs one implementation as design, approval, per-task implement and review rounds, an integration review, and a finish step that can open a pull request. Also doc-meta, doc-review and doc-revise, which let you flag sentences in a document with an opinion and have the document revised to match.",
       "category": "workflow",
       "keywords": [
         "annetaan",
         "skills",
         "difit",
         "code-review",
-        "workflow"
+        "workflow",
+        "docs"
       ]
     }
   ]

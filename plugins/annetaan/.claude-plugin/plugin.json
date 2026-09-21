@@ -1,6 +1,6 @@
 {
   "name": "annetaan",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Claude Code skills we use internally at Annetaan Inc.",
   "author": {
     "name": "Annetaan Inc."
@@ -11,7 +11,8 @@
     "skills",
     "workflow",
     "difit",
-    "code-review"
+    "code-review",
+    "docs"
   ],
   "license": "MIT"
 }

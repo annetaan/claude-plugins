@@ -24,7 +24,7 @@ To pick up later changes:
 
 | Plugin | Install | What is in it |
 | --- | --- | --- |
-| [annetaan](plugins/annetaan) | `/plugin install annetaan@annetaan` | [workflow](plugins/annetaan/skills/workflow), which runs one implementation as design, approval, per-task implement and review rounds, an integration review, and a pull request. The review rounds go through [difit](https://github.com/yoshiko-pg/difit). |
+| [annetaan](plugins/annetaan) | `/plugin install annetaan@annetaan` | [workflow](plugins/annetaan/skills/workflow), which runs one implementation as design, approval, per-task implement and review rounds, an integration review, and a pull request. The review rounds go through [difit](https://github.com/yoshiko-pg/difit). Also [doc-meta, doc-review and doc-revise](plugins/annetaan/README.md#doc-meta), which let you flag sentences in a document with an opinion and have the document revised to match. |
 
 ## License
 
