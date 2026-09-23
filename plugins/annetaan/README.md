@@ -32,7 +32,7 @@ land in the same threads, on the same footing as the reviewer's.
 
 ```mermaid
 flowchart TD
-    req(["your request"]) --> design["design session<br/>boundaries, acceptance criteria,<br/>plan with a complexity per task"]
+    req(["your request"]) --> design["design session<br/>boundaries, acceptance criteria,<br/>plan of small tasks"]
     design --> ask["one approval<br/>1. proceed with this plan?<br/>2. new branch, or the branch you are on?<br/>3. pull request, push, or nothing?"]
     ask -->|rework| design
     ask -->|approved| setup["branch if asked<br/>work-reports/ ignored?<br/>record START"]
@@ -122,14 +122,10 @@ The model and the effort are pinned here, and a skill selects one by name alone.
 
 | Agent | Model | Effort | Role |
 | --- | --- | --- | --- |
-| `annetaan:workflow-design` | fable | medium | design. returns the plan and a complexity of 1, 2 or 3 |
+| `annetaan:workflow-design` | fable | medium | design. returns the design and the plan |
 | `annetaan:workflow-design-fallback` | opus | xhigh | the same design role, for environments without Fable |
-| `annetaan:workflow-worker-1` | sonnet | medium | implementation (complexity 1) |
-| `annetaan:workflow-worker-2` | sonnet | high | implementation (complexity 2) |
-| `annetaan:workflow-worker-3` | opus | high | implementation (complexity 3) |
-| `annetaan:workflow-reviewer-1` | opus | medium | review (complexity 1) |
-| `annetaan:workflow-reviewer-2` | opus | high | review (complexity 2) |
-| `annetaan:workflow-reviewer-3` | opus | xhigh | review (complexity 3) |
+| `annetaan:workflow-worker` | opus | high | implementation, for every task |
+| `annetaan:workflow-reviewer` | opus | high | review, for every task and the integration review |
 | `annetaan:doc-meta-overview` | opus | high | overview for `doc-meta`. finds what a per-sentence flag misses |
 
 The agent definitions are thin. The substance of each role lives in the skill's `roles/*.md`, and an agent reads
@@ -144,7 +140,7 @@ The slash form is `/annetaan:<directory name>`. The plugin name is prefixed for 
 `annetaan-` in front of it.
 
 Agent names share one namespace across every skill in the plugin. Prefix an agent with the skill that owns it
-(`workflow-design`, `workflow-worker-1`) and the second skill will not have to rename anything.
+(`workflow-design`, `workflow-worker`) and the second skill will not have to rename anything.
 
 ### Pointing at a bundled file
 
