@@ -45,12 +45,11 @@ produced. A plan that turns out to be wrong surfaces there, before anybody write
 **Five review rounds per task, fixed.** A task that does not settle in five comes back to you with the open points
 laid out, and its changes stay uncommitted in the working tree. Saying "stop" partway through the rounds works too.
 
-The implementation and review sessions **start fresh for every task**, on the agent for that task's complexity,
-which is the number of files the task touches (1 to 5, 6 to 10, 11 or more). A task boundary is a cheap place to
+The implementation and review sessions **start fresh for every task**, and both run on opus at high effort,
+whatever the task. A task boundary is a cheap place to
 start over. The code is in git, the plan is with the orchestrator, and every review thread is resolved. What is left
 is how this repository wants to be worked in, and that rides along as **handover notes**: five lines from each
-session, folded together, capped at fifteen. The integration review takes the highest complexity in the plan, because
-it reads the whole change at once.
+session, folded together, capped at fifteen.
 
 ## What it leaves behind
 
@@ -108,16 +107,15 @@ screenshots it could not attach.
 | File | What it is |
 | --- | --- |
 | `SKILL.md` | the procedure for the orchestrator, which is the main session |
-| `roles/design.md` | the role for the design session, which returns the plan and the complexity |
+| `roles/design.md` | the role for the design session, which returns the design and the plan |
 | `roles/work.md` | the role for the implementation session |
 | `roles/review.md` | the role for the review session |
 | `scripts/difit-session.sh` | keeps exactly one difit server per repository |
 
 The design, implementation and review sessions run on agents that ship with the plugin (`../../agents/`). Design is
 `annetaan:workflow-design` (fable / medium), with `annetaan:workflow-design-fallback` (opus / xhigh) for
-environments where Fable is unavailable. The **complexity of 1, 2 or 3** that the design returns picks
-`annetaan:workflow-worker-1` through `-3` for implementation and `annetaan:workflow-reviewer-1` through `-3` for
-review. The full list is in [the plugin README](../../README.md).
+environments where Fable is unavailable. Implementation is `annetaan:workflow-worker` and review is
+`annetaan:workflow-reviewer`, both opus / high. The full list is in [the plugin README](../../README.md).
 
 `difit-session.sh` works on its own too.
 
