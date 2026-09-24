@@ -24,7 +24,8 @@ prompt for the overview sub-agent.
 ## Steps
 
 1. Read the path given as the argument. It names one document. Read `$DOCMETA/format.md`, which is the only
-   description of the sidecar's shape.
+   description of the sidecar's shape. If the path is itself a sidecar (its name ends in `.doc-meta.md`), say so
+   and stop.
 2. Check whether the sidecar would be tracked by git. Inside a git repository (`ROOT` below is
    `git rev-parse --show-toplevel`):
 
@@ -95,8 +96,8 @@ prompt for the overview sub-agent.
 
 | Case | Outcome |
 | --- | --- |
-| Text matches | Keep id, weight, role, flag and review, all of them |
-| Text changed | Keep id. Re-derive weight and role. Drop flag and review |
+| Text matches | Keep id, weight, role, reading aid, flag and review, all of them |
+| Text changed | Keep id. Re-derive weight, role and reading aid. Drop flag and review |
 | A new block with no counterpart | New block. Next unused id |
 | An old block with no counterpart | Deletion. Drop it |
 
@@ -129,8 +130,8 @@ on one side, or on both.
 Pair the old blocks with the new blocks by position. The first unpaired old block goes with the first unpaired new
 block, the second with the second, and so on, until one side runs out. Each of these pairs is a **changed block**.
 
-- A changed block keeps its id. Derive weight and role again from the new text. Drop `flag:` and `review:`. The
-  flag was set on text nobody has read in its new form.
+- A changed block keeps its id. Derive weight, role and the reading aid again from the new text. Drop `flag:` and
+  `review:`. The flag was set on text nobody has read in its new form.
 - A new block left over after the pairing is a **new block**. It gets the next unused id: read `max id` from
   `## Document`, add one, and write that new value back to `max id`. Ids are never reused, because `max id` never
   goes back down when a block is deleted.
@@ -138,8 +139,10 @@ block, the second with the second, and so on, until one side runs out. Each of t
 
 ### Unchanged blocks
 
-An anchor pair is an **unchanged block**. Keep the id, the weight, the role, the `flag:` line and the `review:`
-line as they are.
+An anchor pair is an **unchanged block**. Keep the id, the weight, the role, the reading aid, the `flag:` line and
+the `review:` line as they are. The one exception is a reading aid in a language other than this run's reading
+language (see `format.md`): write it again in the reading language, or drop it when the block is already written in
+that language.
 
 ### After the match
 

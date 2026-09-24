@@ -1,6 +1,6 @@
 # annetaan
 
-The Claude Code skills we use internally at Annetaan Inc., packaged as one plugin.
+Claude Code skills from Annetaan Inc., packaged as one plugin.
 
 ```
 /plugin marketplace add annetaan/claude-plugins
@@ -84,6 +84,10 @@ Splits a document into blocks and writes them into a sidecar file next to it, so
 sentences that matter instead of asking a model to guess. A sub-agent reads the document and the sidecar whole, for
 the repetition and the broken promises a single flagged sentence cannot catch. Run it again any time: it matches
 old text against new, so a flag and a review survive as long as the words they sit on stay put.
+
+The sidecar is written for you, in the language you are talking to Claude in. A document in another language gets a
+translation under each sentence, so you can flag an English document while reading it in Japanese or German. The
+document itself, and every edit `doc-revise` makes to it, stays in its own language.
 
 `doc-review` and `doc-revise` complete the loop `doc-meta` starts.
 

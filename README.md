@@ -1,11 +1,11 @@
 # Claude Code plugins by Annetaan
 
-A [Claude Code](https://claude.com/claude-code) plugin marketplace holding the
-plugins we use internally at Annetaan Inc.
+A [Claude Code](https://claude.com/claude-code) plugin marketplace from
+Annetaan Inc.
 
-These plugins encode how we work, not how everyone should. They are published
-because sharing them is cheaper than keeping them private, but they are not
-built to be general-purpose tools and we do not promise to support them.
+We use these plugins in our own work, and we publish them for anyone to use.
+They work in whatever language you talk to Claude in.
+If something breaks for you, please open an issue. Pull requests are welcome too.
 
 ## Install
 
