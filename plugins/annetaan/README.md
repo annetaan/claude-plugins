@@ -57,7 +57,7 @@ flowchart TD
     integ -->|changes requested| integfix["fix, then one more commit"]
     integfix --> integ
     integ -->|approve| report["work report<br/>work-reports/2026-09-19-1346-a1b2c3d/"]
-    report --> pr["pull request<br/>report.md becomes the body"]
+    report --> pr["pull request<br/>log.md becomes the body"]
     report --> push["push only"]
     report --> local["nothing pushed"]
 

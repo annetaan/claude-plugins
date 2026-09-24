@@ -352,7 +352,11 @@ Review says `approve`, zero unresolved threads, tests pass. Phase 6 starts when 
 
 The request:
 
-> Write a work report at `<WORKDIR>/report.md`. If this repository has `.github/PULL_REQUEST_TEMPLATE.md`, use it as the skeleton. Otherwise read a few recent merged pull requests (`gh pr list --state merged --limit 5`) and follow how they are written. With nothing to go on, choose a structure yourself. Whatever structure you choose, a reader has to come away with: what changed, how it was verified (the commands that were run and what they printed), what the review changed, the screenshots if the change shows on screen, and which commit answers which task in the plan. Screenshots sit in the same directory, so link them relatively, as `![before](./before.png)`. Write it in the language this repository uses. **Do not create files outside this directory.**
+> Write a work report at `<WORKDIR>/log.md`. If this repository has `.github/PULL_REQUEST_TEMPLATE.md`, use it as the skeleton. Otherwise read a few recent merged pull requests (`gh pr list --state merged --limit 5`) and follow how they are written. With nothing to go on, choose a structure yourself. Whatever structure you choose, a reader has to come away with: what changed, how it was verified (the commands that were run and what they printed), what the review changed, the screenshots if the change shows on screen, and which commit answers which task in the plan. Screenshots sit in the same directory, so link them relatively, as `![before](./before.png)`. Write it in the language this repository uses. **Do not create files outside this directory.**
+
+**Keep the file name `log.md`.** Claude Code refuses a Write from a sub-agent when the name of the `.md` file
+starts with `report`, `summary`, `findings` or `analysis`, in any case ("Subagents should return findings as text,
+not write report files."). Nothing in settings, the environment, CLAUDE.md or agent frontmatter turns that off.
 
 **Hand it what only you still have.** One line per task on what the review changed, and the test and type check
 results the earlier sessions reported. Those sessions are gone, and that part of the history now lives in your
@@ -385,7 +389,7 @@ Use the shots the implementation sessions took while they worked the tasks. If t
 
 ```bash
 cd "$WORKDIR"
-gh pr create --base <default branch> --title "..." --body-file report.md \
+gh pr create --base <default branch> --title "..." --body-file log.md \
   --attach './before.png#Before: the list has no filter bar' \
   --attach './after.png#After: a filter bar sits above the list'
 ```
@@ -397,7 +401,7 @@ gh pr create --base <default branch> --title "..." --body-file report.md \
 - Fifty files per command. A failed upload still creates the pull request and only sets a non-zero exit code. **Check the exit code and read the body back.** Reattach what fell out with `gh pr edit <number> --attach`.
 
 **When gh is older than 2.99.0 and there are screenshots**, create the pull request without `--attach`
-(`gh pr create --base <default branch> --title "..." --body-file "$WORKDIR/report.md"`, with no `cd` needed),
+(`gh pr create --base <default branch> --title "..." --body-file "$WORKDIR/log.md"`, with no `cd` needed),
 then tell the user in the final message:
 
 > `before.png` and `after.png` could not be attached automatically. `--attach` needs gh 2.99.0 and this machine has `<version>`. Drag both files onto the pull request body for now. `brew upgrade gh` and the next run attaches them by itself.
@@ -413,7 +417,7 @@ $FLOW/scripts/difit-session.sh stop
 git push -u origin <branch>
 ```
 
-Tell the user the branch is pushed and no pull request was opened, and give the path of `report.md`.
+Tell the user the branch is pushed and no pull request was opened, and give the path of `log.md`.
 
 ### 6c. Stop locally
 
@@ -427,7 +431,7 @@ Nothing is pushed. Tell the user so plainly, and add how to undo the commits (`g
 
 Whichever ending ran, close with: `START`, the commits stacked on it matched against the tasks in the plan, the design summary, and what the review changed. Then:
 
-- **the path of the work report** (`<WORKDIR>/report.md`), which opens in an editor with the screenshots inline
+- **the path of the work report** (`<WORKDIR>/log.md`), which opens in an editor with the screenshots inline
 - how to bring difit back for another look: `$FLOW/scripts/difit-session.sh start . <START>`
 - the screenshot paths, when the change shows on screen
 

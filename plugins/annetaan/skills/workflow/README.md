@@ -57,7 +57,7 @@ Every run writes a work report.
 
 ```
 work-reports/2026-09-19-1346-a1b2c3d/
-  report.md      what changed, how it was verified, what the review changed, the screenshots
+  log.md         what changed, how it was verified, what the review changed, the screenshots
   changes.diff   the diff from the start commit to HEAD
   before.png     before and after, when the change shows on screen
   after.png
@@ -70,12 +70,12 @@ run sorts last, so there is never a question about which report is the current o
 disk where nobody looks. In exchange, the skill checks that `work-reports/` is ignored by git before it writes
 anything, and **asks you before it touches `.gitignore`**.
 
-`report.md` has no fixed headings. If the repository has `.github/PULL_REQUEST_TEMPLATE.md`, the report follows it.
+`log.md` has no fixed headings. If the repository has `.github/PULL_REQUEST_TEMPLATE.md`, the report follows it.
 Otherwise it follows how recent merged pull requests are written. With nothing to go on, the implementation session
 picks a structure. Whatever it picks, the report has to answer what changed, how it was verified with the commands
 that were actually run, what the review changed, and which commit answers which task in the plan.
 
-When the ending was a pull request, `report.md` becomes the pull request body. When it was not, `report.md` is what
+When the ending was a pull request, `log.md` becomes the pull request body. When it was not, `log.md` is what
 you read instead. Open it in an editor and the screenshots come with it. To look at the diff interactively again,
 `difit-session.sh start . <start commit>` brings difit back.
 
