@@ -7,7 +7,9 @@ by editing both.
 
 ## File name
 
-`path/to/X.md` gets a sidecar at `path/to/X.doc-meta.md`, next to it.
+`path/to/X.md` gets a sidecar at `path/to/X.doc-meta.md`, next to it. The document is read as Markdown. A plain text
+file is Markdown with no markup, so `path/to/X.txt` works the same way and also gets `path/to/X.doc-meta.md`. A file
+whose name already ends in `.doc-meta.md` is a sidecar, not a document, and gets none.
 
 ## Header comment
 
@@ -26,7 +28,6 @@ A section of its own, not folded into an example. Fields:
 - `purpose`: what the document is trying to do, one line.
 - `reader`: who it is written for.
 - `source language`: the language the document is written in.
-- `length`: lines and words, or for a Japanese document, lines and characters instead of words.
 - `blocks`: the block count.
 - `weights`: the count of blocks at each weight, `w1` through `w5`.
 - `max id`: the largest id ever assigned in this sidecar's history, including ids of blocks since deleted. In a
@@ -95,8 +96,12 @@ review: Dropping this loses the phrase "script tag", which is what a reader sear
 - `> ...`: the source text, quoted. Several `>` lines are allowed for a block that spans lines. A blank line
   inside a block is recorded as a bare `>`, with nothing after it. A block whose source is itself a blockquote is
   quoted twice: `> > ...`.
-- `ja:`: a reading aid, present only when the source is not Japanese, and never on a `verbatim` block (a table or a
-  code fence is not translated).
+- `<lang>:`: a reading aid, a translation of the block into the **reading language**, the language the user is
+  using in conversation (or one the user names for this run). `<lang>` is that language's BCP 47 tag: `ja:` for a
+  Japanese reader, as in the example above, `de:` for a German one, `pt-BR:` for a Brazilian Portuguese one.
+  Present only when the block is not already written in the reading language, and never on a `verbatim` block (a
+  table or a code fence is not translated). A sidecar holds one reading language at a time: a reading aid whose tag
+  is not the current reading language is stale, and the next `doc-meta` run replaces it.
 - `flag:`: always present, even empty.
 - `review:`: present only after `doc-review` has answered the flag.
 

@@ -42,7 +42,9 @@ The sidecar format is not described here. Read `$DOCREVIEW/../doc-meta/format.md
      Check both: this block's own `echoes:`, and any other block whose `echoes:` names this one. Point at whichever
      you find and say why keeping both earns its place. When no block echoes this one either way, the `review:`
      line says there is no duplication to weigh.
-   - `[edit]`: a proposed sentence that satisfies the free text the human wrote after the flag.
+   - `[edit]`: a proposed sentence that satisfies the free text the human wrote after the flag. The proposed
+     sentence is written in the document's own language, since it is meant to go into the document. The rest of
+     the line follows the language rule below.
    - `[question]`: an answer to the free text question, from what the document and the sidecar show.
 
    **A `review:` line that names another block's id carries a quote from that block**, the same rule `## Whole

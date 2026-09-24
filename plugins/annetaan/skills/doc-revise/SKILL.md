@@ -36,9 +36,10 @@ it.
    Acting on a flag whose text has moved under it would edit the wrong sentence.
 3. Apply what survived step 2, and record the id of every block you delete or edit as you apply it:
    - `[delete]`: cut the block's text from the document.
-   - `[edit]`: replace the block's text. An `[edit]` can also reorder list items without changing a character of
-     any of them, when that is what the free text asks for. When the human's free text after the flag disagrees
-     with the `review:` proposal, **the human's free text wins**.
+   - `[edit]`: replace the block's text, in the document's own language, whatever language the human's free text
+     is in. An `[edit]` can also reorder list items without changing a character of any of them, when that is what
+     the free text asks for. When the human's free text after the flag disagrees with the `review:` proposal, **the
+     human's free text wins**.
    - `[keep]`: a constraint, not an edit. This block's text stays verbatim through steps 4 and 5, unless step 6
      forces an exception.
    - `[question]`: leave the block's text untouched, and keep it verbatim through steps 4 and 5 as well: nothing
@@ -46,8 +47,9 @@ it.
      unanswered, so the text it was asked about has to survive to be asked again. It goes in the report as still
      waiting on a human, not as handled.
 4. **Rewrite whole paragraphs, not just the holes in them.** A paragraph that lost a sentence to `[delete]` or
-   `[edit]` is rewritten from what remains, so it reads as a paragraph again instead of a patched seam. For English
-   prose, read the `english-voice` skill first when this repository has it, before rewriting. Note which
+   `[edit]` is rewritten from what remains, so it reads as a paragraph again instead of a patched seam. Write in
+   the document's own language, not the language of the conversation or of the `review:` lines. When this session
+   lists a skill about writing style or voice that covers that language, load it before rewriting. Note which
    paragraphs you rewrote.
 5. **Repair the whole document.** A deletion or an edit can break something far from where it happened. Check, in
    the document as a whole, not paragraph by paragraph, and note what each item found and what you did about
