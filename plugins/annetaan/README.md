@@ -126,10 +126,9 @@ The model and the effort are pinned here, and a skill selects one by name alone.
 
 | Agent | Model | Effort | Role |
 | --- | --- | --- | --- |
-| `annetaan:workflow-design` | fable | medium | design. returns the design and the plan |
-| `annetaan:workflow-design-fallback` | opus | xhigh | the same design role, for environments without Fable |
-| `annetaan:workflow-worker` | opus | high | implementation, for every task |
-| `annetaan:workflow-reviewer` | opus | high | review, for every task and the integration review |
+| `annetaan:workflow-design` | opus | high | design. returns the design and the plan |
+| `annetaan:workflow-worker` | opus | medium | implementation, for every task |
+| `annetaan:workflow-reviewer` | opus | medium | review, for every task and the integration review |
 | `annetaan:doc-meta-overview` | opus | high | overview for `doc-meta`. finds what a per-sentence flag misses |
 
 The agent definitions are thin. The substance of each role lives in the skill's `roles/*.md`, and an agent reads

@@ -49,20 +49,7 @@ Agent(subagent_type: "annetaan:workflow-design", description: "design",
       prompt: "Read $FLOW/roles/design.md first and follow the role it describes.\n\nThe request:\n<the user's request, verbatim>")
 ```
 
-`annetaan:workflow-design` ships with this plugin and is pinned to Fable at medium effort with code changes disabled.
-
-**Fable has a weekly limit, and `annetaan:workflow-design` cannot start once you are over it.** When the design
-session fails to start with a limit, a rate limit, or a model that is not available, **start it again once, with the
-same prompt and `subagent_type` changed to `annetaan:workflow-design-fallback`** (opus / xhigh). Tell the user in one
-line that Fable is at its limit and the design runs on opus. Do not ask whether to continue. The role instruction and
-the shape of the output are the same, so nothing later in the flow changes. The session you keep alive, and the one
-you send `SendMessage` to, is whichever one actually started.
-
-**An error that has nothing to do with the model does not earn a switch.** A role instruction that cannot be read, or
-a request that never arrived, gets fixed, and then `annetaan:workflow-design` runs again.
-
-In an environment where the `annetaan:` prefix finds nothing, drop the prefix and call `workflow-design`. If that
-fails too, use `Plan`.
+`annetaan:workflow-design` ships with this plugin and is pinned to opus at high effort with code changes disabled.
 
 When the design comes back:
 
@@ -120,10 +107,9 @@ the unresolved threads are zero because the task was approved. What is left is h
 worked in, and that travels as the handover notes (phase 4 (e)).
 
 **Every task and the integration review run on the same two agents**: `annetaan:workflow-worker` for
-implementation and `annetaan:workflow-reviewer` for review, both opus / high. There is no per-task choice to make.
+implementation and `annetaan:workflow-reviewer` for review, both opus / medium. There is no per-task choice to make.
 Both ship with this plugin, and the model and effort are pinned in `agents/*.md`. Do not pass a `model` argument to
-`Agent`, because the definition holds the right value. In an environment where the
-`annetaan:` prefix finds nothing, drop it.
+`Agent`, because the definition holds the right value.
 
 ## Phase 2: branch, ignore rule, start point
 
