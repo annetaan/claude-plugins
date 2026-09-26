@@ -52,7 +52,8 @@ prompt for the overview sub-agent.
      and doc-meta itself never commits it.
 
    Outside a git repository, do nothing here and continue.
-3. Sync applies the same way whether or not a sidecar already existed. See `## Sync` below for how the match works.
+3. Split the document into blocks by the rules in `format.md`, and match them against the existing sidecar by
+   `## Sync` below.
 4. Write the sidecar, with `## Whole document` set to `(pending)`.
 5. Hand the document and the sidecar to the overview sub-agent:
 
@@ -66,42 +67,31 @@ prompt for the overview sub-agent.
 
    The sub-agent starts fresh and has not seen this conversation, so name the language explicitly. It has no other
    way to know it.
-
-   In an environment where the `annetaan:` prefix finds nothing, drop the prefix and call `doc-meta-overview`. If
-   that fails too, there is no third fallback: no other agent both exists and carries the real one's
-   `disallowedTools: Edit, Write, NotebookEdit, Agent`. A sidecar can hold a human's `flag:`, the one piece of data
-   in this system nothing can reconstruct, so this step does not hand it to an agent that could write over it.
-   Leave `## Whole document` as `(pending)`, with the reason on the line right after it (per `format.md`'s meanings
-   for `(pending)`), say the same in the report, and move on to the rest of this run (a resync still
-   updates every block's own fields, only the whole-document pass is skipped). Running `/annetaan:doc-meta` again
-   once the real agent resolves fills it in.
 6. Verify what comes back before writing it in. For every bullet that names a block id: the id must exist in the
    sidecar, and the quote given must appear in that block's `>` source text, comparing whitespace as `format.md`'s
    invariant says, and with the `> ` markers stripped as the "Verifying a block against the document" procedure
    strips them. Send a bullet that fails this back once, with `SendMessage`, asking for a correction. If it is
-   still wrong on the second try, drop it and say so in the report.
+   still wrong on the second try, drop it.
 7. Replace `(pending)` under `## Whole document` with the verified bullets. **Write `(none)` only when the overview
-   pass ran and returned no bullets at all.** When step 5 found no overview agent to run, leave `(pending)` exactly
-   as it stands, with the reason already written after it. When the overview pass returned bullets and step 6
-   dropped every one of them, leave `(pending)` too, with that as the reason on the line after it, the same shape
-   as step 5's skip. `(none)` means a full read found nothing. Writing it for a read that found something, or for
-   no read at all, says the opposite of what happened, and would let an unconverged document count as converged.
-   Step 8 already reports every bullet step 6 dropped, so nothing more needs to go in the report for this case.
+   pass ran and returned no bullets at all.** When the overview pass returned bullets and step 6 dropped every one
+   of them, leave `(pending)`, with that as the reason on the line after it. `(none)` means a full read found
+   nothing. Writing it for a read that found something, or for no read at all, says the opposite of what happened,
+   and would let an unconverged document count as converged.
 8. Report: the sidecar path, the block count and the weight counts, the sync breakdown (how many blocks were
    unchanged, changed, new and deleted, and the id of every block whose flag was dropped), the number of
-   `## Whole document` bullets written, any bullet that was dropped in step 6, whether the overview pass was
-   skipped and why, and whether `max id` had to be rebuilt because it was missing (see `format.md`).
+   `## Whole document` bullets written, any bullet that was dropped in step 6, and whether `max id` had to be
+   rebuilt because it was missing (see `format.md`).
 
 ## Sync
 
 | Case | Outcome |
 | --- | --- |
-| Text matches | Keep id, weight, role, reading aid, flag and review, all of them |
+| Text matches | Keep id, weight, role, flag and review. Keep the reading aid unless it is in another language |
 | Text changed | Keep id. Re-derive weight, role and reading aid. Drop flag and review |
 | A new block with no counterpart | New block. Next unused id |
 | An old block with no counterpart | Deletion. Drop it |
 
-The first run and every later run are the same operation. When no sidecar exists, sync against an empty one.
+The first run and every later run are the same operation.
 
 Split the document into blocks by the rules in `format.md`. Call these the **new blocks**. The blocks in the
 existing sidecar are the **old blocks**. Both lists are in document order. When no sidecar exists yet, the old
