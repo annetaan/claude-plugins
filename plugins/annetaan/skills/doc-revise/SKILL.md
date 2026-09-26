@@ -21,12 +21,12 @@ means that path.**
 `$DOCREVISE` is not a shell variable. Replace it with the real absolute path when you run bash.
 
 The sidecar format is not described here. Read `$DOCREVISE/../doc-meta/format.md`, the only file that describes
-it.
+it. The styles are described in `$DOCREVISE/../doc-meta/styles.md`.
 
 ## Steps
 
 1. Read the path given as the argument. It names one document. Derive the sidecar path by the naming rule in
-   `format.md`, and read the document, the sidecar, and `format.md` itself.
+   `format.md`, and read the document, the sidecar, `format.md` and `styles.md`.
 
    **If the sidecar does not exist, say so and stop.** Tell the user to run `/annetaan:doc-meta` first.
 
@@ -48,9 +48,9 @@ it.
      waiting on a human, not as handled.
 4. **Rewrite whole paragraphs, not just the holes in them.** A paragraph that lost a sentence to `[delete]` or
    `[edit]` is rewritten from what remains, so it reads as a paragraph again instead of a patched seam. Write in
-   the document's own language, not the language of the conversation or of the `review:` lines. When this session
-   lists a skill about writing style or voice that covers that language, load it before rewriting. Note which
-   paragraphs you rewrote.
+   the document's own language, not the language of the conversation or of the `review:` lines, and by the rules
+   of the style the sidecar's `## Document` names. When this session lists a skill about writing style or voice
+   that covers that language, load it before rewriting. Note which paragraphs you rewrote.
 5. **Repair the whole document.** A deletion or an edit can break something far from where it happened. Check, in
    the document as a whole, not paragraph by paragraph, and note what each item found and what you did about
    it:
