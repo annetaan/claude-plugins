@@ -76,6 +76,28 @@ Every run leaves a work report behind, inside the repository under `work-reports
 up. The skill checks that git ignores that directory before it writes anything, and asks before touching
 `.gitignore`.
 
+### doc-write
+
+`/annetaan:doc-write <path>` ([details](skills/doc-write/SKILL.md))
+
+Writes a document, or rewrites the one at the path, in one of four styles:
+
+| Style | For | How it is read |
+| --- | --- | --- |
+| `conclusion-first` | a README, a design document, a pull request, a report | the top first, then only as deep as needed |
+| `story` | a technical article, a blog post, a talk | start to end, following the thread |
+| `procedure` | a tutorial, setup instructions, a runbook | one step at a time, while doing it |
+| `reference` | an API description, a list of settings, a format | one entry, looked up |
+
+The rules change with the style. A `conclusion-first` document may repeat its summary in the detail below it, and a
+`story` may use sentences that carry the thread from one part to the next. Some rules hold in every style: plain
+words instead of coined terms and abbreviations, a term explained no later than the sentence after it first
+appears, and a count the document gives matching what follows. [`styles.md`](skills/doc-meta/styles.md) holds all
+of it.
+
+`doc-meta` records the style in the sidecar, and `doc-review` and `doc-revise` judge the document by it. Run
+`doc-meta` on the result when you want to flag individual sentences.
+
 ### doc-meta
 
 `/annetaan:doc-meta <path>` ([details](skills/doc-meta/SKILL.md))

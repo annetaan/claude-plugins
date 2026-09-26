@@ -30,6 +30,8 @@ A section of its own, not folded into an example. Fields:
 
 - `purpose`: what the document is trying to do, one line.
 - `reader`: who it is written for.
+- `style`: one of the styles in `styles.md`, next to this file, chosen by how the reader reads the document. A human
+  may correct it by hand, so a later run keeps the value it finds and fills it in only when it is missing.
 - `source language`: the language the document is written in.
 - `blocks`: the block count.
 - `weights`: the count of blocks at each weight, `★☆☆`, `★★☆` and `★★★`.
@@ -51,9 +53,11 @@ sorted it.
 ## `## Whole document`
 
 Bullets: what a one sentence flag cannot reach on its own. Repetition across sections, ordering problems, sections
-that could be merged, promises made and never kept. Written in the **reading language**: the language the user is
-using in conversation, or one the user names for this run. That is not necessarily the document's own language,
-because the sidecar exists for a human to read fast and never enters the repository. A quote taken from the source stays in the source's own language, unchanged.
+that could be merged, promises made and never kept, and terms that break the plain words rule. Each is judged by the
+rules of the document's `style` in `styles.md`, so a repetition that style allows is not a finding. Written in the
+**reading language**: the language the user is using in conversation, or one the user names for this run. That is
+not necessarily the document's own language, because the sidecar exists for a human to read fast and never enters
+the repository. A quote taken from the source stays in the source's own language, unchanged.
 
 - `(none)` on a line by itself when there is nothing to say. An empty list is a correct result, and it means a
   full read happened and found nothing. It is never written for a read that did not happen, or for one whose

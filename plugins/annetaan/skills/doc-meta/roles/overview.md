@@ -11,6 +11,10 @@ ordering, mergeable sections, unkept promises). Follow it exactly. The rest of t
 rules, the role set, weight) describes how the sidecar in front of you was already built. That is not your job to
 audit, so do not read it for that purpose.
 
+**Then read `styles.md` at the path given to you in the prompt**: the rules for every style, and the section for
+the style named in the sidecar's `## Document`. Judge every candidate finding by those rules. A repetition, an
+order or a connecting sentence that the style allows is not a finding.
+
 ## What to look for
 
 `format.md`'s `## Whole document` section (the one you just read) names the categories. Here is what each looks
@@ -24,6 +28,9 @@ like in practice:
 - **Sections that could be merged.** Two sections doing one job.
 - **Promises never kept.** The document says it will cover something, and does not, or counts something ("three
   reasons") and delivers a different count.
+- **Terms.** A term the writer coined or an abbreviation where a common word would do, or a term explained later
+  than the sentence right after its first use. A per-sentence flag sees the word but not where, or whether, it is
+  explained.
 
 **An empty list is a correct result.** Do not manufacture a finding to have something to say. A short, clean
 document earns `(none)`. If you catch yourself hedging a candidate finding as "minor" or "not really a defect,"

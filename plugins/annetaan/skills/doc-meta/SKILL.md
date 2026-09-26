@@ -24,7 +24,7 @@ prompt for the overview sub-agent.
 ## Steps
 
 1. Read the path given as the argument. It names one document. Read `$DOCMETA/format.md`, which is the only
-   description of the sidecar's shape. If the path is itself a sidecar (its name ends in `.doc-meta.md`), say so
+   description of the sidecar's shape, and `$DOCMETA/styles.md`, which the `style` field refers to. If the path is itself a sidecar (its name ends in `.doc-meta.md`), say so
    and stop.
 2. Check whether the sidecar would be tracked by git. Inside a git repository (`ROOT` below is
    `git rev-parse --show-toplevel`):
@@ -59,11 +59,11 @@ prompt for the overview sub-agent.
 
    ```
    Agent(subagent_type: "annetaan:doc-meta-overview", description: "doc-meta overview",
-         prompt: "Read $DOCMETA/roles/overview.md first and follow the role it describes.\n\ndocument: <abs path>\nsidecar: <abs path>\nformat.md: $DOCMETA/format.md\nWrite the bullets in <the language the user is using in conversation>.")
+         prompt: "Read $DOCMETA/roles/overview.md first and follow the role it describes.\n\ndocument: <abs path>\nsidecar: <abs path>\nformat.md: $DOCMETA/format.md\nstyles.md: $DOCMETA/styles.md\nWrite the bullets in <the language the user is using in conversation>.")
    ```
 
-   The sub-agent's own role file names `format.md` but has no path of its own to it, so this prompt is the only
-   place that path reaches it.
+   The sub-agent's own role file names `format.md` and `styles.md` but has no path of its own to either, so this
+   prompt is the only place those paths reach it.
 
    The sub-agent starts fresh and has not seen this conversation, so name the language explicitly. It has no other
    way to know it.

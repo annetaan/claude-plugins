@@ -21,11 +21,13 @@ means that path.**
 `$DOCREVIEW` is not a shell variable. Replace it with the real absolute path when you run bash.
 
 The sidecar format is not described here. Read `$DOCREVIEW/../doc-meta/format.md`, the only file that describes it.
+The styles are described in `$DOCREVIEW/../doc-meta/styles.md`.
 
 ## Steps
 
 1. Read the path given as the argument. It names one document. Derive the sidecar path by the naming rule in
-   `format.md`, and read the document, the sidecar, and `format.md` itself.
+   `format.md`, and read the document, the sidecar, `format.md` and `styles.md`. Every answer below is judged by
+   the rules of the style the sidecar's `## Document` names.
 
    **If the sidecar does not exist, say so and stop.** Tell the user to run `/annetaan:doc-meta` on this document
    first. There is nothing to answer without it.
@@ -40,11 +42,11 @@ The sidecar format is not described here. Read `$DOCREVIEW/../doc-meta/format.md
    - `[keep]`: the other half of the duplication, in either direction. `echoes:` is one directional. A later block
      names the earlier one it repeats, so a `[keep]` on the earlier block has no `echoes:` of its own.
      Check both: this block's own `echoes:`, and any other block whose `echoes:` names this one. Point at whichever
-     you find and say why keeping both earns its place. When no block echoes this one either way, the `review:`
-     line says there is no duplication to weigh.
+     you find and say whether keeping both earns its place, including when the style allows that repetition. When
+     no block echoes this one either way, the `review:` line says there is no duplication to weigh.
    - `[edit]`: a proposed sentence that satisfies the free text the human wrote after the flag. The proposed
-     sentence is written in the document's own language, since it is meant to go into the document. The rest of
-     the line follows the language rule below.
+     sentence is written in the document's own language, since it is meant to go into the document, and follows
+     the rules of the style. The rest of the line follows the language rule below.
    - `[question]`: an answer to the free text question, from what the document and the sidecar show.
 
    **A `review:` line that names another block's id carries a quote from that block**, the same rule `## Whole
