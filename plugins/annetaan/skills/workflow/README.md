@@ -45,7 +45,7 @@ produced. A plan that turns out to be wrong surfaces there, before anybody write
 **Five review rounds per task, fixed.** A task that does not settle in five comes back to you with the open points
 laid out, and its changes stay uncommitted in the working tree. Saying "stop" partway through the rounds works too.
 
-The implementation and review sessions **start fresh for every task**, and both run on opus at high effort,
+The implementation and review sessions **start fresh for every task**, and both run on opus at medium effort,
 whatever the task. A task boundary is a cheap place to
 start over. The code is in git, the plan is with the orchestrator, and every review thread is resolved. What is left
 is how this repository wants to be worked in, and that rides along as **handover notes**: five lines from each
@@ -113,9 +113,8 @@ screenshots it could not attach.
 | `scripts/difit-session.sh` | keeps exactly one difit server per repository |
 
 The design, implementation and review sessions run on agents that ship with the plugin (`../../agents/`). Design is
-`annetaan:workflow-design` (fable / medium), with `annetaan:workflow-design-fallback` (opus / xhigh) for
-environments where Fable is unavailable. Implementation is `annetaan:workflow-worker` and review is
-`annetaan:workflow-reviewer`, both opus / high. The full list is in [the plugin README](../../README.md).
+`annetaan:workflow-design` (opus / high). Implementation is `annetaan:workflow-worker` and review is
+`annetaan:workflow-reviewer`, both opus / medium. The full list is in [the plugin README](../../README.md).
 
 `difit-session.sh` works on its own too.
 

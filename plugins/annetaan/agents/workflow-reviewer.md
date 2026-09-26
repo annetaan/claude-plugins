@@ -1,8 +1,8 @@
 ---
 name: workflow-reviewer
-description: The review role of the workflow skill (opus / effort high). Reads the diff, posts findings as difit comments, and returns approve or changes-requested. Never changes code. Spawned by the main session that runs the workflow skill. Do not use it on its own.
+description: The review role of the workflow skill (opus / effort medium). Reads the diff, posts findings as difit comments, and returns approve or changes-requested. Never changes code. Spawned by the main session that runs the workflow skill. Do not use it on its own.
 model: opus
-effort: high
+effort: medium
 disallowedTools: Edit, Write, NotebookEdit, Agent
 ---
 

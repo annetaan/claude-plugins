@@ -5,6 +5,9 @@ and `doc-revise/SKILL.md` all point here instead of copying any of it. If you fi
 the splitting rules written out anywhere else, that is a copy and it will drift. Fix it by deleting the copy, not
 by editing both.
 
+Role, weight, `echoes`/`needs` and the flags are used before they are defined. Each has its own section at the end
+of this file. Sync, and the anchor match it works by, are defined in `doc-meta/SKILL.md`'s `## Sync` section.
+
 ## File name
 
 `path/to/X.md` gets a sidecar at `path/to/X.doc-meta.md`, next to it. The document is read as Markdown. A plain text
@@ -29,14 +32,14 @@ A section of its own, not folded into an example. Fields:
 - `reader`: who it is written for.
 - `source language`: the language the document is written in.
 - `blocks`: the block count.
-- `weights`: the count of blocks at each weight, `w1` through `w5`.
+- `weights`: the count of blocks at each weight, `★☆☆`, `★★☆` and `★★★`.
 - `max id`: the largest id ever assigned in this sidecar's history, including ids of blocks since deleted. In a
   sidecar that does not exist yet it starts at `b000`, so the first block assigned is `b001`. The sidecar is
   hand-edited, and this line can go missing like any other. When it is missing from an existing sidecar, rebuild
   it as the largest id present in `## Blocks`, and say so in doc-meta's report, since that rebuild can hand out
   an id that was already used and deleted.
 
-When `w4` and `w5` together are 80% or more of the block count, add one more line after `weights`:
+When `★★★` blocks are more than half of the block count, add one more line after `weights`:
 
 ```
 Weight sorts little in this document. Read Whole document first.
@@ -48,17 +51,17 @@ sorted it.
 ## `## Whole document`
 
 Bullets: what a one sentence flag cannot reach on its own. Repetition across sections, ordering problems, sections
-that could be merged, promises made and never kept. Written in the language the user is using in conversation, not
-necessarily the document's own language, because the sidecar exists for a human to read fast and never enters the
-repository. A quote taken from the source stays in the source's own language, unchanged.
+that could be merged, promises made and never kept. Written in the **reading language**: the language the user is
+using in conversation, or one the user names for this run. That is not necessarily the document's own language,
+because the sidecar exists for a human to read fast and never enters the repository. A quote taken from the source stays in the source's own language, unchanged.
 
 - `(none)` on a line by itself when there is nothing to say. An empty list is a correct result, and it means a
   full read happened and found nothing. It is never written for a read that did not happen, or for one whose
   findings did not survive verification.
-- `(pending)` while `doc-meta-overview`, the sub-agent doc-meta spawns, is still working on it, and also when no
-  overview agent could be run at all, or when it ran and returned bullets but none of them survived verification.
-  In these last two cases, doc-meta writes the reason on the line right after `(pending)`, so a human can tell a
-  run still in flight from a run that did not converge, rather than reading all three as the same wait.
+- `(pending)` while `doc-meta-overview`, the sub-agent doc-meta spawns, is still working on it, and also when it
+  ran and returned bullets but none of them survived verification. In that second case, doc-meta writes the reason
+  on the line right after `(pending)`, so a human can tell a run still in flight from a run that did not converge,
+  rather than reading both as the same wait.
 
 **Every bullet that names a block id carries a quote from that block**, so that writing the bullet forces opening
 the block:
@@ -77,7 +80,7 @@ list itself is in. The recursion splits a list item into blocks. It never opens 
 ### Block heading
 
 ```
-### b003 w2 restatement echoes:b002 needs:b001
+### b003 ★☆☆ restatement echoes:b002 needs:b001
 ```
 
 `id`, `weight`, `role`, then any `echoes:` and `needs:`, each a comma-separated list when there is more than one
@@ -96,8 +99,7 @@ review: Dropping this loses the phrase "script tag", which is what a reader sear
 - `> ...`: the source text, quoted. Several `>` lines are allowed for a block that spans lines. A blank line
   inside a block is recorded as a bare `>`, with nothing after it. A block whose source is itself a blockquote is
   quoted twice: `> > ...`.
-- `<lang>:`: a reading aid, a translation of the block into the **reading language**, the language the user is
-  using in conversation (or one the user names for this run). `<lang>` is that language's BCP 47 tag: `ja:` for a
+- `<lang>:`: a reading aid, a translation of the block into the reading language (see `## Whole document`). `<lang>` is that language's BCP 47 tag: `ja:` for a
   Japanese reader, as in the example above, `de:` for a German one, `pt-BR:` for a Brazilian Portuguese one.
   Present only when the block is not already written in the reading language, and never on a `verbatim` block (a
   table or a code fence is not translated). A sidecar holds one reading language at a time: a reading aid whose tag
@@ -131,7 +133,7 @@ review: Dropping this loses the phrase "script tag", which is what a reader sear
   > def f():
   > ... 13 more lines
   ```
-- YAML frontmatter is one block, role `verbatim`, weight `w5`.
+- YAML frontmatter is one block, role `verbatim`, weight `★★★`.
 - Anything that is none of the above (a thematic break, an HTML comment, a link reference definition, a bare image
   line) is not a block, and is skipped. A `---` that marks a thematic break inside the flowing text is one of these
   and is skipped. A `---` used as the paragraph-break marker between block groups (see above) is sidecar notation,
@@ -140,8 +142,8 @@ review: Dropping this loses the phrase "script tag", which is what a reader sear
 ### Invariant
 
 **Except for a fence recorded as the three line form above, the source text of every block is a verbatim substring of
-the document it was split from.** Sync, the matching procedure in `doc-meta/SKILL.md`'s `## Sync` section,
-depends on this being exactly true. A paraphrased or normalized quote breaks the anchor match silently.
+the document it was split from.** Sync depends on this being exactly true. A paraphrased or normalized quote breaks
+the anchor match silently.
 
 "Verbatim" is about words, not about where the document's own word-wrap happens to break a line, for a prose
 block (any role but `verbatim`). A prose block's word-wrap width is not part of its identity, since a document can
@@ -151,9 +153,9 @@ sidecar's `>` quote against the other's), treat a run of whitespace, including a
 source's own soft wrap, as equivalent to a single space on both sides of the comparison. A `>` quote wrapped
 across several lines is compared the same as one written on a single line.
 
-**A `verbatim` block is compared exactly, whitespace included.** A table, a code fence recorded in full (ten
-content lines or fewer), and frontmatter all carry whitespace as content: an indent, a column of spaces, a blank
-line inside a fence, all mean something and none of them soft-wraps. Normalizing these would let a real change (an
+**A `verbatim` block is compared exactly, whitespace included.** A table, a code fence short enough to record in
+full (ten content lines or fewer), and frontmatter all carry whitespace as content: an indent, a column of spaces, a
+blank line inside a fence, all mean something and none of them soft-wraps. Normalizing these would let a real change (an
 indent width, a re-aligned column) through as an anchor match, silently freezing the sidecar's quote to text the
 document no longer has.
 
@@ -196,20 +198,18 @@ A closed set. Pick exactly one per block.
 | `instruction` | Tells the reader to do something. |
 | `verbatim` | A table, a code fence, or frontmatter: recorded as a unit, not sentence-split. |
 
-Redundancy tends to hide in `restatement`, `transition` and `scaffold`. Count them. A document where these three
-are more than half the blocks is padded.
+Redundancy tends to hide in `restatement`, `transition` and `scaffold`.
 
 ## Weight
 
-`1` to `5`, written `w1` through `w5` in a block heading, judged against the document's own `purpose`.
+Three levels, written as a count of stars in a block heading, judged against the document's own `purpose`.
 
-- `5`: the document cannot lose it without losing its point.
-- `4`: the document would be poorer for losing it.
-- `3`: it carries something real, and the document still stands without it.
-- `2`: it helps a reader who is already lost, and no one else.
-- `1`: it could go and nothing downstream would notice.
+- `★★★`: the document cannot lose it without losing its point.
+- `★★☆`: it carries something real, and the document would be poorer for losing it, even where it still stands.
+- `★☆☆`: it helps a reader who is already lost and no one else, or it could go and nothing downstream would
+  notice.
 
-Weight and role are independent: a `caveat` can be a `5`, and a `claim` can be a `2` if it only repeats the
+Weight and role are independent: a `caveat` can be `★★★`, and a `claim` can be `★☆☆` if it only repeats the
 purpose statement.
 
 ## `echoes` and `needs`
@@ -230,6 +230,5 @@ A skill never writes a flag.
 
 `review:` is `doc-review`'s answer to the flag on that block. `doc-review/SKILL.md` owns what it answers for each
 flag. It is never written by a human and it is dropped whenever the block's text changes underneath it, because
-nobody has reviewed the new text yet. Written in the language the user is using in conversation, for the same
-reason `## Whole document` is. A quote of another block's source text inside a `review:` line stays in that
+nobody has reviewed the new text yet. Written in the reading language, for the same reason `## Whole document` is. A quote of another block's source text inside a `review:` line stays in that
 source's own language.

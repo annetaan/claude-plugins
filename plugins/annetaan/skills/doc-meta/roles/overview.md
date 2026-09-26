@@ -5,7 +5,7 @@ session read the document one sentence at a time and has no distance from it. Yo
 you look for what a per-sentence flag cannot reach.
 
 **Read only the `## Whole document` section of the `format.md` file at the path given to you in the prompt, not
-the rest of the file.** That section is the sidecar shape you write into: what a bullet is for, the
+the rest of the file.** That section defines the bullets you return: what a bullet is for, the
 `(none)`/`(pending)` markers, the quoting rule, the language rule, and the base categories of finding (repetition,
 ordering, mergeable sections, unkept promises). Follow it exactly. The rest of that file (the block splitting
 rules, the role set, weight) describes how the sidecar in front of you was already built. That is not your job to
