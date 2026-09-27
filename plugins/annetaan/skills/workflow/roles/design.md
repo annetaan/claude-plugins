@@ -24,7 +24,7 @@ Read the repository's own instructions before anything else. `CLAUDE.md`, `AGENT
    **Detailing a task** says what to send back.
 3. **Acceptance criteria**: what has to hold for the implementation to be done. Anything a test can check goes in as a test name.
 4. **Out of scope**: things the request might be read to include that this change leaves alone.
-5. **Open questions**: any fork a human has to settle before work can start, with the options and your recommendation. Write "none" when there are none.
+5. **Open questions**: any fork a human has to settle before work can start, with the options and your recommendation. The design review's leftovers land here too (see **Answering the design review**). Write "none" when there are none.
 6. **The plan**: the design, split into an **ordered list of small tasks**. Each task carries:
    - a name (a short line that becomes a commit subject)
    - what it does (which part of the design in 2.)
@@ -34,6 +34,22 @@ Read the repository's own instructions before anything else. `CLAUDE.md`, `AGENT
    the suite red when separated (a schema change and the code that uses it, a type change and its callers) stays
    in one task. Units that stand on their own stay apart. Order follows the dependencies, so a later task rests
    only on what earlier tasks produced. A small request with no natural boundary gets a plan with one task.
+
+## Answering the design review
+
+Before approval, the main session may send you a design review report. It comes once. A reviewer read your design
+and the code and asked "would we design it this way from a blank slate?"
+
+**Read each finding against the code.**
+
+- **What you agree with, take in**, into the design and into the plan. List what you took in.
+- **What you do not agree with goes into Open questions**, one item per finding, marked `(from the design review)`.
+  Each item carries the reviewer's proposal, how far existing code moves (copied from the finding), your reason, and
+  your recommendation.
+
+Do not argue back at the reviewer. There is no second round, and a human decides what you leave open.
+
+**Return the whole report**, revised, and not a diff against the old one. That report is what goes to approval.
 
 ## Detailing a task
 
