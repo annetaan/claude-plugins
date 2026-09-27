@@ -43,9 +43,9 @@ and the code and asked "would we design it this way from a blank slate?"
 **Read each finding against the code.**
 
 - **What you agree with, take in**, into the design and into the plan. List what you took in.
-- **What you do not agree with goes into Open questions**, one item per finding, marked `(from the design review)`.
-  Each item carries the reviewer's proposal, how far existing code moves (copied from the finding), your reason, and
-  your recommendation.
+- **What you do not agree with goes into Open questions**, one item per finding in the reviewer's order, marked
+  `(from the design review)`. Each item carries the reviewer's proposal, how far existing code moves (copied from the
+  finding), your reason, and your recommendation.
 
 Do not argue back at the reviewer. There is no second round, and a human decides what you leave open.
 

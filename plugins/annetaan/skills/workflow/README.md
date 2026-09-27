@@ -28,13 +28,13 @@ the design cleaner, and abstractions that are too many or too few. Each finding 
 There is one round. The design session takes in what it agrees with, and what it does not agree with comes to you as
 open questions before the approval.
 
-**The review runs only where the repository accepts breaking changes**, such as a pre-release project or a library
-you control. The skill settles that before design starts: what `CLAUDE.md` or `AGENTS.md` says, then this project's
-memory, then a question whose answer it saves to memory. It never edits `CLAUDE.md` or `AGENTS.md`. When `CLAUDE.md` or memory
-decides, you get one line saying so before design starts, and that is where you stop a memory that has gone stale. A
-request for a minimal change, such as an urgent fix, skips the review and the question, and writes nothing to memory.
-When Fable cannot start, because of the weekly limit for example, the review is skipped and the approval message
-says so.
+**The review runs only where the repository accepts breaking changes**, such as a pre-release project or a library you
+control. The skill settles that before design starts: what `CLAUDE.md` or `AGENTS.md` says, then this project's
+memory, then a question whose answer it saves to memory. It never edits `CLAUDE.md` or `AGENTS.md`. When one of those
+files or memory decides, you get one line saying so before design starts, and that is where you stop a memory that has
+gone stale. A request for a minimal change, such as an urgent fix, skips the review and the question, and writes
+nothing to memory. When Fable cannot start, because of the weekly limit for example, the review is skipped and the
+approval message says so.
 
 There is one approval point. You get the design summary and the **plan**, an ordered list of small tasks, and one
 dialog with three questions. The open questions come first, on every run: the design's own, and the design review's

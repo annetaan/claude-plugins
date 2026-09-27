@@ -54,7 +54,7 @@ of the repository.
 
 Otherwise, go down this list and stop at the first one that answers.
 
-1. **The repository states it.** `CLAUDE.md`, `AGENTS.md`, `CONTRIBUTING.md` and the design documents they point at say whether breaking changes are welcome. Follow them.
+1. **The repository states it.** `CLAUDE.md` or `AGENTS.md` says whether breaking changes are welcome. Follow it.
 2. **This project's memory has it.** Follow the memory.
 3. **Neither.** Ask, then save the answer to this project's memory, under a name that identifies the repository and the date, in the format the memory directory already uses.
 
@@ -67,7 +67,7 @@ AskUserQuestion: Do you want broader design improvements (accepting breaking cha
 **This skill never edits `CLAUDE.md` or `AGENTS.md`.** The answer goes to memory and nowhere in the repository.
 
 **When 1 or 2 decided it and nothing was asked, say so in one line before design starts**: the design review will
-run, or will not run, because `CLAUDE.md` says … / memory from <date> says …. That line is where the user stops a
+run, or will not run, because `<file>` says … / memory from <date> says …. That line is where the user stops a
 stale memory.
 
 ## Phase 1: design
@@ -115,14 +115,17 @@ When the report comes back, `SendMessage` it to the design session.
 > Follow **Answering the design review** in your role instruction. Return the whole revised report.
 
 The revised report replaces the design and the plan you kept. **The revised design does not go back to the
-reviewer.** The review session ends with its one report. Never `SendMessage` it. The points the design session did not
-take in reach the user as open questions (see **The approval dialog**).
+reviewer**, and neither does a rework the user asks for at approval. The design review session ends with its one
+report. Never `SendMessage` it. The points the design session did not take in reach the user as open questions (see
+**The approval dialog**).
 
 ### The approval dialog
 
 **Before the approval question, ask the open questions**, on every run. The design's own questions and, when the
 design review ran, the points the design session did not take from it, marked `(from the design review)`, go to the
-user together with `AskUserQuestion`. Send the answers back with `SendMessage` so the design session can settle them.
+user with `AskUserQuestion`. **One call holds four questions at most**, so ask in as many calls as it takes: the
+design's own first, then the review's, in the order the reviewer ranked them. Send the answers back with
+`SendMessage` so the design session can settle them.
 The approval question is fixed at three questions, so this is where the review's leftovers get decided.
 
 This is the only approval point in the flow. Present the design summary and the plan, then ask **one `AskUserQuestion` with three questions**.

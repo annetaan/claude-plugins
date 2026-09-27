@@ -35,7 +35,7 @@ land in the same threads, on the same footing as the reviewer's.
 flowchart TD
     req(["your request"]) --> design["design session<br/>boundaries, acceptance criteria,<br/>plan of small tasks"]
     design --> dreview["design review session<br/>once, where breaking<br/>changes are welcome"] --> ask["one approval<br/>1. proceed with this plan?<br/>2. new branch, or the branch you are on?<br/>3. pull request, push, or nothing?"]
-    ask -->|rework| design
+    ask -->|rework| redo["design session<br/>revises, no second review"] --> ask
     ask -->|approved| setup["branch if asked<br/>work-reports/ ignored?<br/>record START"]
     setup --> detail
 
