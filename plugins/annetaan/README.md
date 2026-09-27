@@ -22,9 +22,10 @@ Either is enough reason to wait, so each skill here starts only when you name it
 `/annetaan:workflow` ([details](skills/workflow))
 
 Runs one implementation through sessions with different jobs. A design session writes the plan, then details each
-task as its turn comes. An implementation session writes the code for one task. A review session reads it and posts
-findings. Those last two are new for every task. You approve once, near the start, and answer two questions about
-where the commits go and how the run should end.
+task as its turn comes. In a repository that accepts breaking changes, a design review session pushes the design
+toward its ideal shape once, before approval. An implementation session writes the code for one task. A review
+session reads it and posts findings. Those last two are new for every task. You approve once, near the start, and
+answer two questions about where the commits go and how the run should end.
 
 The review rounds happen in [difit](https://github.com/yoshiko-pg/difit), a local diff viewer. difit is the wire
 between the implementation session and the review session, and it is also a web page. Open it and your comments
@@ -33,7 +34,7 @@ land in the same threads, on the same footing as the reviewer's.
 ```mermaid
 flowchart TD
     req(["your request"]) --> design["design session<br/>boundaries, acceptance criteria,<br/>plan of small tasks"]
-    design --> ask["one approval<br/>1. proceed with this plan?<br/>2. new branch, or the branch you are on?<br/>3. pull request, push, or nothing?"]
+    design --> dreview["design review session<br/>once, where breaking<br/>changes are welcome"] --> ask["one approval<br/>1. proceed with this plan?<br/>2. new branch, or the branch you are on?<br/>3. pull request, push, or nothing?"]
     ask -->|rework| design
     ask -->|approved| setup["branch if asked<br/>work-reports/ ignored?<br/>record START"]
     setup --> detail
@@ -149,6 +150,7 @@ The model and the effort are pinned here, and a skill selects one by name alone.
 | Agent | Model | Effort | Role |
 | --- | --- | --- | --- |
 | `annetaan:workflow-design` | opus | high | design. returns the design and the plan |
+| `annetaan:workflow-design-review` | fable | medium | design review. once, before approval, where the repository accepts breaking changes |
 | `annetaan:workflow-worker` | opus | medium | implementation, for every task |
 | `annetaan:workflow-reviewer` | opus | medium | review, for every task and the integration review |
 | `annetaan:doc-meta-overview` | opus | high | overview for `doc-meta`. finds what a per-sentence flag misses |

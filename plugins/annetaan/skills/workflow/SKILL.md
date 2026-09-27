@@ -1,6 +1,6 @@
 ---
 name: workflow
-description: Runs one implementation as design, approval, then per task (implement, review rounds, one commit), then an integration review, then a finish step that opens a pull request, pushes, or stops locally. The review rounds happen in difit, a local diff viewer, so a human can write into the same threads from a browser. Use it only when the user names this skill or invokes /annetaan:workflow, because it starts a long-running local server, opens a browser, spawns four sub-sessions, and adds commits. Do not use it for a one-off implementation request or for an ordinary code review request.
+description: Runs one implementation as design, a design review where the repository accepts breaking changes, approval, then per task (implement, review rounds, one commit), then an integration review, then a finish step that opens a pull request, pushes, or stops locally. The review rounds happen in difit, a local diff viewer, so a human can write into the same threads from a browser. Use it only when the user names this skill or invokes /annetaan:workflow, because it starts a long-running local server, opens a browser, spawns four sub-sessions, and adds commits. Do not use it for a one-off implementation request or for an ordinary code review request.
 ---
 
 # workflow

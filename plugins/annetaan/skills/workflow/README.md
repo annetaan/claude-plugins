@@ -1,9 +1,9 @@
 # workflow
 
-This skill runs one implementation as **design, approval, then per task (implement, review rounds, one commit),
-then an integration review, then a finish step**, with each role in a session of its own. The review rounds happen
-in [difit](https://github.com/yoshiko-pg/difit) comment threads. Open the same server in a browser and you write
-into the same threads the agents do.
+This skill runs one implementation as **design, a design review where the repository accepts breaking changes,
+approval, then per task (implement, review rounds, one commit), then an integration review, then a finish step**,
+with each role in a session of its own. The review rounds happen in [difit](https://github.com/yoshiko-pg/difit)
+comment threads. Open the same server in a browser and you write into the same threads the agents do.
 
 ## Install
 
@@ -21,8 +21,24 @@ long as the flow lasts, opens a browser, and adds commits.
 /annetaan:workflow add filter conditions to the search form
 ```
 
+**The design gets one review before you see it.** After the design comes back and before the approval, a separate
+session reads it with one question: would we design it this way from a blank slate? It points out boundaries (the
+contracts, the types, the names) that fall short of their ideal shape, places where moving existing code would make
+the design cleaner, and abstractions that are too many or too few. Each finding says how far existing code moves.
+There is one round. The design session takes in what it agrees with, and what it does not agree with comes to you as
+open questions before the approval.
+
+**The review runs only where the repository accepts breaking changes**, such as a pre-release project or a library
+you control. The skill settles that before design starts: what `CLAUDE.md` or `AGENTS.md` says, then this project's
+memory, then a question whose answer it saves to memory. It never edits `CLAUDE.md` or `AGENTS.md`. When `CLAUDE.md` or memory
+decides, you get one line saying so before design starts, and that is where you stop a memory that has gone stale. A
+request for a minimal change, such as an urgent fix, skips the review and the question, and writes nothing to memory.
+When Fable cannot start, because of the weekly limit for example, the review is skipped and the approval message
+says so.
+
 There is one approval point. You get the design summary and the **plan**, an ordered list of small tasks, and one
-dialog with three questions.
+dialog with three questions. The open questions come first, on every run: the design's own, and the design review's
+points the design session did not take in, marked `(from the design review)`.
 
 1. Proceed with this design and plan?
 2. Where do the commits go? A new branch, or the branch you are on.
@@ -108,12 +124,14 @@ screenshots it could not attach.
 | --- | --- |
 | `SKILL.md` | the procedure for the orchestrator, which is the main session |
 | `roles/design.md` | the role for the design session, which returns the design and the plan |
+| `roles/design-review.md` | the role for the design review session, which pushes the design toward its ideal shape once, before approval |
 | `roles/work.md` | the role for the implementation session |
 | `roles/review.md` | the role for the review session |
 | `scripts/difit-session.sh` | keeps exactly one difit server per repository |
 
 The design, implementation and review sessions run on agents that ship with the plugin (`../../agents/`). Design is
-`annetaan:workflow-design` (opus / high). Implementation is `annetaan:workflow-worker` and review is
+`annetaan:workflow-design` (opus / high). The design review is `annetaan:workflow-design-review` (fable / medium),
+once before approval. Implementation is `annetaan:workflow-worker` and review is
 `annetaan:workflow-reviewer`, both opus / medium. The full list is in [the plugin README](../../README.md).
 
 `difit-session.sh` works on its own too.
