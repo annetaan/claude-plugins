@@ -1,11 +1,11 @@
 ---
 name: workflow
-description: Runs one implementation as design, approval, then per task (implement, review rounds, one commit), then an integration review, then a finish step that opens a pull request, pushes, or stops locally. The review rounds happen in difit, a local diff viewer, so a human can write into the same threads from a browser. Use it only when the user names this skill or invokes /annetaan:workflow, because it starts a long-running local server, opens a browser, spawns three sub-sessions, and adds commits. Do not use it for a one-off implementation request or for an ordinary code review request.
+description: Runs one implementation as design, a design review where the repository accepts breaking changes, approval, then per task (implement, review rounds, one commit), then an integration review, then a finish step that opens a pull request, pushes, or stops locally. The review rounds happen in difit, a local diff viewer, so a human can write into the same threads from a browser. Use it only when the user names this skill or invokes /annetaan:workflow, because it starts a long-running local server, opens a browser, spawns four sub-sessions, and adds commits. Do not use it for a one-off implementation request or for an ordinary code review request.
 ---
 
 # workflow
 
-One implementation, run as **design, approval, then per task (implement, review rounds, one commit), then an integration review, then a finish step**, with each role in its own session.
+One implementation, run as **design, a design review where the repository accepts breaking changes, approval, then per task (implement, review rounds, one commit), then an integration review, then a finish step**, with each role in its own session.
 The review rounds happen in difit comment threads. Open the same server in a browser and a human writes into the same threads.
 
 The design session returns a **plan**: an ordered list of small tasks. Implementation and review rounds run inside a task. A task the reviewer approves becomes **one commit**. After the last task an **integration review** looks at the whole diff once. Then the flow finishes.
@@ -40,6 +40,36 @@ gh --version                             # --attach needs 2.99.0 or later
 - **A `gh` older than 2.99.0 does not stop the flow either.** `gh pr create --attach` landed in 2.99.0. Phase 6 needs it only when the change is visible on screen. Say nothing about it yet.
 - If `git symbolic-ref` prints nothing, fall back to `main` and treat the default branch as unknown.
 
+### Does this repository accept breaking changes?
+
+Decide this after the checks above and before phase 1. It decides whether the design review runs. The review pushes
+the design toward the shape it would have from a blank slate, and that shape often moves existing code, so it runs
+only where the repository accepts breaking changes. **The answer is a sentence you keep**, not a shell variable. The
+approval message needs it.
+
+**When the request asks for a minimal change** (an urgent fix, a hotfix, "just make it work"), skip this check and ask
+nothing. You judge that from the request. Say one line before design starts: design review skipped for this run: the
+request asks for a minimal change. **Write nothing to memory.** A minimal change is a property of this request, not
+of the repository.
+
+Otherwise, go down this list and stop at the first one that answers.
+
+1. **The repository states it.** `CLAUDE.md` or `AGENTS.md` says whether breaking changes are welcome. Follow it.
+2. **This project's memory has it.** Follow the memory.
+3. **Neither.** Ask, then save the answer to this project's memory, under a name that identifies the repository and the date, in the format the memory directory already uses.
+
+```
+AskUserQuestion: Do you want broader design improvements (accepting breaking changes)?
+  - Yes - a pre-release project, or a library you control
+  - No  - a released SaaS, or a widely used OSS
+```
+
+**This skill never edits `CLAUDE.md` or `AGENTS.md`.** The answer goes to memory and nowhere in the repository.
+
+**When 1 or 2 decided it and nothing was asked, say so in one line before design starts**: the design review will
+run, or will not run, because `<file>` says … / memory from <date> says …. That line is where the user stops a
+stale memory.
+
 ## Phase 1: design
 
 Hand the user's request to the design session as it was written.
@@ -55,14 +85,48 @@ When the design comes back:
 
 - **If feasibility is "no" or "conditional"**, hand that to the user and wait. Do not walk past it.
 - **Keep the plan.** It is an ordered list of tasks, each with the files it touches. If the plan is missing, use `SendMessage` to make the design session produce it.
-- **If the design raises open questions**, ask the user with `AskUserQuestion`, then send the answers back with `SendMessage` so the design session can settle them.
 - **The round cap is five per task and it is fixed.** Mention it once at approval. Do not negotiate the number (see **The round cap**).
 
 **Keep the design session alive for the whole flow.** You go back to it twice. Before every task from task 2
 onward, to have it detail that task against the code as it now stands (phase 4 (a)). And whenever the plan breaks,
 to have it redraw the remaining tasks.
 
+### The design review
+
+**It runs once, after feasibility has passed and before the open questions**, and only when the repository accepts
+breaking changes (see **Does this repository accept breaking changes?**). Hand the reviewer the request as it was
+written and the design report in full.
+
+```
+Agent(subagent_type: "annetaan:workflow-design-review", description: "design review",
+      prompt: "Read $FLOW/roles/design-review.md first and follow the role it describes.\n\nThe request:\n<the user's request, verbatim>\n\nThe design:\n<the full design report>")
+```
+
+`annetaan:workflow-design-review` ships with this plugin and is pinned to Fable at medium effort with code changes
+disabled.
+
+**When it cannot start** (a weekly limit, a rate limit, the model is unavailable), skip the review and go on. **Do not
+substitute another agent.** Keep the reason for the approval message.
+
+When the report comes back, `SendMessage` it to the design session.
+
+> <the design review report, in full>
+>
+> Follow **Answering the design review** in your role instruction. Return the whole revised report.
+
+The revised report replaces the design and the plan you kept. **The revised design does not go back to the
+reviewer**, and neither does a rework the user asks for at approval. The design review session ends with its one
+report. Never `SendMessage` it. The points the design session did not take in reach the user as open questions (see
+**The approval dialog**).
+
 ### The approval dialog
+
+**Before the approval question, ask the open questions**, on every run. The design's own questions and, when the
+design review ran, the points the design session did not take from it, marked `(from the design review)`, go to the
+user with `AskUserQuestion`. **One call holds four questions at most**, so ask in as many calls as it takes: the
+design's own first, then the review's, in the order the reviewer ranked them. Send the answers back with
+`SendMessage` so the design session can settle them.
+The approval question is fixed at three questions, so this is where the review's leftovers get decided.
 
 This is the only approval point in the flow. Present the design summary and the plan, then ask **one `AskUserQuestion` with three questions**.
 
@@ -85,6 +149,10 @@ Say in the same message that everything after this runs on its own: per-task imp
 **You pick the branch name yourself.** Match the naming the repository already uses (`git branch -a`) and write your choice into the approval message, so the user can correct it there. Do not spend a question on it.
 
 **When the commits land on the default branch, say so in the approval message.** One line: commits go straight onto `<branch>` during this flow.
+
+**Say what happened to the design review, in one line of the approval message.** When it ran: N findings taken in,
+M decided by you in the open questions above. When it did not run, the reason: Fable could not start, the repository
+does not accept breaking changes, or the request asks for a minimal change.
 
 **If the user already stated the mode when they invoked the skill** ("branch it and open a PR", "commit straight to main"), skip that question and write what you understood into the approval message instead, so a wrong reading is visible and correctable.
 
@@ -110,6 +178,8 @@ worked in, and that travels as the handover notes (phase 4 (e)).
 implementation and `annetaan:workflow-reviewer` for review, both opus / medium. There is no per-task choice to make.
 Both ship with this plugin, and the model and effort are pinned in `agents/*.md`. Do not pass a `model` argument to
 `Agent`, because the definition holds the right value.
+
+**The design review runs on `annetaan:workflow-design-review`**, fable / medium, once before approval.
 
 ## Phase 2: branch, ignore rule, start point
 
@@ -287,7 +357,7 @@ task starts a new pair. After the last task, go to phase 5.
 
 ### When the plan breaks
 
-When the detail pass in (a) says the boundary no longer holds, or the implementation session reports that the design will not work, stop that task and have the design session **redraw the remaining plan** with `SendMessage`. Tell the user what the new plan is. Do not take approval again. A change to the design itself goes back to the user the same way a "no" or "conditional" in phase 1 does.
+When the detail pass in (a) says the boundary no longer holds, or the implementation session reports that the design will not work, stop that task and have the design session **redraw the remaining plan** with `SendMessage`. Tell the user what the new plan is. Do not take approval again. A change to the design itself goes back to the user the same way a "no" or "conditional" in phase 1 does. No design review here.
 
 ### The round cap
 
@@ -425,6 +495,7 @@ Whichever ending ran, close with: `START`, the commits stacked on it matched aga
 
 - **You do not write code.** The implementation session implements and the review session reviews. Code you write yourself never passes through a review.
 - **The review session never changes code.** It writes findings. The implementation session fixes them.
+- **The design review session never changes code and sends one report.** It runs once, before approval, never on task detailing or a plan redraw, and the flow goes on without it when it cannot start.
 - **One difit server per repository.** Start, restart and stop all go through `difit-session.sh`. Calling `difit` by hand multiplies ports and tabs.
 - **The design session lives for the whole flow. An implementation session and a review session live for one task.** Inside a task they continue through `SendMessage`, because throwing the context away between rounds repeats arguments that were already settled. At the commit they are finished, and the next task starts a new pair.
 - **Keep the reports from the sub-agents short.** The role instructions cap them. A report that pastes a diff or a log fills the one context that holds the whole plan, which is yours. When a long one arrives, say so, and ask for the gist next time.
