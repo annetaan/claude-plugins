@@ -14,7 +14,7 @@ You are the main session, and you are the **orchestrator. You do not write code.
 
 ## Paths: `$FLOW`
 
-The top of this instruction carries an absolute path as `Base directory for this skill:`. **`$FLOW` below means that path.**
+**`$FLOW` below means `${CLAUDE_SKILL_DIR}`**, the absolute path of this skill's directory.
 
 `$FLOW` is not a shell variable. Replace it with the real absolute path when you run bash and when you write a prompt for a sub-agent. Sub-agents have not read this instruction, so a relative path or a literal `$FLOW` finds them nothing.
 

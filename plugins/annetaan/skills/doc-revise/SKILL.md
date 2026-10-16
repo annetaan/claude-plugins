@@ -15,8 +15,7 @@ human wrote.
 
 ## Paths: `$DOCREVISE`
 
-The top of this instruction carries an absolute path as `Base directory for this skill:`. **`$DOCREVISE` below
-means that path.**
+**`$DOCREVISE` below means `${CLAUDE_SKILL_DIR}`**, the absolute path of this skill's directory.
 
 `$DOCREVISE` is not a shell variable. Replace it with the real absolute path when you run bash.
 

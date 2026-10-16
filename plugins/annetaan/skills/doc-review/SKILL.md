@@ -15,8 +15,7 @@ would cost, the other half of a duplication for a `[keep]`, a proposed sentence 
 
 ## Paths: `$DOCREVIEW`
 
-The top of this instruction carries an absolute path as `Base directory for this skill:`. **`$DOCREVIEW` below
-means that path.**
+**`$DOCREVIEW` below means `${CLAUDE_SKILL_DIR}`**, the absolute path of this skill's directory.
 
 `$DOCREVIEW` is not a shell variable. Replace it with the real absolute path when you run bash.
 

@@ -15,8 +15,7 @@ with the document as it changes.
 
 ## Paths: `$DOCMETA`
 
-The top of this instruction carries an absolute path as `Base directory for this skill:`. **`$DOCMETA` below means
-that path.**
+**`$DOCMETA` below means `${CLAUDE_SKILL_DIR}`**, the absolute path of this skill's directory.
 
 `$DOCMETA` is not a shell variable. Replace it with the real absolute path when you run bash and when you write a
 prompt for the overview sub-agent.

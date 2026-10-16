@@ -13,8 +13,7 @@ so that they have less to find, by the same rules they judge by.
 
 ## Paths: `$DOCWRITE`
 
-The top of this instruction carries an absolute path as `Base directory for this skill:`. **`$DOCWRITE` below means
-that path.** It is not a shell variable. Replace it with the real absolute path when you read a file.
+**`$DOCWRITE` below means `${CLAUDE_SKILL_DIR}`**, the absolute path of this skill's directory. It is not a shell variable. Replace it with the real absolute path when you read a file.
 
 The styles and their rules are not described here. Read `$DOCWRITE/../doc-meta/styles.md`, the only file that
 describes them.

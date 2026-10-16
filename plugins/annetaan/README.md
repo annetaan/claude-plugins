@@ -7,8 +7,9 @@ Claude Code skills from Annetaan Inc., packaged as one plugin.
 /plugin install annetaan@annetaan
 ```
 
-Install it once. As skills get added, `/plugin marketplace update annetaan` and
-`/plugin update annetaan@annetaan` are enough to keep up.
+Install it once. As skills get added, run `claude plugin marketplace update annetaan` and
+`claude plugin update annetaan@annetaan` in a shell to keep up, or turn on auto-update for the `annetaan`
+marketplace in `/plugin`.
 
 ## Skills
 
@@ -68,7 +69,7 @@ flowchart TD
     class req,you human
 ```
 
-The yellow block repeats for every task in the plan, and nothing inside it runs in parallel, because there is one
+The "per task" block repeats for every task in the plan, and nothing inside it runs in parallel, because there is one
 working tree. Everything after the approval runs on its own. A task that passes review becomes one commit, so the
 commit list reads back as the plan. A task that does not settle in five rounds comes back to you with the open
 points laid out, and its changes stay uncommitted in the working tree.
@@ -161,7 +162,7 @@ that path out of the prompt the main session hands it.
 ## Adding a skill
 
 Create `skills/<name>/SKILL.md`. Everything under `skills/` is picked up on its own. Raise `version` in
-`plugin.json` and users see it on their next `/plugin update`.
+`plugin.json` and users get it on their next update. Without a new `version`, they keep the cached copy.
 
 The slash form is `/annetaan:<directory name>`. The plugin name is prefixed for you, so a directory never needs an
 `annetaan-` in front of it.
@@ -174,11 +175,9 @@ Agent names share one namespace across every skill in the plugin. Prefix an agen
 Never write an absolute path like `~/.claude/skills/...` when a skill reads a script or a document it ships with.
 Installed as a plugin, the real location is under `~/.claude/plugins/cache/annetaan/annetaan/<version>/...`.
 
-A skill that starts always has this at the top of its body:
+Write `${CLAUDE_SKILL_DIR}` instead. Claude Code replaces it in the body of a SKILL.md with the absolute path of
+the skill's directory. Each skill here gives that path a short name near the top (`workflow` calls it `$FLOW`) and
+uses the name from there on.
 
-```
-Base directory for this skill: /absolute/path/skills/<skill name>
-```
-
-Write SKILL.md against that (`workflow` calls it `$FLOW`). `${CLAUDE_PLUGIN_ROOT}` expands only in hooks, slash
-commands and MCP configuration, so it does nothing inside the body of a SKILL.md.
+The replacement happens only in SKILL.md. A file the skill hands to a sub-agent, such as `workflow/roles/*.md`, is
+read as plain text. It has to work the path out from where it was read, or take it from the prompt.
