@@ -14,9 +14,11 @@ marketplace in `/plugin`.
 ## Skills
 
 A skill whose `description` matches a request normally starts without being named. The ones here do not. `workflow`
-runs a long-lived local server, opens a browser and adds commits on its own. The doc skills make a file next to
-your document, rewrite the document itself, and can add one commit of their own to `.gitignore` after asking.
-Either is enough reason to wait, so each skill here starts only when you name it or invoke its slash form.
+runs a long-lived local server, opens a browser and adds commits on its own. The pj skills create, edit and close
+issues and labels on GitHub, and `pj-running` also pushes, opens and merges pull requests. The doc skills make a
+file next to your document, rewrite the document itself, and can add one commit of their own to `.gitignore` after
+asking. Any of these is enough reason to wait, so each skill here starts only when you name it or invoke its slash
+form.
 
 ### workflow
 
@@ -74,9 +76,73 @@ working tree. Everything after the approval runs on its own. A task that passes 
 commit list reads back as the plan. A task that does not settle in five rounds comes back to you with the open
 points laid out, and its changes stay uncommitted in the working tree.
 
+`pj-running` drives the same flow for one issue at a time, with no design session, no approval and no questions,
+because the issue is the approved design. See [Driven from an issue](skills/workflow/README.md#driven-from-an-issue).
+
 Every run leaves a work report behind, inside the repository under `work-reports/` so that you notice them piling
 up. The skill checks that git ignores that directory before it writes anything, and asks before touching
 `.gitignore`.
+
+### pj-design-and-plan, pj-design-details, pj-running
+
+These three skills run a piece of work too large for one pull request as a project on GitHub. The project is a
+parent issue that holds the overall design, plus one sub-issue per task, ordered by GitHub's own blocked-by
+relationships. GitHub holds the whole state, so a project can stop and pick up again in another session or on
+another machine. [format.md](skills/pj-design-and-plan/format.md) describes the shape.
+
+`/annetaan:pj-design-and-plan` ([details](skills/pj-design-and-plan/SKILL.md)) starts with a planner session. It
+draws the whole in broad strokes and splits it into tasks. You answer the plan-level questions and approve the
+split. Nothing reaches GitHub before that. Then one issue writer per task, in parallel, draws its task against the
+code and picks out what you have to decide. Each decision is written as checkboxes with one option recommended. The
+parent and the sub-issues are filed.
+
+`/annetaan:pj-design-details` ([details](skills/pj-design-details/SKILL.md)) shows the issues without `ready` yet,
+in a recommended order with `blocker` issues first, and you pick one. The issue writer proposes, you decide, and the
+issue is rewritten to match. When an answer changes another issue, that issue is updated, and if it was `ready` it
+loses `ready` with a comment. An issue too big to implement in one go is split. `ready` goes on only when the issue
+can be implemented straight from its body: a file list of eight files or fewer, existing symbols named for every
+changed file, and acceptance criteria anchored to tests or commands. Ticking a box on GitHub settles a decision too.
+
+`/annetaan:pj-running` ([details](skills/pj-running/SKILL.md)) checks that you can merge your own pull request
+without an approving review, then checks every issue in the order. Any issue that needs design again sends the run
+back to `pj-design-details` before anything starts. After you approve the order, each issue goes through the same
+steps in turn. It gets a branch. [workflow](skills/workflow/README.md#driven-from-an-issue) runs it as one task,
+with review rounds in difit and an integration review. A draft pull request follows, with the work report as its
+body. Then the merge, by squash where the repository allows it. Work nobody planned becomes a new issue. Work that
+has to come first stops the run and gets the `blocker` label. The next run picks up where this one stopped.
+
+```
+/annetaan:pj-design-and-plan add CSV export to every report screen
+/annetaan:pj-design-details
+/annetaan:pj-running
+```
+
+With no issue number, the second and third ask which project.
+
+```mermaid
+flowchart TD
+    req(["your request"]) --> plan["pj-design-and-plan<br/>planner splits the work,<br/>issue writers draw each task"]
+    plan --> approve(["you approve the split"]) --> filed["parent issue and sub-issues<br/>decisions as checkboxes,<br/>order as blocked-by"]
+    filed --> details["pj-design-details<br/>you decide, the writer rewrites,<br/>ready once implementable as written"]
+    details --> run["pj-running<br/>per ready issue: branch, workflow,<br/>draft pull request, merge"]
+    run -->|"stub or blocker"| details
+    run -->|"all merged"| done(["parent closed<br/>when you say so"])
+
+    you(["you, on GitHub"]) -.->|"tick a box"| filed
+
+    classDef human fill:#fff,stroke:#888,stroke-dasharray: 5 5
+    class req,approve,you,done human
+```
+
+What they need:
+
+- `gh` 2.94.0 or later, logged in.
+- Issues turned on in the repository.
+- The commands run from a clone of the repository.
+- For `pj-running`: write access, a default branch that accepts a merge with no approving review, and what
+  workflow needs (difit, a clean working tree).
+
+The `ready` and `blocker` labels are created when missing, and a label that already exists is reused as it is.
 
 ### doc-write
 
@@ -154,7 +220,11 @@ The model and the effort are pinned here, and a skill selects one by name alone.
 | `annetaan:workflow-design-review` | fable | medium | design review. once, before approval, where the repository accepts breaking changes |
 | `annetaan:workflow-worker` | opus | medium | implementation, for every task |
 | `annetaan:workflow-reviewer` | opus | medium | review, for every task and the integration review |
+| `annetaan:pj-planner` | opus | high | planning for `pj-design-and-plan`. the overall design and the split into tasks |
+| `annetaan:pj-issue-writer` | opus | high | one sub-issue, drawn against the code. drafts it for `pj-design-and-plan`, revises it for `pj-design-details` |
 | `annetaan:doc-meta-overview` | opus | high | overview for `doc-meta`. finds what a per-sentence flag misses |
+
+`pj-running` has no agents of its own. It runs workflow's.
 
 The agent definitions are thin. The substance of each role lives in the skill's `roles/*.md`, and an agent reads
 that path out of the prompt the main session hands it.
@@ -181,3 +251,6 @@ uses the name from there on.
 
 The replacement happens only in SKILL.md. A file the skill hands to a sub-agent, such as `workflow/roles/*.md`, is
 read as plain text. It has to work the path out from where it was read, or take it from the prompt.
+
+A skill that reads another skill's file goes through its own directory, as `pj-design-details` reads
+`$DETAILS/../pj-design-and-plan/format.md`.
