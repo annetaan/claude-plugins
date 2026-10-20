@@ -1,0 +1,417 @@
+#!/usr/bin/env bash
+# Reads one project (a parent issue and its sub-issues) from GitHub and prints it as JSON.
+# Read-only on GitHub. --check also runs `git fetch origin <default branch>`, which moves local refs only.
+# The shape it reads is described in ../format.md.
+# This script is the only place that parses a sub-issue body (## Design, ## Acceptance criteria, ## Decisions).
+set -euo pipefail
+
+die() { echo "project: $*" >&2; exit 1; }
+
+usage() {
+  cat >&2 <<'USAGE'
+usage: project.sh [-R <owner/repo>] <parent>               the whole project, as JSON
+       project.sh [-R <owner/repo>] <parent> --order       the open sub-issues in dependency order, as a JSON array
+       project.sh [-R <owner/repo>] <parent> --check <n>   whether sub-issue <n> can be implemented from its body now
+       project.sh --lint <file|->                          lint one sub-issue body, read from a file or standard input
+  -R <owner/repo>   read another repository (default: the repository of the current directory)
+--order exits non-zero and names the cycle when the blocked-by relationships have one.
+--check runs inside a clone of the repository and fetches its default branch from origin.
+--lint touches neither GitHub nor git and always exits 0.
+USAGE
+  exit 1
+}
+
+REPO=""; MODE="project"; PARENT=""; TARGET=""; LINT_FILE=""
+while [ $# -gt 0 ]; do
+  case "$1" in
+    -R|--repo) [ $# -ge 2 ] || usage; REPO="$2"; shift 2 ;;
+    --order)   MODE="order"; shift ;;
+    --check)   [ $# -ge 2 ] || usage; MODE="check"; TARGET="$2"; shift 2 ;;
+    --lint)    [ $# -ge 2 ] || usage; MODE="lint"; LINT_FILE="$2"; shift 2 ;;
+    -h|--help) usage ;;
+    -?*)       die "unknown option: $1" ;;
+    *)         [ -z "$PARENT" ] || die "one parent issue at a time"; PARENT="$1"; shift ;;
+  esac
+done
+
+command -v python3 >/dev/null 2>&1 || die "python3 is not installed"
+
+read -r -d '' PY <<'PY' || true
+import json, re, subprocess, sys
+
+MODE = sys.argv[1]
+
+# The most files one sub-issue may name in its ## Design file list, tests included.
+# format.md, "When an issue is ready", gives the reason. Change both together.
+MAX_FILES = 8
+
+SECTIONS = ["Goal", "Design", "Acceptance criteria", "Decisions", "Out of scope"]
+ENTRY_RE = re.compile(r"^\s*[-*]\s+`([^`]+)`\s+\((added|changed|deleted)\):\s*(.+)$")
+IDENT_RE = re.compile(r"^[A-Za-z_$][\w$]*(\.[A-Za-z_$][\w$]*)*$")
+OPTION_RE = re.compile(r"^\s*[-*]\s+\[([ xX])\]\s")
+
+def die(msg):
+    print("project: " + msg, file=sys.stderr)
+    sys.exit(1)
+
+def unfenced(text):
+    """The lines of text outside code fences."""
+    fence = False
+    for line in (text or "").replace("\r\n", "\n").split("\n"):
+        if line.lstrip().startswith("```"):
+            fence = not fence
+            continue
+        if not fence:
+            yield line
+
+def split_sections(body):
+    """The ## headings in order, and the text under each."""
+    order, out, name = [], {}, None
+    for line in unfenced(body):
+        m = re.match(r"^##\s+(.+?)\s*$", line)
+        if m and not line.startswith("###"):
+            name = m.group(1)
+            order.append(name)
+            out[name] = []
+            continue
+        if name is not None:
+            out[name].append(line)
+    return order, {k: "\n".join(v).strip() for k, v in out.items()}
+
+def symbols_of(desc):
+    """Backticked identifiers in an entry's description. foo() counts as foo, A.b as b."""
+    out = []
+    for span in re.findall(r"`([^`\n]+)`", desc):
+        span = re.sub(r"\(.*\)$", "", span.strip())
+        if IDENT_RE.match(span):
+            sym = span.split(".")[-1]
+            if sym not in out:
+                out.append(sym)
+    return out
+
+def file_list(design):
+    """The bullet list that opens ## Design. Returns (files, malformed entry count).
+    Blank lines between entries are allowed, and an indented line continues the entry above it.
+    The list ends at the first line that is neither, which is where the prose starts."""
+    entries = []
+    for line in design.split("\n"):
+        if not line.strip():
+            continue
+        if re.match(r"^\s*[-*]\s", line):
+            entries.append(line.strip())
+        elif entries and line[0].isspace():
+            entries[-1] += " " + line.strip()
+        else:
+            break
+    files, bad = [], 0
+    for entry in entries:
+        m = ENTRY_RE.match(entry)
+        if not m:
+            bad += 1
+            continue
+        path = m.group(1).strip()
+        if path.startswith("./"):
+            path = path[2:]
+        files.append({"path": path, "kind": m.group(2), "symbols": symbols_of(m.group(3))})
+    return files, bad
+
+def decisions(text):
+    """Each ### D<n>. decision as {checked, options, recommended}."""
+    out = []
+    for line in text.split("\n"):
+        if re.match(r"^###\s+D\d+\.", line):
+            out.append({"checked": 0, "options": 0, "recommended": 0})
+            continue
+        m = OPTION_RE.match(line)
+        if m and out:
+            d = out[-1]
+            d["options"] += 1
+            d["checked"] += m.group(1) in "xX"
+            d["recommended"] += "(recommended)" in line
+    return out
+
+def parse(body):
+    order, secs = split_sections(body)
+    design = secs.get("Design", "")
+    files, bad = file_list(design)
+    decs = decisions("\n".join(unfenced(secs.get("Decisions", ""))))
+    return {
+        "order": order, "secs": secs, "files": files, "bad_entries": bad, "decs": decs,
+        "stub": design == "To be drawn.",
+    }
+
+def lint(p):
+    if p["stub"]:
+        return {"ok": False, "reasons": ["stub"]}
+    reasons = []
+    if p["order"] != SECTIONS:
+        reasons.append("sections")
+    if not p["files"]:
+        reasons.append("no-files")
+    if len(p["files"]) > MAX_FILES:
+        reasons.append("too-many-files")
+    if p["bad_entries"]:
+        reasons.append("file-entry")
+    if any(f["kind"] == "changed" and not f["symbols"] for f in p["files"]):
+        reasons.append("no-symbols")
+    criteria = [l for l in p["secs"].get("Acceptance criteria", "").split("\n") if re.match(r"^\s*[-*]\s", l)]
+    if not criteria or any("`" not in l for l in criteria):
+        reasons.append("criteria")
+    decs, dtext = p["decs"], p["secs"].get("Decisions", "")
+    if (not decs and dtext != "None.") or any(not 2 <= d["options"] <= 4 or d["recommended"] != 1 for d in decs):
+        reasons.append("decision-shape")
+    if any(d["checked"] == 0 for d in decs):
+        reasons.append("decisions-open")
+    if any(d["checked"] > 1 for d in decs):
+        reasons.append("decisions-contradictory")
+    return {"ok": not reasons, "reasons": reasons}
+
+if MODE == "lint":
+    src = sys.argv[2]
+    body = sys.stdin.read() if src == "-" else open(src).read()
+    print(json.dumps(lint(parse(body)), ensure_ascii=False))
+    sys.exit(0)
+
+issues_file, prs_file, repo = sys.argv[2], sys.argv[3], sys.argv[4]
+owner, name = repo.split("/", 1)
+
+data = json.load(open(issues_file))
+parent = ((data.get("data") or {}).get("repository") or {}).get("issue")
+if parent is None:
+    die("no such issue")
+if parent["subIssues"]["totalCount"] > len(parent["subIssues"]["nodes"]):
+    die("more than 100 sub-issues. this script reads the first 100 only")
+
+pr_of = {}
+for pr in json.load(open(prs_file)):
+    for ref in pr.get("closingIssuesReferences") or []:
+        r = ref.get("repository") or {}
+        if r.get("name", name).lower() != name.lower() or (r.get("owner") or {}).get("login", owner).lower() != owner.lower():
+            continue
+        # The lowest-numbered open pull request wins when two claim the same issue.
+        n = ref["number"]
+        if n not in pr_of or pr["number"] < pr_of[n]["number"]:
+            pr_of[n] = {"number": pr["number"], "isDraft": pr["isDraft"], "url": pr["url"]}
+
+issues = []
+for node in parent["subIssues"]["nodes"]:
+    p = parse(node["body"])
+    ready_events = [e["createdAt"] for e in node["timelineItems"]["nodes"]
+                    if e and (e.get("label") or {}).get("name") == "ready"]
+    issues.append({
+        "number": node["number"],
+        "title": node["title"],
+        "state": node["state"],
+        "updatedAt": node["updatedAt"],
+        "readyAt": max(ready_events) if ready_events else None,
+        "labels": [l["name"] for l in node["labels"]["nodes"]],
+        "blockedBy": [{"number": b["number"], "state": b["state"]} for b in node["blockedBy"]["nodes"]],
+        "blocking": [b["number"] for b in node["blocking"]["nodes"]],
+        "pr": pr_of.get(node["number"]),
+        "stub": p["stub"],
+        "files": p["files"],
+        "designPaths": [f["path"] for f in p["files"]],
+        "decisions": {
+            "total": len(p["decs"]),
+            "settled": sum(d["checked"] == 1 for d in p["decs"]),
+            "open": sum(d["checked"] == 0 for d in p["decs"]),
+            "contradictory": sum(d["checked"] > 1 for d in p["decs"]),
+        },
+        "lint": lint(p),
+    })
+issues.sort(key=lambda i: i["number"])
+by_number = {i["number"]: i for i in issues}
+
+if MODE == "project":
+    print(json.dumps({
+        "parent": {k: parent[k] for k in ("number", "title", "state", "updatedAt", "body")},
+        "issues": issues,
+    }, ensure_ascii=False))
+    sys.exit(0)
+
+def run(*cmd):
+    return subprocess.run(cmd, capture_output=True, text=True)
+
+if MODE == "check":
+    n, default = int(sys.argv[5]), sys.argv[6]
+    issue = by_number.get(n)
+    if issue is None:
+        die("#%d is not a sub-issue of #%d" % (n, parent["number"]))
+    ref = "origin/" + default
+
+    # premises: only once every blocker is closed. Before that the blockers are still meant to change these files.
+    failures = []
+    evaluated = all(b["state"] == "CLOSED" for b in issue["blockedBy"])
+    if evaluated:
+        for f in issue["files"]:
+            exists = run("git", "cat-file", "-e", "%s:%s" % (ref, f["path"])).returncode == 0
+            if f["kind"] == "added" and exists:
+                failures.append({"path": f["path"], "why": "added, but already exists"})
+            elif f["kind"] != "added" and not exists:
+                failures.append({"path": f["path"], "why": "%s, but does not exist" % f["kind"]})
+            elif f["kind"] == "changed":
+                for sym in f["symbols"]:
+                    if run("git", "grep", "-w", "-F", "-q", sym, ref, "--", f["path"]).returncode != 0:
+                        failures.append({"path": f["path"], "symbol": sym, "why": "symbol not found"})
+
+    # history: commits that touched these files after ready went on, except the ones a blocker's pull request brought.
+    stale = []
+    if issue["readyAt"] and issue["designPaths"]:
+        log = run("git", "log", "--first-parent", "--format=%H%x09%s", "--since=" + issue["readyAt"], ref,
+                  "--", *issue["designPaths"])
+        if log.returncode != 0:
+            die("git log failed: " + log.stderr.strip())
+        commits = [l.split("\t", 1) for l in log.stdout.splitlines() if l]
+        # The transitive blockedBy: walk the project's issues, closed ones included.
+        # A blocker outside the project counts, but is not walked further.
+        anticipated, todo = set(), [b["number"] for b in issue["blockedBy"]]
+        while todo:
+            m = todo.pop()
+            if m in anticipated:
+                continue
+            anticipated.add(m)
+            if m in by_number:
+                todo.extend(b["number"] for b in by_number[m]["blockedBy"])
+        for start in range(0, len(commits), 100):
+            chunk = commits[start:start + 100]
+            fields = " ".join(
+                'c%d: object(oid: "%s") { ... on Commit { associatedPullRequests(first: 5) '
+                '{ nodes { number merged closingIssuesReferences(first: 50) { nodes { number } } } } } }' % (k, sha)
+                for k, (sha, _) in enumerate(chunk))
+            q = run("gh", "api", "graphql", "-F", "owner=" + owner, "-F", "name=" + name, "-f",
+                    "query=query($owner: String!, $name: String!) { repository(owner: $owner, name: $name) { %s } }" % fields)
+            if q.returncode != 0:
+                die("cannot read the pull requests of the commits: " + q.stderr.strip())
+            repo_data = json.loads(q.stdout)["data"]["repository"]
+            for k, (sha, subject) in enumerate(chunk):
+                prs = [pr for pr in ((repo_data.get("c%d" % k) or {}).get("associatedPullRequests") or {}).get("nodes", [])
+                       if pr["merged"]]
+                closes = {c["number"] for pr in prs for c in pr["closingIssuesReferences"]["nodes"]}
+                if not closes & anticipated:
+                    stale.append({"sha": sha, "subject": subject, "pr": prs[0]["number"] if prs else None})
+
+    print(json.dumps({
+        "number": n,
+        "ok": issue["lint"]["ok"] and not failures and not stale,
+        "lint": issue["lint"],
+        "premises": {"evaluated": evaluated, "failures": failures},
+        "history": {"stale": stale},
+    }, ensure_ascii=False))
+    sys.exit(0)
+
+# --order: the open sub-issues, blockers first. Only edges between open sub-issues count.
+# A closed blocker is done, and a blocker outside the project is not this script's to order.
+open_ = {i["number"]: i for i in issues if i["state"] == "OPEN"}
+waits_on = {n: sorted({b["number"] for b in i["blockedBy"] if b["number"] in open_}) for n, i in open_.items()}
+unblocks = {n: [] for n in open_}
+for n, deps in waits_on.items():
+    for d in deps:
+        unblocks[d].append(n)
+
+def find_cycle(nodes):
+    """Return one cycle among nodes as a list of numbers, the first one repeated at the end."""
+    state = {}
+    for start in sorted(nodes):
+        if start in state:
+            continue
+        stack = [(start, iter(waits_on[start]))]
+        path = [start]
+        state[start] = 1
+        while stack:
+            n, it = stack[-1]
+            nxt = next((d for d in it if d in nodes), None)
+            if nxt is None:
+                state[n] = 2
+                stack.pop()
+                path.pop()
+            elif state.get(nxt) == 1:
+                return path[path.index(nxt):] + [nxt]
+            elif nxt not in state:
+                state[nxt] = 1
+                stack.append((nxt, iter(waits_on[nxt])))
+                path.append(nxt)
+    return []
+
+def waiting_count(n, seen=None):
+    """How many open issues wait on n, directly or not."""
+    seen = set() if seen is None else seen
+    for m in unblocks[n]:
+        if m not in seen:
+            seen.add(m)
+            waiting_count(m, seen)
+    return len(seen)
+
+left = {n: len(deps) for n, deps in waits_on.items()}
+result = []
+free = [n for n, c in left.items() if c == 0]
+while free:
+    free.sort(key=lambda n: (-waiting_count(n), n))
+    n = free.pop(0)
+    result.append(n)
+    for m in unblocks[n]:
+        left[m] -= 1
+        if left[m] == 0:
+            free.append(m)
+
+if len(result) < len(open_):
+    cycle = find_cycle({n for n in open_ if n not in result})
+    die("the blocked-by relationships have a cycle: " + " blocked by ".join("#%d" % n for n in cycle))
+
+print(json.dumps([open_[n] for n in result], ensure_ascii=False))
+PY
+
+if [ "$MODE" = "lint" ]; then
+  [ -z "$PARENT" ] || die "--lint takes no parent"
+  [ "$LINT_FILE" = "-" ] || [ -f "$LINT_FILE" ] || die "no such file: $LINT_FILE"
+  exec python3 -c "$PY" lint "$LINT_FILE"
+fi
+
+[ -n "$PARENT" ] || usage
+case "$PARENT" in *[!0-9]*) die "the parent must be an issue number: $PARENT" ;; esac
+case "$TARGET" in *[!0-9]*) die "--check takes an issue number: $TARGET" ;; esac
+
+command -v gh >/dev/null 2>&1 || die "gh is not installed"
+
+if [ -z "$REPO" ]; then
+  REPO="$(gh repo view --json nameWithOwner --jq .nameWithOwner)" || die "cannot tell the repository. run this inside a clone or pass -R <owner/repo>"
+fi
+case "$REPO" in */*) ;; *) die "the repository must read <owner/repo>: $REPO" ;; esac
+
+TMP="$(mktemp -d)"
+trap 'rm -rf "$TMP"' EXIT
+
+# One GraphQL query for the parent and every sub-issue.
+gh api graphql -F owner="${REPO%%/*}" -F name="${REPO#*/}" -F n="$PARENT" -f query='
+query($owner: String!, $name: String!, $n: Int!) {
+  repository(owner: $owner, name: $name) {
+    issue(number: $n) {
+      number title state updatedAt body
+      subIssues(first: 100) {
+        totalCount
+        nodes {
+          number title state updatedAt body
+          labels(first: 50) { nodes { name } }
+          blockedBy(first: 50) { nodes { number state } }
+          blocking(first: 50) { nodes { number } }
+          timelineItems(itemTypes: [LABELED_EVENT], last: 100) {
+            nodes { ... on LabeledEvent { createdAt label { name } } }
+          }
+        }
+      }
+    }
+  }
+}' > "$TMP/issues.json" || die "cannot read issue #$PARENT in $REPO"
+
+# One call for the open pull requests, to find the one that closes each sub-issue.
+gh pr list -R "$REPO" --state open --limit 500 --json number,isDraft,url,closingIssuesReferences \
+  > "$TMP/prs.json" || die "cannot list the pull requests of $REPO"
+
+if [ "$MODE" = "check" ]; then
+  git rev-parse --git-dir >/dev/null 2>&1 || die "--check runs inside a clone of $REPO"
+  DEFAULT="$(gh repo view "$REPO" --json defaultBranchRef --jq .defaultBranchRef.name)" || die "cannot read the default branch of $REPO"
+  git fetch --quiet origin "$DEFAULT" || die "cannot fetch $DEFAULT from origin"
+  python3 -c "$PY" check "$TMP/issues.json" "$TMP/prs.json" "$REPO" "$TARGET" "$DEFAULT"
+  exit 0
+fi
+
+python3 -c "$PY" "$MODE" "$TMP/issues.json" "$TMP/prs.json" "$REPO"
