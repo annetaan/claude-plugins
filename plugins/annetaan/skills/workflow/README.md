@@ -78,9 +78,9 @@ you opened keeps working.
 The pull request body is `log.md` under a head of `Closes`, `Part of` and a two-line `## Plan`. The run pushes and
 opens the pull request as a draft. pj-running merges it.
 
-A stop during the task leaves a stash and pushes nothing. A stop during the integration review leaves a draft pull
-request with the task commit and a paragraph on why it stopped. Either way the stash is the one thing left outside
-GitHub, and a resume redoes that work. The shape of the issues and the pull requests is in
+A stop before the task is committed leaves a stash and pushes nothing. A stop once the task commit exists leaves a
+draft pull request with that commit and a paragraph on why it stopped. Either way the stash is the one thing left
+outside GitHub, and a resume redoes that work. The shape of the issues and the pull requests is in
 [format.md](../pj-design-and-plan/format.md).
 
 ## What it leaves behind

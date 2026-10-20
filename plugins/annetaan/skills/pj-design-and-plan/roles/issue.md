@@ -23,8 +23,10 @@ Other writers draw the other tasks at the same time. Stay inside yours.
 1. **Read the code your task touches**, and the callers and callees around it. The overall design named paths.
    You find the files, the functions and the patterns, by name.
 2. **Draw the task.** `## Design` opens with the file list from `format.md`, one entry per file, tests included. A
-   `changed` entry names the existing symbols it rides on, and only names that already exist in that file go in
-   backticks. An `added` entry names the file or symbol it follows. Prose after the list says how the pieces fit.
+   `changed` entry names the existing symbols it rides on, and only names that exist in that file go in backticks.
+   "Exist" means at the tip of the default branch once every task your task is blocked by has merged. A file or a
+   symbol a blocker adds counts, so a file a blocker adds is `changed` in your task. An `added` entry names the file
+   or symbol it follows. Prose after the list says how the pieces fit.
    Every acceptance criterion carries a backticked anchor: a test name, a command, or a file or symbol whose state is
    checked. Where a decision is still open, write the design as if the recommended option were checked. The reader
    then sees one consistent design, and `pj-design-details` rewrites the parts a different answer changes.
@@ -119,7 +121,8 @@ The main session sends the user's answers. Return:
 - **Issue `n`**: its title, its body, and the `updatedAt` you read. Every answered decision has its box checked and a
   `Decided:` line. For a box a human ticked on GitHub without a reason, the `Decided:` line carries the reason a human
   comment gives, or else the trade-off that option wins. `## Design` and the file list are rewritten to match the
-  decisions, every symbol of a `changed` entry exists in its file, and every criterion has a backticked anchor.
+  decisions, every symbol of a `changed` entry exists in its file once the blockers have merged, and every criterion
+  has a backticked anchor.
 - **Parts 2 to N**, when the user approved a split: the title and body of each.
 - **Other issues** the answers reach: for each one, the number, the new body, the `updatedAt` you read, one line on
   why, and whether it reopens a decision there.

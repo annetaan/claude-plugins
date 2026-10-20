@@ -628,7 +628,7 @@ Return `finished` with the existing pull request. Nothing else runs.
    git push -u origin <branch>
    cd "$WORKDIR"
    gh pr create --draft --base <default branch> --title "<issue title>" --body-file log.md   # no pull request yet
-   gh pr edit <m> --body-file log.md                                                          # resumed, one exists
+   gh pr edit <m> --title "<issue title>" --body-file log.md                                  # resumed, one exists
    ```
 
    The `--attach` rules and the fallback for gh older than 2.99.0 apply as in 6a. The file paths go into what you
@@ -640,16 +640,19 @@ Return `finished` with the existing pull request. Nothing else runs.
 It runs on the round cap, an `Unplanned:` with `blocking`, a `Diverged:`, the `work-reports/` guard, or the user
 saying stop.
 
-- **Before the task is committed.** With a dirty tree, `git stash push -u -m "pj-running #<n>: <issue title>"`.
+The task commit decides the case, whatever the phase. Look for it in `git log --oneline <START>..HEAD`.
+
+- **No task commit yet.** With a dirty tree, `git stash push -u -m "pj-running #<n>: <issue title>"`.
   Push nothing and open no pull request.
-- **During the integration review.**
+- **The task commit exists.**
   1. Stash the fixes in flight the same way.
   2. Write `$WORKDIR/stopped.md`: the head from **Phase 6 from an issue**, with the task line checked with its SHA
      and `- [ ] Integration review` unchecked, then one paragraph. The paragraph says why and where the run stopped,
      what the task's review changed, the test and type check commands with their results, the adaptations the
      implementation session listed (or none), and the stash name.
   3. Push, then `gh pr create --draft --base <default branch> --title "<issue title>" --body-file stopped.md`, or
-     `gh pr edit <m> --body-file stopped.md` when the pull request exists, both from `$WORKDIR`.
+     `gh pr edit <m> --title "<issue title>" --body-file stopped.md` when the pull request exists, both from
+     `$WORKDIR`.
 - **Say plainly that the stash is the one piece of state outside GitHub.** It is local, a resume never applies it,
   and the work it holds gets redone.
 - Send nothing more to the sessions in flight.

@@ -217,6 +217,10 @@ With no decisions and no split, go straight to phase 4.
    gh issue edit <k> --add-label ready --remove-label blocker
    ```
 
+   **When the check fails**, send its JSON to the writer with `SendMessage` and say what to fix. Lint the body that
+   comes back as in step 2, write it as in step 5, and check again. When the second check fails too, leave `ready`
+   off. The issue keeps `blocker` if it had it, and phase 5 reports the failures.
+
    An issue that lost `ready` in step 6 does not get it back in this pass. It comes up again in phase 1.
 
 **When a command fails halfway**, stop and tell the user what was written and what was not, with the numbers.
@@ -225,8 +229,8 @@ With no decisions and no split, go straight to phase 4.
 
 Report in a few lines:
 
-- issue `<n>`: `ready` or not, and when not, its open decisions or its lint codes
-- the parts a split filed, with their numbers
+- issue `<n>`: `ready` or not, and when not, its open decisions, its lint codes or its premise failures
+- the parts a split filed, with their numbers, each `ready` or not in the same way
 - each other issue changed, and whether it lost `ready`
 - the edges changed and the blockers closed
 

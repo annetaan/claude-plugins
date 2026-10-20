@@ -230,8 +230,10 @@ The bar for a body is in **When an issue is ready**.
 - The kind is `added`, `changed` or `deleted`.
 - The description follows the colon. **Its backticked identifiers are the entry's symbols.** `foo()` counts as `foo`
   and `A.b` as `b`. A backticked span with spaces, such as a test name, is no symbol.
-- **A `changed` entry names at least one symbol, and every symbol it names already exists in that file.** `--check`
-  looks each one up. A new name, or a name from another file, goes without backticks or into its own file's entry.
+- **A `changed` entry names at least one symbol, and every symbol it names exists in that file at the tip of the
+  default branch once every issue in its `blockedBy` has merged.** `--check` looks each one up. A file or a symbol a
+  blocker adds counts as existing, so a file a blocker adds is `changed` here. A new name, or a name from another
+  file, goes without backticks or into its own file's entry.
 - Each entry is one bullet. A long description may wrap onto indented lines, and blank lines between entries are
   allowed. The list ends at the first line that is neither a bullet nor indented.
 - Prose after the list is optional.
@@ -407,7 +409,7 @@ Every comment a skill's main session posts starts with a bold marker, then the t
 | Marker | Posted by |
 | --- | --- |
 | `**[pj-design-details]**` | `pj-design-details` |
-| `**[pj-running]**` | `pj-running`, and `workflow` when `pj-running` drives it |
+| `**[pj-running]**` | `pj-running` |
 
 **A comment with no marker is from a human.** A skill reads it as one.
 

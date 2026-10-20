@@ -100,8 +100,9 @@ parent and the sub-issues are filed.
 in a recommended order with `blocker` issues first, and you pick one. The issue writer proposes, you decide, and the
 issue is rewritten to match. When an answer changes another issue, that issue is updated, and if it was `ready` it
 loses `ready` with a comment. An issue too big to implement in one go is split. `ready` goes on only when the issue
-can be implemented straight from its body: a file list of eight files or fewer, existing symbols named for every
-changed file, and acceptance criteria anchored to tests or commands. Ticking a box on GitHub settles a decision too.
+can be implemented straight from its body: a file list of eight files or fewer, symbols named for every changed
+file that exist once its blockers have merged, and acceptance criteria anchored to tests or commands. Ticking a box
+on GitHub settles a decision too.
 
 `/annetaan:pj-running` ([details](skills/pj-running/SKILL.md)) checks that you can merge your own pull request
 without an approving review, then checks every issue in the order. Any issue that needs design again sends the run
