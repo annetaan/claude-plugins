@@ -14,8 +14,8 @@ comment threads. Open the same server in a browser and you write into the same t
 
 ## Use it
 
-Name the skill, or invoke `/annetaan:workflow`. It never starts on its own, because it runs a local server for as
-long as the flow lasts, opens a browser, and adds commits.
+Name the skill, or invoke `/annetaan:workflow`. It never starts on its own. You name it, or pj-running runs it for
+one issue, because it runs a local server for as long as the flow lasts, opens a browser, and adds commits.
 
 ```
 /annetaan:workflow add filter conditions to the search form
@@ -66,6 +66,22 @@ whatever the task. A task boundary is a cheap place to
 start over. The code is in git, the plan is with the orchestrator, and every review thread is resolved. What is left
 is how this repository wants to be worked in, and that rides along as **handover notes**: five lines from each
 session, folded together, capped at fifteen.
+
+## Driven from an issue
+
+pj-running works through a project's issues one at a time, and runs each one through this skill. That run has no
+design session, no approval and no questions. The issue's text is the approved design, and an issue only gets that
+far once it can be implemented as it stands. The issue becomes one task. Its review rounds and the integration review
+happen in the same difit you can open in the browser, and the server stays up across issues on one port, so the tab
+you opened keeps working.
+
+The pull request body is `log.md` under a head of `Closes`, `Part of` and a two-line `## Plan`. The run pushes and
+opens the pull request as a draft. pj-running merges it.
+
+A stop before the task is committed leaves a stash and pushes nothing. A stop once the task commit exists leaves a
+draft pull request with that commit and a paragraph on why it stopped. Either way the stash is the one thing left
+outside GitHub, and a resume redoes that work. The shape of the issues and the pull requests is in
+[format.md](../pj-design-and-plan/format.md).
 
 ## What it leaves behind
 

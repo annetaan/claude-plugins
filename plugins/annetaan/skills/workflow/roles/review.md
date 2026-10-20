@@ -26,6 +26,10 @@ In order of priority:
 4. **Gaps in the tests**: behaviour that changed and nothing covers.
 5. **Simplicity and reuse**: code written out where an existing function would have done.
 
+When the design is an issue, its checked decisions bind. A change against a checked option is drift from the design,
+even when it works. A change to a file outside the issue's file list is drift too, unless your request lists it under
+"Adaptations" and it touches nothing another issue relies on.
+
 **What to leave unsaid**: matters of taste, anything the formatter fixes, a guess that ends in "this might", and faults in existing code the diff never touched. **A finding needs a concrete failure to go with it.**
 
 ## Posting

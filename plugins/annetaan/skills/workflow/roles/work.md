@@ -41,6 +41,21 @@ When the main session says task k passed review and asks for a commit, turn that
 
 The integration review after the last task works the same way. Fixes become one commit once it approves. No fixes means no commit.
 
+## Work outside the task
+
+This section applies when your prompt says the run comes from an issue. The issue's body is the approved design, and
+its checked decisions bind. There is no design session to go back to, so three things replace it.
+
+- **Small adaptations.** A renamed symbol or a moved file is yours to absorb when it changes no name, contract or
+  file that another issue, the parent's design or an acceptance criterion relies on, and needs no human choice. List
+  each one in your report under "Adaptations".
+- **`Diverged:`** The code matches neither the issue's design nor a small adaptation, or carrying out the design
+  would go against a checked decision. Stop and do not commit. Report `Diverged:` with what you found in the code, and
+  the decision as `#<issue> D<n>` when there is one.
+- **`Unplanned:`** Work outside this issue's file list and goal. Do not do it. Report a title, what you found, why it
+  matters, and `later` when this issue can be finished without it, or `blocking` when it cannot. After `later`, carry
+  on with the task. After `blocking`, stop and report.
+
 ## Review rounds
 
 The main session tells you to read the comments and respond. Work through them in order.
