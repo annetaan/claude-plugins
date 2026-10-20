@@ -8,7 +8,7 @@ change here is a change to all three.
 | Skill | What it does |
 | --- | --- |
 | `pj-design-and-plan` | designs the whole in broad strokes, splits it into tasks, and files a parent issue and one sub-issue per task with the decisions it needs |
-| `pj-design-details` | settles each sub-issue's decisions with the user, draws the stubs, resolves the blockers, and labels an issue `ready` |
+| `pj-design-details` | settles each sub-issue's decisions with the user, makes each one implementable as written, splitting it when it is too big, draws the stubs, resolves the blockers, and labels an issue `ready` |
 | `pj-running` | works through the workable issues one pull request at a time, running the `workflow` skill on each and merging it before the next starts |
 
 ## Principle
@@ -394,7 +394,8 @@ gh issue comment <m> --body-file <file>
 gh issue close <m> --reason completed
 ```
 
-A blocker on the issue itself loses `blocker` when it gets `ready` back.
+An issue loses `blocker` when it gets `ready`. `pj-design-details` adds the one and removes the other in one
+command.
 
 **Whenever `pj-running` takes `ready` off an issue, it adds `blocker`.** An issue it stopped on is then always the
 first thing `pj-design-details` shows.
