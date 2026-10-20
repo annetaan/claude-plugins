@@ -1,6 +1,6 @@
 ---
 name: workflow
-description: Runs one implementation as design, a design review where the repository accepts breaking changes, approval, then per task (implement, review rounds, one commit), then an integration review, then a finish step that opens a pull request, pushes, or stops locally. The review rounds happen in difit, a local diff viewer, so a human can write into the same threads from a browser. Use it only when the user names this skill or invokes /annetaan:workflow, because it starts a long-running local server, opens a browser, spawns four sub-sessions, and adds commits. Do not use it for a one-off implementation request or for an ordinary code review request.
+description: Runs one implementation as design, a design review where the repository accepts breaking changes, approval, then per task (implement, review rounds, one commit), then an integration review, then a finish step that opens a pull request, pushes, or stops locally. The review rounds happen in difit, a local diff viewer, so a human can write into the same threads from a browser. Use it only when the user names this skill or invokes /annetaan:workflow, or when pj-running loads it to run one issue, because it starts a long-running local server, opens a browser, spawns four sub-sessions, and adds commits. Do not use it for a one-off implementation request or for an ordinary code review request.
 ---
 
 # workflow
@@ -12,6 +12,9 @@ The design session returns a **plan**: an ordered list of small tasks. Implement
 
 You are the main session, and you are the **orchestrator. You do not write code.** Sub-agents design, implement and review. You pass work between them and you are the only window onto the human.
 
+**When pj-running loads this skill for an issue, follow From an issue.** It says which parts below it skips and which
+it changes. Everything it does not mention runs as written.
+
 ## Paths: `$FLOW`
 
 **`$FLOW` below means `${CLAUDE_SKILL_DIR}`**, the absolute path of this skill's directory.
@@ -20,7 +23,8 @@ You are the main session, and you are the **orchestrator. You do not write code.
 
 ## Before you start
 
-This skill starts a long-running local server, opens a browser, and adds commits. **Start it only when the user names it or invokes `/annetaan:workflow`.**
+This skill starts a long-running local server, opens a browser, and adds commits. **Start it only when the user names
+it or invokes `/annetaan:workflow`, or pj-running loads it for an issue.**
 
 Run these checks and keep every answer. Phase 1 needs all of them.
 
@@ -368,6 +372,8 @@ If round five does not come back `approve`, stop and report to the user. Lay out
 
 **If the user says stop at any point, stop and report.** If the user says keep going after the cap, keep going. The cap is a brake, and it is not a promise.
 
+From an issue, the cap ends in the stop procedure there, with no question to the user.
+
 ## Phase 5: integration review
 
 Once every task is committed, **review the whole diff once.** A review inside a task cannot see the task boundaries: interfaces that do not line up, a rename done on one side only, work duplicated between tasks.
@@ -491,6 +497,171 @@ Whichever ending ran, close with: `START`, the commits stacked on it matched aga
 - how to bring difit back for another look: `$FLOW/scripts/difit-session.sh start . <START>`
 - the screenshot paths, when the change shows on screen
 
+## From an issue
+
+pj-running loads this skill to run one sub-issue of a project as one task. The issue was written to be implemented
+as it stands, so this entry has no design session, no approval and no questions. The shape of the issue and of its
+pull request is in `$FLOW/../pj-design-and-plan/format.md`.
+
+### What pj-running has settled
+
+These values are already in your context. Nothing arrives as an argument.
+
+- the issue number `n`, the parent `P`, and the issue title
+- the default branch, and the branch already checked out for the issue
+- the entry state: `fresh`, `resume-integration` or `resume-merge`
+- the pull request number `m` for `resume-integration` and `resume-merge`, none for `fresh`
+- the handover notes, seeded from the parent's handover comment
+- the difit port, or none for the first issue of the run
+
+pj-running has already run the checks in **Before you start** (a clean tree, `gh`, difit) and confirmed that
+`work-reports/` is ignored.
+
+### What it skips
+
+- **Does this repository accept breaking changes?** Ask nothing and write nothing to memory.
+- All of phase 1: the design session, the design review, the open questions, the approval dialog, and the check for
+  commits that came before this flow.
+- Phase 2 (a) and (b). pj-running owns the branch. Keep the first two lines of (b) as a guard, because (d) needs
+  `ROOT` from the first one.
+
+  ```bash
+  ROOT=$(git rev-parse --show-toplevel)
+  git -C "$ROOT" check-ignore -q work-reports && echo IGNORED || echo NOT_IGNORED
+  ```
+
+  On `NOT_IGNORED`, take the stop procedure with the reason `work-reports`. Never ask about `.gitignore` here.
+- Endings 6b and 6c, and **Report to the user**. What goes back to pj-running replaces the report.
+- `difit-session.sh stop`, except as the first half of a restart. pj-running stops the server.
+
+### The design, the plan and the detail
+
+Read the two bodies.
+
+```bash
+gh issue view <n> --json body
+gh issue view <P> --json body
+```
+
+- **The approved design**, for every prompt in phases 3 to 5: the issue's `## Goal`, `## Design`,
+  `## Acceptance criteria` and `## Out of scope`, its `## Decisions` cut down to the checked option and the
+  `Decided:` line of each, and the parent's `## Design`.
+- **The plan**: one task, "1. <issue title>".
+- **The detail design for task 1**: the issue's `## Design`.
+- **The commit**: in phase 4 (e), ask for a subject that follows the repository's style and names the issue title.
+
+### Start point and work directory
+
+Phase 2 (c) takes `START` by the entry state.
+
+- `fresh`: `START=$(git rev-parse HEAD)`, right after pj-running made the branch.
+- `resume-integration`: `START=$(git merge-base origin/<default branch> HEAD)`.
+
+Phase 2 (d) runs as written. A resumed run gets a new `WORKDIR`.
+
+### difit across issues
+
+One difit server serves the whole pj-running run, on one port, so the browser tab the user opened keeps working.
+
+- **No port yet**, the first issue of the run: in phase 4 (b), `start . HEAD`, then `difit-session.sh port`. Keep
+  the port for pj-running and run `open`. This is the only time the browser opens in the run.
+- **A port already**, every later issue: at the start of phase 4 (b), `stop`, then `start . HEAD <port>`.
+- Within the issue, `refresh` runs as written.
+- Phase 5 becomes `stop`, then `start . <START> <port>`.
+- `resume-integration` starts there directly. With a port, `stop`, then `start . <START> <port>`. With no port yet,
+  `start . <START>`, then `port` and `open` as above.
+
+Comments the user writes in the browser reach the implementation session through phase 4 (d) as always.
+
+### Phases 3 to 5
+
+They run as written: a new implementation session and a new review session, five rounds, one commit, then the
+integration review over `START..HEAD`. The prompts gain a line each.
+
+- The phase 3 prompt: "This run comes from issue #<n>. Follow **Work outside the task** in your role instruction."
+- Both review prompts: "The design is issue #<n>. Its checked decisions bind."
+- Every review request, the round 1 prompt and each "review it again" `SendMessage`, also carries the adaptations
+  the implementation session has listed so far, under "Adaptations", or "none".
+
+Keep the handover lines from phase 4 (e) for pj-running.
+
+### Reports from the implementation session
+
+- **`Unplanned:` with `later`**: hand it to pj-running's **Unplanned work** as soon as it arrives. The task goes on.
+- **`Unplanned:` with `blocking`**, and **`Diverged:`**: take the stop procedure, then hand the report to
+  pj-running's **When workflow returns**.
+- **Adaptations** the implementation session lists: keep them for the review requests and for `log.md`.
+
+### `resume-integration`
+
+Go straight to phase 5. The progress comes from the task commit on the branch (`git log --oneline <START>..HEAD`).
+The line on what the task's review changed, the test results and the adaptations come from the stop paragraph in the
+pull request body (`gh pr view --json body`). The adaptations go into the review requests and `log.md` as usual.
+
+### `resume-merge`
+
+Return `finished` with the existing pull request. Nothing else runs.
+
+### Phase 6 from an issue
+
+1. **The work report.** The request in **The work report** gains this, with the values filled in:
+
+   > Begin `log.md` with this head, exactly, then the report:
+   >
+   > ```markdown
+   > Closes #<n>
+   > Part of #<P>
+   >
+   > ## Plan
+   >
+   > - [x] <issue title> (<short sha of the task commit>)
+   > - [x] Integration review
+   > ```
+   >
+   > List the adaptations the implementation session made to the issue's design under what changed.
+
+   The head is the one in `format.md` **Pull requests**, with both lines checked.
+2. **`changes.diff`** as written.
+3. **Push, then open or update the pull request.**
+
+   ```bash
+   git push -u origin <branch>
+   cd "$WORKDIR"
+   gh pr create --draft --base <default branch> --title "<issue title>" --body-file log.md   # no pull request yet
+   gh pr edit <m> --body-file log.md                                                          # resumed, one exists
+   ```
+
+   The `--attach` rules and the fallback for gh older than 2.99.0 apply as in 6a. The file paths go into what you
+   hand back. Nothing waits on the user.
+4. Return `finished`.
+
+### The stop procedure
+
+It runs on the round cap, an `Unplanned:` with `blocking`, a `Diverged:`, the `work-reports/` guard, or the user
+saying stop.
+
+- **Before the task is committed.** With a dirty tree, `git stash push -u -m "pj-running #<n>: <issue title>"`.
+  Push nothing and open no pull request.
+- **During the integration review.**
+  1. Stash the fixes in flight the same way.
+  2. Write `$WORKDIR/stopped.md`: the head from **Phase 6 from an issue**, with the task line checked with its SHA
+     and `- [ ] Integration review` unchecked, then one paragraph. The paragraph says why and where the run stopped,
+     what the task's review changed, the test and type check commands with their results, the adaptations the
+     implementation session listed (or none), and the stash name.
+  3. Push, then `gh pr create --draft --base <default branch> --title "<issue title>" --body-file stopped.md`, or
+     `gh pr edit <m> --body-file stopped.md` when the pull request exists, both from `$WORKDIR`.
+- **Say plainly that the stash is the one piece of state outside GitHub.** It is local, a resume never applies it,
+  and the work it holds gets redone.
+- Send nothing more to the sessions in flight.
+- Return `stopped`.
+
+### What it hands back to pj-running
+
+- **`finished`**: the pull request number, the SHA of the task commit, the handover lines, and the paths of any
+  screenshots that could not be attached.
+- **`stopped`**: the reason (`round cap`, `blocking`, `diverged`, `user` or `work-reports`), the stash name or none,
+  the pull request number or none, and the text of the `Unplanned:` or `Diverged:` report.
+
 ## Rules for the whole flow
 
 - **You do not write code.** The implementation session implements and the review session reviews. Code you write yourself never passes through a review.
@@ -506,6 +677,9 @@ Whichever ending ran, close with: `START`, the commits stacked on it matched aga
 - **Do not move anything under `$WORKDIR` into version control.** The report, the screenshots and the diff are worth more untracked. Move them only when the user asks.
 - Report a failure when it happens: a failing test, a design that falls apart, difit refusing to start. **Approved commits are already on the branch and the task in flight is uncommitted in the working tree.** Say both.
 - Run `difit-session.sh stop` when the flow is interrupted, or the server keeps running.
+- From an issue, the main session also pushes and opens the draft pull request. Nothing is merged here. pj-running
+  merges.
+- From an issue, difit stops only when pj-running ends or stops the run.
 
 ## Checking state
 
