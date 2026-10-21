@@ -42,14 +42,14 @@ gh repo view --json nameWithOwner,hasIssuesEnabled,defaultBranchRef
 | --- | --- |
 | The project | one **parent issue**. Its body holds the overall design. |
 | A task | one **sub-issue** of the parent. One task becomes one pull request. |
-| Where the work lands | the **base branch** `pj/<P>`, made from the default branch's tip when the project is filed and named by the parent's `Base:` line. Every sub-issue's pull request merges into it. |
+| Where the work lands | the **base branch** `pj/<P>`, made from the tip of a branch the user picks when the project is filed, the default branch unless they say otherwise. The parent's `Base:` line names both. Every sub-issue's pull request merges into the base branch. |
 | An order between tasks | a native **blocked by** relationship. Never written into a body. |
 | A task that can be implemented straight from its body | the **`ready`** label |
 | Something `pj-running` stopped on | the **`blocker`** label |
 
 The parent never gets `ready` and is never worked on. It closes once every sub-issue is closed, after the user says so.
 
-Merging the base branch into the default branch is a human's job. No skill does it.
+Merging the base branch into the branch it was made from is a human's job. No skill does it.
 
 ### Labels
 
@@ -88,8 +88,8 @@ query plus one `gh pr list` of the pull requests into the base branch, and write
 parser of a sub-issue body, of the parent's `Base:` line and of a pull request's head.** Every skill and the issue
 writer go through it. Pass `-R <owner/repo>` to read a repository other than the current one.
 
-Every mode that reads a parent fails with `project: #<P> has no Base: line` when the parent body has none. `--lint`
-reads no parent.
+Every mode that reads a parent fails with `project: #<P> has no Base: line` when the parent body has none, or has
+one that does not name both branches. `--lint` reads no parent.
 
 ```bash
 project.sh <P>               # the whole project, as JSON
@@ -101,7 +101,7 @@ project.sh --lint <file>     # the lint of one body, from a file, or from standa
 `project.sh <P>` prints:
 
 ```
-{"parent": {"number", "title", "state", "updatedAt", "body", "base"},
+{"parent": {"number", "title", "state", "updatedAt", "body", "base", "from"},
  "issues": [{"number", "title", "state", "updatedAt", "readyAt", "labels": [names],
              "blockedBy": [{"number", "state"}], "blocking": [numbers],
              "pr": {"number", "state", "isDraft", "url"} or null, "stub",
@@ -110,7 +110,8 @@ project.sh --lint <file>     # the lint of one body, from a file, or from standa
              "lint": {"ok", "reasons": [codes]}}]}
 ```
 
-- `base` is the branch the parent's `Base:` line names (see **The parent issue body**).
+- `base` is the base branch the parent's `Base:` line names, and `from` is the branch it was made from (see **The
+  parent issue body**).
 - `readyAt` is the time of the last `ready` labelled event on the issue, or null.
 - `pr` is the issue's pull request, open or merged (see **Pull requests**), or null. Its `state` is `OPEN` or
   `MERGED`.
@@ -153,7 +154,7 @@ gh issue list --state open --limit 100 --json number,title,updatedAt,subIssuesSu
 ## The parent issue body
 
 ```markdown
-Base: `pj/<P>`
+Base: `pj/<P>` from `<branch>`
 
 ## Goal
 
@@ -175,9 +176,10 @@ if one is added>
 
 The task list is the sub-issue list GitHub draws under the body. Never write a second one by hand.
 
-`Base:` names the project's base branch. `pj-design-and-plan` files the parent, creates `pj/<P>`, then adds the line
-to the body. It takes two steps because the branch name carries the parent's number. Nobody changes the line after
-that. A skill that rewrites the parent body keeps the line as it is.
+`Base:` names the project's base branch and, after `from`, the branch it was made from. That second branch is the
+one the user merges the base branch into at the end. `pj-design-and-plan` files the parent, creates `pj/<P>`, then
+adds the line to the body. It takes two steps because the branch name carries the parent's number. Nobody changes
+the line after that. A skill that rewrites the parent body keeps the line as it is.
 
 ### The handover comment
 
@@ -320,7 +322,7 @@ These stay in English whatever language the repository uses, because the skills 
 - `(recommended)`, `Decided:`, `None.` and `To be drawn.`
 - the kinds in the file list: `added`, `changed` and `deleted`
 - the markers (see **Comments**)
-- `Base:` in the parent body
+- `Base:` and `from` in the parent body's first line
 - in a pull request body, `Implements`, `Part of`, `## Plan` and `Integration review`
 
 Everything else is prose in the repository's language.

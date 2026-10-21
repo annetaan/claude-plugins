@@ -65,16 +65,16 @@ A `gh` older than 2.99.0 does not stop the run. workflow falls back for the scre
   project `<P>`. The number only picks the project, and the run still covers the project's whole order.
 - **One number that is not a sub-issue**: it is the parent `<P>`.
 
-**The base branch.** Read the project and take `parent.base` as `<base>`. When `project.sh` fails, for example with
-`has no Base: line`, stop and quote its message.
+**The base branch.** Read the project and take `parent.base` as `<base>` and `parent.from` as `<from>`, the branch
+the base was made from. When `project.sh` fails, for example with `has no Base: line`, stop and quote its message.
 
 ```bash
 $RUNNING/../pj-design-and-plan/scripts/project.sh <P>
 git ls-remote --exit-code --heads origin <base>
 ```
 
-When `ls-remote` finds nothing, stop. The base branch is gone from origin. It may already have been merged into the
-default branch and deleted.
+When `ls-remote` finds nothing, stop. The base branch is gone from origin. It may already have been merged into
+`<from>` and deleted.
 
 Then make sure a local base branch exists, whatever the run holds. The fetch moves local refs and nothing else. The
 second command creates the local branch from `origin/<base>` the first time.
@@ -218,7 +218,7 @@ Show the user:
 - how each issue runs: a branch, workflow's **From an issue** (one task with review rounds in difit, then an
   integration review), a draft pull request into the base branch, then a merge by pj-running, which then closes the
   issue. GitHub does not close it on a merge into a branch other than the default branch.
-- that merging the base branch into the default branch is the user's job, outside this skill
+- that merging the base branch into `<from>` is the user's job, outside this skill
 - that difit opens once, and the user can comment there at any time
 - that the run stops on a blocker, a divergence, the round cap, a merge that does not go through, or the user saying
   stop
@@ -422,8 +422,8 @@ Every way the run ends comes here: the run order is done, the run stopped, or th
    gh issue close <P> --reason completed
    ```
 
-   Whatever the answer, tell the user that `<base>` holds the whole project and that merging it into the default
-   branch is theirs to do.
+   Whatever the answer, tell the user that `<base>` holds the whole project and that merging it into `<from>` is
+   theirs to do.
 
 ## Report to the user
 
@@ -436,7 +436,7 @@ Every way the run ends comes here: the run order is done, the run stopped, or th
 - the screenshots that could not be attached, with their paths and the URL of the pull request
 - what is workable now and what is waiting
 - the next step: `/annetaan:pj-design-details` when a `blocker` or a stub exists, otherwise `/annetaan:pj-running`.
-  When every sub-issue is closed, the user merges `<base>` into the default branch.
+  When every sub-issue is closed, the user merges `<base>` into `<from>`.
 
 ## Rules
 
@@ -448,5 +448,5 @@ Every way the run ends comes here: the run order is done, the run stopped, or th
 - **Never merge a pull request whose head is not fully checked.**
 - **Whenever you take `ready` off an issue, add `blocker`.**
 - **Never apply a stash.**
-- **Never push to the base branch or the default branch, and never rewrite their history.**
+- **Never push to the base branch, to `<from>` or to the default branch, and never rewrite their history.**
 - After a context summary, rebuild the run from the progress lines and `project.sh <P>`.

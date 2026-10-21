@@ -21,16 +21,17 @@ body.
 Other writers draw the other tasks at the same time. Stay inside yours.
 
 1. **Read the code your task touches**, and the callers and callees around it. The overall design named paths.
-   You find the files, the functions and the patterns, by name.
+   You find the files, the functions and the patterns, by name. Read them where the prompt's "Read the code" line
+   says: in the working tree, or at `origin/<from>` through `git show`, `git grep` and `git ls-tree`. In
+   `Mode: revise` there is no such line. Read at `origin/<base>`, as **Revising an issue** says.
 2. **Draw the task.** `## Design` opens with the file list from `format.md`, one entry per file, tests included. A
    `changed` entry names the existing symbols it rides on, and only names that exist in that file go in backticks.
    "Exist" means at the tip of the base branch once every task your task is blocked by has merged. The base branch
-   starts from the default branch's tip when the project is filed, so read the code as it stands in the repository
-   now. A file or a symbol a blocker adds counts, so a file a blocker adds is `changed` in your task. An `added`
-   entry names the file or symbol it follows. Prose after the list says how the pieces fit.
-   Every acceptance criterion carries a backticked anchor: a test name, a command, or a file or symbol whose state is
-   checked. Where a decision is still open, write the design as if the recommended option were checked. The reader
-   then sees one consistent design, and `pj-design-details` rewrites the parts a different answer changes.
+   starts as the code step 1 reads. A file or a symbol a blocker adds counts, so a file a blocker adds is `changed`
+   in your task. An `added` entry names the file or symbol it follows. Prose after the list says how the pieces fit.
+   Every acceptance criterion carries a backticked anchor: a test name, a command, or a file or symbol whose state
+   is checked. Where a decision is still open, write the design as if the recommended option were checked. The
+   reader then sees one consistent design, and `pj-design-details` rewrites the parts a different answer changes.
    **The bar: a worker who reads only this body and the code finds nothing left to design.**
 3. **Pick out what a human has to decide.** A decision belongs in the issue when the code alone cannot answer it and
    the answers lead to different code: behaviour a user sees, a name others will depend on, a trade-off between

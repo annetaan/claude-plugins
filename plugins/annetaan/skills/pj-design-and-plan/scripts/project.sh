@@ -4,7 +4,7 @@
 # which moves local refs only.
 # The shape it reads is described in ../format.md.
 # This script is the only place that parses a sub-issue body (## Design, ## Acceptance criteria, ## Decisions),
-# the parent's Base: line, and the Implements head of a pull request.
+# the parent's Base: line (the base branch and the branch it was made from), and the Implements head of a pull request.
 set -euo pipefail
 
 die() { echo "project: $*" >&2; exit 1; }
@@ -51,7 +51,7 @@ SECTIONS = ["Goal", "Design", "Acceptance criteria", "Decisions", "Out of scope"
 ENTRY_RE = re.compile(r"^\s*[-*]\s+`([^`]+)`\s+\((added|changed|deleted)\):\s*(.+)$")
 IDENT_RE = re.compile(r"^[A-Za-z_$][\w$]*(\.[A-Za-z_$][\w$]*)*$")
 OPTION_RE = re.compile(r"^\s*[-*]\s+\[([ xX])\]\s")
-BASE_RE = re.compile(r"^Base:\s*`?([^`\s]+)`?\s*$")
+BASE_RE = re.compile(r"^Base:\s*`?([^`\s]+)`?\s+from\s+`?([^`\s]+)`?\s*$")
 IMPLEMENTS_RE = re.compile(r"^Implements #(\d+)\s*$")
 
 def die(msg):
@@ -69,13 +69,14 @@ def unfenced(text):
             yield line
 
 def base_of(body):
-    """The branch named by the Base: line among the unfenced lines before the first ## heading, or None."""
+    """The base branch and the branch it was made from, as the Base: line among the unfenced lines before the
+    first ## heading names them, or None."""
     for line in unfenced(body):
         if line.startswith("## "):
             break
         m = BASE_RE.match(line)
         if m:
-            return m.group(1)
+            return m.group(1), m.group(2)
     return None
 
 def implements(body):
@@ -207,9 +208,10 @@ if parent is None:
 if parent["subIssues"]["totalCount"] > len(parent["subIssues"]["nodes"]):
     die("more than 100 sub-issues. this script reads the first 100 only")
 
-base = base_of(parent["body"])
-if base is None:
+named = base_of(parent["body"])
+if named is None:
     die("#%d has no Base: line" % parent["number"])
+base, made_from = named
 
 # One call for the pull requests into the base branch, to find the one whose head names each sub-issue.
 listed = run("gh", "pr", "list", "-R", repo, "--base", base, "--state", "all", "--limit", "500",
@@ -258,7 +260,8 @@ by_number = {i["number"]: i for i in issues}
 
 if MODE == "project":
     print(json.dumps({
-        "parent": dict({k: parent[k] for k in ("number", "title", "state", "updatedAt", "body")}, base=base),
+        "parent": dict({k: parent[k] for k in ("number", "title", "state", "updatedAt", "body")},
+                       base=base, **{"from": made_from}),
         "issues": issues,
     }, ensure_ascii=False))
     sys.exit(0)
