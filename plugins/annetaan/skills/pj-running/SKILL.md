@@ -1,6 +1,6 @@
 ---
 name: pj-running
-description: Works through the ready sub-issues of a GitHub project one at a time. Each one runs through the workflow skill as one task with review rounds in difit and an integration review, then pj-running merges its pull request itself before the next starts. Files unplanned work as stub issues and stops on a blocker. The third of three skills, after pj-design-and-plan and pj-design-details. Use it only when the user names this skill or invokes /annetaan:pj-running, because it creates branches, pushes, opens and merges pull requests, edits issues and labels, and keeps a local difit server running for the whole run.
+description: Works through the ready sub-issues of a GitHub project one at a time. Each one runs through the workflow skill as one task with review rounds in difit and an integration review, then pj-running merges its pull request into the project's base branch and closes the issue itself before the next starts. Files unplanned work as stub issues and stops on a blocker. The third of three skills, after pj-design-and-plan and pj-design-details. Use it only when the user names this skill or invokes /annetaan:pj-running, because it creates branches, pushes, opens and merges pull requests, edits issues and labels, and keeps a local difit server running for the whole run.
 ---
 
 # pj-running
@@ -65,15 +65,34 @@ A `gh` older than 2.99.0 does not stop the run. workflow falls back for the scre
   project `<P>`. The number only picks the project, and the run still covers the project's whole order.
 - **One number that is not a sub-issue**: it is the parent `<P>`.
 
-### Can a self-merge go through?
-
-pj-running merges its own pull requests, so a rule that wants another person's review stops it. Write `{owner}` and
-`{repo}` literally, `gh` fills them in.
+**The base branch.** Read the project and take `parent.base` as `<base>`. When `project.sh` fails, for example with
+`has no Base: line`, stop and quote its message.
 
 ```bash
-gh api "repos/{owner}/{repo}/rules/branches/<default branch>"
-gh api "repos/{owner}/{repo}/branches/<default branch>" --jq .protected
-gh api graphql -f query='{repository(owner:"<owner>",name:"<name>"){defaultBranchRef{branchProtectionRule{requiredApprovingReviewCount requiresCodeOwnerReviews requiresStatusChecks}}}}'
+$RUNNING/../pj-design-and-plan/scripts/project.sh <P>
+git ls-remote --exit-code --heads origin <base>
+```
+
+When `ls-remote` finds nothing, stop. The base branch is gone from origin. It may already have been merged into the
+default branch and deleted.
+
+Then make sure a local base branch exists, whatever the run holds. The fetch moves local refs and nothing else. The
+second command creates the local branch from `origin/<base>` the first time.
+
+```bash
+git fetch --quiet origin "+refs/heads/<base>:refs/remotes/origin/<base>"
+git rev-parse --verify --quiet refs/heads/<base> >/dev/null || git branch --track <base> origin/<base>
+```
+
+### Can a self-merge go through?
+
+pj-running merges its own pull requests, so a rule on the base branch that wants another person's review stops it.
+Write `{owner}` and `{repo}` literally, `gh` fills them in.
+
+```bash
+gh api "repos/{owner}/{repo}/rules/branches/<base>"
+gh api "repos/{owner}/{repo}/branches/<base>" --jq .protected
+gh api graphql -f query='{repository(owner:"<owner>",name:"<name>"){ref(qualifiedName:"refs/heads/<base>"){branchProtectionRule{requiredApprovingReviewCount requiresCodeOwnerReviews requiresStatusChecks}}}}'
 ls CODEOWNERS .github/CODEOWNERS docs/CODEOWNERS 2>/dev/null
 ```
 
@@ -94,7 +113,7 @@ AskUserQuestion: Can a pull request be merged here with no approving review?
   - Stop
 ```
 
-**Note whether the default branch requires status checks**: a `required_status_checks` rule, or classic protection
+**Note whether the base branch requires status checks**: a `required_status_checks` rule, or classic protection
 with `requiresStatusChecks` true. When neither could be read, count it as unknown. The merge in phase 5 waits by it.
 
 ### Picking the merge method
@@ -130,7 +149,7 @@ submodule `.git` is a file, so write no path under it by hand.
 printf 'work-reports/\n' >> "$(git -C "<ROOT>" rev-parse --path-format=absolute --git-path info/exclude)"
 ```
 
-**Never edit `.gitignore` here.** That commit would land on the default branch with no pull request.
+**Never edit `.gitignore` here.** That commit would land on the base branch with no pull request.
 
 ## Phase 1: the order
 
@@ -142,26 +161,30 @@ printf 'work-reports/\n' >> "$(git -C "<ROOT>" rev-parse --path-format=absolute 
    ```
 
    **When `--order` fails on a cycle**, show the user the cycle it names and stop.
-2. **Build the run order** by walking `--order`. Take an issue when it is open, carries `ready`, and every open issue
-   in its `blockedBy` is already in the run order.
-3. Among the issues free to go next, one whose `pr` is not null goes first. Otherwise keep the `--order` sequence.
+2. **Build the run order.** First put every open issue whose `pr.state` is `MERGED` at the front, whatever its labels
+   and blockers. Its pull request has merged and only the close is left. Then walk `--order`. Take an issue when it
+   is open, carries `ready`, and every open issue in its `blockedBy` is already in the run order. An issue put at the
+   front counts as already in the run order.
+3. Among the issues free to go next, one whose `pr.state` is `OPEN` goes first. Otherwise keep the `--order`
+   sequence.
 4. List the `ready` issues left out as **waiting**, each with the issue it waits on.
 5. **An empty run order** ends the skill here. Report that nothing is workable, how many issues wait and how many are
-   not `ready`, and the next step, `/annetaan:pj-design-details`.
+   not `ready`, and the next step, `/annetaan:pj-design-details`. An issue with a merged pull request makes the run
+   order non-empty.
 6. Run `git branch -a` once. Pick a branch pattern in the repository's own naming that holds the issue number, such
    as `feat/<n>-<slug>`. Phase 3 shows it.
 
 ## Phase 2: the pre-check
 
-Check every issue in the run order against the code before anything starts.
+First run `mktemp -d` once for the whole run, even when there is nothing to check. `$TMP` below is the directory it
+printed. A shell variable does not outlive one command, so write the path in full each time.
+
+Check every issue in the run order against the code before anything starts, except the ones whose `pr` is merged.
+Their own `added` files exist now, so `--check` would fail them.
 
 ```bash
-mktemp -d                                    # once, for the whole run
 $RUNNING/../pj-design-and-plan/scripts/project.sh <P> --check <k>
 ```
-
-`$TMP` below is the directory `mktemp -d` printed. A shell variable does not outlive one command, so write the path
-in full each time.
 
 **For each issue whose `ok` is false**, mark it.
 
@@ -188,11 +211,14 @@ issues failed and why, and the next step, `/annetaan:pj-design-details`.
 Show the user:
 
 - the project, `#<P> <title>`
-- the run order, one line each as `#<k> <title>`, with "(resumes PR #<m>)" where `pr` is set
+- the run order, one line each as `#<k> <title>`, with "(resumes PR #<m>)" where `pr.state` is `OPEN` and "(merged
+  as PR #<m>, closes now)" where it is `MERGED`
 - the waiting list
-- the default branch, the branch pattern and the merge method
+- the base branch, the branch pattern and the merge method
 - how each issue runs: a branch, workflow's **From an issue** (one task with review rounds in difit, then an
-  integration review), a draft pull request, then a merge by pj-running
+  integration review), a draft pull request into the base branch, then a merge by pj-running, which then closes the
+  issue. GitHub does not close it on a merge into a branch other than the default branch.
+- that merging the base branch into the default branch is the user's job, outside this skill
 - that difit opens once, and the user can comment there at any time
 - that the run stops on a blocker, a divergence, the round cap, a merge that does not go through, or the user saying
   stop
@@ -224,23 +250,34 @@ Nothing runs in parallel. There is one working tree. For each issue `<k>` in the
 
 1. **Re-read the project** with `project.sh <P>`.
    - The issue is closed: skip it.
-   - `ready` is gone, because a human took it off: skip it and every issue in the run waiting on it, and tell the
-     user which.
-2. **Check again** with `project.sh <P> --check <k>`. A failure gets the marks from phase 2, and the run stops
-   (phase 6).
+   - `ready` is gone, because a human took it off, and `pr` is not merged: skip it and every issue in the run waiting
+     on it, and tell the user which.
+2. **Check again** with `project.sh <P> --check <k>`, unless `pr` is merged. A failure gets the marks from phase 2,
+   and the run stops (phase 6).
 3. **Settle the entry state.**
+   - **`pr.state` is `MERGED`** as `#<m>`: the state is `merged`. Write `$TMP/<k>-closed.md`. It starts with
+     `**[pj-running]**`, says PR #<m> merged into `<base>`, and says pj-running closed the issue because GitHub does
+     not close an issue on a merge into a branch other than the default branch. Then close the issue.
+
+     ```bash
+     gh issue comment <k> --body-file "$TMP/<k>-closed.md"
+     gh issue close <k> --reason completed
+     ```
+
+     Print `#<k> done (<i>/<N>): PR #<m> merged earlier, issue closed` and take the next issue. No workflow run and
+     no handover rewrite.
    - **`pr` is null**: the state is `fresh`.
 
      ```bash
-     git switch <default branch>
-     git pull --ff-only origin <default branch>
+     git switch <base>
+     git pull --ff-only origin <base>
      git switch -c <branch>
      ```
 
-     A local `<branch>` may be left over from a stop during the task. When
-     `git rev-list --count <default branch>..<branch>` prints 0, delete it with `git branch -D <branch>` and create
-     it again. Otherwise it holds unpushed work. Stop and ask the user.
-   - **`pr` is set** as `#<m>`:
+     A local `<branch>` may be left over from a stop during the task. When `git rev-list --count <base>..<branch>`
+     prints 0, delete it with `git branch -D <branch>` and create it again. Otherwise it holds unpushed work. Stop
+     and ask the user.
+   - **`pr.state` is `OPEN`** as `#<m>`:
 
      ```bash
      gh pr checkout <m>
@@ -250,7 +287,7 @@ Nothing runs in parallel. There is one working tree. For each issue `<k>` in the
      The body holds the head from `format.md` **Pull requests**. `- [ ] Integration review` means
      `resume-integration`. Both lines checked means `resume-merge`. No head at all: stop and report.
 4. **Run From an issue.** These are what it expects you to have settled, so say them in your context before you
-   start it: `n` (= `<k>`), `P`, the issue title, the default branch, the checked-out branch, the entry state, `m`
+   start it: `n` (= `<k>`), `P`, the issue title, the base branch, the checked-out branch, the entry state, `m`
    (none for `fresh`), the handover notes, and the difit port. After the first issue, keep the port workflow reports
    and pass it to every later one.
 
@@ -315,19 +352,19 @@ screenshots that could not be attached.
    gh pr merge <m> --squash --delete-branch      # or --merge, or --rebase
    ```
 
-5. Confirm the issue closed with `gh issue view <k> --json state`. When it is still open, post a marked comment that
-   names `#<m>` from `$TMP/<k>-closed.md`, then close it.
+5. Close the issue. The merge into the base branch closed nothing. Write `$TMP/<k>-closed.md` worded as in the
+   `merged` case of phase 5 step 3, naming `#<m>`, then post it and close the issue.
 
    ```bash
    gh issue comment <k> --body-file "$TMP/<k>-closed.md"
    gh issue close <k> --reason completed
    ```
 
-6. Bring the default branch up to date.
+6. Bring the base branch up to date.
 
    ```bash
-   git switch <default branch>
-   git pull --ff-only origin <default branch>
+   git switch <base>
+   git pull --ff-only origin <base>
    ```
 
 7. **Fold the handover lines into the notes.** Merge duplicates, keep fifteen lines at most, and drop the oldest
@@ -369,7 +406,7 @@ Every way the run ends comes here: the run order is done, the run stopped, or th
    $RUNNING/../workflow/scripts/difit-session.sh stop
    ```
 
-2. `git switch <default branch>`.
+2. `git switch <base>`.
 3. `project.sh <P>`. **When every sub-issue is closed**, ask.
 
    ```
@@ -385,8 +422,12 @@ Every way the run ends comes here: the run order is done, the run stopped, or th
    gh issue close <P> --reason completed
    ```
 
+   Whatever the answer, tell the user that `<base>` holds the whole project and that merging it into the default
+   branch is theirs to do.
+
 ## Report to the user
 
+- the base branch `<base>`
 - each merged issue with the URL of its pull request
 - the stubs filed, the `later` ones and the `blocker` ones
 - where the run stopped and why, or that the run order is done
@@ -394,7 +435,8 @@ Every way the run ends comes here: the run order is done, the run stopped, or th
   the work in it gets redone
 - the screenshots that could not be attached, with their paths and the URL of the pull request
 - what is workable now and what is waiting
-- the next step: `/annetaan:pj-design-details` when a `blocker` or a stub exists, otherwise `/annetaan:pj-running`
+- the next step: `/annetaan:pj-design-details` when a `blocker` or a stub exists, otherwise `/annetaan:pj-running`.
+  When every sub-issue is closed, the user merges `<base>` into the default branch.
 
 ## Rules
 
@@ -406,5 +448,5 @@ Every way the run ends comes here: the run order is done, the run stopped, or th
 - **Never merge a pull request whose head is not fully checked.**
 - **Whenever you take `ready` off an issue, add `blocker`.**
 - **Never apply a stash.**
-- **Never push to the default branch, and never rewrite its history.**
+- **Never push to the base branch or the default branch, and never rewrite their history.**
 - After a context summary, rebuild the run from the progress lines and `project.sh <P>`.
