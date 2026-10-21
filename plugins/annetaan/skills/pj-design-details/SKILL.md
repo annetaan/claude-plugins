@@ -50,7 +50,8 @@ gh repo view --json nameWithOwner,hasIssuesEnabled,defaultBranchRef
 
 - **No number**: find the project as `format.md` says under "Finding the project when no number was given".
 - **One number that is a sub-issue**: take its parent from `gh issue view <n> --json parent`. The parent is the
-  project `<P>`, and the first round skips phase 1 and takes `<n>`.
+  project `<P>`. Run `project.sh <P>` first. When `<n>` has a `pr` whose `state` is `MERGED`, tell the user it is
+  waiting for `pj-running` to close it, and start at phase 1. Otherwise the first round skips phase 1 and takes `<n>`.
 - **One number that is not a sub-issue**: it is the parent `<P>`.
 
 ## Phase 1: pick an issue
@@ -63,8 +64,9 @@ $DETAILS/../pj-design-and-plan/scripts/project.sh <P> --order
 **When `--order` fails on a cycle**, show the user the cycle it names and stop. Nothing can be ordered until a human
 removes an edge.
 
-The candidates are the `--order` entries without `ready`. Move the ones labelled `blocker` to the front and keep the
-rest in their order. Show one line per candidate:
+The candidates are the `--order` entries without `ready`, and without a `pr` whose `state` is `MERGED`. An issue
+whose pull request has merged is waiting for `pj-running` to close it. Move the ones labelled `blocker` to the front
+and keep the rest in their order. Show one line per candidate:
 
 - number and title, and `blocker` or `stub` when it is one
 - the open and the contradictory decisions, by count
@@ -85,7 +87,7 @@ AskUserQuestion: Which issue next?
 
 ## Phase 2: the revise pass
 
-Check the chosen issue `<n>` against the code once. `--check` fetches the default branch first.
+Check the chosen issue `<n>` against the code once. `--check` fetches the base branch first.
 
 ```bash
 $DETAILS/../pj-design-and-plan/scripts/project.sh <P> --check <n>
@@ -148,8 +150,8 @@ With no decisions and no split, go straight to phase 4.
    to the writer with `SendMessage` and say what to fix. Write the fixed body over the same file.
 
    The lint checks the sub-issue shape, so it does not apply to the parent. Read the parent's new body against the
-   parent shape in `format.md` instead: its four headings, no line numbers, and no hand-written task list. Send it
-   back to the writer the same way when it fails.
+   parent shape in `format.md` instead: its four headings, no line numbers, no hand-written task list, and its
+   `Base:` line unchanged. Send it back to the writer the same way when it fails.
 3. **Re-read `updatedAt`** of every issue about to be written, the parent included, and compare it with the
    `updatedAt` the writer says it read.
 

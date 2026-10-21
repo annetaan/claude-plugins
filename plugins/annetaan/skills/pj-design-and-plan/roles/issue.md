@@ -24,9 +24,10 @@ Other writers draw the other tasks at the same time. Stay inside yours.
    You find the files, the functions and the patterns, by name.
 2. **Draw the task.** `## Design` opens with the file list from `format.md`, one entry per file, tests included. A
    `changed` entry names the existing symbols it rides on, and only names that exist in that file go in backticks.
-   "Exist" means at the tip of the default branch once every task your task is blocked by has merged. A file or a
-   symbol a blocker adds counts, so a file a blocker adds is `changed` in your task. An `added` entry names the file
-   or symbol it follows. Prose after the list says how the pieces fit.
+   "Exist" means at the tip of the base branch once every task your task is blocked by has merged. The base branch
+   starts from the default branch's tip when the project is filed, so read the code as it stands in the repository
+   now. A file or a symbol a blocker adds counts, so a file a blocker adds is `changed` in your task. An `added`
+   entry names the file or symbol it follows. Prose after the list says how the pieces fit.
    Every acceptance criterion carries a backticked anchor: a test name, a command, or a file or symbol whose state is
    checked. Where a decision is still open, write the design as if the recommended option were checked. The reader
    then sees one consistent design, and `pj-design-details` rewrites the parts a different answer changes.
@@ -86,7 +87,8 @@ to `n` by an edge, one that mentions `#n`, and one that names a symbol `n` chang
 body you read. A marked comment says why `ready` came off. A comment with no marker is a human speaking, so weigh it
 as one.
 
-**Read the code at the tip of the default branch.** `--check` fetched it, so it is at `origin/<default>`.
+**Read the code at the tip of the base branch.** `--check` fetched it, so it is at `origin/<base>`, where `<base>` is
+`base` in the `--check` JSON.
 
 ### Round 1, the proposal
 
@@ -126,7 +128,7 @@ The main session sends the user's answers. Return:
 - **Parts 2 to N**, when the user approved a split: the title and body of each.
 - **Other issues** the answers reach: for each one, the number, the new body, the `updatedAt` you read, one line on
   why, and whether it reopens a decision there.
-- **The parent**: its new body, when the answers change its `## Design`.
+- **The parent**: its new body, when the answers change its `## Design`, keeping its `Base:` line as it is.
 - **Edges to add or remove**, one per line as `#a blocked by #b`. Name a new part as `part k`.
 - **A stub to file**, when merged code has to change outside this issue (see the rules below): its title and body.
 - **A blocker to close**: `#b`, resolved by the rewrite of `#m`.

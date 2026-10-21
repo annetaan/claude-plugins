@@ -7,9 +7,9 @@ change here is a change to all three.
 
 | Skill | What it does |
 | --- | --- |
-| `pj-design-and-plan` | designs the whole in broad strokes, splits it into tasks, and files a parent issue and one sub-issue per task with the decisions it needs |
+| `pj-design-and-plan` | designs the whole in broad strokes, splits it into tasks, and files a parent issue and one sub-issue per task with the decisions it needs, and creates the project's base branch |
 | `pj-design-details` | settles each sub-issue's decisions with the user, makes each one implementable as written, splitting it when it is too big, draws the stubs, resolves the blockers, and labels an issue `ready` |
-| `pj-running` | works through the workable issues one pull request at a time, running the `workflow` skill on each and merging it before the next starts |
+| `pj-running` | works through the workable issues one pull request at a time, running the `workflow` skill on each and merging it into the base branch before the next starts |
 
 ## Principle
 
@@ -42,11 +42,14 @@ gh repo view --json nameWithOwner,hasIssuesEnabled,defaultBranchRef
 | --- | --- |
 | The project | one **parent issue**. Its body holds the overall design. |
 | A task | one **sub-issue** of the parent. One task becomes one pull request. |
+| Where the work lands | the **base branch** `pj/<P>`, made from the default branch's tip when the project is filed and named by the parent's `Base:` line. Every sub-issue's pull request merges into it. |
 | An order between tasks | a native **blocked by** relationship. Never written into a body. |
 | A task that can be implemented straight from its body | the **`ready`** label |
 | Something `pj-running` stopped on | the **`blocker`** label |
 
 The parent never gets `ready` and is never worked on. It closes once every sub-issue is closed, after the user says so.
+
+Merging the base branch into the default branch is a human's job. No skill does it.
 
 ### Labels
 
@@ -81,8 +84,12 @@ there is one. Undo the edge that made it.
 ## Reading a project
 
 `project.sh` sits next to this file, in `scripts/project.sh`. It reads the parent and every sub-issue in one GraphQL
-query plus one `gh pr list`, and writes nothing to GitHub. **It is the only parser of a sub-issue body.** Every skill
-and the issue writer go through it. Pass `-R <owner/repo>` to read a repository other than the current one.
+query plus one `gh pr list` of the pull requests into the base branch, and writes nothing to GitHub. **It is the only
+parser of a sub-issue body, of the parent's `Base:` line and of a pull request's head.** Every skill and the issue
+writer go through it. Pass `-R <owner/repo>` to read a repository other than the current one.
+
+Every mode that reads a parent fails with `project: #<P> has no Base: line` when the parent body has none. `--lint`
+reads no parent.
 
 ```bash
 project.sh <P>               # the whole project, as JSON
@@ -94,17 +101,19 @@ project.sh --lint <file>     # the lint of one body, from a file, or from standa
 `project.sh <P>` prints:
 
 ```
-{"parent": {"number", "title", "state", "updatedAt", "body"},
+{"parent": {"number", "title", "state", "updatedAt", "body", "base"},
  "issues": [{"number", "title", "state", "updatedAt", "readyAt", "labels": [names],
              "blockedBy": [{"number", "state"}], "blocking": [numbers],
-             "pr": {"number", "isDraft", "url"} or null, "stub",
+             "pr": {"number", "state", "isDraft", "url"} or null, "stub",
              "files": [{"path", "kind", "symbols": [names]}], "designPaths": [paths],
              "decisions": {"total", "settled", "open", "contradictory"},
              "lint": {"ok", "reasons": [codes]}}]}
 ```
 
+- `base` is the branch the parent's `Base:` line names (see **The parent issue body**).
 - `readyAt` is the time of the last `ready` labelled event on the issue, or null.
-- `pr` is the issue's pull request (see **Pull requests**), or null.
+- `pr` is the issue's pull request, open or merged (see **Pull requests**), or null. Its `state` is `OPEN` or
+  `MERGED`.
 - `stub` is true when `## Design` reads `To be drawn.`.
 - `files` is the file list that opens `## Design` (see **The file list**), and `designPaths` is its paths.
 - `decisions` counts the `### D<n>.` entries by how many boxes each has checked (see **Decisions**).
@@ -119,11 +128,11 @@ project.sh --lint - <<'EOF'
 EOF
 ```
 
-`--check <n>` runs inside a clone of the repository. It fetches the default branch from origin, which moves local refs
+`--check <n>` runs inside a clone of the repository. It fetches the base branch from origin, which moves local refs
 and nothing else, and prints:
 
 ```
-{"number", "ok", "lint": {"ok", "reasons"},
+{"number", "base", "ok", "lint": {"ok", "reasons"},
  "premises": {"evaluated", "failures": [{"path", "symbol" (when one is missing), "why"}]},
  "history": {"stale": [{"sha", "subject", "pr" or null}]}}
 ```
@@ -144,6 +153,8 @@ gh issue list --state open --limit 100 --json number,title,updatedAt,subIssuesSu
 ## The parent issue body
 
 ```markdown
+Base: `pj/<P>`
+
 ## Goal
 
 <what is true once every sub-issue is closed, in a few sentences>
@@ -163,6 +174,10 @@ if one is added>
 ```
 
 The task list is the sub-issue list GitHub draws under the body. Never write a second one by hand.
+
+`Base:` names the project's base branch. `pj-design-and-plan` files the parent, creates `pj/<P>`, then adds the line
+to the body. It takes two steps because the branch name carries the parent's number. Nobody changes the line after
+that. A skill that rewrites the parent body keeps the line as it is.
 
 ### The handover comment
 
@@ -231,7 +246,7 @@ The bar for a body is in **When an issue is ready**.
 - The description follows the colon. **Its backticked identifiers are the entry's symbols.** `foo()` counts as `foo`
   and `A.b` as `b`. A backticked span with spaces, such as a test name, is no symbol.
 - **A `changed` entry names at least one symbol, and every symbol it names exists in that file at the tip of the
-  default branch once every issue in its `blockedBy` has merged.** `--check` looks each one up. A file or a symbol a
+  base branch once every issue in its `blockedBy` has merged.** `--check` looks each one up. A file or a symbol a
   blocker adds counts as existing, so a file a blocker adds is `changed` here. A new name, or a name from another
   file, goes without backticks or into its own file's entry.
 - Each entry is one bullet. A long description may wrap onto indented lines, and blank lines between entries are
@@ -305,7 +320,8 @@ These stay in English whatever language the repository uses, because the skills 
 - `(recommended)`, `Decided:`, `None.` and `To be drawn.`
 - the kinds in the file list: `added`, `changed` and `deleted`
 - the markers (see **Comments**)
-- in a pull request body, `Closes`, `Part of`, `## Plan` and `Integration review`
+- `Base:` in the parent body
+- in a pull request body, `Implements`, `Part of`, `## Plan` and `Integration review`
 
 Everything else is prose in the repository's language.
 
@@ -349,16 +365,15 @@ An issue is **workable** when it carries `ready`, every issue in its `blockedBy`
 
 ### Is the body still current?
 
-A body is drawn against the code of its day. `--check` asks whether it still holds at the tip of the default branch.
+A body is drawn against the code of its day. `--check` asks whether it still holds at the tip of the base branch.
 
 - **Premises.** Every `changed` and `deleted` path exists, and no `added` path does. Every symbol of a `changed` entry
   is still found in its file. The premises are evaluated **only once every `blockedBy` is closed**. Until then the
   blockers are still meant to change these files, and the result reads not evaluated.
-- **History.** Every commit on the default branch's first-parent line since `readyAt` that touched a path in the file
-  list is a candidate. A candidate is **anticipated** when a merged pull request it came from closes an issue in this
-  issue's transitive `blockedBy`: its blockers, their blockers, and so on through the project, closed issues
-  included, plus direct blockers outside the project. Every other candidate is **stale**. With no `readyAt` there is
-  no history.
+- **History.** Every commit on the base branch's first-parent line since `readyAt` that touched a path in the file
+  list is a candidate. A candidate is **anticipated** when a merged pull request it came from has `Implements #<x>`
+  as its head and x is in this issue's transitive `blockedBy`: its blockers, their blockers, and so on through the
+  project, closed issues included. Every other candidate is **stale**. With no `readyAt` there is no history.
 
 The design was written knowing its blockers would land first, so their commits were foreseen. A commit from anywhere
 else that touched these files was not.
@@ -421,10 +436,11 @@ carries no review-thread markers.
 **One pull request per sub-issue.**
 
 - Title: the issue's title.
-- Base: the default branch.
+- Base: the base branch.
 - Branch: follows the repository's naming and contains the issue number.
-- **The pull request of an issue** is the open pull request whose `closingIssuesReferences` names it. `project.sh`
-  reports it as `pr`.
+- **The pull request of an issue** is a pull request into the base branch whose head reads `Implements #<n>`. An open
+  one wins over a merged one, and the lower number wins within the same state. One closed without a merge never
+  counts. `project.sh` reports it as `pr`.
 - A pull request exists only once the issue's task is committed. It stays a draft until just before the merge.
 - Merge with squash, else a merge commit, else rebase, the first one the repository allows. Always `--delete-branch`.
   Never `--admin`.
@@ -432,7 +448,7 @@ carries no review-thread markers.
 The body begins with this head:
 
 ```markdown
-Closes #<n>
+Implements #<n>
 Part of #<P>
 
 ## Plan
@@ -444,6 +460,11 @@ Part of #<P>
 `## Plan` has exactly these two lines, because an issue is one task. The first is checked with its commit once the
 task passed review. The second is checked once the integration review passed. Below the head goes `workflow`'s
 `log.md`, or a paragraph saying why the work stopped and where.
+
+The head is the first line with any text on it. GitHub ignores closing keywords such as `Closes` in a pull request
+into a branch other than the default branch, so the merge closes nothing. `pj-running` closes the issue itself after
+the merge. An open issue whose `pr` is merged is a merge whose close never happened, and the next run of `pj-running`
+closes it.
 
 ## Writing bodies
 

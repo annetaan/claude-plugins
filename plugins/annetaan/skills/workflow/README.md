@@ -75,8 +75,8 @@ far once it can be implemented as it stands. The issue becomes one task. Its rev
 happen in the same difit you can open in the browser, and the server stays up across issues on one port, so the tab
 you opened keeps working.
 
-The pull request body is `log.md` under a head of `Closes`, `Part of` and a two-line `## Plan`. The run pushes and
-opens the pull request as a draft. pj-running merges it.
+The pull request body is `log.md` under a head of `Implements`, `Part of` and a two-line `## Plan`. The run pushes
+and opens the pull request as a draft against the project's base branch. pj-running merges it.
 
 A stop before the task is committed leaves a stash and pushes nothing. A stop once the task commit exists leaves a
 draft pull request with that commit and a paragraph on why it stopped. Either way the stash is the one thing left

@@ -1,8 +1,10 @@
 #!/usr/bin/env bash
 # Reads one project (a parent issue and its sub-issues) from GitHub and prints it as JSON.
-# Read-only on GitHub. --check also runs `git fetch origin <default branch>`, which moves local refs only.
+# Read-only on GitHub. --check also fetches the parent's base branch with `git fetch origin <base>`,
+# which moves local refs only.
 # The shape it reads is described in ../format.md.
-# This script is the only place that parses a sub-issue body (## Design, ## Acceptance criteria, ## Decisions).
+# This script is the only place that parses a sub-issue body (## Design, ## Acceptance criteria, ## Decisions),
+# the parent's Base: line, and the Implements head of a pull request.
 set -euo pipefail
 
 die() { echo "project: $*" >&2; exit 1; }
@@ -15,7 +17,7 @@ usage: project.sh [-R <owner/repo>] <parent>               the whole project, as
        project.sh --lint <file|->                          lint one sub-issue body, read from a file or standard input
   -R <owner/repo>   read another repository (default: the repository of the current directory)
 --order exits non-zero and names the cycle when the blocked-by relationships have one.
---check runs inside a clone of the repository and fetches its default branch from origin.
+--check runs inside a clone of the repository and fetches the parent's base branch from origin.
 --lint touches neither GitHub nor git and always exits 0.
 USAGE
   exit 1
@@ -49,6 +51,8 @@ SECTIONS = ["Goal", "Design", "Acceptance criteria", "Decisions", "Out of scope"
 ENTRY_RE = re.compile(r"^\s*[-*]\s+`([^`]+)`\s+\((added|changed|deleted)\):\s*(.+)$")
 IDENT_RE = re.compile(r"^[A-Za-z_$][\w$]*(\.[A-Za-z_$][\w$]*)*$")
 OPTION_RE = re.compile(r"^\s*[-*]\s+\[([ xX])\]\s")
+BASE_RE = re.compile(r"^Base:\s*`?([^`\s]+)`?\s*$")
+IMPLEMENTS_RE = re.compile(r"^Implements #(\d+)\s*$")
 
 def die(msg):
     print("project: " + msg, file=sys.stderr)
@@ -63,6 +67,27 @@ def unfenced(text):
             continue
         if not fence:
             yield line
+
+def base_of(body):
+    """The branch named by the Base: line among the unfenced lines before the first ## heading, or None."""
+    for line in unfenced(body):
+        if line.startswith("## "):
+            break
+        m = BASE_RE.match(line)
+        if m:
+            return m.group(1)
+    return None
+
+def implements(body):
+    """The issue number in a pull request's head, the first line with any text on it, or None."""
+    for line in (body or "").replace("\r\n", "\n").split("\n"):
+        if line.strip():
+            m = IMPLEMENTS_RE.match(line)
+            return int(m.group(1)) if m else None
+    return None
+
+def run(*cmd):
+    return subprocess.run(cmd, capture_output=True, text=True)
 
 def split_sections(body):
     """The ## headings in order, and the text under each."""
@@ -172,7 +197,7 @@ if MODE == "lint":
     print(json.dumps(lint(parse(body)), ensure_ascii=False))
     sys.exit(0)
 
-issues_file, prs_file, repo = sys.argv[2], sys.argv[3], sys.argv[4]
+issues_file, repo = sys.argv[2], sys.argv[3]
 owner, name = repo.split("/", 1)
 
 data = json.load(open(issues_file))
@@ -182,16 +207,25 @@ if parent is None:
 if parent["subIssues"]["totalCount"] > len(parent["subIssues"]["nodes"]):
     die("more than 100 sub-issues. this script reads the first 100 only")
 
-pr_of = {}
-for pr in json.load(open(prs_file)):
-    for ref in pr.get("closingIssuesReferences") or []:
-        r = ref.get("repository") or {}
-        if r.get("name", name).lower() != name.lower() or (r.get("owner") or {}).get("login", owner).lower() != owner.lower():
-            continue
-        # The lowest-numbered open pull request wins when two claim the same issue.
-        n = ref["number"]
-        if n not in pr_of or pr["number"] < pr_of[n]["number"]:
-            pr_of[n] = {"number": pr["number"], "isDraft": pr["isDraft"], "url": pr["url"]}
+base = base_of(parent["body"])
+if base is None:
+    die("#%d has no Base: line" % parent["number"])
+
+# One call for the pull requests into the base branch, to find the one whose head names each sub-issue.
+listed = run("gh", "pr", "list", "-R", repo, "--base", base, "--state", "all", "--limit", "500",
+            "--json", "number,state,isDraft,url,body")
+if listed.returncode != 0:
+    die("cannot list the pull requests into %s in %s: %s" % (base, repo, listed.stderr.strip()))
+# Open wins over merged, and the lower number wins within a state. Closed without a merge never counts.
+pr_of, rank = {}, {}
+for pr in json.loads(listed.stdout):
+    n = implements(pr.get("body"))
+    if n is None or pr["state"] not in ("OPEN", "MERGED"):
+        continue
+    key = (pr["state"] != "OPEN", pr["number"])
+    if n not in rank or key < rank[n]:
+        rank[n] = key
+        pr_of[n] = {"number": pr["number"], "state": pr["state"], "isDraft": pr["isDraft"], "url": pr["url"]}
 
 issues = []
 for node in parent["subIssues"]["nodes"]:
@@ -224,20 +258,22 @@ by_number = {i["number"]: i for i in issues}
 
 if MODE == "project":
     print(json.dumps({
-        "parent": {k: parent[k] for k in ("number", "title", "state", "updatedAt", "body")},
+        "parent": dict({k: parent[k] for k in ("number", "title", "state", "updatedAt", "body")}, base=base),
         "issues": issues,
     }, ensure_ascii=False))
     sys.exit(0)
 
-def run(*cmd):
-    return subprocess.run(cmd, capture_output=True, text=True)
-
 if MODE == "check":
-    n, default = int(sys.argv[5]), sys.argv[6]
+    n = int(sys.argv[4])
     issue = by_number.get(n)
     if issue is None:
         die("#%d is not a sub-issue of #%d" % (n, parent["number"]))
-    ref = "origin/" + default
+    # An explicit refspec, so that a single-branch clone still gets origin/<base>,
+    # and a base that starts with - is not read as an option.
+    fetch = run("git", "fetch", "--quiet", "origin", "+refs/heads/%s:refs/remotes/origin/%s" % (base, base))
+    if fetch.returncode != 0:
+        die("cannot fetch %s from origin: %s" % (base, fetch.stderr.strip()))
+    ref = "origin/" + base
 
     # premises: only once every blocker is closed. Before that the blockers are still meant to change these files.
     failures = []
@@ -254,7 +290,8 @@ if MODE == "check":
                     if run("git", "grep", "-w", "-F", "-q", sym, ref, "--", f["path"]).returncode != 0:
                         failures.append({"path": f["path"], "symbol": sym, "why": "symbol not found"})
 
-    # history: commits that touched these files after ready went on, except the ones a blocker's pull request brought.
+    # history: commits on the base branch that touched these files after ready went on,
+    # except the ones a blocker's pull request brought.
     stale = []
     if issue["readyAt"] and issue["designPaths"]:
         log = run("git", "log", "--first-parent", "--format=%H%x09%s", "--since=" + issue["readyAt"], ref,
@@ -263,20 +300,18 @@ if MODE == "check":
             die("git log failed: " + log.stderr.strip())
         commits = [l.split("\t", 1) for l in log.stdout.splitlines() if l]
         # The transitive blockedBy: walk the project's issues, closed ones included.
-        # A blocker outside the project counts, but is not walked further.
         anticipated, todo = set(), [b["number"] for b in issue["blockedBy"]]
         while todo:
             m = todo.pop()
-            if m in anticipated:
+            if m in anticipated or m not in by_number:
                 continue
             anticipated.add(m)
-            if m in by_number:
-                todo.extend(b["number"] for b in by_number[m]["blockedBy"])
+            todo.extend(b["number"] for b in by_number[m]["blockedBy"])
         for start in range(0, len(commits), 100):
             chunk = commits[start:start + 100]
             fields = " ".join(
                 'c%d: object(oid: "%s") { ... on Commit { associatedPullRequests(first: 5) '
-                '{ nodes { number merged closingIssuesReferences(first: 50) { nodes { number } } } } } }' % (k, sha)
+                '{ nodes { number merged body } } } }' % (k, sha)
                 for k, (sha, _) in enumerate(chunk))
             q = run("gh", "api", "graphql", "-F", "owner=" + owner, "-F", "name=" + name, "-f",
                     "query=query($owner: String!, $name: String!) { repository(owner: $owner, name: $name) { %s } }" % fields)
@@ -286,12 +321,13 @@ if MODE == "check":
             for k, (sha, subject) in enumerate(chunk):
                 prs = [pr for pr in ((repo_data.get("c%d" % k) or {}).get("associatedPullRequests") or {}).get("nodes", [])
                        if pr["merged"]]
-                closes = {c["number"] for pr in prs for c in pr["closingIssuesReferences"]["nodes"]}
+                closes = {implements(pr["body"]) for pr in prs} - {None}
                 if not closes & anticipated:
                     stale.append({"sha": sha, "subject": subject, "pr": prs[0]["number"] if prs else None})
 
     print(json.dumps({
         "number": n,
+        "base": base,
         "ok": issue["lint"]["ok"] and not failures and not stale,
         "lint": issue["lint"],
         "premises": {"evaluated": evaluated, "failures": failures},
@@ -402,16 +438,10 @@ query($owner: String!, $name: String!, $n: Int!) {
   }
 }' > "$TMP/issues.json" || die "cannot read issue #$PARENT in $REPO"
 
-# One call for the open pull requests, to find the one that closes each sub-issue.
-gh pr list -R "$REPO" --state open --limit 500 --json number,isDraft,url,closingIssuesReferences \
-  > "$TMP/prs.json" || die "cannot list the pull requests of $REPO"
-
 if [ "$MODE" = "check" ]; then
   git rev-parse --git-dir >/dev/null 2>&1 || die "--check runs inside a clone of $REPO"
-  DEFAULT="$(gh repo view "$REPO" --json defaultBranchRef --jq .defaultBranchRef.name)" || die "cannot read the default branch of $REPO"
-  git fetch --quiet origin "$DEFAULT" || die "cannot fetch $DEFAULT from origin"
-  python3 -c "$PY" check "$TMP/issues.json" "$TMP/prs.json" "$REPO" "$TARGET" "$DEFAULT"
+  python3 -c "$PY" check "$TMP/issues.json" "$REPO" "$TARGET"
   exit 0
 fi
 
-python3 -c "$PY" "$MODE" "$TMP/issues.json" "$TMP/prs.json" "$REPO"
+python3 -c "$PY" "$MODE" "$TMP/issues.json" "$REPO"

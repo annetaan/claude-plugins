@@ -1,6 +1,6 @@
 ---
 name: pj-design-and-plan
-description: Starts a project on GitHub. Designs a large request in broad strokes, splits it into tasks, has one sub-session per task draw that task in detail and pick out what a human has to decide, then files a parent issue and one sub-issue per task, with the decisions as checkboxes and the order as native blocked-by relationships. The first of three skills, followed by pj-design-details and pj-running. Use it only when the user names this skill or invokes /annetaan:pj-design-and-plan, because it creates issues and labels on GitHub. Do not use it for a change small enough for one pull request.
+description: Starts a project on GitHub. Designs a large request in broad strokes, splits it into tasks, has one sub-session per task draw that task in detail and pick out what a human has to decide, then files a parent issue and one sub-issue per task, with the decisions as checkboxes and the order as native blocked-by relationships, and creates the project's base branch, `pj/<parent number>`, that every sub-issue's pull request merges into. The first of three skills, followed by pj-design-details and pj-running. Use it only when the user names this skill or invokes /annetaan:pj-design-and-plan, because it creates issues and labels on GitHub. Do not use it for a change small enough for one pull request.
 ---
 
 # pj-design-and-plan
@@ -38,7 +38,9 @@ gh repo view --json nameWithOwner,hasIssuesEnabled,defaultBranchRef
 
 - **Any of these failing stops the skill**: not a git repository, `gh` older than 2.94.0, `gh` not logged in, or
   issues turned off. Say which one and stop.
-- A dirty working tree does not matter. This skill reads the code and changes nothing in it.
+- Keep the default branch's name for phase 4. Nothing is fetched.
+- A dirty working tree does not matter. This skill reads the code and changes nothing in it. The base branch is
+  created through the API.
 
 ## Phase 1: the overall design
 
@@ -72,6 +74,9 @@ Show:
 - the plan-level decisions the user settled in phase 1, one line each
 - the tasks in order, one line each, as `T1 <title>  (after T2, T3)`, followed by the number of decisions the
   planner already sees in that task
+- one line saying the base branch `pj/<P>` is created from the tip of `<default>` on GitHub when the project is
+  filed. Every sub-issue's pull request merges into it, and merging it into `<default>` is the user's job, outside
+  the skills
 - one line saying every task is cut to fit the size limit in `format.md`, 8 files at most, tests included
 - the labels this run will create, from `format.md`, and the ones the repository already has and will reuse
 
@@ -122,20 +127,28 @@ The sub-issue bodies sit in `$TMP` from phase 3. Write the planner's parent body
 dependency order**, so that every `--blocked-by` names an issue that already exists.
 
 ```bash
-# 1. the parent
+# 1. the parent, with the planner's body
 gh issue create --title "<project title>" --body-file "$TMP/parent.md"
-# 2. each sub-issue, after the ones it waits on. Leave out --blocked-by when it waits on nothing
+# 2. the base branch, at the default branch's tip on GitHub
+gh api "repos/{owner}/{repo}/git/ref/heads/<default branch>" --jq .object.sha
+gh api "repos/{owner}/{repo}/git/refs" -f ref="refs/heads/pj/<P>" -f sha="<sha>"
+# 3. the Base: line on top of the parent body
+{ printf 'Base: `pj/%s`\n\n' <P>; cat "$TMP/parent.md"; } > "$TMP/parent-base.md"
+gh issue edit <P> --body-file "$TMP/parent-base.md"
+# 4. each sub-issue, after the ones it waits on. Leave out --blocked-by when it waits on nothing
 gh issue create --parent <P> --blocked-by <n>,<m> --title "<title>" --body-file "$TMP/T<k>.md"
-# 3. make sure ready exists (format.md, Labels), then add it to every sub-issue whose lint is clear
+# 5. make sure ready exists (format.md, Labels), then add it to every sub-issue whose lint is clear
 gh issue edit <n> --add-label ready
 ```
 
-Keep the mapping from `T<k>` to the issue number as you go, because the next `--blocked-by` needs it. Only a body
-whose decisions read `None.` can have a clear lint at this point. Skip step 3 when there is none, so that no label
-gets created for nothing.
+The parent takes two steps, because the branch name carries the parent's number (`format.md`, **The parent issue
+body**). Keep the mapping from `T<k>` to the issue number as you go, because the next `--blocked-by` needs it. Only a
+body whose decisions read `None.` can have a clear lint at this point. Skip step 5 when there is none, so that no
+label gets created for nothing.
 
 **When a command fails halfway**, stop and tell the user what was filed and what was not, with the numbers. Never
-retry the whole run, or the issues double.
+retry the whole run, or the issues double. Until step 3 has run, the parent has no `Base:` line and `project.sh`
+cannot read the project, so say which of steps 1 to 3 went through.
 
 Then check the result once, against the split the user approved:
 
@@ -144,23 +157,26 @@ $PLAN/scripts/project.sh <P>
 $PLAN/scripts/project.sh <P> --order
 ```
 
-Every task is there, its `blockedBy` matches the split, the decision counts and the lint match the bodies, and
-`--order` finds no cycle. Report anything that does not match.
+`parent.base` is `pj/<P>`, every task is there, its `blockedBy` matches the split, the decision counts and the lint
+match the bodies, and `--order` finds no cycle. Report anything that does not match.
 
 ## Report to the user
 
 - the parent issue URL
+- the base branch `pj/<P>`
 - one line per sub-issue: number, title, the issues it waits on, the open decisions by count, and `ready` or not.
   For a `None.` issue without `ready`, the lint's reason codes
 - the next step: `/annetaan:pj-design-details` to settle the decisions, then `/annetaan:pj-running` once issues are
   `ready`. Both ask which project when no number is given. Say that a decision can also be settled by ticking a box
-  on GitHub, and that a skill or a human still adds `ready` afterwards.
+  on GitHub, and that a skill or a human still adds `ready` afterwards. Once every sub-issue is merged, the user
+  merges `pj/<P>` into the default branch.
 
 ## Rules
 
 - **You do not design and you do not write issue bodies.** The planner and the issue writers do. A body you write
-  yourself never passed through anyone who read the code.
-- **Nothing reaches GitHub before the phase 2 approval.** Labels included.
+  yourself never passed through anyone who read the code. The `Base:` line in phase 4 step 3 is the one line you
+  add, and you add nothing else.
+- **Nothing reaches GitHub before the phase 2 approval.** The base branch and labels included.
 - **Only you write to GitHub.** The sub-agents only read it, so the order and the numbers stay in one place.
 - **Dependencies go into relationships only.** See `format.md`.
 - **Never create a label with `--force`.**
