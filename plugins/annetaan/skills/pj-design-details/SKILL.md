@@ -50,7 +50,8 @@ gh repo view --json nameWithOwner,hasIssuesEnabled,defaultBranchRef
 
 - **No number**: find the project as `format.md` says under "Finding the project when no number was given".
 - **One number that is a sub-issue**: take its parent from `gh issue view <n> --json parent`. The parent is the
-  project `<P>`, and the first round skips phase 1 and takes `<n>`.
+  project `<P>`. Run `project.sh <P>` first. When `<n>` has a `pr` whose `state` is `MERGED`, tell the user it is
+  waiting for `pj-running` to close it, and start at phase 1. Otherwise the first round skips phase 1 and takes `<n>`.
 - **One number that is not a sub-issue**: it is the parent `<P>`.
 
 ## Phase 1: pick an issue
