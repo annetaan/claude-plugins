@@ -508,7 +508,7 @@ pull request is in `$FLOW/../pj-design-and-plan/format.md`.
 These values are already in your context. Nothing arrives as an argument.
 
 - the issue number `n`, the parent `P`, and the issue title
-- the default branch, and the branch already checked out for the issue
+- the base branch (the parent's `Base:` line), and the branch already checked out for the issue
 - the entry state: `fresh`, `resume-integration` or `resume-merge`
 - the pull request number `m` for `resume-integration` and `resume-merge`, none for `fresh`
 - the handover notes, seeded from the parent's handover comment
@@ -555,7 +555,7 @@ gh issue view <P> --json body
 Phase 2 (c) takes `START` by the entry state.
 
 - `fresh`: `START=$(git rev-parse HEAD)`, right after pj-running made the branch.
-- `resume-integration`: `START=$(git merge-base origin/<default branch> HEAD)`.
+- `resume-integration`: `START=$(git merge-base origin/<base branch> HEAD)`.
 
 Phase 2 (d) runs as written. A resumed run gets a new `WORKDIR`.
 
@@ -609,7 +609,7 @@ Return `finished` with the existing pull request. Nothing else runs.
    > Begin `log.md` with this head, exactly, then the report:
    >
    > ```markdown
-   > Closes #<n>
+   > Implements #<n>
    > Part of #<P>
    >
    > ## Plan
@@ -627,12 +627,13 @@ Return `finished` with the existing pull request. Nothing else runs.
    ```bash
    git push -u origin <branch>
    cd "$WORKDIR"
-   gh pr create --draft --base <default branch> --title "<issue title>" --body-file log.md   # no pull request yet
-   gh pr edit <m> --title "<issue title>" --body-file log.md                                  # resumed, one exists
+   gh pr create --draft --base <base branch> --title "<issue title>" --body-file log.md   # no pull request yet
+   gh pr edit <m> --title "<issue title>" --body-file log.md                               # resumed, one exists
    ```
 
-   The `--attach` rules and the fallback for gh older than 2.99.0 apply as in 6a. The file paths go into what you
-   hand back. Nothing waits on the user.
+   The `--attach` rules apply as in 6a. When gh is older than 2.99.0 and there are screenshots, open the pull
+   request with the `gh pr create` line above, without `--attach`, so it keeps `--draft --base <base branch>`. The
+   file paths go into what you hand back. Nothing waits on the user.
 4. Return `finished`.
 
 ### The stop procedure
@@ -650,7 +651,7 @@ The task commit decides the case, whatever the phase. Look for it in `git log --
      and `- [ ] Integration review` unchecked, then one paragraph. The paragraph says why and where the run stopped,
      what the task's review changed, the test and type check commands with their results, the adaptations the
      implementation session listed (or none), and the stash name.
-  3. Push, then `gh pr create --draft --base <default branch> --title "<issue title>" --body-file stopped.md`, or
+  3. Push, then `gh pr create --draft --base <base branch> --title "<issue title>" --body-file stopped.md`, or
      `gh pr edit <m> --title "<issue title>" --body-file stopped.md` when the pull request exists, both from
      `$WORKDIR`.
 - **Say plainly that the stash is the one piece of state outside GitHub.** It is local, a resume never applies it,
