@@ -87,14 +87,16 @@ up. The skill checks that git ignores that directory before it writes anything, 
 
 These three skills run a piece of work too large for one pull request as a project on GitHub. The project is a
 parent issue that holds the overall design, plus one sub-issue per task, ordered by GitHub's own blocked-by
-relationships. GitHub holds the whole state, so a project can stop and pick up again in another session or on
-another machine. [format.md](skills/pj-design-and-plan/format.md) describes the shape.
+relationships. The work lands on a branch of the project's own, `pj/` and the parent's number, made from the default
+branch when the project is filed. Every sub-issue's pull request merges into it. Merging that branch into the
+default branch is left to you. GitHub holds the whole state, so a project can stop and pick up again in another
+session or on another machine. [format.md](skills/pj-design-and-plan/format.md) describes the shape.
 
 `/annetaan:pj-design-and-plan` ([details](skills/pj-design-and-plan/SKILL.md)) starts with a planner session. It
 draws the whole in broad strokes and splits it into tasks. You answer the plan-level questions and approve the
 split. Nothing reaches GitHub before that. Then one issue writer per task, in parallel, draws its task against the
 code and picks out what you have to decide. Each decision is written as checkboxes with one option recommended. The
-parent and the sub-issues are filed.
+parent, the project's branch and the sub-issues are filed.
 
 `/annetaan:pj-design-details` ([details](skills/pj-design-details/SKILL.md)) shows the issues without `ready` yet,
 in a recommended order with `blocker` issues first, and you pick one. The issue writer proposes, you decide, and the
@@ -104,13 +106,15 @@ can be implemented straight from its body: a file list of eight files or fewer, 
 file that exist once its blockers have merged, and acceptance criteria anchored to tests or commands. Ticking a box
 on GitHub settles a decision too.
 
-`/annetaan:pj-running` ([details](skills/pj-running/SKILL.md)) checks that you can merge your own pull request
-without an approving review, then checks every issue in the order. Any issue that needs design again sends the run
-back to `pj-design-details` before anything starts. After you approve the order, each issue goes through the same
-steps in turn. It gets a branch. [workflow](skills/workflow/README.md#driven-from-an-issue) runs it as one task,
-with review rounds in difit and an integration review. A draft pull request follows, with the work report as its
-body. Then the merge, by squash where the repository allows it. Work nobody planned becomes a new issue. Work that
-has to come first stops the run and gets the `blocker` label. The next run picks up where this one stopped.
+`/annetaan:pj-running` ([details](skills/pj-running/SKILL.md)) checks that you can merge your own pull request into
+the project's branch without an approving review, then checks every issue in the order. Any issue that needs design
+again sends the run back to `pj-design-details` before anything starts. After you approve the order, each issue goes
+through the same steps in turn. It gets a branch. [workflow](skills/workflow/README.md#driven-from-an-issue) runs it
+as one task, with review rounds in difit and an integration review. A draft pull request follows, with the work
+report as its body. Then the merge into the project's branch, by squash where the repository allows it. pj-running
+then closes the issue itself, because GitHub closes nothing on a merge into a branch other than the default. Work
+nobody planned becomes a new issue. Work that has to come first stops the run and gets the `blocker` label. The next
+run picks up where this one stopped.
 
 ```
 /annetaan:pj-design-and-plan add CSV export to every report screen
@@ -125,9 +129,9 @@ flowchart TD
     req(["your request"]) --> plan["pj-design-and-plan<br/>planner splits the work,<br/>issue writers draw each task"]
     plan --> approve(["you approve the split"]) --> filed["parent issue and sub-issues<br/>decisions as checkboxes,<br/>order as blocked-by"]
     filed --> details["pj-design-details<br/>you decide, the writer rewrites,<br/>ready once implementable as written"]
-    details --> run["pj-running<br/>per ready issue: branch, workflow,<br/>draft pull request, merge"]
+    details --> run["pj-running<br/>per ready issue: branch, workflow,<br/>draft pull request, merge<br/>into the project's branch"]
     run -->|"stub or blocker"| details
-    run -->|"all merged"| done(["parent closed<br/>when you say so"])
+    run -->|"all merged"| done(["parent closed when you say so,<br/>you merge the project's branch<br/>into the default branch"])
 
     you(["you, on GitHub"]) -.->|"tick a box"| filed
 
@@ -140,7 +144,7 @@ What they need:
 - `gh` 2.94.0 or later, logged in.
 - Issues turned on in the repository.
 - The commands run from a clone of the repository.
-- For `pj-running`: write access, a default branch that accepts a merge with no approving review, and what
+- For `pj-running`: write access, a project branch that accepts a merge with no approving review, and what
   workflow needs (difit, a clean working tree).
 
 The `ready` and `blocker` labels are created when missing, and a label that already exists is reused as it is.
