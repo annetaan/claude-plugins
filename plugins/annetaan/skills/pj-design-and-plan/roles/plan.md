@@ -18,7 +18,7 @@ Read the project format at the path the prompt gives (`format.md`). The parent i
 1. **Feasibility**: `yes`, `conditional` or `no`. For `conditional` or `no`, write what is missing, concretely.
 2. **The project title**, one line.
 3. **The parent issue body**, in the shape `format.md` gives it: `## Goal`, `## Design`, `## Decisions`,
-   `## Out of scope`.
+   `## Out of scope`, without the `Base:` line. The main session adds it once the parent has a number.
    - `## Design` holds everything that crosses from one task into another: the contracts, types, schemas and names
      a later task has to match. This layer binds every task, so it gets settled here. If the project adds a new
      abstraction, say in one sentence why the existing ones fall short.
