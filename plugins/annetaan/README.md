@@ -87,16 +87,17 @@ up. The skill checks that git ignores that directory before it writes anything, 
 
 These three skills run a piece of work too large for one pull request as a project on GitHub. The project is a
 parent issue that holds the overall design, plus one sub-issue per task, ordered by GitHub's own blocked-by
-relationships. The work lands on a branch of the project's own, `pj/` and the parent's number, made from the default
-branch when the project is filed. Every sub-issue's pull request merges into it. Merging that branch into the
-default branch is left to you. GitHub holds the whole state, so a project can stop and pick up again in another
-session or on another machine. [format.md](skills/pj-design-and-plan/format.md) describes the shape.
+relationships. The work lands on a branch of the project's own, `pj/` and the parent's number, made from a branch
+you pick when the project is filed, the default branch unless you name another. Every sub-issue's pull request
+merges into it. Merging it back into the branch it came from is left to you. GitHub holds the whole state, so a
+project can stop and pick up again in another session or on another machine.
+[format.md](skills/pj-design-and-plan/format.md) describes the shape.
 
 `/annetaan:pj-design-and-plan` ([details](skills/pj-design-and-plan/SKILL.md)) starts with a planner session. It
-draws the whole in broad strokes and splits it into tasks. You answer the plan-level questions and approve the
-split. Nothing reaches GitHub before that. Then one issue writer per task, in parallel, draws its task against the
-code and picks out what you have to decide. Each decision is written as checkboxes with one option recommended. The
-parent, the project's branch and the sub-issues are filed.
+draws the whole in broad strokes and splits it into tasks. You answer the plan-level questions, approve the split
+and pick the branch the project starts from. Nothing reaches GitHub before that. Then one issue writer per task, in
+parallel, draws its task against the code and picks out what you have to decide. Each decision is written as
+checkboxes with one option recommended. The parent, the project's branch and the sub-issues are filed.
 
 `/annetaan:pj-design-details` ([details](skills/pj-design-details/SKILL.md)) shows the issues without `ready` yet,
 in a recommended order with `blocker` issues first, and you pick one. The issue writer proposes, you decide, and the
@@ -131,7 +132,7 @@ flowchart TD
     filed --> details["pj-design-details<br/>you decide, the writer rewrites,<br/>ready once implementable as written"]
     details --> run["pj-running<br/>per ready issue: branch, workflow,<br/>draft pull request, merge<br/>into the project's branch"]
     run -->|"stub or blocker"| details
-    run -->|"all merged"| done(["parent closed when you say so,<br/>you merge the project's branch<br/>into the default branch"])
+    run -->|"all merged"| done(["parent closed when you say so,<br/>you merge the project's branch<br/>into the branch it came from"])
 
     you(["you, on GitHub"]) -.->|"tick a box"| filed
 

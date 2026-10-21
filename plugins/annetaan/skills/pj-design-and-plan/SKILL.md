@@ -1,6 +1,6 @@
 ---
 name: pj-design-and-plan
-description: Starts a project on GitHub. Designs a large request in broad strokes, splits it into tasks, has one sub-session per task draw that task in detail and pick out what a human has to decide, then files a parent issue and one sub-issue per task, with the decisions as checkboxes and the order as native blocked-by relationships, and creates the project's base branch, `pj/<parent number>`, that every sub-issue's pull request merges into. The first of three skills, followed by pj-design-details and pj-running. Use it only when the user names this skill or invokes /annetaan:pj-design-and-plan, because it creates issues and labels on GitHub. Do not use it for a change small enough for one pull request.
+description: Starts a project on GitHub. Designs a large request in broad strokes, splits it into tasks, has one sub-session per task draw that task in detail and pick out what a human has to decide, then files a parent issue and one sub-issue per task, with the decisions as checkboxes and the order as native blocked-by relationships, and creates the project's base branch, `pj/<parent number>`, from a branch the user picks. Every sub-issue's pull request merges into it. The first of three skills, followed by pj-design-details and pj-running. Use it only when the user names this skill or invokes /annetaan:pj-design-and-plan, because it creates issues and labels on GitHub. Do not use it for a change small enough for one pull request.
 ---
 
 # pj-design-and-plan
@@ -34,11 +34,13 @@ git rev-parse --show-toplevel
 gh --version          # 2.94.0 or later
 gh auth status
 gh repo view --json nameWithOwner,hasIssuesEnabled,defaultBranchRef
+git branch --show-current
 ```
 
 - **Any of these failing stops the skill**: not a git repository, `gh` older than 2.94.0, `gh` not logged in, or
   issues turned off. Say which one and stop.
-- Keep the default branch's name for phase 4. Nothing is fetched.
+- Keep the default branch's name and the current branch's name for phase 2. A detached HEAD prints no current
+  branch.
 - A dirty working tree does not matter. This skill reads the code and changes nothing in it. The base branch is
   created through the API.
 
@@ -74,28 +76,53 @@ Show:
 - the plan-level decisions the user settled in phase 1, one line each
 - the tasks in order, one line each, as `T1 <title>  (after T2, T3)`, followed by the number of decisions the
   planner already sees in that task
-- one line saying the base branch `pj/<P>` is created from the tip of `<default>` on GitHub when the project is
-  filed. Every sub-issue's pull request merges into it, and merging it into `<default>` is the user's job, outside
-  the skills
+- one line saying the base branch `pj/<P>` is created on GitHub from the tip of the branch picked below when the
+  project is filed. Every sub-issue's pull request merges into it, and merging it back into that branch is the
+  user's job, outside the skills
 - one line saying every task is cut to fit the size limit in `format.md`, 8 files at most, tests included
 - the labels this run will create, from `format.md`, and the ones the repository already has and will reuse
 
+Ask both questions in one call.
+
 ```
-AskUserQuestion: Create this project on GitHub?
-  - Create it - a parent issue and N sub-issues
-  - Change something first
+AskUserQuestion:
+  1. Create this project on GitHub?
+     - Create it - a parent issue and N sub-issues
+     - Change something first
+  2. Which branch does pj/<P> start from?
+     - <default> (recommended) - the default branch
+     - <current> - the branch checked out here, offered only when there is one and it is another branch
 ```
 
-"Change something first" goes to the planner with `SendMessage`, and the revised split comes back here.
+"Change something first" goes to the planner with `SendMessage`, and the revised split comes back here. Ask both
+questions again then.
+
+The answer to the second question is `<from>`. "Other" takes any branch name. Check that origin has it before
+anything else runs, and ask again when it does not:
+
+```bash
+git ls-remote --exit-code --heads origin <from>
+```
 
 ## Phase 3: the issue writers
+
+The writers draw against `<from>` as it stands on origin, because `pj/<P>` starts there. Fetch it once:
+
+```bash
+git fetch --quiet origin "+refs/heads/<from>:refs/remotes/origin/<from>"
+git status --porcelain
+git rev-parse HEAD origin/<from>
+```
+
+When `<from>` is the branch checked out here, the tree is clean and both SHAs match, the writers read the working
+tree. Otherwise the writer prompt says to read the code at `origin/<from>`.
 
 **Start one issue writer per task, all in one message**, so they run at the same time. They read the code and write,
 and none of them touches GitHub.
 
 ```
 Agent(subagent_type: "annetaan:pj-issue-writer", description: "issue T<k>",
-      prompt: "Read $PLAN/roles/issue.md first and follow the role it describes. The project format is in $PLAN/format.md. Lint a body with $PLAN/scripts/project.sh.\n\nMode: draft\n\nThe request:\n<the user's request, verbatim>\n\nThe overall design:\n<the full report from the planner>\n\nYour task: T<k>, \"<title>\".")
+      prompt: "Read $PLAN/roles/issue.md first and follow the role it describes. The project format is in $PLAN/format.md. Lint a body with $PLAN/scripts/project.sh.\n\nMode: draft\n\nThe request:\n<the user's request, verbatim>\n\nThe overall design:\n<the full report from the planner>\n\nRead the code: <the working tree | at origin/<from>>\n\nYour task: T<k>, \"<title>\".")
 ```
 
 `annetaan:pj-issue-writer` ships with this plugin and is pinned to opus at high effort with code changes disabled.
@@ -104,8 +131,9 @@ Each writer sends back a title and a body in the shape `format.md` gives a sub-i
 does not hold.
 
 **When a writer says the split does not hold**, send what it found to the planner with `SendMessage` and have it
-redraw the split. Rerun the writers whose tasks changed. Show the user the new split and ask the phase 2 question
-again, because nothing has been filed yet and a new split is a new plan.
+redraw the split. Rerun the writers whose tasks changed. Show the user the new split and ask both phase 2 questions
+again, because nothing has been filed yet and a new split is a new plan. When `<from>` changes, fetch it as above
+and rerun every writer.
 
 **Check every body before it goes out.** Write each one to a file as it comes back, and lint it.
 
@@ -129,11 +157,11 @@ dependency order**, so that every `--blocked-by` names an issue that already exi
 ```bash
 # 1. the parent, with the planner's body
 gh issue create --title "<project title>" --body-file "$TMP/parent.md"
-# 2. the base branch, at the default branch's tip on GitHub
-gh api "repos/{owner}/{repo}/git/ref/heads/<default branch>" --jq .object.sha
+# 2. the base branch, at the tip of <from> on GitHub
+gh api "repos/{owner}/{repo}/git/ref/heads/<from>" --jq .object.sha
 gh api "repos/{owner}/{repo}/git/refs" -f ref="refs/heads/pj/<P>" -f sha="<sha>"
 # 3. the Base: line on top of the parent body
-{ printf 'Base: `pj/%s`\n\n' <P>; cat "$TMP/parent.md"; } > "$TMP/parent-base.md"
+{ printf 'Base: `pj/%s` from `%s`\n\n' <P> <from>; cat "$TMP/parent.md"; } > "$TMP/parent-base.md"
 gh issue edit <P> --body-file "$TMP/parent-base.md"
 # 4. each sub-issue, after the ones it waits on. Leave out --blocked-by when it waits on nothing
 gh issue create --parent <P> --blocked-by <n>,<m> --title "<title>" --body-file "$TMP/T<k>.md"
@@ -157,19 +185,19 @@ $PLAN/scripts/project.sh <P>
 $PLAN/scripts/project.sh <P> --order
 ```
 
-`parent.base` is `pj/<P>`, every task is there, its `blockedBy` matches the split, the decision counts and the lint
-match the bodies, and `--order` finds no cycle. Report anything that does not match.
+`parent.base` is `pj/<P>`, `parent.from` is `<from>`, every task is there, its `blockedBy` matches the split, the
+decision counts and the lint match the bodies, and `--order` finds no cycle. Report anything that does not match.
 
 ## Report to the user
 
 - the parent issue URL
-- the base branch `pj/<P>`
+- the base branch `pj/<P>` and the branch it was made from
 - one line per sub-issue: number, title, the issues it waits on, the open decisions by count, and `ready` or not.
   For a `None.` issue without `ready`, the lint's reason codes
 - the next step: `/annetaan:pj-design-details` to settle the decisions, then `/annetaan:pj-running` once issues are
   `ready`. Both ask which project when no number is given. Say that a decision can also be settled by ticking a box
   on GitHub, and that a skill or a human still adds `ready` afterwards. Once every sub-issue is merged, the user
-  merges `pj/<P>` into the default branch.
+  merges `pj/<P>` into `<from>`.
 
 ## Rules
 
