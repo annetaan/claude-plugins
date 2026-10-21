@@ -131,8 +131,11 @@ workflow writes its reports there. Ask here, once, because a run from an issue n
 
 ```bash
 ROOT=$(git rev-parse --show-toplevel)
-git -C "$ROOT" check-ignore -q work-reports && echo IGNORED || echo NOT_IGNORED
+git -C "$ROOT" check-ignore -q work-reports/ && echo IGNORED || echo NOT_IGNORED
 ```
+
+Keep the trailing slash. `work-reports/` in an ignore file matches only a directory, and before the first run there
+is none, so `check-ignore work-reports` answers `NOT_IGNORED` even when the rule is there.
 
 On `NOT_IGNORED`:
 

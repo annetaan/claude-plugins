@@ -205,8 +205,12 @@ Screenshots and the work report go to **`work-reports/` inside the repository**.
 
 ```bash
 ROOT=$(git rev-parse --show-toplevel)
-git -C "$ROOT" check-ignore -q work-reports && echo IGNORED || echo NOT_IGNORED
+git -C "$ROOT" check-ignore -q work-reports/ && echo IGNORED || echo NOT_IGNORED
 ```
+
+**Check `work-reports/`, with the slash.** A pattern with a trailing slash matches only a directory, and
+before the first run there is no directory, so `check-ignore work-reports` answers `NOT_IGNORED` even when
+`.gitignore` already has `work-reports/`. With the slash, git takes the path as a directory whether it exists or not.
 
 - **`IGNORED`**: use it. Ask nothing.
 - **`NOT_IGNORED`**: **ask the user before you touch `.gitignore`.** Never add it on your own.
@@ -527,7 +531,7 @@ pj-running has already run the checks in **Before you start** (a clean tree, `gh
 
   ```bash
   ROOT=$(git rev-parse --show-toplevel)
-  git -C "$ROOT" check-ignore -q work-reports && echo IGNORED || echo NOT_IGNORED
+  git -C "$ROOT" check-ignore -q work-reports/ && echo IGNORED || echo NOT_IGNORED
   ```
 
   On `NOT_IGNORED`, take the stop procedure with the reason `work-reports`. Never ask about `.gitignore` here.
