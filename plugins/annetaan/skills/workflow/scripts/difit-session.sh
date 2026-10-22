@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
-# Keeps exactly one difit review server per repository.
+# Keeps exactly one difit review server per working tree.
 # State lives in $(git rev-parse --git-dir)/annetaan-workflow.json, which sits under .git and stays untracked.
+# A linked worktree has a git dir of its own, so each worktree keeps its own server.
 set -euo pipefail
 
 die() { echo "difit-session: $*" >&2; exit 1; }

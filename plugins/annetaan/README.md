@@ -110,12 +110,13 @@ merged, and acceptance criteria anchored to tests or commands. Ticking a box on 
 `/annetaan:pj-running` ([details](skills/pj-running/SKILL.md)) checks that you can merge your own pull request into
 the project's branch without an approving review, then checks every issue in the order. Any issue that needs design
 again sends the run back to `pj-design-details` before anything starts. After you approve the order, each issue goes
-through the same steps in turn. It gets a branch. [workflow](skills/workflow/README.md#driven-from-an-issue) runs it
-as one task, with review rounds in difit and an integration review. A draft pull request follows, with the work
-report as its body. Then the merge into the project's branch, by squash where the repository allows it. pj-running
-then closes the issue itself, because GitHub closes nothing on a merge into a branch other than the default. Work
-nobody planned becomes a new issue. Work that has to come first stops the run and gets the `blocker` label. The next
-run picks up where this one stopped.
+through the same steps in turn, in a git worktree of the project's own under `.claude/worktrees/`, so you can keep
+working in your clone while the run goes on. It gets a branch.
+[workflow](skills/workflow/README.md#driven-from-an-issue) runs it as one task, with review rounds in difit and an
+integration review. A draft pull request follows, with the work report as its body. Then the merge into the project's
+branch, by squash where the repository allows it. pj-running then closes the issue itself, because GitHub closes
+nothing on a merge into a branch other than the default. Work nobody planned becomes a new issue. Work that has to
+come first stops the run and gets the `blocker` label. The next run picks up where this one stopped.
 
 ```
 /annetaan:pj-design-and-plan add CSV export to every report screen
@@ -146,7 +147,7 @@ What they need:
 - Issues turned on in the repository.
 - The commands run from a clone of the repository.
 - For `pj-running`: write access, a project branch that accepts a merge with no approving review, and what
-  workflow needs (difit, a clean working tree).
+  workflow needs (difit). Your own working tree may be dirty, because the run works in a worktree of its own.
 
 The `ready` and `blocker` labels are created when missing, and a label that already exists is reused as it is.
 
