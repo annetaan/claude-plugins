@@ -146,8 +146,9 @@ $PLAN/scripts/project.sh --lint "$TMP/T<k>.md"
 in full each time.
 
 Accept a body only when the lint reports no reason, or `decisions-open` alone. Then read it for what the lint cannot
-see: no line numbers, no checkbox outside `## Decisions`, no dependencies written into the body. Send a body that
-fails back to its writer with `SendMessage` and say what to fix. Write the fixed body over the same file.
+see: a file list of 8 entries at most (`format.md`, **The file list**), no line numbers, no checkbox outside
+`## Decisions`, no dependencies written into the body. Send a body that fails back to its writer with `SendMessage`
+and say what to fix. Write the fixed body over the same file.
 
 ## Phase 4: filing
 

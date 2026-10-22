@@ -102,10 +102,10 @@ checkboxes with one option recommended. The parent, the project's branch and the
 `/annetaan:pj-design-details` ([details](skills/pj-design-details/SKILL.md)) shows the issues without `ready` yet,
 in a recommended order with `blocker` issues first, and you pick one. The issue writer proposes, you decide, and the
 issue is rewritten to match. When an answer changes another issue, that issue is updated, and if it was `ready` it
-loses `ready` with a comment. An issue too big to implement in one go is split. `ready` goes on only when the issue
-can be implemented straight from its body: a file list of eight files or fewer, symbols named for every changed
-file that exist once its blockers have merged, and acceptance criteria anchored to tests or commands. Ticking a box
-on GitHub settles a decision too.
+loses `ready` with a comment. An issue that turns out to be two tasks is split. One that only grows past eight
+files stays whole, because the size limit is for `pj-design-and-plan` to cut by. `ready` goes on only when the issue
+can be implemented straight from its body: symbols named for every changed file that exist once its blockers have
+merged, and acceptance criteria anchored to tests or commands. Ticking a box on GitHub settles a decision too.
 
 `/annetaan:pj-running` ([details](skills/pj-running/SKILL.md)) checks that you can merge your own pull request into
 the project's branch without an approving review, then checks every issue in the order. Any issue that needs design

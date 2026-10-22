@@ -41,7 +41,8 @@ Other writers draw the other tasks at the same time. Stay inside yours.
    answer, and anything a worker can choose without anyone noticing. A list of ten decisions gets skimmed. Three that
    matter get answered.
 5. **Lint the body** with the `project.sh` path from the prompt, and fix it until the only reason left is
-   `decisions-open`, or none.
+   `decisions-open`, or none. The lint does not count files. Keep the file list to the size limit in `format.md`
+   yourself.
 
    ```bash
    <path of project.sh> --lint - <<'EOF'
@@ -112,8 +113,9 @@ Return:
    - **a stub that needs code**: draw it, as in item 3.
    - **a stub that needs no code**: the fault lies in `#m`, the issue it blocks. The decision on `#m` that settles it
      becomes a question in item 2.
-5. **A split**, when the body cannot meet the lint without naming more than 8 files, or when it is two tasks. Give
-   each part's title and file list, and how the edges move. Part 1 keeps the issue's number.
+5. **A split**, when it is two tasks. Give each part's title and file list, and how the edges move. Part 1 keeps
+   the issue's number. **A file list past 8 is no reason to split.** The size limit in `format.md` binds only the
+   draft.
 
 With nothing to decide and nothing to split, go straight to round 2 in the same return.
 
