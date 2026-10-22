@@ -40,8 +40,8 @@ Read the project format at the path the prompt gives (`format.md`). The parent i
 
 ## How to split
 
-- **Every task fits the size limit in `format.md`**: 8 files at most, tests included. A task over it is split where
-  the design gives it a seam.
+- **Every task fits the size limit in `format.md`** (**The file list**): 8 files at most, tests included. A task
+  over it is split where the design gives it a seam.
 - **Every task can be implemented from its own body.** A task that cannot be drawn without designing a part of
   another task is cut in the wrong place.
 - **One task is one pull request**, merged on its own, with the tests passing at the end. A pair that turns the suite

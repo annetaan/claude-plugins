@@ -43,10 +43,6 @@ import json, re, subprocess, sys
 
 MODE = sys.argv[1]
 
-# The most files one sub-issue may name in its ## Design file list, tests included.
-# format.md, "When an issue is ready", gives the reason. Change both together.
-MAX_FILES = 8
-
 SECTIONS = ["Goal", "Design", "Acceptance criteria", "Decisions", "Out of scope"]
 ENTRY_RE = re.compile(r"^\s*[-*]\s+`([^`]+)`\s+\((added|changed|deleted)\):\s*(.+)$")
 IDENT_RE = re.compile(r"^[A-Za-z_$][\w$]*(\.[A-Za-z_$][\w$]*)*$")
@@ -174,8 +170,6 @@ def lint(p):
         reasons.append("sections")
     if not p["files"]:
         reasons.append("no-files")
-    if len(p["files"]) > MAX_FILES:
-        reasons.append("too-many-files")
     if p["bad_entries"]:
         reasons.append("file-entry")
     if any(f["kind"] == "changed" and not f["symbols"] for f in p["files"]):

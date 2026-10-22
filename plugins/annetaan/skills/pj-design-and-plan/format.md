@@ -8,7 +8,7 @@ change here is a change to all three.
 | Skill | What it does |
 | --- | --- |
 | `pj-design-and-plan` | designs the whole in broad strokes, splits it into tasks, and files a parent issue and one sub-issue per task with the decisions it needs, and creates the project's base branch |
-| `pj-design-details` | settles each sub-issue's decisions with the user, makes each one implementable as written, splitting it when it is too big, draws the stubs, resolves the blockers, and labels an issue `ready` |
+| `pj-design-details` | settles each sub-issue's decisions with the user, makes each one implementable as written, splitting it when it turns out to be two tasks, draws the stubs, resolves the blockers, and labels an issue `ready` |
 | `pj-running` | works through the workable issues one pull request at a time, running the `workflow` skill on each and merging it into the base branch before the next starts |
 
 ## Principle
@@ -255,6 +255,11 @@ The bar for a body is in **When an issue is ready**.
   allowed. The list ends at the first line that is neither a bullet nor indented.
 - Prose after the list is optional.
 
+**The size limit is 8 files, and it belongs to the split.** `pj-design-and-plan` cuts every task to 8 files at most,
+tests included, so that its review fits in one sitting. It is a planning rule, not a condition on the issue. When
+`pj-design-details` or the implementation later takes a file list past 8, the issue stays one issue and one pull
+request, and nobody asks whether to split it.
+
 ### Decisions
 
 **The checkboxes in `## Decisions` are the only checkboxes in the body.** GitHub counts the boxes in an issue list
@@ -342,16 +347,12 @@ Everything else is prose in the repository's language.
 | `stub` | the body is a stub |
 | `sections` | the five headings are not all there, in order |
 | `no-files` | the file list is empty |
-| `too-many-files` | the list names more than 8 paths, tests included |
 | `file-entry` | an entry has no kind or no description |
 | `no-symbols` | a `changed` entry names no symbol |
 | `criteria` | there is no acceptance criterion, or a criterion has no backticked anchor |
 | `decision-shape` | a decision does not have 2 to 4 options, or does not have exactly one `(recommended)` |
 | `decisions-open` | a decision is open |
 | `decisions-contradictory` | a decision is contradictory |
-
-**The limit is 8 files.** An issue over it is split into another pull request, and 8 files still keep the review in one
-sitting.
 
 Only a skill or a human adds `ready`. Ticking boxes on GitHub settles decisions and leaves the label alone.
 
