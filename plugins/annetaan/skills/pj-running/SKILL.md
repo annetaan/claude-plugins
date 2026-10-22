@@ -1,6 +1,6 @@
 ---
 name: pj-running
-description: Works through the ready sub-issues of a GitHub project one at a time. Each one runs through the workflow skill as one task with review rounds in difit and an integration review, then pj-running merges its pull request into the project's base branch and closes the issue itself before the next starts. Files unplanned work as stub issues and stops on a blocker. The third of three skills, after pj-design-and-plan and pj-design-details. Use it only when the user names this skill or invokes /annetaan:pj-running, because it creates branches, pushes, opens and merges pull requests, edits issues and labels, and keeps a local difit server running for the whole run.
+description: Works through the ready sub-issues of a GitHub project one at a time. Each one runs through the workflow skill as one task with review rounds in difit and an integration review, then pj-running merges its pull request into the project's base branch and closes the issue itself before the next starts. Works in a git worktree of its own, so the main working tree stays free for the user. Files unplanned work as stub issues and stops on a blocker. The third of three skills, after pj-design-and-plan and pj-design-details. Use it only when the user names this skill or invokes /annetaan:pj-running, because it creates branches, pushes, opens and merges pull requests, edits issues and labels, and keeps a local difit server running for the whole run.
 ---
 
 # pj-running
@@ -9,6 +9,16 @@ The third of the three pj skills: it takes the `ready` sub-issues of a project a
 
 You are the main session. **You do not write code.** workflow's sessions implement and review. You own the branch,
 the merge, the issues, the labels and the notices.
+
+**The run works in a worktree of its own.** Two paths matter.
+
+- **`<MAIN>`** is the main working tree, the user's. It is the path on the first `worktree` line of
+  `git worktree list --porcelain`. `git rev-parse --show-toplevel` would print the worktree you are in, which is
+  wrong when the skill starts from another worktree.
+- **`<WT>`** is `<MAIN>/.claude/worktrees/pj-<P>`, the run's worktree. There is one per project, and it stays
+  across runs.
+
+The user keeps working in `<MAIN>` while the run goes on. The run never switches, stashes, commits or cleans there.
 
 ## Paths: `$RUNNING`
 
@@ -37,8 +47,7 @@ This skill creates branches, pushes, opens and merges pull requests, edits issue
 server running. **Start it only when the user names it or invokes `/annetaan:pj-running`.**
 
 ```bash
-git rev-parse --show-toplevel
-git status --porcelain            # must be empty
+git worktree list --porcelain     # the first worktree line is <MAIN>
 git remote get-url origin
 gh --version                      # 2.94.0 or later
 gh auth status
@@ -49,12 +58,13 @@ command -v difit || echo "falls back to npx difit"
 **Each of these stops the run.** Say which one failed and stop.
 
 - not a git repository
-- a dirty working tree
 - no `origin`
 - `gh` older than 2.94.0, or not logged in
 - issues turned off
 - `viewerPermission` other than `WRITE`, `MAINTAIN` or `ADMIN`
 - no merge method allowed
+
+A dirty `<MAIN>` does not stop the run. The run never works in it.
 
 A `gh` older than 2.99.0 does not stop the run. workflow falls back for the screenshots.
 
@@ -76,13 +86,107 @@ git ls-remote --exit-code --heads origin <base>
 When `ls-remote` finds nothing, stop. The base branch is gone from origin. It may already have been merged into
 `<from>` and deleted.
 
-Then make sure a local base branch exists, whatever the run holds. The fetch moves local refs and nothing else. The
-second command creates the local branch from `origin/<base>` the first time.
+Then fetch the base branch. The fetch moves the remote-tracking ref and nothing else. The run builds on
+`origin/<base>` and never checks out a local `<base>`, so the user may have `<base>` checked out in `<MAIN>`.
 
 ```bash
-git fetch --quiet origin "+refs/heads/<base>:refs/remotes/origin/<base>"
-git rev-parse --verify --quiet refs/heads/<base> >/dev/null || git branch --track <base> origin/<base>
+git -C "<MAIN>" fetch --quiet origin "+refs/heads/<base>:refs/remotes/origin/<base>"
 ```
+
+### The worktree
+
+Look for `<WT>` among the worktrees.
+
+```bash
+git -C "<MAIN>" worktree list --porcelain
+```
+
+- **`<WT>` is listed with `prunable`**: its directory is gone. Run `git -C "<MAIN>" worktree prune`, then create it
+  as in the last case.
+- **`<WT>` is listed and `git -C "<WT>" status --porcelain` prints nothing**: move it onto the fetched base.
+
+  ```bash
+  git -C "<WT>" switch --detach origin/<base>
+  ```
+
+- **`<WT>` is listed and `status --porcelain` prints something**: an earlier run stopped with work in flight. Ask
+  once.
+
+  ```
+  AskUserQuestion: <WT> holds uncommitted work from an earlier run. A resume redoes it.
+    - Discard it and go on (Recommended) - git -C <WT> reset --hard, then git -C <WT> clean -fd. Ignored files such as work-reports/ stay.
+    - Stop and look at <WT>
+  ```
+
+  On the first answer, discard it and move onto the base.
+
+  ```bash
+  git -C "<WT>" reset --hard
+  git -C "<WT>" clean -fd
+  git -C "<WT>" switch --detach origin/<base>
+  ```
+
+  On the second, stop the run. Name `<WT>` and say that `git -C <WT> diff` shows the work.
+- **`<WT>` is not listed but the path exists**: stop. It is not a worktree of this repository, and nothing here may
+  touch it.
+- **Otherwise** create it.
+
+  ```bash
+  git -C "<MAIN>" worktree add --detach "<WT>" origin/<base>
+  ```
+
+**Then enter it, once.**
+
+```
+EnterWorktree(path: "<WT>")
+```
+
+Where that tool is not available, `cd "<WT>"`. A Bash `cd` moves this session only. workflow tells its sub-sessions
+to enter `<WT>` themselves, because their directory resets on every bash call.
+
+**Every command from here to the end of the run runs in `<WT>`.** After a context summary, run
+`git rev-parse --show-toplevel`, and enter `<WT>` again when it prints anything else. Between issues `<WT>` holds a
+detached HEAD. A stop from here on, even one before the approval, leaves `<WT>` as phase 6 step 2 says.
+
+`<WT>` has none of `<MAIN>`'s ignored files, such as installed dependencies or a `.env`. The first worker prepares
+what the tests need and leaves the steps in the handover notes, so later issues find them there.
+
+### Paths this clone must ignore
+
+Two paths must stay out of git, and pj-running checks both here, once, because a run from an issue never asks.
+
+- `.claude/worktrees/` in `<MAIN>`, or the user sees `<WT>` as an untracked directory
+- `work-reports/` in `<WT>`, where workflow writes its reports
+
+```bash
+git -C "<MAIN>" check-ignore -q .claude/worktrees/ && echo IGNORED || echo NOT_IGNORED
+git check-ignore -q work-reports/ && echo IGNORED || echo NOT_IGNORED
+```
+
+Keep the trailing slashes. A pattern that ends in `/` matches only a directory, and before the first run there is no
+`work-reports/`, so `check-ignore work-reports` answers `NOT_IGNORED` even when the rule is there.
+
+When either prints `NOT_IGNORED`, ask once, naming the paths that are not ignored.
+
+```
+AskUserQuestion: These paths are not ignored in this repository: <paths>. pj-running works in .claude/worktrees/ and workflow writes its reports to work-reports/.
+  - Ignore them in this clone (Recommended) - adds them to .git/info/exclude and commits nothing
+  - Stop
+```
+
+On the first answer, append each path that was not ignored to the exclude file git resolves, then run both checks
+again. Every worktree of a clone shares that one file, so the line written from `<WT>` holds in `<MAIN>` too. In a
+linked worktree `.git` is a file, so write no path under it by hand.
+
+```bash
+printf '.claude/worktrees/\n' >> "$(git rev-parse --path-format=absolute --git-path info/exclude)"
+printf 'work-reports/\n' >> "$(git rev-parse --path-format=absolute --git-path info/exclude)"
+```
+
+**Never edit `.gitignore` here.** That commit would land on the base branch with no pull request.
+
+On Stop, leave `<WT>` as phase 6 step 2 says and end the run. `<WT>` stays in place, and the report says that
+`git -C "<MAIN>" worktree remove <WT>` removes it.
 
 ### Can a self-merge go through?
 
@@ -93,7 +197,7 @@ Write `{owner}` and `{repo}` literally, `gh` fills them in.
 gh api "repos/{owner}/{repo}/rules/branches/<base>"
 gh api "repos/{owner}/{repo}/branches/<base>" --jq .protected
 gh api graphql -f query='{repository(owner:"<owner>",name:"<name>"){ref(qualifiedName:"refs/heads/<base>"){branchProtectionRule{requiredApprovingReviewCount requiresCodeOwnerReviews requiresStatusChecks}}}}'
-ls CODEOWNERS .github/CODEOWNERS docs/CODEOWNERS 2>/dev/null
+git ls-tree --name-only origin/<base> -- CODEOWNERS .github/CODEOWNERS docs/CODEOWNERS
 ```
 
 **Stop when any of these holds**, and name it:
@@ -124,35 +228,6 @@ Take the first the repository allows: squash, else merge, else rebase.
 - When a `pull_request` rule has `parameters.allowed_merge_methods`, keep only the methods it lists.
 
 No method left stops the run.
-
-### Is `work-reports/` ignored?
-
-workflow writes its reports there. Ask here, once, because a run from an issue never asks.
-
-```bash
-ROOT=$(git rev-parse --show-toplevel)
-git -C "$ROOT" check-ignore -q work-reports/ && echo IGNORED || echo NOT_IGNORED
-```
-
-Keep the trailing slash. `work-reports/` in an ignore file matches only a directory, and before the first run there
-is none, so `check-ignore work-reports` answers `NOT_IGNORED` even when the rule is there.
-
-On `NOT_IGNORED`:
-
-```
-AskUserQuestion: work-reports/ is not ignored in this repository. workflow writes its reports there.
-  - Ignore it in this clone (Recommended) - adds work-reports/ to .git/info/exclude and commits nothing
-  - Stop
-```
-
-On the first answer, append to the exclude file git resolves, then run the check again. In a linked worktree or a
-submodule `.git` is a file, so write no path under it by hand.
-
-```bash
-printf 'work-reports/\n' >> "$(git -C "<ROOT>" rev-parse --path-format=absolute --git-path info/exclude)"
-```
-
-**Never edit `.gitignore` here.** That commit would land on the base branch with no pull request.
 
 ## Phase 1: the order
 
@@ -218,6 +293,10 @@ Show the user:
   as PR #<m>, closes now)" where it is `MERGED`
 - the waiting list
 - the base branch, the branch pattern and the merge method
+- the worktree `<WT>`, where the whole run happens, and that `<MAIN>` is not touched, so the user can keep working
+  there
+- that `<WT>` has none of `<MAIN>`'s ignored files, such as dependencies or a `.env`, so the first worker prepares
+  them
 - how each issue runs: a branch, workflow's **From an issue** (one task with review rounds in difit, then an
   integration review), a draft pull request into the base branch, then a merge by pj-running, which then closes the
   issue. GitHub does not close it on a merge into a branch other than the default branch.
@@ -249,7 +328,7 @@ The approval covers this run only (`format.md`, **Principle**).
 
 ## Phase 5: one issue at a time
 
-Nothing runs in parallel. There is one working tree. For each issue `<k>` in the run order:
+Nothing runs in parallel. There is one worktree, `<WT>`. For each issue `<k>` in the run order:
 
 1. **Re-read the project** with `project.sh <P>`.
    - The issue is closed: skip it.
@@ -272,14 +351,13 @@ Nothing runs in parallel. There is one working tree. For each issue `<k>` in the
    - **`pr` is null**: the state is `fresh`.
 
      ```bash
-     git switch <base>
-     git pull --ff-only origin <base>
-     git switch -c <branch>
+     git fetch --quiet origin "+refs/heads/<base>:refs/remotes/origin/<base>"
+     git switch --no-track -c <branch> origin/<base>
      ```
 
-     A local `<branch>` may be left over from a stop during the task. When `git rev-list --count <base>..<branch>`
-     prints 0, delete it with `git branch -D <branch>` and create it again. Otherwise it holds unpushed work. Stop
-     and ask the user.
+     A local `<branch>` may be left over from a stop during the task. When
+     `git rev-list --count origin/<base>..<branch>` prints 0, delete it with `git branch -D <branch>` and create it
+     again. Otherwise it holds unpushed work. Stop and ask the user.
    - **`pr.state` is `OPEN`** as `#<m>`:
 
      ```bash
@@ -287,12 +365,15 @@ Nothing runs in parallel. There is one working tree. For each issue `<k>` in the
      gh pr view <m> --json body
      ```
 
+     When git refuses because the branch is checked out in another worktree, stop and name that worktree. The user
+     has the branch open there.
+
      The body holds the head from `format.md` **Pull requests**. `- [ ] Integration review` means
      `resume-integration`. Both lines checked means `resume-merge`. No head at all: stop and report.
 4. **Run From an issue.** These are what it expects you to have settled, so say them in your context before you
    start it: `n` (= `<k>`), `P`, the issue title, the base branch, the checked-out branch, the entry state, `m`
-   (none for `fresh`), the handover notes, and the difit port. After the first issue, keep the port workflow reports
-   and pass it to every later one.
+   (none for `fresh`), the handover notes, the difit port, and the paths `<WT>` and `<MAIN>`. After the first issue,
+   keep the port workflow reports and pass it to every later one.
 
 ### Unplanned work
 
@@ -352,8 +433,11 @@ screenshots that could not be attached.
 4. Merge with the method from **Picking the merge method**. A failure stops the run.
 
    ```bash
-   gh pr merge <m> --squash --delete-branch      # or --merge, or --rebase
+   gh pr merge <m> --squash      # or --merge, or --rebase
    ```
+
+   Do not let gh delete the branch. To delete it, gh switches `<WT>` to `<base>`, and git refuses that while
+   `<MAIN>` has `<base>` checked out. Step 6 deletes the branch.
 
 5. Close the issue. The merge into the base branch closed nothing. Write `$TMP/<k>-closed.md` worded as in the
    `merged` case of phase 5 step 3, naming `#<m>`, then post it and close the issue.
@@ -363,12 +447,16 @@ screenshots that could not be attached.
    gh issue close <k> --reason completed
    ```
 
-6. Bring the base branch up to date.
+6. Move `<WT>` onto the merged base, then delete the head branch here and on origin.
 
    ```bash
-   git switch <base>
-   git pull --ff-only origin <base>
+   git fetch --quiet origin "+refs/heads/<base>:refs/remotes/origin/<base>"
+   git switch --detach origin/<base>
+   git branch -D <branch>
+   git push origin --delete <branch>
    ```
+
+   When the push says the remote ref does not exist, the repository deleted the head branch on merge. Go on.
 
 7. **Fold the handover lines into the notes.** Merge duplicates, keep fifteen lines at most, and drop the oldest
    first. Rewrite the parent's handover comment as `format.md` says under "The handover comment": read its
@@ -378,9 +466,9 @@ screenshots that could not be attached.
 
 Then take the next issue.
 
-**`stopped`** carries the reason, the stash name or none, the pull request number or none, and the text of the
-`Unplanned:` or `Diverged:` report. Act by the reason, then go to phase 6. Every comment below is written to a file
-under `$TMP` and starts with `**[pj-running]**`.
+**`stopped`** carries the reason, whether uncommitted work stays in `<WT>` (yes or no), the pull request number or
+none, and the text of the `Unplanned:` or `Diverged:` report. Act by the reason, then go to phase 6. Every comment
+below is written to a file under `$TMP` and starts with `**[pj-running]**`.
 
 - **`blocking`**: make sure `blocker` exists. File the stub in the shape of `format.md` **Stubs**, from the
   `Unplanned:` text, blocking `#<k>`.
@@ -397,7 +485,7 @@ under `$TMP` and starts with `**[pj-running]**`.
 - **`round cap`**: keep the labels. The body still holds, and the review did not settle. Post a comment on `#<k>`,
   and on the pull request when there is one, listing the points left open.
 - **`user`**: nothing goes to GitHub.
-- **`work-reports`**: report it. It should not happen after the check in **Before you start**.
+- **`work-reports`**: report it. It should not happen after the check in **Paths this clone must ignore**.
 
 ## Phase 6: end of the run
 
@@ -409,7 +497,20 @@ Every way the run ends comes here: the run order is done, the run stopped, or th
    $RUNNING/../workflow/scripts/difit-session.sh stop
    ```
 
-2. `git switch <base>`.
+2. Leave `<WT>`, only when this session entered it in **The worktree**. A stop before that point, such as a base
+   branch gone from origin or a dirty `<WT>` the user wants to look at, skips this step. `<WT>` stays for the next
+   run. The detach frees the branch for `<MAIN>`, and it works on a dirty tree too. Keep the `-C`, so the command
+   cannot reach `<MAIN>` even after a context summary has lost the directory.
+
+   ```bash
+   git -C "<WT>" switch --detach
+   ```
+
+   ```
+   ExitWorktree(action: "keep")
+   ```
+
+   A worktree entered by path is never deleted by `ExitWorktree`. Where that tool is not available, `cd "<MAIN>"`.
 3. `project.sh <P>`. **When every sub-issue is closed**, ask.
 
    ```
@@ -431,11 +532,13 @@ Every way the run ends comes here: the run order is done, the run stopped, or th
 ## Report to the user
 
 - the base branch `<base>`
+- the worktree `<WT>`. The next run reuses it. The work reports live only under its `work-reports/`, and
+  `git -C "<MAIN>" worktree remove <WT>` deletes it with those reports when the project is done
 - each merged issue with the URL of its pull request
 - the stubs filed, the `later` ones and the `blocker` ones
 - where the run stopped and why, or that the run order is done
-- **the stash, when there is one, by name.** Say plainly that it is local, that a resume never applies it, and that
-  the work in it gets redone
+- **the uncommitted work left in `<WT>`, when there is some.** `git -C <WT> diff` shows it. Say plainly that the next
+  run asks whether to discard it, and that a resume never uses it because the work gets redone
 - the screenshots that could not be attached, with their paths and the URL of the pull request
 - what is workable now and what is waiting
 - the next step: `/annetaan:pj-design-details` when a `blocker` or a stub exists, otherwise `/annetaan:pj-running`.
@@ -447,9 +550,10 @@ Every way the run ends comes here: the run order is done, the run stopped, or th
 - **Only this session writes to GitHub.** workflow runs in this same session and pushes and opens the draft pull
   request there. Every comment starts with `**[pj-running]**`.
 - **One issue at a time.**
+- **Everything runs in `<WT>`.** Never switch, stash, commit or clean in `<MAIN>`. The user works there.
 - **Never `--admin`. Never create a label with `--force`. Always pass a body with `--body-file`.**
 - **Never merge a pull request whose head is not fully checked.**
 - **Whenever you take `ready` off an issue, add `blocker`.**
-- **Never apply a stash.**
+- **A resume never uses the work a stopped run left in `<WT>`.** The work is redone.
 - **Never push to the base branch, to `<from>` or to the default branch, and never rewrite their history.**
 - After a context summary, rebuild the run from the progress lines and `project.sh <P>`.

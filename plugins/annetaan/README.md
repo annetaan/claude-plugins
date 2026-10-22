@@ -99,23 +99,26 @@ and pick the branch the project starts from. Nothing reaches GitHub before that.
 parallel, draws its task against the code and picks out what you have to decide. Each decision is written as
 checkboxes with one option recommended. The parent, the project's branch and the sub-issues are filed.
 
-`/annetaan:pj-design-details` ([details](skills/pj-design-details/SKILL.md)) shows the issues without `ready` yet,
-in a recommended order with `blocker` issues first, and you pick one. The issue writer proposes, you decide, and the
-issue is rewritten to match. When an answer changes another issue, that issue is updated, and if it was `ready` it
-loses `ready` with a comment. An issue that turns out to be two tasks is split. One that only grows past eight
-files stays whole, because the size limit is for `pj-design-and-plan` to cut by. `ready` goes on only when the issue
-can be implemented straight from its body: symbols named for every changed file that exist once its blockers have
-merged, and acceptance criteria anchored to tests or commands. Ticking a box on GitHub settles a decision too.
+`/annetaan:pj-design-details` ([details](skills/pj-design-details/SKILL.md)) lines up the issues without `ready` yet,
+`blocker` issues first, and works down that order itself. Up to three issue writers draw ahead in the background, so
+the next issue's questions are usually waiting by the time you finish answering one. Type `stop` in any answer to end
+there. The issue writer proposes, you decide, and the issue is rewritten to match. When an answer changes another
+issue, that issue is updated, and if it was `ready` it loses `ready` with a comment. An issue that turns out to be two
+tasks is split. One that only grows past eight files stays whole, because the size limit is for `pj-design-and-plan`
+to cut by. `ready` goes on only when the issue can be implemented straight from its body: symbols named for every
+changed file that exist once its blockers have merged, and acceptance criteria anchored to tests or commands. Ticking
+a box on GitHub settles a decision too.
 
 `/annetaan:pj-running` ([details](skills/pj-running/SKILL.md)) checks that you can merge your own pull request into
 the project's branch without an approving review, then checks every issue in the order. Any issue that needs design
 again sends the run back to `pj-design-details` before anything starts. After you approve the order, each issue goes
-through the same steps in turn. It gets a branch. [workflow](skills/workflow/README.md#driven-from-an-issue) runs it
-as one task, with review rounds in difit and an integration review. A draft pull request follows, with the work
-report as its body. Then the merge into the project's branch, by squash where the repository allows it. pj-running
-then closes the issue itself, because GitHub closes nothing on a merge into a branch other than the default. Work
-nobody planned becomes a new issue. Work that has to come first stops the run and gets the `blocker` label. The next
-run picks up where this one stopped.
+through the same steps in turn, in a git worktree of the project's own under `.claude/worktrees/`, so you can keep
+working in your clone while the run goes on. It gets a branch.
+[workflow](skills/workflow/README.md#driven-from-an-issue) runs it as one task, with review rounds in difit and an
+integration review. A draft pull request follows, with the work report as its body. Then the merge into the project's
+branch, by squash where the repository allows it. pj-running then closes the issue itself, because GitHub closes
+nothing on a merge into a branch other than the default. Work nobody planned becomes a new issue. Work that has to
+come first stops the run and gets the `blocker` label. The next run picks up where this one stopped.
 
 ```
 /annetaan:pj-design-and-plan add CSV export to every report screen
@@ -146,7 +149,7 @@ What they need:
 - Issues turned on in the repository.
 - The commands run from a clone of the repository.
 - For `pj-running`: write access, a project branch that accepts a merge with no approving review, and what
-  workflow needs (difit, a clean working tree).
+  workflow needs (difit). Your own working tree may be dirty, because the run works in a worktree of its own.
 
 The `ready` and `blocker` labels are created when missing, and a label that already exists is reused as it is.
 

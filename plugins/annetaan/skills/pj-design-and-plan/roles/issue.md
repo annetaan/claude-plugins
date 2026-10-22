@@ -147,6 +147,9 @@ The main session sends the user's answers. Return:
   blocked by.
 - **When the main session sends back a body that moved on GitHub**, merge the human's change into yours and return
   the whole body again, with the new `updatedAt`.
+- **When the main session says another issue's apply rewrote your issue**, read the new body it sends. Return only
+  the decisions that changed, keeping their `D<n>`, or `the proposal stands`. When your round 2 is already out, merge
+  the new body into it as you would a body that moved on GitHub.
 - **Never rewrite the user's answer.** When an answer cannot be carried out in this code, say so and give the options
   again.
 

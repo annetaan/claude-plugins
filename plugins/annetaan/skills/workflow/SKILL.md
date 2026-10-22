@@ -517,9 +517,12 @@ These values are already in your context. Nothing arrives as an argument.
 - the pull request number `m` for `resume-integration` and `resume-merge`, none for `fresh`
 - the handover notes, seeded from the parent's handover comment
 - the difit port, or none for the first issue of the run
+- the run's worktree `<WT>`, and `<MAIN>`, the main working tree. The session is in `<WT>`, and the branch is
+  checked out there
 
-pj-running has already run the checks in **Before you start** (a clean tree, `gh`, difit) and confirmed that
-`work-reports/` is ignored.
+pj-running has already run its checks (`gh`, difit) on `<WT>` and confirmed that `work-reports/` is ignored there.
+Every command below runs in `<WT>`, so `ROOT`, `WORKDIR` and the difit state all come from there. Never touch
+`<MAIN>`. The user works in it during the run.
 
 ### What it skips
 
@@ -584,6 +587,10 @@ integration review over `START..HEAD`. The prompts gain a line each.
 
 - The phase 3 prompt: "This run comes from issue #<n>. Follow **Work outside the task** in your role instruction."
 - Both review prompts: "The design is issue #<n>. Its checked decisions bind."
+- Every prompt, implementation and review alike: "Your working directory must be the worktree `<WT>`. Run
+  `git rev-parse --show-toplevel` first. When it prints anything else, call `EnterWorktree(path: "<WT>")` before
+  anything else, or, when that tool is not available, start every command with `cd <WT>` and keep Edit and Write
+  paths under `<WT>`. Never touch `<MAIN>`." A sub-session does not start in `<WT>` by itself.
 - Every review request, the round 1 prompt and each "review it again" `SendMessage`, also carries the adaptations
   the implementation session has listed so far, under "Adaptations", or "none".
 
@@ -647,19 +654,18 @@ saying stop.
 
 The task commit decides the case, whatever the phase. Look for it in `git log --oneline <START>..HEAD`.
 
-- **No task commit yet.** With a dirty tree, `git stash push -u -m "pj-running #<n>: <issue title>"`.
-  Push nothing and open no pull request.
+- **No task commit yet.** Leave the working tree as it is. Push nothing and open no pull request.
 - **The task commit exists.**
-  1. Stash the fixes in flight the same way.
+  1. Leave the fixes in flight in the working tree as they are.
   2. Write `$WORKDIR/stopped.md`: the head from **Phase 6 from an issue**, with the task line checked with its SHA
      and `- [ ] Integration review` unchecked, then one paragraph. The paragraph says why and where the run stopped,
      what the task's review changed, the test and type check commands with their results, the adaptations the
-     implementation session listed (or none), and the stash name.
+     implementation session listed (or none), and whether uncommitted work stays in `<WT>`.
   3. Push, then `gh pr create --draft --base <base branch> --title "<issue title>" --body-file stopped.md`, or
      `gh pr edit <m> --title "<issue title>" --body-file stopped.md` when the pull request exists, both from
      `$WORKDIR`.
-- **Say plainly that the stash is the one piece of state outside GitHub.** It is local, a resume never applies it,
-  and the work it holds gets redone.
+- **Say plainly that the work left in `<WT>` is the one piece of state outside GitHub.** It is local, a resume
+  never uses it, and the work gets redone.
 - Send nothing more to the sessions in flight.
 - Return `stopped`.
 
@@ -667,15 +673,16 @@ The task commit decides the case, whatever the phase. Look for it in `git log --
 
 - **`finished`**: the pull request number, the SHA of the task commit, the handover lines, and the paths of any
   screenshots that could not be attached.
-- **`stopped`**: the reason (`round cap`, `blocking`, `diverged`, `user` or `work-reports`), the stash name or none,
-  the pull request number or none, and the text of the `Unplanned:` or `Diverged:` report.
+- **`stopped`**: the reason (`round cap`, `blocking`, `diverged`, `user` or `work-reports`), whether uncommitted
+  work stays in `<WT>` (yes or no), the pull request number or none, and the text of the `Unplanned:` or
+  `Diverged:` report.
 
 ## Rules for the whole flow
 
 - **You do not write code.** The implementation session implements and the review session reviews. Code you write yourself never passes through a review.
 - **The review session never changes code.** It writes findings. The implementation session fixes them.
 - **The design review session never changes code and sends one report.** It runs once, before approval, never on task detailing or a plan redraw, and the flow goes on without it when it cannot start.
-- **One difit server per repository.** Start, restart and stop all go through `difit-session.sh`. Calling `difit` by hand multiplies ports and tabs.
+- **One difit server per working tree.** Start, restart and stop all go through `difit-session.sh`. Calling `difit` by hand multiplies ports and tabs.
 - **The design session lives for the whole flow. An implementation session and a review session live for one task.** Inside a task they continue through `SendMessage`, because throwing the context away between rounds repeats arguments that were already settled. At the commit they are finished, and the next task starts a new pair.
 - **Keep the reports from the sub-agents short.** The role instructions cap them. A report that pastes a diff or a log fills the one context that holds the whole plan, which is yours. When a long one arrives, say so, and ask for the gist next time.
 - **One task is one commit, and a commit happens only after approval.** A commit mid-round drops the diff out of difit's working-tree view and out of the review.

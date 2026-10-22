@@ -78,10 +78,12 @@ you opened keeps working.
 The pull request body is `log.md` under a head of `Implements`, `Part of` and a two-line `## Plan`. The run pushes
 and opens the pull request as a draft against the project's base branch. pj-running merges it.
 
-A stop before the task is committed leaves a stash and pushes nothing. A stop once the task commit exists leaves a
-draft pull request with that commit and a paragraph on why it stopped. Either way the stash is the one thing left
-outside GitHub, and a resume redoes that work. The shape of the issues and the pull requests is in
-[format.md](../pj-design-and-plan/format.md).
+All of it happens in the worktree pj-running made for the project, so your own working tree is left alone.
+
+A stop before the task is committed leaves the work uncommitted in that worktree and pushes nothing. A stop once the
+task commit exists leaves a draft pull request with that commit and a paragraph on why it stopped. Either way the work
+left in the worktree is the one thing outside GitHub, and a resume redoes that work. The shape of the issues and the
+pull requests is in [format.md](../pj-design-and-plan/format.md).
 
 ## What it leaves behind
 
@@ -143,7 +145,7 @@ screenshots it could not attach.
 | `roles/design-review.md` | the role for the design review session, which pushes the design toward its ideal shape once, before approval |
 | `roles/work.md` | the role for the implementation session |
 | `roles/review.md` | the role for the review session |
-| `scripts/difit-session.sh` | keeps exactly one difit server per repository |
+| `scripts/difit-session.sh` | keeps exactly one difit server per working tree |
 
 The design, implementation and review sessions run on agents that ship with the plugin (`../../agents/`). Design is
 `annetaan:workflow-design` (opus / high). The design review is `annetaan:workflow-design-review` (fable / medium),

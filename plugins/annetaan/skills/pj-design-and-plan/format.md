@@ -20,8 +20,11 @@ machine.
 Two things live outside GitHub, and only these two:
 
 - **the user's approval within a run.** An approval covers the run it was given in. The next run asks again.
-- **the stash of the work in flight**, which `pj-running` leaves when it stops in the middle of an issue. It is
-  local. A resume never applies it. The work is redone as the issue's one task, or as its integration review.
+- **the uncommitted work a stopped run leaves in its worktree** `<MAIN>/.claude/worktrees/pj-<P>`, where `<MAIN>`
+  is the main working tree. It is local. A resume never uses it. The work is redone as the issue's one task, or as
+  its integration review.
+
+The worktree itself is a place to work, not state. A run creates it when it is missing.
 
 ## Requirements
 
@@ -445,8 +448,8 @@ carries no review-thread markers.
   one wins over a merged one, and the lower number wins within the same state. One closed without a merge never
   counts. `project.sh` reports it as `pr`.
 - A pull request exists only once the issue's task is committed. It stays a draft until just before the merge.
-- Merge with squash, else a merge commit, else rebase, the first one the repository allows. Always `--delete-branch`.
-  Never `--admin`.
+- Merge with squash, else a merge commit, else rebase, the first one the repository allows. After the merge, delete
+  the head branch on origin and locally. Never `--admin`.
 
 The body begins with this head:
 
