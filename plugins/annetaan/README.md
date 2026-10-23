@@ -15,10 +15,10 @@ marketplace in `/plugin`.
 
 A skill whose `description` matches a request normally starts without being named. The ones here do not. `workflow`
 runs a long-lived local server, opens a browser and adds commits on its own. The pj skills create, edit and close
-issues and labels on GitHub, and `pj-running` also pushes, opens and merges pull requests. The doc skills make a
-file next to your document, rewrite the document itself, and can add one commit of their own to `.gitignore` after
-asking. Any of these is enough reason to wait, so each skill here starts only when you name it or invoke its slash
-form.
+issues and labels on GitHub, and `pj-running` also creates each project's branch, pushes, opens and merges pull
+requests. The doc skills make a file next to your document, rewrite the document itself, and can add one commit of
+their own to `.gitignore` after asking. Any of these is enough reason to wait, so each skill here starts only when you
+name it or invoke its slash form.
 
 ### workflow
 
@@ -85,32 +85,42 @@ up. The skill checks that git ignores that directory before it writes anything, 
 
 ### pj-design-and-plan, pj-design-details, pj-running
 
-These three skills run a piece of work too large for one pull request as a project on GitHub. The project is a
-parent issue that holds the overall design, plus one sub-issue per task, ordered by GitHub's own blocked-by
-relationships. The work lands on a branch of the project's own, `pj/` and the parent's number, made from a branch
-you pick when the project is filed, the default branch unless you name another. Every sub-issue's pull request
-merges into it. Merging it back into the branch it came from is left to you. GitHub holds the whole state, so a
-project can stop and pick up again in another session or on another machine.
-[format.md](skills/pj-design-and-plan/format.md) describes the shape.
+These three skills run a piece of work too large for one pull request as one or more projects on GitHub. A project
+is a parent issue labelled `project`, which holds that project's design, plus one sub-issue per task, at most ten tasks
+per project. The order comes from GitHub's own blocked-by relationships, and one may run from a task in one project to
+a task in another. Each project's work lands on a branch of its own, `pj/` and the parent's number. `pj-running`
+creates it on the project's first run, from a branch you pick when the projects are filed, the default branch unless
+you name another. A project that waits on another gets its branch only after the other one is merged into that
+branch. Every sub-issue's pull request merges into its project's branch. Merging that branch back into the branch it
+came from is left to you. After that the parent is closed, by the next `pj-running` run or by you, and a closed
+parent means its project is merged. A project of ten tasks gets back to the branch it came from sooner than one of
+thirty. GitHub holds the whole state, so a project can stop and pick up again in another session or on another
+machine. [format.md](skills/pj-design-and-plan/format.md) describes the shape.
 
 `/annetaan:pj-design-and-plan` ([details](skills/pj-design-and-plan/SKILL.md)) starts with a planner session. It
-draws the whole in broad strokes and splits it into tasks. You answer the plan-level questions, approve the split
-and pick the branch the project starts from. Nothing reaches GitHub before that. Then one issue writer per task, in
-parallel, draws its task against the code and picks out what you have to decide. Each decision is written as
-checkboxes with one option recommended. The parent, the project's branch and the sub-issues are filed.
+draws the whole in broad strokes, splits it into tasks, and groups the tasks into projects of up to ten. You answer
+the plan-level questions, approve the split and pick the branch the projects start from. Nothing reaches GitHub
+before that. Then one issue writer per task, in parallel, draws its task against the code and picks out what you
+have to decide. Each decision is written as checkboxes with one option recommended. The parents and their
+sub-issues are filed. No branch is created yet.
 
-`/annetaan:pj-design-details` ([details](skills/pj-design-details/SKILL.md)) lines up the issues without `ready` yet,
-`blocker` issues first, and works down that order itself. Up to three issue writers draw ahead in the background, so
-the next issue's questions are usually waiting by the time you finish answering one. Type `stop` in any answer to end
-there. The issue writer proposes, you decide, and the issue is rewritten to match. When an answer changes another
-issue, that issue is updated, and if it was `ready` it loses `ready` with a comment. An issue that turns out to be two
-tasks is split. One that only grows past eight files stays whole, because the size limit is for `pj-design-and-plan`
-to cut by. `ready` goes on only when the issue can be implemented straight from its body: symbols named for every
-changed file that exist once its blockers have merged, and acceptance criteria anchored to tests or commands. Ticking
-a box on GitHub settles a decision too.
+`/annetaan:pj-design-details` ([details](skills/pj-design-details/SKILL.md)) asks which project to work on, every
+time. A number you pass, of a parent or of one of its sub-issues, puts that project first. It then lines up the
+project's issues without `ready` yet, `blocker` issues first, and works down that order itself. Up to three issue
+writers draw ahead in the background, so the next issue's questions are usually waiting by the time you finish
+answering one. Type `stop` in any answer to end there. The issue writer proposes, you decide, and the issue is
+rewritten to match. When an answer changes another issue, that issue is updated, and if it was `ready` it loses
+`ready` with a comment. An issue that turns out to be two tasks is split. An issue that grows past eight files and a
+project that grows past ten tasks both stay as they are, because both limits are for `pj-design-and-plan` to cut by.
+`ready` goes on only when the issue can be implemented straight from its body: symbols named for every changed file
+that exist once its blockers have merged, and acceptance criteria anchored to tests or commands. Ticking a box on
+GitHub settles a decision too.
 
-`/annetaan:pj-running` ([details](skills/pj-running/SKILL.md)) checks that you can merge your own pull request into
-the project's branch without an approving review, then checks every issue in the order. Any issue that needs design
+`/annetaan:pj-running` ([details](skills/pj-running/SKILL.md)) asks which project to work on, the same way. On the
+project's first run it creates the project's branch. When a project it waits on is not merged yet, it lists those
+projects and stops instead. It closes the parent of any project it finds merged, its own or one it waits on. Then it
+checks that you can merge your own pull request into the project's branch without an approving review, and checks
+every issue in the order. Any issue that needs design
 again sends the run back to `pj-design-details` before anything starts. After you approve the order, each issue goes
 through the same steps in turn, in a git worktree of the project's own under `.claude/worktrees/`, so you can keep
 working in your clone while the run goes on. It gets a branch.
@@ -126,16 +136,17 @@ come first stops the run and gets the `blocker` label. The next run picks up whe
 /annetaan:pj-running
 ```
 
-With no issue number, the second and third ask which project.
+The second and third always ask which project, and an issue number passed after either one puts its project first.
 
 ```mermaid
 flowchart TD
-    req(["your request"]) --> plan["pj-design-and-plan<br/>planner splits the work,<br/>issue writers draw each task"]
-    plan --> approve(["you approve the split"]) --> filed["parent issue and sub-issues<br/>decisions as checkboxes,<br/>order as blocked-by"]
+    req(["your request"]) --> plan["pj-design-and-plan<br/>planner splits the work into<br/>projects of up to ten tasks,<br/>issue writers draw each task"]
+    plan --> approve(["you approve the split"]) --> filed["a parent issue per project,<br/>labelled project, and its sub-issues<br/>decisions as checkboxes,<br/>order as blocked-by"]
     filed --> details["pj-design-details<br/>you decide, the writer rewrites,<br/>ready once implementable as written"]
-    details --> run["pj-running<br/>per ready issue: branch, workflow,<br/>draft pull request, merge<br/>into the project's branch"]
+    details --> run["pj-running, per project<br/>makes its branch on the first run,<br/>then per ready issue: branch, workflow,<br/>draft pull request, merge<br/>into the project's branch"]
     run -->|"stub or blocker"| details
-    run -->|"all merged"| done(["parent closed when you say so,<br/>you merge the project's branch<br/>into the branch it came from"])
+    run -->|"all merged"| done(["you merge the project's branch<br/>into the branch it came from,<br/>then its parent closes"])
+    done -.->|"a project that waits on it"| run
 
     you(["you, on GitHub"]) -.->|"tick a box"| filed
 
@@ -151,7 +162,8 @@ What they need:
 - For `pj-running`: write access, a project branch that accepts a merge with no approving review, and what
   workflow needs (difit). Your own working tree may be dirty, because the run works in a worktree of its own.
 
-The `ready` and `blocker` labels are created when missing, and a label that already exists is reused as it is.
+The `ready`, `blocker` and `project` labels are created when missing, and a label that already exists is reused as
+it is.
 
 ### doc-write
 
@@ -229,7 +241,7 @@ The model and the effort are pinned here, and a skill selects one by name alone.
 | `annetaan:workflow-design-review` | fable | medium | design review. once, before approval, where the repository accepts breaking changes |
 | `annetaan:workflow-worker` | opus | medium | implementation, for every task |
 | `annetaan:workflow-reviewer` | opus | medium | review, for every task and the integration review |
-| `annetaan:pj-planner` | opus | high | planning for `pj-design-and-plan`. the overall design and the split into tasks |
+| `annetaan:pj-planner` | opus | high | planning for `pj-design-and-plan`. the projects, their designs, and the split into tasks |
 | `annetaan:pj-issue-writer` | opus | high | one sub-issue, drawn against the code. drafts it for `pj-design-and-plan`, revises it for `pj-design-details` |
 | `annetaan:doc-meta-overview` | opus | high | overview for `doc-meta`. finds what a per-sentence flag misses |
 
