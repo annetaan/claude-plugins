@@ -1,9 +1,9 @@
 ---
-name: pj-running
-description: Asks which project to work on, with a number given as the recommended one. Creates the project's base branch on its first start, once every project it waits on is merged, and closes the parent of a merged project. Works through the ready sub-issues of a GitHub project one at a time. Each one runs through the workflow skill as one task with review rounds in difit and an integration review, then pj-running merges its pull request into the project's base branch and closes the issue itself before the next starts. Works in a git worktree of its own, so the main working tree stays free for the user. Files unplanned work as stub issues and stops on a blocker. The third of three skills, after pj-design-and-plan and pj-design-details. Use it only when the user names this skill or invokes /annetaan:pj-running, because it creates branches, pushes, opens and merges pull requests, edits issues and labels, and keeps a local difit server running for the whole run.
+name: pj-3-running
+description: Asks which project to work on, with a number given as the recommended one. Creates the project's base branch on its first start, once every project it waits on is merged, and closes the parent of a merged project. Works through the ready sub-issues of a GitHub project one at a time. Each one runs through the workflow skill as one task with review rounds in difit and an integration review, then pj-3-running merges its pull request into the project's base branch and closes the issue itself before the next starts. Works in a git worktree of its own, so the main working tree stays free for the user. Files unplanned work as stub issues and stops on a blocker. The third of three skills, after pj-1-plan and pj-2-details. Use it only when the user names this skill or invokes /annetaan:pj-3-running, because it creates branches, pushes, opens and merges pull requests, edits issues and labels, and keeps a local difit server running for the whole run.
 ---
 
-# pj-running
+# pj-3-running
 
 The third of the three pj skills: it takes the `ready` sub-issues of a project and merges one pull request per issue.
 
@@ -28,13 +28,13 @@ The user keeps working in `<MAIN>` while the run goes on. The run never switches
 prompt for a sub-agent. Sub-agents have not read this instruction, so a relative path or a literal `$RUNNING` finds
 them nothing.
 
-**Read `$RUNNING/../pj-design-and-plan/format.md` before anything else.** It is the only description of the parent
+**Read `$RUNNING/../pj-1-plan/format.md` before anything else.** It is the only description of the parent
 issue, the sub-issue body, the labels, the relationships, the blockers, the comments and the pull requests. Its table
 of the three skills says where this one sits. Everything below refers to it.
 
 This skill uses three more things:
 
-- the script `$RUNNING/../pj-design-and-plan/scripts/project.sh`, written `project.sh` below
+- the script `$RUNNING/../pj-1-plan/scripts/project.sh`, written `project.sh` below
 - the script `$RUNNING/../workflow/scripts/difit-session.sh`, only to stop the difit server when the run ends
 - the `workflow` skill, loaded with the Skill tool as `annetaan:workflow`
 
@@ -44,7 +44,7 @@ language, as `format.md` says.
 ## Before you start
 
 This skill creates branches, pushes, opens and merges pull requests, edits issues and labels, and keeps a local
-server running. **Start it only when the user names it or invokes `/annetaan:pj-running`.**
+server running. **Start it only when the user names it or invokes `/annetaan:pj-3-running`.**
 
 ```bash
 git worktree list --porcelain     # the first worktree line is <MAIN>
@@ -80,7 +80,7 @@ the base branch is made from. When `project.sh` fails, for example with `has no 
 stop.
 
 ```bash
-$RUNNING/../pj-design-and-plan/scripts/project.sh <P>
+$RUNNING/../pj-1-plan/scripts/project.sh <P>
 ```
 
 Then go through these in order.
@@ -89,7 +89,7 @@ Then go through these in order.
 2. **Every sub-issue is closed**: when `parent.merged` is true, close the parent as **Closing a merged project**
    says, report it, and end. Otherwise say that every sub-issue is closed, that `<base>` holds the whole project, that
    merging `<base>` into `<from>` through a pull request is the user's job, and that the parent closes when a
-   pj-running run sees that merge, or when the user closes it after merging. When `parent.baseExists` is false, also
+   pj-3-running run sees that merge, or when the user closes it after merging. When `parent.baseExists` is false, also
    say that the base branch is gone from origin. End.
 3. **Close the merged projects `<P>` waits on.** Each `<Q>` in `parent.dependsOn` whose `merged` is true and whose
    `state` is `OPEN` is closed as **Closing a merged project** says. Its comment says that `#<P>` starts now.
@@ -99,7 +99,7 @@ Then go through these in order.
      already have been merged into `<from>` and deleted.
    - When a project in `parent.dependsOn` has `merged` false, stop and list each one as `#<Q> <title>`. One whose
      `state` is `CLOSED` was closed as not planned, without a merge: remove the edges to it with
-     `/annetaan:pj-design-details`. One whose `state` is `OPEN` has to be finished with `/annetaan:pj-running`, and
+     `/annetaan:pj-2-details`. One whose `state` is `OPEN` has to be finished with `/annetaan:pj-3-running`, and
      its base branch, `dependsOn[].base`, merged into `<from>` through a pull request.
    - Otherwise create the base branch from the tip of `<from>`, as `format.md` says under **Projects**. Write
      `{owner}` and `{repo}` literally, `gh` fills them in. A failure of either command stops the run. Quote it.
@@ -125,7 +125,7 @@ git -C "<MAIN>" fetch --quiet origin "+refs/heads/<base>:refs/remotes/origin/<ba
 **The base branch** closes a parent in two places. `<Q>` below is that parent: `<P>` itself, or a project in
 `parent.dependsOn`. **Close only an open parent that `project.sh` reads as `merged`, and always as completed.**
 
-Write `$TMP/<Q>-closed.md`. It starts with `**[pj-running]**` and says that the project's base branch is merged into
+Write `$TMP/<Q>-closed.md`. It starts with `**[pj-3-running]**` and says that the project's base branch is merged into
 the branch it was made from and that every sub-issue is closed. The base branch is `dependsOn[].base` for a project
 `<P>` waits on, and `<base>` for `<P>`. For a project `<P>` waits on, the comment adds that `#<P>`, which waits on
 it, starts now. Then post it and close the parent.
@@ -195,7 +195,7 @@ what the tests need and leaves the steps in the handover notes, so later issues 
 
 ### Paths this clone must ignore
 
-Two paths must stay out of git, and pj-running checks both here, once, because a run from an issue never asks.
+Two paths must stay out of git, and pj-3-running checks both here, once, because a run from an issue never asks.
 
 - `.claude/worktrees/` in `<MAIN>`, or the user sees `<WT>` as an untracked directory
 - `work-reports/` in `<WT>`, where workflow writes its reports
@@ -211,7 +211,7 @@ Keep the trailing slashes. A pattern that ends in `/` matches only a directory, 
 When either prints `NOT_IGNORED`, ask once, naming the paths that are not ignored.
 
 ```
-AskUserQuestion: These paths are not ignored in this repository: <paths>. pj-running works in .claude/worktrees/ and workflow writes its reports to work-reports/.
+AskUserQuestion: These paths are not ignored in this repository: <paths>. pj-3-running works in .claude/worktrees/ and workflow writes its reports to work-reports/.
   - Ignore them in this clone (Recommended) - adds them to .git/info/exclude and commits nothing
   - Stop
 ```
@@ -232,7 +232,7 @@ On Stop, leave `<WT>` as phase 6 step 2 says and end the run. `<WT>` stays in pl
 
 ### Can a self-merge go through?
 
-pj-running merges its own pull requests, so a rule on the base branch that wants another person's review stops it.
+pj-3-running merges its own pull requests, so a rule on the base branch that wants another person's review stops it.
 Write `{owner}` and `{repo}` literally, `gh` fills them in.
 
 ```bash
@@ -276,8 +276,8 @@ No method left stops the run.
 1. Read the project.
 
    ```bash
-   $RUNNING/../pj-design-and-plan/scripts/project.sh <P>
-   $RUNNING/../pj-design-and-plan/scripts/project.sh <P> --order
+   $RUNNING/../pj-1-plan/scripts/project.sh <P>
+   $RUNNING/../pj-1-plan/scripts/project.sh <P> --order
    ```
 
    **When `--order` fails on a cycle**, within the project or between projects, show the user the cycle it names
@@ -290,7 +290,7 @@ No method left stops the run.
    sequence.
 4. List the `ready` issues left out as **waiting**, each with the issue it waits on.
 5. **An empty run order** ends the skill here. Report that nothing is workable, how many issues wait and how many are
-   not `ready`, and the next step, `/annetaan:pj-design-details`. An issue with a merged pull request makes the run
+   not `ready`, and the next step, `/annetaan:pj-2-details`. An issue with a merged pull request makes the run
    order non-empty.
 6. Run `git branch -a` once. Pick a branch pattern in the repository's own naming that holds the issue number, such
    as `feat/<n>-<slug>`. Phase 3 shows it.
@@ -301,7 +301,7 @@ Check every issue in the run order against the code before anything starts, exce
 Their own `added` files exist now, so `--check` would fail them.
 
 ```bash
-$RUNNING/../pj-design-and-plan/scripts/project.sh <P> --check <k>
+$RUNNING/../pj-1-plan/scripts/project.sh <P> --check <k>
 ```
 
 **For each issue whose `ok` is false**, mark it.
@@ -313,16 +313,16 @@ $RUNNING/../pj-design-and-plan/scripts/project.sh <P> --check <k>
    gh issue edit <k> --remove-label ready --add-label blocker
    ```
 
-3. Write `$TMP/<k>-check.md` and post it. It starts with `**[pj-running]**`, then lists the lint codes, each premise
+3. Write `$TMP/<k>-check.md` and post it. It starts with `**[pj-3-running]**`, then lists the lint codes, each premise
    failure (path, symbol, why) and each stale commit (SHA, subject, pull request), and ends with "Settle it with
-   /annetaan:pj-design-details."
+   /annetaan:pj-2-details."
 
    ```bash
    gh issue comment <k> --body-file "$TMP/<k>-check.md"
    ```
 
 **If any issue failed, do not start.** No issue in the order may need design when the run begins. Report which
-issues failed and why, and the next step, `/annetaan:pj-design-details`.
+issues failed and why, and the next step, `/annetaan:pj-2-details`.
 
 ## Phase 3: approval
 
@@ -340,7 +340,7 @@ Show the user:
 - that `<WT>` has none of `<MAIN>`'s ignored files, such as dependencies or a `.env`, so the first worker prepares
   them
 - how each issue runs: a branch, workflow's **From an issue** (one task with review rounds in difit, then an
-  integration review), a draft pull request into the base branch, then a merge by pj-running, which then closes the
+  integration review), a draft pull request into the base branch, then a merge by pj-3-running, which then closes the
   issue. GitHub does not close it on a merge into a branch other than the default branch.
 - that merging the base branch into `<from>` is the user's job, outside this skill, and that the parent `#<P>` closes
   as completed once a run sees that merge
@@ -361,7 +361,7 @@ The approval covers this run only (`format.md`, **Principle**).
 1. Load workflow.
 
    ```
-   Skill(skill: "annetaan:workflow", args: "From an issue, driven by pj-running")
+   Skill(skill: "annetaan:workflow", args: "From an issue, driven by pj-3-running")
    ```
 
    Follow its **From an issue** section for every issue. **Load it again when a context summary has dropped it.**
@@ -381,7 +381,7 @@ Nothing runs in parallel. There is one worktree, `<WT>`. For each issue `<k>` in
    and the run stops (phase 6).
 3. **Settle the entry state.**
    - **`pr.state` is `MERGED`** as `#<m>`: the state is `merged`. Write `$TMP/<k>-closed.md`. It starts with
-     `**[pj-running]**`, says PR #<m> merged into `<base>`, and says pj-running closed the issue because GitHub does
+     `**[pj-3-running]**`, says PR #<m> merged into `<base>`, and says pj-3-running closed the issue because GitHub does
      not close an issue on a merge into a branch other than the default branch. Then close the issue.
 
      ```bash
@@ -425,7 +425,7 @@ workflow hands over to this section by name. An `Unplanned:` report marked `late
 
 1. Write `$TMP/stub-<j>.md` in the shape of `format.md` **Stubs**. Its `## Goal` holds what was found, why it matters,
    and "found while working on #<k>".
-2. File it with no label and no edges. pj-design-details sets the edges when it draws the stub.
+2. File it with no label and no edges. pj-2-details sets the edges when it draws the stub.
 
    ```bash
    gh issue create --parent <P> --title "<title>" --body-file "$TMP/stub-<j>.md"
@@ -512,7 +512,7 @@ Then take the next issue.
 
 **`stopped`** carries the reason, whether uncommitted work stays in `<WT>` (yes or no), the pull request number or
 none, and the text of the `Unplanned:` or `Diverged:` report. Act by the reason, then go to phase 6. Every comment
-below is written to a file under `$TMP` and starts with `**[pj-running]**`.
+below is written to a file under `$TMP` and starts with `**[pj-3-running]**`.
 
 - **`blocking`**: make sure `blocker` exists. File the stub in the shape of `format.md` **Stubs**, from the
   `Unplanned:` text, blocking `#<k>`.
@@ -558,7 +558,7 @@ Every way the run ends comes here: the run order is done, the run stopped, or th
    A worktree entered by path is never deleted by `ExitWorktree`. Where that tool is not available, `cd "<MAIN>"`.
 3. `project.sh <P>`. **When every sub-issue is closed**, tell the user what **The base branch** says when every
    sub-issue is closed and the project is not `merged`: `<base>` holds the whole project, merging it into `<from>`
-   through a pull request is theirs to do, and the parent closes as completed when a pj-running run sees that merge,
+   through a pull request is theirs to do, and the parent closes as completed when a pj-3-running run sees that merge,
    or when the user closes it after merging. Ask nothing.
 
 ## Report to the user
@@ -574,7 +574,7 @@ Every way the run ends comes here: the run order is done, the run stopped, or th
   run asks whether to discard it, and that a resume never uses it because the work gets redone
 - the screenshots that could not be attached, with their paths and the URL of the pull request
 - what is workable now and what is waiting
-- the next step: `/annetaan:pj-design-details` when a `blocker` or a stub exists, otherwise `/annetaan:pj-running`.
+- the next step: `/annetaan:pj-2-details` when a `blocker` or a stub exists, otherwise `/annetaan:pj-3-running`.
   When every sub-issue is closed, the user merges `<base>` into `<from>` through a pull request. The next run then
   closes the parent, or the user closes it.
 
@@ -582,7 +582,7 @@ Every way the run ends comes here: the run order is done, the run stopped, or th
 
 - **You never write code.** workflow's sessions do.
 - **Only this session writes to GitHub.** workflow runs in this same session and pushes and opens the draft pull
-  request there. Every comment starts with `**[pj-running]**`.
+  request there. Every comment starts with `**[pj-3-running]**`.
 - **One issue at a time.**
 - **Everything runs in `<WT>`.** Never switch, stash, commit or clean in `<MAIN>`. The user works there.
 - **Never `--admin`. Never create a label with `--force`. Always pass a body with `--body-file`.**

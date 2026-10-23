@@ -7,9 +7,9 @@ change here is a change to all three.
 
 | Skill | What it does |
 | --- | --- |
-| `pj-design-and-plan` | designs the whole in broad strokes, splits it into tasks, groups the tasks into projects of up to ten, and files one parent issue per project and one sub-issue per task with the decisions it needs |
-| `pj-design-details` | settles each sub-issue's decisions with the user, makes each one implementable as written, splitting it when it turns out to be two tasks, draws the stubs, resolves the blockers, and labels an issue `ready` |
-| `pj-running` | creates a project's base branch when it first starts on the project, then works through the workable issues one pull request at a time, running the `workflow` skill on each and merging it into the base branch before the next starts |
+| `pj-1-plan` | designs the whole in broad strokes, splits it into tasks, groups the tasks into projects of up to ten, and files one parent issue per project and one sub-issue per task with the decisions it needs |
+| `pj-2-details` | settles each sub-issue's decisions with the user, makes each one implementable as written, splitting it when it turns out to be two tasks, draws the stubs, resolves the blockers, and labels an issue `ready` |
+| `pj-3-running` | creates a project's base branch when it first starts on the project, then works through the workable issues one pull request at a time, running the `workflow` skill on each and merging it into the base branch before the next starts |
 
 ## Principle
 
@@ -45,11 +45,11 @@ gh repo view --json nameWithOwner,hasIssuesEnabled,defaultBranchRef
 | --- | --- |
 | The project | one **parent issue** labelled **`project`**. Its body holds the design of this project. |
 | A task | one **sub-issue** of the parent. One task becomes one pull request. |
-| Where the work lands | the **base branch** `pj/<P>`. pj-running creates it on the project's first start, from the tip of the branch the user picked when the project was filed, the default branch unless they said otherwise. The parent's `Base:` line names both. Every sub-issue's pull request merges into the base branch. |
+| Where the work lands | the **base branch** `pj/<P>`. pj-3-running creates it on the project's first start, from the tip of the branch the user picked when the project was filed, the default branch unless they said otherwise. The parent's `Base:` line names both. Every sub-issue's pull request merges into the base branch. |
 | An order between tasks | a native **blocked by** relationship. Never written into a body. |
 | An order between projects | no record of its own. It follows from the order between tasks (see **Projects**). |
 | A task that can be implemented straight from its body | the **`ready`** label |
-| Something `pj-running` stopped on | the **`blocker`** label |
+| Something `pj-3-running` stopped on | the **`blocker`** label |
 
 The parent never gets `ready` and is never worked on. It closes as completed once the project is merged (see
 **Projects**).
@@ -62,15 +62,15 @@ does it.
 One request can become several projects, `PJ1, PJ2, …` while it is planned, each a parent issue of its own. The
 tasks are numbered `T1…Tn` across the whole request. Every project from one request is made from the same branch.
 
-**A project holds at most 10 tasks.** Like the 8-file limit, it is a rule of the split. `pj-design-and-plan` cuts
-the request so that no project holds more than ten. When `pj-design-details` later splits an issue or files stubs and
+**A project holds at most 10 tasks.** Like the 8-file limit, it is a rule of the split. `pj-1-plan` cuts
+the request so that no project holds more than ten. When `pj-2-details` later splits an issue or files stubs and
 a project goes past ten, it stays one project, and nobody asks whether to split it.
 
 **Project P waits on project Q** when an open sub-issue of P is blocked by a sub-issue of Q, open or closed. That
 edge is the only record of it. Parents get no relationships of their own, and no parent body names another project.
 `project.sh` derives the projects P waits on as `parent.dependsOn`. **No cycles between projects.**
 
-**The base branch.** Only `pj-running` creates `pj/<P>`. It does so when it starts on the project, the base branch does
+**The base branch.** Only `pj-3-running` creates `pj/<P>`. It does so when it starts on the project, the base branch does
 not exist yet, and every project in `dependsOn` is `merged`, which always holds for a project that waits on none. It
 cuts the base branch from the tip of `<from>`, the branch the parent's `Base:` line names after `from`, through the
 API:
@@ -80,7 +80,7 @@ gh api "repos/{owner}/{repo}/git/ref/heads/<from>" --jq .object.sha
 gh api "repos/{owner}/{repo}/git/refs" -f ref="refs/heads/pj/<P>" -f sha="<sha>"
 ```
 
-`pj-design-and-plan` writes the `Base:` line into every parent when it files it, before any of these branches exists.
+`pj-1-plan` writes the `Base:` line into every parent when it files it, before any of these branches exists.
 A base branch cut later starts from a newer `<from>`, and conflicts less when it is merged back at the end.
 
 **A project is `merged`** when either of these holds:
@@ -95,7 +95,7 @@ not planned is a project given up on, and is not merged. A merge made without a 
 commit, can leave commits that `--check` reads as stale for a project waiting on this one (see **Is the body still
 current?**).
 
-**Closing a parent** as completed means its project is merged. When `pj-running` reads an open parent that is
+**Closing a parent** as completed means its project is merged. When `pj-3-running` reads an open parent that is
 `merged`, it closes it with a marked comment and `--reason completed`, both when it starts on that project and when
 it starts on a project that waits on it. A human may also close it after merging. The merge itself is the human's
 job.
@@ -108,8 +108,8 @@ from elsewhere becomes a stub in the project itself.
 
 | Label | Color | Description |
 | --- | --- | --- |
-| `ready` | `0E8A16` | Every decision is settled and the body can be implemented as it stands. pj-running may work on it. |
-| `blocker` | `B60205` | pj-running stopped on this. Settle it before anything else. |
+| `ready` | `0E8A16` | Every decision is settled and the body can be implemented as it stands. pj-3-running may work on it. |
+| `blocker` | `B60205` | pj-3-running stopped on this. Settle it before anything else. |
 | `project` | `5319E7` | The parent issue of a pj project. Its sub-issues are the project's tasks. |
 
 **Make sure a label exists right before a skill first adds it in a run.** Create it only when the repository does not
@@ -117,8 +117,8 @@ have it. **Never pass `--force`.** It would overwrite the color and the descript
 uses. An existing label is reused as it is.
 
 ```bash
-gh label list --limit 1000 --json name --jq '.[].name' | grep -qx ready || gh label create ready --color 0E8A16 --description "Every decision is settled and the body can be implemented as it stands. pj-running may work on it."
-gh label list --limit 1000 --json name --jq '.[].name' | grep -qx blocker || gh label create blocker --color B60205 --description "pj-running stopped on this. Settle it before anything else."
+gh label list --limit 1000 --json name --jq '.[].name' | grep -qx ready || gh label create ready --color 0E8A16 --description "Every decision is settled and the body can be implemented as it stands. pj-3-running may work on it."
+gh label list --limit 1000 --json name --jq '.[].name' | grep -qx blocker || gh label create blocker --color B60205 --description "pj-3-running stopped on this. Settle it before anything else."
 gh label list --limit 1000 --json name --jq '.[].name' | grep -qx project || gh label create project --color 5319E7 --description "The parent issue of a pj project. Its sub-issues are the project's tasks."
 ```
 
@@ -217,7 +217,7 @@ also follows `dependsOn` from project to project, and fails when the projects wa
 
 ### Picking the project
 
-`pj-design-details` and `pj-running` always ask which project to work on, with `AskUserQuestion`, even when they were
+`pj-2-details` and `pj-3-running` always ask which project to work on, with `AskUserQuestion`, even when they were
 given a number. List the open parents, and read the number they were given, if any.
 
 ```bash
@@ -264,22 +264,22 @@ project's parent. Whoever reads the parent's `## Design`, the issue writer and t
 the `## Design` of every parent in `dependsOn`.
 
 `Base:` names the project's base branch and, after `from`, the branch it is made from. That second branch is the one
-the user merges the base branch into at the end. `pj-design-and-plan` files the parent, then adds the line to the
+the user merges the base branch into at the end. `pj-1-plan` files the parent, then adds the line to the
 body. It takes two steps because the branch name carries the parent's number. The line is written before the branch
-exists, and `pj-running` creates the branch later (see **Projects**). Nobody changes the line after that. A skill
+exists, and `pj-3-running` creates the branch later (see **Projects**). Nobody changes the line after that. A skill
 that rewrites the parent body keeps the line as it is.
 
 ### The handover comment
 
-The parent carries one comment that starts with `**[pj-running]** Handover notes`, fifteen lines at most below that
+The parent carries one comment that starts with `**[pj-3-running]** Handover notes`, fifteen lines at most below that
 line. It holds what the workflow sessions learnt about working in this repository: the commands that run the tests,
 the conventions kept, the traps hit.
 
-`pj-running` reads it at the start of a run and rewrites it in place after every merge. Before a rewrite, read the
+`pj-3-running` reads it at the start of a run and rewrites it in place after every merge. Before a rewrite, read the
 comment's `updated_at` again and work in any change a human made since.
 
 ```bash
-gh api "repos/{owner}/{repo}/issues/<P>/comments" --paginate --jq '.[] | select(.body | startswith("**[pj-running]** Handover notes")) | {id, updated_at, body}'
+gh api "repos/{owner}/{repo}/issues/<P>/comments" --paginate --jq '.[] | select(.body | startswith("**[pj-3-running]** Handover notes")) | {id, updated_at, body}'
 gh api -X PATCH "repos/{owner}/{repo}/issues/comments/<id>" -F body=@<file>
 gh issue comment <P> --body-file <file>    # the first time, when there is none
 ```
@@ -344,9 +344,9 @@ The bar for a body is in **When an issue is ready**.
   allowed. The list ends at the first line that is neither a bullet nor indented.
 - Prose after the list is optional.
 
-**The size limit is 8 files, and it belongs to the split.** `pj-design-and-plan` cuts every task to 8 files at most,
+**The size limit is 8 files, and it belongs to the split.** `pj-1-plan` cuts every task to 8 files at most,
 tests included, so that its review fits in one sitting. It is a planning rule, not a condition on the issue. When
-`pj-design-details` or the implementation later takes a file list past 8, the issue stays one issue and one pull
+`pj-2-details` or the implementation later takes a file list past 8, the issue stays one issue and one pull
 request, and nobody asks whether to split it.
 
 ### Decisions
@@ -406,7 +406,7 @@ To be drawn.
 To be drawn.
 ```
 
-**A stub never carries `ready`.** `pj-design-details` draws it into a full body first.
+**A stub never carries `ready`.** `pj-2-details` draws it into a full body first.
 
 ## Fixed tokens
 
@@ -449,9 +449,9 @@ Who checks, and when:
 
 | Skill | When | Accepts |
 | --- | --- | --- |
-| `pj-design-and-plan` | before filing | a lint whose only reason is `decisions-open` |
-| `pj-design-details` | before adding `ready` | `--check` with the lint clear, and the premises clear or not evaluated yet |
-| `pj-running` | before showing the order, for every issue in it, and again right before each issue starts | a clear `--check` |
+| `pj-1-plan` | before filing | a lint whose only reason is `decisions-open` |
+| `pj-2-details` | before adding `ready` | `--check` with the lint clear, and the premises clear or not evaluated yet |
+| `pj-3-running` | before showing the order, for every issue in it, and again right before each issue starts | a clear `--check` |
 
 An issue is **workable** when it carries `ready`, every issue in its `blockedBy` is `CLOSED`, `--check` is clear, and
 its project has `baseExists`, or every project in `dependsOn` is `merged`. The last part is the same condition the
@@ -485,7 +485,7 @@ leaves a comment** on the issue saying what changed and where. A skill marks tha
 
 ## Blockers
 
-`blocker` marks what `pj-running` stopped on. It goes in one of two places.
+`blocker` marks what `pj-3-running` stopped on. It goes in one of two places.
 
 1. **On a stub that blocks the stopped issue.** The work found lies outside the issue in hand, and the issue cannot be
    finished without it. The stub is a sub-issue of the same parent, and the stopped issue is blocked by it.
@@ -505,7 +505,7 @@ leaves a comment** on the issue saying what changed and where. A skill marks tha
 Either way a marked comment on the stopped issue says what diverged, and names the decision as `#<issue> D<n>` when
 there is one.
 
-`pj-design-details` resolves both. A blocker that needs no code of its own is resolved by rewriting the issue in
+`pj-2-details` resolves both. A blocker that needs no code of its own is resolved by rewriting the issue in
 question. A stub blocker resolved that way is then closed with a marked comment that points at the rewrite.
 
 ```bash
@@ -513,11 +513,11 @@ gh issue comment <m> --body-file <file>
 gh issue close <m> --reason completed
 ```
 
-An issue loses `blocker` when it gets `ready`. `pj-design-details` adds the one and removes the other in one
+An issue loses `blocker` when it gets `ready`. `pj-2-details` adds the one and removes the other in one
 command.
 
-**Whenever `pj-running` takes `ready` off an issue, it adds `blocker`.** An issue it stopped on is then always the
-first thing `pj-design-details` shows.
+**Whenever `pj-3-running` takes `ready` off an issue, it adds `blocker`.** An issue it stopped on is then always the
+first thing `pj-2-details` shows.
 
 ## Comments
 
@@ -525,12 +525,12 @@ Every comment a skill's main session posts starts with a bold marker, then the t
 
 | Marker | Posted by |
 | --- | --- |
-| `**[pj-design-details]**` | `pj-design-details` |
-| `**[pj-running]**` | `pj-running` |
+| `**[pj-2-details]**` | `pj-2-details` |
+| `**[pj-3-running]**` | `pj-3-running` |
 
 **A comment with no marker is from a human.** A skill reads it as one.
 
-`pj-design-and-plan` files issues and posts no comments. Pull request review happens in difit, so a pull request
+`pj-1-plan` files issues and posts no comments. Pull request review happens in difit, so a pull request
 carries no review-thread markers.
 
 ## Pull requests
@@ -564,8 +564,8 @@ task passed review. The second is checked once the integration review passed. Be
 `log.md`, or a paragraph saying why the work stopped and where.
 
 The head is the first line with any text on it. GitHub ignores closing keywords such as `Closes` in a pull request
-into a branch other than the default branch, so the merge closes nothing. `pj-running` closes the issue itself after
-the merge. An open issue whose `pr` is merged is a merge whose close never happened, and the next run of `pj-running`
+into a branch other than the default branch, so the merge closes nothing. `pj-3-running` closes the issue itself after
+the merge. An open issue whose `pr` is merged is a merge whose close never happened, and the next run of `pj-3-running`
 closes it.
 
 ## Writing bodies
