@@ -1,9 +1,9 @@
 ---
-name: pj-design-and-plan
-description: Starts a project on GitHub. Designs a large request in broad strokes, splits it into tasks, has one sub-session per task draw that task in detail and pick out what a human has to decide, groups the tasks into projects of up to 10, and per project files a parent issue labelled `project` and one sub-issue per task, with the decisions as checkboxes and the order as native blocked-by relationships that may cross projects. Each parent's `Base:` line names its base branch, `pj/<parent number>`, and a branch the user picks, and pj-running creates the base branch later. The first of three skills, followed by pj-design-details and pj-running. Use it only when the user names this skill or invokes /annetaan:pj-design-and-plan, because it creates issues and labels on GitHub. Do not use it for a change small enough for one pull request.
+name: pj-1-plan
+description: Starts a project on GitHub. Designs a large request in broad strokes, splits it into tasks, has one sub-session per task draw that task in detail and pick out what a human has to decide, groups the tasks into projects of up to 10, and per project files a parent issue labelled `project` and one sub-issue per task, with the decisions as checkboxes and the order as native blocked-by relationships that may cross projects. Each parent's `Base:` line names its base branch, `pj/<parent number>`, and a branch the user picks, and pj-3-running creates the base branch later. The first of three skills, followed by pj-2-details and pj-3-running. Use it only when the user names this skill or invokes /annetaan:pj-1-plan, because it creates issues and labels on GitHub. Do not use it for a change small enough for one pull request.
 ---
 
-# pj-design-and-plan
+# pj-1-plan
 
 The first of the three pj skills: it turns a large request into one or more projects, each a parent issue and its
 sub-issues.
@@ -28,7 +28,7 @@ says.
 ## Before you start
 
 This skill creates issues and labels on GitHub. **Start it only when the user names it or invokes
-`/annetaan:pj-design-and-plan`.**
+`/annetaan:pj-1-plan`.**
 
 ```bash
 git rev-parse --show-toplevel
@@ -43,7 +43,7 @@ git branch --show-current
 - Keep the default branch's name and the current branch's name for phase 2. A detached HEAD prints no current
   branch.
 - A dirty working tree does not matter. This skill reads the code and changes nothing in it. It creates no branch
-  either: `pj-running` creates each project's base branch (`format.md`, **Projects**).
+  either: `pj-3-running` creates each project's base branch (`format.md`, **Projects**).
 
 ## Phase 1: the overall design
 
@@ -84,7 +84,7 @@ Show:
 - each project in that order, as `PJ<j> <title>  (waits on PJ1, PJ2)` and its goal in one line, with its tasks below
   it, one line each, as `T<k> <title>  (after T2, T5)`, followed by the number of decisions the planner already sees
   in that task. A task in another project is named by its `T<k>` as well
-- one line saying that each project's base branch `pj/<P>` is created by `pj-running` on its first start on that
+- one line saying that each project's base branch `pj/<P>` is created by `pj-3-running` on its first start on that
   project, from the tip of the branch picked below, and that a project that waits on others starts once they are all
   merged into that branch. Every sub-issue's pull request merges into its project's base branch, and merging each base
   branch back through a pull request is the user's job, outside the skills
@@ -215,12 +215,12 @@ One block per project, in the project order:
 - one line per sub-issue: number, title, the issues it waits on, those in other projects included, as `#<n>`, the
   open decisions by count, and `ready` or not. For a `None.` issue without `ready`, the lint's reason codes
 
-Then the next steps: `/annetaan:pj-design-details` to settle the decisions, then `/annetaan:pj-running` once issues
+Then the next steps: `/annetaan:pj-2-details` to settle the decisions, then `/annetaan:pj-3-running` once issues
 are `ready`. Both ask which project to work on, and a number given to them becomes the recommended first option
 (`format.md`, **Picking the project**). Say that a decision can also be settled by ticking a box on GitHub, and that
-a skill or a human still adds `ready` afterwards. `pj-running` creates a project's base branch on its first start on
+a skill or a human still adds `ready` afterwards. `pj-3-running` creates a project's base branch on its first start on
 that project, and a project that waits on others starts once they are merged into `<from>`. Once every sub-issue of a
-project is merged, the user merges `pj/<P>` into `<from>` through a pull request, and the next `pj-running` closes the
+project is merged, the user merges `pj/<P>` into `<from>` through a pull request, and the next `pj-3-running` closes the
 parent, or the user closes it.
 
 ## Rules
@@ -229,7 +229,7 @@ parent, or the user closes it.
   yourself never passed through anyone who read the code. The `Base:` line in phase 4 step 3 is the one line you
   add, and you add nothing else.
 - **Nothing reaches GitHub before the phase 2 approval.** Labels included.
-- **You create no branch.** `pj-running` creates every base branch (`format.md`, **Projects**).
+- **You create no branch.** `pj-3-running` creates every base branch (`format.md`, **Projects**).
 - **Only you write to GitHub.** The sub-agents only read it, so the order and the numbers stay in one place.
 - **Dependencies go into relationships only**, across projects too, and never onto a parent. See `format.md`.
 - **Never create a label with `--force`.**

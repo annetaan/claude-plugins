@@ -1,9 +1,9 @@
 ---
-name: pj-design-details
-description: Asks which project to work on first, with a number given as the recommended one, then takes its sub-issues in an order it picks itself, with up to three issue writers drawing ahead in the background, so the user answers one issue while the next ones are drawn. Settles each issue's decisions with the user, makes the issue implementable as written by detailing or splitting it, resolves the blockers pj-running left, and labels the issue ready. The second of three skills, after pj-design-and-plan and before pj-running. Use it only when the user names this skill or invokes /annetaan:pj-design-details, because it edits, files and closes issues and changes labels on GitHub.
+name: pj-2-details
+description: Asks which project to work on first, with a number given as the recommended one, then takes its sub-issues in an order it picks itself, with up to three issue writers drawing ahead in the background, so the user answers one issue while the next ones are drawn. Settles each issue's decisions with the user, makes the issue implementable as written by detailing or splitting it, resolves the blockers pj-3-running left, and labels the issue ready. The second of three skills, after pj-1-plan and before pj-3-running. Use it only when the user names this skill or invokes /annetaan:pj-2-details, because it edits, files and closes issues and changes labels on GitHub.
 ---
 
-# pj-design-details
+# pj-2-details
 
 The second of the three pj skills: it takes a filed project and makes each sub-issue `ready`. It picks the order,
 keeps up to three issue writers drawing ahead, and asks the user only the questions.
@@ -19,14 +19,14 @@ writer reads the code and proposes and writes, and you carry the questions to th
 prompt for a sub-agent. Sub-agents have not read this instruction, so a relative path or a literal `$DETAILS` finds
 them nothing.
 
-**Read `$DETAILS/../pj-design-and-plan/format.md` before anything else.** It is the only description of the parent
+**Read `$DETAILS/../pj-1-plan/format.md` before anything else.** It is the only description of the parent
 issue, the sub-issue body, the decisions, the labels, the relationships, the blockers and the comments. Its table of
 the three skills says where this one sits. Everything below refers to it.
 
-This skill uses two more files from `pj-design-and-plan`:
+This skill uses two more files from `pj-1-plan`:
 
-- the script `$DETAILS/../pj-design-and-plan/scripts/project.sh`, written `project.sh` below
-- the issue writer's role file `$DETAILS/../pj-design-and-plan/roles/issue.md`
+- the script `$DETAILS/../pj-1-plan/scripts/project.sh`, written `project.sh` below
+- the issue writer's role file `$DETAILS/../pj-1-plan/roles/issue.md`
 
 **Language**: talk to the user in the user's language. Write issue text in the repository's language, as `format.md`
 says.
@@ -34,7 +34,7 @@ says.
 ## Before you start
 
 This skill edits, files and closes issues and changes labels on GitHub. **Start it only when the user names it or
-invokes `/annetaan:pj-design-details`.**
+invokes `/annetaan:pj-2-details`.**
 
 ```bash
 git rev-parse --show-toplevel
@@ -51,26 +51,26 @@ gh repo view --json nameWithOwner,hasIssuesEnabled,defaultBranchRef
 `project #<P>` once, so that a context summary can find it again. Then read the project.
 
 ```bash
-$DETAILS/../pj-design-and-plan/scripts/project.sh <P>
+$DETAILS/../pj-1-plan/scripts/project.sh <P>
 ```
 
 When it fails, for instance with `has no Base: line`, quote its message and stop.
 
 When the number given is a sub-issue of `<P>` and has a `pr` whose `state` is `MERGED`, tell the user it is waiting
-for `pj-running` to close it, and leave it out of the queue. Otherwise it goes to the front of the queue in phase 1.
+for `pj-3-running` to close it, and leave it out of the queue. Otherwise it goes to the front of the queue in phase 1.
 When the user picked another project, the number given is not used after that.
 
 ## Phase 1: the queue
 
 ```bash
-$DETAILS/../pj-design-and-plan/scripts/project.sh <P> --order
+$DETAILS/../pj-1-plan/scripts/project.sh <P> --order
 ```
 
 **When `--order` fails on a cycle**, within the project or between projects, show the user the cycle it names and
 stop. Nothing can be ordered until a human removes an edge.
 
 The queue is the `--order` entries without `ready`, and without a `pr` whose `state` is `MERGED`. An issue whose pull
-request has merged is waiting for `pj-running` to close it. Move the ones labelled `blocker` to the front and keep the
+request has merged is waiting for `pj-3-running` to close it. Move the ones labelled `blocker` to the front and keep the
 rest in their order. The sub-issue number given, when it is in the queue, goes in front of them all.
 
 **You pick the order. Ask nothing about it.** Show the queue once, one line per issue:
@@ -188,14 +188,14 @@ the queue when they are `queued`. **A `done` issue never comes back this session
 Check the issue `<n>` against the code once. `--check` fetches the base branch first.
 
 ```bash
-$DETAILS/../pj-design-and-plan/scripts/project.sh <P> --check <n>
+$DETAILS/../pj-1-plan/scripts/project.sh <P> --check <n>
 ```
 
 Then start a new issue writer for it in the background, and mark the issue `drafting`.
 
 ```
 Agent(subagent_type: "annetaan:pj-issue-writer", description: "revise #<n>", run_in_background: true,
-      prompt: "Read $DETAILS/../pj-design-and-plan/roles/issue.md first and follow the role it describes. The project format is in $DETAILS/../pj-design-and-plan/format.md. project.sh is $DETAILS/../pj-design-and-plan/scripts/project.sh.\n\nMode: revise\n\nParent: #<P>\nIssue: #<n>\n\nproject.sh <P>:\n<the JSON>\n\nproject.sh <P> --check <n>:\n<the JSON>")
+      prompt: "Read $DETAILS/../pj-1-plan/roles/issue.md first and follow the role it describes. The project format is in $DETAILS/../pj-1-plan/format.md. project.sh is $DETAILS/../pj-1-plan/scripts/project.sh.\n\nMode: revise\n\nParent: #<P>\nIssue: #<n>\n\nproject.sh <P>:\n<the JSON>\n\nproject.sh <P> --check <n>:\n<the JSON>")
 ```
 
 `annetaan:pj-issue-writer` ships with this plugin and is pinned to opus at high effort with code changes disabled.
@@ -244,7 +244,7 @@ Resume at that step when the writer returns.
    lint each sub-issue body.
 
    ```bash
-   $DETAILS/../pj-design-and-plan/scripts/project.sh --lint "$TMP/<k>.md"
+   $DETAILS/../pj-1-plan/scripts/project.sh --lint "$TMP/<k>.md"
    ```
 
    For issue `<n>`, each new part and each other issue, accept a clear lint, or `decisions-open` alone when the user
@@ -279,7 +279,7 @@ Resume at that step when the writer returns.
    gh issue edit <k> --body-file "$TMP/<k>.md"
    ```
 
-5. **Tell the other issues.** Every other issue whose body changed gets a marked comment: `**[pj-design-details]**`,
+5. **Tell the other issues.** Every other issue whose body changed gets a marked comment: `**[pj-2-details]**`,
    what changed, and the decision that caused it, as `#<issue> D<k>`. **When that issue had `ready`, take it off in
    the same step**, because its body changed under it (the ripple rule).
 
@@ -301,10 +301,10 @@ Resume at that step when the writer returns.
    **Never put an edge on a parent**, an issue labelled `project`.
 
    ```bash
-   $DETAILS/../pj-design-and-plan/scripts/project.sh <Pa>
+   $DETAILS/../pj-1-plan/scripts/project.sh <Pa>
    gh issue edit <a> --add-blocked-by <b>
    gh issue edit <a> --remove-blocked-by <b>
-   $DETAILS/../pj-design-and-plan/scripts/project.sh <X> --order
+   $DETAILS/../pj-1-plan/scripts/project.sh <X> --order
    ```
 
    **After the edges change, run `--order` in every project they touched**: `<P>`, and the parent `<X>` of each end
@@ -321,7 +321,7 @@ Resume at that step when the writer returns.
 8. **Add `ready`** to issue `<n>` and each new part the writer says is ready. Check each one first.
 
    ```bash
-   $DETAILS/../pj-design-and-plan/scripts/project.sh <P> --check <k>
+   $DETAILS/../pj-1-plan/scripts/project.sh <P> --check <k>
    ```
 
    Accept it when `lint.ok` is true and `premises.failures` is empty. Premises not evaluated yet count as clear.
@@ -364,10 +364,10 @@ When the user stops, or no issue is `queued` and none is `drafting`, `proposed`,
 
 - every issue this session touched, one line each, with its state
 - the issues of other projects that lost `ready`, each with its project `#<Q>`, and that running
-  `/annetaan:pj-design-details` and picking `#<Q>` takes them up
+  `/annetaan:pj-2-details` and picking `#<Q>` takes them up
 - which issues are now workable, as `format.md` defines it
-- the next step: `/annetaan:pj-running`. When `parent.baseExists` is false and a project in `parent.dependsOn` is not
-  `merged`, add one sentence: `pj-running` starts this project after each such `#<Q>` is merged into `<from>`.
+- the next step: `/annetaan:pj-3-running`. When `parent.baseExists` is false and a project in `parent.dependsOn` is not
+  `merged`, add one sentence: `pj-3-running` starts this project after each such `#<Q>` is merged into `<from>`.
 
 ## Rules
 
@@ -377,7 +377,7 @@ When the user stops, or no issue is `queued` and none is `drafting`, `proposed`,
 - **At most three issues in `drafting`, `proposed` or `asking`. Writers read in parallel. Only one issue is
   `applying` at a time, and only you write to GitHub.**
 - **You never write a body yourself.** A body you write never passed through anyone who read the code.
-- **Only you write to GitHub.** The writer only reads it. Every comment you post starts with `**[pj-design-details]**`.
+- **Only you write to GitHub.** The writer only reads it. Every comment you post starts with `**[pj-2-details]**`.
 - **Always pass a body with `--body-file`.** Never create a label with `--force`.
 - **Re-read `updatedAt` before every edit.**
 - **Never edit a closed issue.**

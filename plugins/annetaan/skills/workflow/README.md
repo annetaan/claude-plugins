@@ -14,7 +14,7 @@ comment threads. Open the same server in a browser and you write into the same t
 
 ## Use it
 
-Name the skill, or invoke `/annetaan:workflow`. It never starts on its own. You name it, or pj-running runs it for
+Name the skill, or invoke `/annetaan:workflow`. It never starts on its own. You name it, or pj-3-running runs it for
 one issue, because it runs a local server for as long as the flow lasts, opens a browser, and adds commits.
 
 ```
@@ -69,21 +69,21 @@ session, folded together, capped at fifteen.
 
 ## Driven from an issue
 
-pj-running works through a project's issues one at a time, and runs each one through this skill. That run has no
+pj-3-running works through a project's issues one at a time, and runs each one through this skill. That run has no
 design session, no approval and no questions. The issue's text is the approved design, and an issue only gets that
 far once it can be implemented as it stands. The issue becomes one task. Its review rounds and the integration review
 happen in the same difit you can open in the browser, and the server stays up across issues on one port, so the tab
 you opened keeps working.
 
 The pull request body is `log.md` under a head of `Implements`, `Part of` and a two-line `## Plan`. The run pushes
-and opens the pull request as a draft against the project's base branch. pj-running merges it.
+and opens the pull request as a draft against the project's base branch. pj-3-running merges it.
 
-All of it happens in the worktree pj-running made for the project, so your own working tree is left alone.
+All of it happens in the worktree pj-3-running made for the project, so your own working tree is left alone.
 
 A stop before the task is committed leaves the work uncommitted in that worktree and pushes nothing. A stop once the
 task commit exists leaves a draft pull request with that commit and a paragraph on why it stopped. Either way the work
 left in the worktree is the one thing outside GitHub, and a resume redoes that work. The shape of the issues and the
-pull requests is in [format.md](../pj-design-and-plan/format.md).
+pull requests is in [format.md](../pj-1-plan/format.md).
 
 ## What it leaves behind
 
