@@ -1,6 +1,6 @@
 ---
 name: pj-design-details
-description: Takes the sub-issues of a GitHub project in an order it picks itself, with up to three issue writers drawing ahead in the background, so the user answers one issue while the next ones are drawn. Settles each issue's decisions with the user, makes the issue implementable as written by detailing or splitting it, resolves the blockers pj-running left, and labels the issue ready. The second of three skills, after pj-design-and-plan and before pj-running. Use it only when the user names this skill or invokes /annetaan:pj-design-details, because it edits, files and closes issues and changes labels on GitHub.
+description: Asks which project to work on first, with a number given as the recommended one, then takes its sub-issues in an order it picks itself, with up to three issue writers drawing ahead in the background, so the user answers one issue while the next ones are drawn. Settles each issue's decisions with the user, makes the issue implementable as written by detailing or splitting it, resolves the blockers pj-running left, and labels the issue ready. The second of three skills, after pj-design-and-plan and before pj-running. Use it only when the user names this skill or invokes /annetaan:pj-design-details, because it edits, files and closes issues and changes labels on GitHub.
 ---
 
 # pj-design-details
@@ -47,38 +47,44 @@ gh repo view --json nameWithOwner,hasIssuesEnabled,defaultBranchRef
   issues turned off. Say which one and stop. The clone is needed because `project.sh --check` runs inside one.
 - A dirty working tree does not matter. This skill reads the code and changes nothing in it.
 
-**The argument.**
+**The project.** Pick it as `format.md` says under **Picking the project**. The project picked is `<P>`. Print
+`project #<P>` once, so that a context summary can find it again. Then read the project.
 
-- **No number**: find the project as `format.md` says under "Finding the project when no number was given".
-- **One number that is a sub-issue**: take its parent from `gh issue view <n> --json parent`. The parent is the
-  project `<P>`. Run `project.sh <P>` first. When `<n>` has a `pr` whose `state` is `MERGED`, tell the user it is
-  waiting for `pj-running` to close it, and leave it out of the queue. Otherwise it goes to the front of the queue in
-  phase 1.
-- **One number that is not a sub-issue**: it is the parent `<P>`.
+```bash
+$DETAILS/../pj-design-and-plan/scripts/project.sh <P>
+```
+
+When it fails, for instance with `has no Base: line`, quote its message and stop.
+
+When the number given is a sub-issue of `<P>` and has a `pr` whose `state` is `MERGED`, tell the user it is waiting
+for `pj-running` to close it, and leave it out of the queue. Otherwise it goes to the front of the queue in phase 1.
+When the user picked another project, the number given is not used after that.
 
 ## Phase 1: the queue
 
 ```bash
-$DETAILS/../pj-design-and-plan/scripts/project.sh <P>
 $DETAILS/../pj-design-and-plan/scripts/project.sh <P> --order
 ```
 
-**When `--order` fails on a cycle**, show the user the cycle it names and stop. Nothing can be ordered until a human
-removes an edge.
+**When `--order` fails on a cycle**, within the project or between projects, show the user the cycle it names and
+stop. Nothing can be ordered until a human removes an edge.
 
 The queue is the `--order` entries without `ready`, and without a `pr` whose `state` is `MERGED`. An issue whose pull
 request has merged is waiting for `pj-running` to close it. Move the ones labelled `blocker` to the front and keep the
-rest in their order. A sub-issue number given as the argument goes in front of them all.
+rest in their order. The sub-issue number given, when it is in the queue, goes in front of them all.
 
 **You pick the order. Ask nothing about it.** Show the queue once, one line per issue:
 
 - number and title, and `blocker` or `stub` when it is one
 - the open and the contradictory decisions, by count
 - the lint's reason codes
-- the open issues in its `blockedBy`
+- the open issues in its `blockedBy`. One in another project is written `#<b> (in #<Q>)`, with `<Q>` from its
+  `parent`.
 
-Then two lines. One counts the issues that already carry `ready`. The other says: Other in any answer also takes
-`stop`, or `#<k> first`.
+Then three lines. One counts the issues that already carry `ready`. One says: Other in any answer also takes `stop`,
+or `#<k> first`. The last is about the project. When `parent.baseExists` is true, it reads `pj/<P> exists`. Otherwise
+it reads `pj/<P> not created yet`, followed by `#<Q> <title>` for each project in `parent.dependsOn` that is not
+`merged`. While there is such a `<Q>`, add that the premises are not evaluated yet.
 
 When the queue is empty, say so and go to **Report to the user**.
 
@@ -152,10 +158,10 @@ sends the moved body to its writer to merge.
 Print one line `#<k> <state>` on every state change. For `done`, the line is `#<k> done: ready` or
 `#<k> done: not ready (<reason>)`.
 
-**After a context summary**, rebuild the states from those lines and from `project.sh <P>`. An issue whose writer
-handle is gone goes back to `queued`. An issue cut off in `applying` is finished from where it stopped: compare GitHub
-with its round 2 return and run the remaining steps. When you cannot tell how far it got, do as **When a command
-fails halfway** says.
+**After a context summary**, take `<P>` again from the `project #<P>` line. Rebuild the states from the progress
+lines and from `project.sh <P>`. An issue whose writer handle is gone goes back to `queued`. An issue cut off in
+`applying` is finished from where it stopped: compare GitHub with its round 2 return and run the remaining steps.
+When you cannot tell how far it got, do as **When a command fails halfway** says.
 
 ### `stop` and `#<k> first`
 
@@ -172,8 +178,10 @@ Other in any answer also takes `stop` and `#<k> first`.
 
 After every apply, run `project.sh <P>` and `project.sh <P> --order` again. New entries, the parts of a split left
 without `ready` and the issues that lost `ready` in step 5 of **Applying an issue**, go in as `queued` where
-`--order` puts them. An issue a human labelled `ready` and a closed issue leave the queue when they are `queued`. **A
-`done` issue never comes back this session**, even when a later apply takes its `ready` off. The report lists it.
+`--order` puts them. Only issues of `<P>` join the queue. An issue of another project that lost `ready` in step 5
+never joins, and the report lists it with its project. An issue a human labelled `ready` and a closed issue leave
+the queue when they are `queued`. **A `done` issue never comes back this session**, even when a later apply takes its
+`ready` off. The report lists it.
 
 ### Starting a writer
 
@@ -232,8 +240,8 @@ and whether issue `<n>` and each part are ready.
 When a lint or a check below sends a body back to the writer, the issue stays `applying` and the loop keeps running.
 Resume at that step when the writer returns.
 
-1. **Lint every sub-issue body before it goes out.** Write each body to a file in `$TMP`, the parent's too, and lint
-   each sub-issue body.
+1. **Lint every sub-issue body before it goes out.** Write each body to a file in `$TMP`, the parents' too, and
+   lint each sub-issue body.
 
    ```bash
    $DETAILS/../pj-design-and-plan/scripts/project.sh --lint "$TMP/<k>.md"
@@ -243,10 +251,12 @@ Resume at that step when the writer returns.
    left a decision open. Accept a stub the writer returns when its only reason is `stub`. Send a body that fails back
    to the writer with `SendMessage` and say what to fix. Write the fixed body over the same file.
 
-   The lint checks the sub-issue shape, so it does not apply to the parent. Read the parent's new body against the
+   The lint checks the sub-issue shape, so it does not apply to a parent. Read each parent's new body against the
    parent shape in `format.md` instead: its four headings, no line numbers, no hand-written task list, and its
-   `Base:` line unchanged. Send it back to the writer the same way when it fails.
-2. **Re-read `updatedAt`** of every issue about to be written, the parent included, and compare it with the
+   `Base:` line unchanged. Check the parent too: it is `<P>` or a project in `parent.dependsOn`, it is open, and its
+   project is not `merged` (`parent.merged`, or `merged` in its `parent.dependsOn` entry). Send a parent body back to
+   the writer the same way when any of this fails.
+2. **Re-read `updatedAt`** of every issue about to be written, the parents included, and compare it with the
    `updatedAt` the writer says it read.
 
    ```bash
@@ -256,14 +266,14 @@ Resume at that step when the writer returns.
    When it moved, a human or another issue's apply changed the issue in the meantime. Send the current body to the
    writer to merge, and go back to step 1 (`format.md`, "Writing bodies").
 3. **File what is new.** For a split, file parts 2 to N and keep a map from each part to its number. A stub the
-   writer returned for merged code that has to change is filed blocking `<n>`.
+   writer returned for merged code that has to change is filed blocking `<n>`. Both go under `<P>`.
 
    ```bash
    gh issue create --parent <P> --title "<title>" --body-file "$TMP/part<k>.md"
    gh issue create --parent <P> --blocking <n> --title "<title>" --body-file "$TMP/stub.md"
    ```
 
-4. **Write the bodies**, with `--title` when the title changed: issue `<n>`, each other issue, and the parent.
+4. **Write the bodies**, with `--title` when the title changed: issue `<n>`, each other issue, and each parent.
 
    ```bash
    gh issue edit <k> --body-file "$TMP/<k>.md"
@@ -278,17 +288,28 @@ Resume at that step when the writer returns.
    gh issue comment <k> --body-file "$TMP/<k>-comment.md"
    ```
 
-   The parent gets a marked comment when its `## Design` changed.
+   Each parent whose `## Design` changed gets a marked comment. Another issue may sit in another project. It gets
+   the same comment and loses `ready` the same way, and it stays out of this session's queue.
 6. **Change the edges**, one at a time, as the writer listed them, with the part numbers from step 3.
 
+   **Before adding `#a blocked by #b` across projects**, that is when `#b` has a parent and it is not `#a`'s parent,
+   check the blocked side. Take each parent from the `project.sh <P>` JSON for issues of `<P>`, and from
+   `gh issue view <k> --json parent` for the rest. With `<Pa>` the parent of `#a`, run `project.sh <Pa>`. When its
+   `parent.baseExists` is true, do not add the edge, and tell the writer: `#<Pa>` already has its base branch, so `#a`
+   cannot wait on another project (`format.md`, **Projects**).
+
+   **Never put an edge on a parent**, an issue labelled `project`.
+
    ```bash
+   $DETAILS/../pj-design-and-plan/scripts/project.sh <Pa>
    gh issue edit <a> --add-blocked-by <b>
    gh issue edit <a> --remove-blocked-by <b>
-   $DETAILS/../pj-design-and-plan/scripts/project.sh <P> --order
+   $DETAILS/../pj-design-and-plan/scripts/project.sh <X> --order
    ```
 
-   **Run `--order` after the edges change.** On a cycle, remove the last edge added, tell the user, and send the cycle
-   to the writer.
+   **After the edges change, run `--order` in every project they touched**: `<P>`, and the parent `<X>` of each end
+   of each edge changed. On a cycle of either kind, remove the last edge added, tell the user, and send the cycle to
+   the writer.
 7. **Close a blocker that needs no code.** When the writer resolved a stub blocker by rewriting `#m`, post a marked
    comment on the stub that points at `#m`, then close it.
 
@@ -331,7 +352,8 @@ Report in a few lines, under `#<n> <title>`:
 
 - issue `<n>`: `ready` or not, and when not, its open decisions, its lint codes or its premise failures
 - the parts a split filed, with their numbers, each `ready` or not in the same way
-- each other issue changed, and whether it lost `ready`
+- each other issue changed, with its project when that is not `<P>`, and whether it lost `ready`
+- the parents rewritten
 - the edges changed and the blockers closed
 
 Then mark the issue `done`, requeue, refill the window, and go back to the next action in phase 2.
@@ -341,13 +363,17 @@ Then mark the issue `done`, requeue, refill the window, and go back to the next 
 When the user stops, or no issue is `queued` and none is `drafting`, `proposed`, `asking`, `answered` or `applying`:
 
 - every issue this session touched, one line each, with its state
+- the issues of other projects that lost `ready`, each with its project `#<Q>`, and that running
+  `/annetaan:pj-design-details` and picking `#<Q>` takes them up
 - which issues are now workable, as `format.md` defines it
-- the next step: `/annetaan:pj-running`
+- the next step: `/annetaan:pj-running`. When `parent.baseExists` is false and a project in `parent.dependsOn` is not
+  `merged`, add one sentence: `pj-running` starts this project after each such `#<Q>` is merged into `<from>`.
 
 ## Rules
 
 - **You decide nothing.** The user decides, and the writer proposes and writes.
-- **You pick the order. Never ask which issue comes next.**
+- **You pick the order. Never ask which issue comes next.** Only the project is asked.
+- **Never put a relationship on a parent.**
 - **At most three issues in `drafting`, `proposed` or `asking`. Writers read in parallel. Only one issue is
   `applying` at a time, and only you write to GitHub.**
 - **You never write a body yourself.** A body you write never passed through anyone who read the code.
@@ -355,5 +381,5 @@ When the user stops, or no issue is `queued` and none is `drafting`, `proposed`,
 - **Always pass a body with `--body-file`.** Never create a label with `--force`.
 - **Re-read `updatedAt` before every edit.**
 - **Never edit a closed issue.**
-- **A sub-issue body goes out only after its lint passes**, and the parent's only after you read it against its
+- **A sub-issue body goes out only after its lint passes**, and the parents' only after you read each against its
   shape.
