@@ -54,7 +54,8 @@ gh repo view --json nameWithOwner,hasIssuesEnabled,defaultBranchRef
 The parent never gets `ready` and is never worked on. It closes as completed once the project is merged (see
 **Projects**).
 
-Merging the base branch into the branch it was made from is a human's job. No skill does it.
+Merging the base branch into the branch it was made from is a human's job, done through a pull request. No skill
+does it.
 
 ### Projects
 
@@ -89,8 +90,10 @@ A base branch cut later starts from a newer `<from>`, and conflicts less when it
   reached `<from>`: a pull request with the base branch as head and `<from>` as base was merged, or `<from>` on
   origin contains the base branch.
 
-The sub-issues have to be there and closed because a fresh base branch is identical to `<from>`. A parent closed as not planned
-is a project given up on, and is not merged.
+The sub-issues have to be there and closed because a fresh base branch is identical to `<from>`. A parent closed as
+not planned is a project given up on, and is not merged. A merge made without a pull request, such as a local merge
+commit, can leave commits that `--check` reads as stale for a project waiting on this one (see **Is the body still
+current?**).
 
 **Closing a parent** as completed means its project is merged. When `pj-running` reads an open parent that is
 `merged`, it closes it with a marked comment and `--reason completed`, both when it starts on that project and when
@@ -464,13 +467,14 @@ at the tip of `origin/<from>` while the base branch does not exist yet, since th
   `baseExists` or every project in `dependsOn` is `merged`**. Until then the blockers are still meant to change these
   files, and the result reads not evaluated.
 - **History.** Every commit on the base branch's first-parent line since `readyAt` that touched a path in the file
-  list is a candidate. A candidate is **anticipated** when a merged pull request it came from either has
-  `Implements #<x>` as its head with x in this issue's transitive `blockedBy`, or has `pj/<Q>` as head and `<from>`
-  as base with Q in the projects this one waits on, or in the projects of the blockers in its transitive
-  `blockedBy`, or in the projects those wait on, directly or not. The transitive `blockedBy` is its blockers, their
-  blockers, and so on through the project, closed issues included. A blocker in another project enters by its
-  number and is not followed further. Every other candidate is **stale**. With no `readyAt`, or no base branch, there
-  is no history.
+  list is a candidate. A candidate is **anticipated** when a merged pull request it came from has `Implements #<x>`
+  as its head with x in this issue's transitive `blockedBy`, has `pj/<Q>` as head and `<from>` as base, or has
+  `pj/<Q>` as base, with Q in the waited projects. The last case covers a `pj/<Q>` fast-forwarded into `<from>`,
+  which brings the commits of Q's sub-issues along without a merge pull request. The waited projects are the ones
+  this project waits on, the projects of the blockers in this issue's transitive `blockedBy`, and the projects those
+  wait on, directly or not. The transitive `blockedBy` is its blockers, their blockers, and so on through the
+  project, closed issues included. A blocker in another project enters by its number and is not followed further.
+  Every other candidate is **stale**. With no `readyAt`, or no base branch, there is no history.
 
 The design was written knowing its blockers would land first, and that the projects it waits on would be merged
 into `<from>` before its base branch was cut, so their commits were foreseen. A commit from anywhere else that

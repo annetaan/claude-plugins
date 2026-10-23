@@ -87,7 +87,7 @@ Show:
 - one line saying that each project's base branch `pj/<P>` is created by `pj-running` on its first start on that
   project, from the tip of the branch picked below, and that a project that waits on others starts once they are all
   merged into that branch. Every sub-issue's pull request merges into its project's base branch, and merging each base
-  branch back is the user's job, outside the skills
+  branch back through a pull request is the user's job, outside the skills
 - one line saying every task is cut to 8 files at most, tests included, and every project to 10 tasks at most, the
   size limits in `format.md`
 - the labels this run will create from `format.md`, `ready` and `project`, and the ones the repository already has
@@ -220,8 +220,8 @@ are `ready`. Both ask which project to work on, and a number given to them becom
 (`format.md`, **Picking the project**). Say that a decision can also be settled by ticking a box on GitHub, and that
 a skill or a human still adds `ready` afterwards. `pj-running` creates a project's base branch on its first start on
 that project, and a project that waits on others starts once they are merged into `<from>`. Once every sub-issue of a
-project is merged, the user merges `pj/<P>` into `<from>`, and the next `pj-running` closes the parent, or the user
-closes it.
+project is merged, the user merges `pj/<P>` into `<from>` through a pull request, and the next `pj-running` closes the
+parent, or the user closes it.
 
 ## Rules
 

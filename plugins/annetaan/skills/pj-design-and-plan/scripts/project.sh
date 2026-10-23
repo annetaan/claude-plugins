@@ -425,7 +425,8 @@ if MODE == "check":
                         failures.append({"path": f["path"], "symbol": sym, "why": "symbol not found"})
 
     # history: commits on the base branch that touched these files after ready went on, except the ones a blocker's
-    # pull request brought, or the merge of a project this one waits on. No base, no history.
+    # pull request brought, the merge of a project this one waits on, or a pull request into that project's base
+    # branch, which reaches <from> when the base branch is fast-forwarded into it. No base, no history.
     stale = []
     if base_exists and issue["readyAt"] and issue["designPaths"]:
         log = run("git", "log", "--first-parent", "--format=%H%x09%s", "--since=" + issue["readyAt"], ref,
@@ -461,7 +462,8 @@ if MODE == "check":
                 prs = [pr for pr in ((repo_data.get("c%d" % k) or {}).get("associatedPullRequests") or {}).get("nodes", [])
                        if pr["merged"]]
                 if not any(implements(pr["body"]) in anticipated
-                           or (pr["headRefName"] in waited and pr["baseRefName"] == made_from) for pr in prs):
+                           or (pr["headRefName"] in waited and pr["baseRefName"] == made_from)
+                           or pr["baseRefName"] in waited for pr in prs):
                     stale.append({"sha": sha, "subject": subject, "pr": prs[0]["number"] if prs else None})
 
     print(json.dumps({

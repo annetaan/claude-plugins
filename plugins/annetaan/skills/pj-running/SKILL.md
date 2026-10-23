@@ -88,9 +88,9 @@ Then go through these in order.
 1. **No sub-issue at all**: say the project has nothing to run, and end.
 2. **Every sub-issue is closed**: when `parent.merged` is true, close the parent as **Closing a merged project**
    says, report it, and end. Otherwise say that every sub-issue is closed, that `<base>` holds the whole project, that
-   merging `<base>` into `<from>` is the user's job, and that the parent closes when a pj-running run sees that
-   merge, or when the user closes it after merging. When `parent.baseExists` is false, also say that the base branch
-   is gone from origin. End.
+   merging `<base>` into `<from>` through a pull request is the user's job, and that the parent closes when a
+   pj-running run sees that merge, or when the user closes it after merging. When `parent.baseExists` is false, also
+   say that the base branch is gone from origin. End.
 3. **Close the merged projects `<P>` waits on.** Each `<Q>` in `parent.dependsOn` whose `merged` is true and whose
    `state` is `OPEN` is closed as **Closing a merged project** says. Its comment says that `#<P>` starts now.
 4. **`parent.baseExists` is true**: go on to the fetch below.
@@ -100,7 +100,7 @@ Then go through these in order.
    - When a project in `parent.dependsOn` has `merged` false, stop and list each one as `#<Q> <title>`. One whose
      `state` is `CLOSED` was closed as not planned, without a merge: remove the edges to it with
      `/annetaan:pj-design-details`. One whose `state` is `OPEN` has to be finished with `/annetaan:pj-running`, and
-     its base branch, `dependsOn[].base`, merged into `<from>`.
+     its base branch, `dependsOn[].base`, merged into `<from>` through a pull request.
    - Otherwise create the base branch from the tip of `<from>`, as `format.md` says under **Projects**. Write
      `{owner}` and `{repo}` literally, `gh` fills them in. A failure of either command stops the run. Quote it.
 
@@ -557,9 +557,9 @@ Every way the run ends comes here: the run order is done, the run stopped, or th
 
    A worktree entered by path is never deleted by `ExitWorktree`. Where that tool is not available, `cd "<MAIN>"`.
 3. `project.sh <P>`. **When every sub-issue is closed**, tell the user what **The base branch** says when every
-   sub-issue is closed and the project is not `merged`: `<base>` holds the whole project, merging it into `<from>` is
-   theirs to do, and the parent closes as completed when a pj-running run sees that merge, or when the user closes it
-   after merging. Ask nothing.
+   sub-issue is closed and the project is not `merged`: `<base>` holds the whole project, merging it into `<from>`
+   through a pull request is theirs to do, and the parent closes as completed when a pj-running run sees that merge,
+   or when the user closes it after merging. Ask nothing.
 
 ## Report to the user
 
@@ -575,8 +575,8 @@ Every way the run ends comes here: the run order is done, the run stopped, or th
 - the screenshots that could not be attached, with their paths and the URL of the pull request
 - what is workable now and what is waiting
 - the next step: `/annetaan:pj-design-details` when a `blocker` or a stub exists, otherwise `/annetaan:pj-running`.
-  When every sub-issue is closed, the user merges `<base>` into `<from>`. The next run then closes the parent, or the
-  user closes it.
+  When every sub-issue is closed, the user merges `<base>` into `<from>` through a pull request. The next run then
+  closes the parent, or the user closes it.
 
 ## Rules
 

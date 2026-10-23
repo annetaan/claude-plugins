@@ -85,16 +85,16 @@ up. The skill checks that git ignores that directory before it writes anything, 
 
 ### pj-design-and-plan, pj-design-details, pj-running
 
-These three skills run a piece of work too large for one pull request as one or more projects on GitHub. A project
-is a parent issue labelled `project`, which holds that project's design, plus one sub-issue per task, at most ten tasks
-per project. The order comes from GitHub's own blocked-by relationships, and one may run from a task in one project to
-a task in another. Each project's work lands on a branch of its own, `pj/` and the parent's number. `pj-running`
-creates it on the project's first run, from a branch you pick when the projects are filed, the default branch unless
-you name another. A project that waits on another gets its branch only after the other one is merged into that
-branch. Every sub-issue's pull request merges into its project's branch. Merging that branch back into the branch it
-came from is left to you. After that the parent is closed, by the next `pj-running` run or by you, and a closed
-parent means its project is merged. A project of ten tasks gets back to the branch it came from sooner than one of
-thirty. GitHub holds the whole state, so a project can stop and pick up again in another session or on another
+These three skills run a piece of work too large for one pull request as one or more projects on GitHub. A project is a
+parent issue labelled `project`, which holds that project's design, plus one sub-issue per task, at most ten tasks per
+project. The order comes from GitHub's own blocked-by relationships, and one may run from a task in one project to a
+task in another. Each project's work lands on a branch of its own, `pj/` and the parent's number. `pj-running` creates
+it on the project's first run, from a branch you pick when the projects are filed, the default branch unless you name
+another. A project that waits on another gets its branch only after the other one is merged into that branch. Every
+sub-issue's pull request merges into its project's branch. Merging that branch back into the branch it came from,
+through a pull request, is left to you. After that the parent is closed, by the next `pj-running` run or by you, and a
+closed parent means its project is merged. A project of ten tasks gets back to the branch it came from sooner than one
+of thirty. GitHub holds the whole state, so a project can stop and pick up again in another session or on another
 machine. [format.md](skills/pj-design-and-plan/format.md) describes the shape.
 
 `/annetaan:pj-design-and-plan` ([details](skills/pj-design-and-plan/SKILL.md)) starts with a planner session. It
@@ -145,7 +145,7 @@ flowchart TD
     filed --> details["pj-design-details<br/>you decide, the writer rewrites,<br/>ready once implementable as written"]
     details --> run["pj-running, per project<br/>makes its branch on the first run,<br/>then per ready issue: branch, workflow,<br/>draft pull request, merge<br/>into the project's branch"]
     run -->|"stub or blocker"| details
-    run -->|"all merged"| done(["you merge the project's branch<br/>into the branch it came from,<br/>then its parent closes"])
+    run -->|"all merged"| done(["you merge the project's branch<br/>into the branch it came from<br/>through a pull request,<br/>then its parent closes"])
     done -.->|"a project that waits on it"| run
 
     you(["you, on GitHub"]) -.->|"tick a box"| filed
