@@ -7,9 +7,9 @@ change here is a change to all three.
 
 | Skill | What it does |
 | --- | --- |
-| `pj-design-and-plan` | designs the whole in broad strokes, splits it into tasks, and files a parent issue and one sub-issue per task with the decisions it needs, and creates the project's base branch |
+| `pj-design-and-plan` | designs the whole in broad strokes, splits it into tasks, groups the tasks into projects of up to ten, and files one parent issue per project and one sub-issue per task with the decisions it needs |
 | `pj-design-details` | settles each sub-issue's decisions with the user, makes each one implementable as written, splitting it when it turns out to be two tasks, draws the stubs, resolves the blockers, and labels an issue `ready` |
-| `pj-running` | works through the workable issues one pull request at a time, running the `workflow` skill on each and merging it into the base branch before the next starts |
+| `pj-running` | creates a project's base branch when it first starts on the project, then works through the workable issues one pull request at a time, running the `workflow` skill on each and merging it into the base branch before the next starts |
 
 ## Principle
 
@@ -43,16 +43,66 @@ gh repo view --json nameWithOwner,hasIssuesEnabled,defaultBranchRef
 
 | Part | On GitHub |
 | --- | --- |
-| The project | one **parent issue**. Its body holds the overall design. |
+| The project | one **parent issue** labelled **`project`**. Its body holds the design of this project. |
 | A task | one **sub-issue** of the parent. One task becomes one pull request. |
-| Where the work lands | the **base branch** `pj/<P>`, made from the tip of a branch the user picks when the project is filed, the default branch unless they say otherwise. The parent's `Base:` line names both. Every sub-issue's pull request merges into the base branch. |
+| Where the work lands | the **base branch** `pj/<P>`. pj-running creates it on the project's first start, from the tip of the branch the user picked when the project was filed, the default branch unless they said otherwise. The parent's `Base:` line names both. Every sub-issue's pull request merges into the base branch. |
 | An order between tasks | a native **blocked by** relationship. Never written into a body. |
+| An order between projects | no record of its own. It follows from the order between tasks (see **Projects**). |
 | A task that can be implemented straight from its body | the **`ready`** label |
 | Something `pj-running` stopped on | the **`blocker`** label |
 
-The parent never gets `ready` and is never worked on. It closes once every sub-issue is closed, after the user says so.
+The parent never gets `ready` and is never worked on. It closes as completed once the project is merged (see
+**Projects**).
 
-Merging the base branch into the branch it was made from is a human's job. No skill does it.
+Merging the base branch into the branch it was made from is a human's job, done through a pull request. No skill
+does it.
+
+### Projects
+
+One request can become several projects, `PJ1, PJ2, …` while it is planned, each a parent issue of its own. The
+tasks are numbered `T1…Tn` across the whole request. Every project from one request is made from the same branch.
+
+**A project holds at most 10 tasks.** Like the 8-file limit, it is a rule of the split. `pj-design-and-plan` cuts
+the request so that no project holds more than ten. When `pj-design-details` later splits an issue or files stubs and
+a project goes past ten, it stays one project, and nobody asks whether to split it.
+
+**Project P waits on project Q** when an open sub-issue of P is blocked by a sub-issue of Q, open or closed. That
+edge is the only record of it. Parents get no relationships of their own, and no parent body names another project.
+`project.sh` derives the projects P waits on as `parent.dependsOn`. **No cycles between projects.**
+
+**The base branch.** Only `pj-running` creates `pj/<P>`. It does so when it starts on the project, the base branch does
+not exist yet, and every project in `dependsOn` is `merged`, which always holds for a project that waits on none. It
+cuts the base branch from the tip of `<from>`, the branch the parent's `Base:` line names after `from`, through the
+API:
+
+```bash
+gh api "repos/{owner}/{repo}/git/ref/heads/<from>" --jq .object.sha
+gh api "repos/{owner}/{repo}/git/refs" -f ref="refs/heads/pj/<P>" -f sha="<sha>"
+```
+
+`pj-design-and-plan` writes the `Base:` line into every parent when it files it, before any of these branches exists.
+A base branch cut later starts from a newer `<from>`, and conflicts less when it is merged back at the end.
+
+**A project is `merged`** when either of these holds:
+
+- the parent is `CLOSED` with the state reason `COMPLETED`, or
+- the parent is `OPEN`, it has at least one sub-issue and every one of them is closed, and the base branch has
+  reached `<from>`: a pull request with the base branch as head and `<from>` as base was merged, or `<from>` on
+  origin contains the base branch.
+
+The sub-issues have to be there and closed because a fresh base branch is identical to `<from>`. A parent closed as
+not planned is a project given up on, and is not merged. A merge made without a pull request, such as a local merge
+commit, can leave commits that `--check` reads as stale for a project waiting on this one (see **Is the body still
+current?**).
+
+**Closing a parent** as completed means its project is merged. When `pj-running` reads an open parent that is
+`merged`, it closes it with a marked comment and `--reason completed`, both when it starts on that project and when
+it starts on a project that waits on it. A human may also close it after merging. The merge itself is the human's
+job.
+
+**An edge across projects may be added only while the blocked project has no base branch.** The base branch is cut
+from `<from>` once, and has no way to take in another project's work later. Once it exists, work the project needs
+from elsewhere becomes a stub in the project itself.
 
 ### Labels
 
@@ -60,6 +110,7 @@ Merging the base branch into the branch it was made from is a human's job. No sk
 | --- | --- | --- |
 | `ready` | `0E8A16` | Every decision is settled and the body can be implemented as it stands. pj-running may work on it. |
 | `blocker` | `B60205` | pj-running stopped on this. Settle it before anything else. |
+| `project` | `5319E7` | The parent issue of a pj project. Its sub-issues are the project's tasks. |
 
 **Make sure a label exists right before a skill first adds it in a run.** Create it only when the repository does not
 have it. **Never pass `--force`.** It would overwrite the color and the description of a label the repository already
@@ -68,6 +119,7 @@ uses. An existing label is reused as it is.
 ```bash
 gh label list --limit 1000 --json name --jq '.[].name' | grep -qx ready || gh label create ready --color 0E8A16 --description "Every decision is settled and the body can be implemented as it stands. pj-running may work on it."
 gh label list --limit 1000 --json name --jq '.[].name' | grep -qx blocker || gh label create blocker --color B60205 --description "pj-running stopped on this. Settle it before anything else."
+gh label list --limit 1000 --json name --jq '.[].name' | grep -qx project || gh label create project --color 5319E7 --description "The parent issue of a pj project. Its sub-issues are the project's tasks."
 ```
 
 ### Relationships
@@ -81,15 +133,20 @@ gh issue edit <n> --add-blocked-by <m>
 gh issue edit <n> --remove-blocked-by <m>
 ```
 
-**No cycles.** After any change to the relationships, run `project.sh <P> --order`. It fails and names the cycle when
-there is one. Undo the edge that made it.
+An edge may run between sub-issues of different projects (see **Projects**). A parent never gets a blocked-by
+relationship.
+
+**No cycles**, within a project or between projects. After any change to the relationships, run
+`project.sh <P> --order` in every project the change touched. It fails and names the cycle when there is one, of
+either kind. Undo the edge that made it.
 
 ## Reading a project
 
 `project.sh` sits next to this file, in `scripts/project.sh`. It reads the parent and every sub-issue in one GraphQL
-query plus one `gh pr list` of the pull requests into the base branch, and writes nothing to GitHub. **It is the only
-parser of a sub-issue body, of the parent's `Base:` line and of a pull request's head.** Every skill and the issue
-writer go through it. Pass `-R <owner/repo>` to read a repository other than the current one.
+query, the pull requests into the base branch in one `gh pr list`, and where the branches of this project and the
+projects it waits on stand in one more GraphQL query. `--order` and the history of `--check` also read one query per
+project they follow through `dependsOn`. It writes nothing to GitHub. **It is the only parser of a sub-issue body, of
+a parent's `Base:` line and of a pull request's head.** Every skill and the issue writer go through it. Pass `-R <owner/repo>` to read a repository other than the current one.
 
 Every mode that reads a parent fails with `project: #<P> has no Base: line` when the parent body has none, or has
 one that does not name both branches. `--lint` reads no parent.
@@ -104,17 +161,25 @@ project.sh --lint <file>     # the lint of one body, from a file, or from standa
 `project.sh <P>` prints:
 
 ```
-{"parent": {"number", "title", "state", "updatedAt", "body", "base", "from"},
+{"parent": {"number", "title", "state", "stateReason", "updatedAt", "body", "base", "from",
+            "baseExists", "merged",
+            "dependsOn": [{"number", "title", "state", "stateReason", "base", "merged"}]},
  "issues": [{"number", "title", "state", "updatedAt", "readyAt", "labels": [names],
-             "blockedBy": [{"number", "state"}], "blocking": [numbers],
+             "blockedBy": [{"number", "state", "parent"}], "blocking": [numbers],
              "pr": {"number", "state", "isDraft", "url"} or null, "stub",
              "files": [{"path", "kind", "symbols": [names]}], "designPaths": [paths],
              "decisions": {"total", "settled", "open", "contradictory"},
              "lint": {"ok", "reasons": [codes]}}]}
 ```
 
-- `base` is the base branch the parent's `Base:` line names, and `from` is the branch it was made from (see **The
+- `base` is the base branch the parent's `Base:` line names, and `from` is the branch it is made from (see **The
   parent issue body**).
+- `baseExists` is true once the base branch is on origin, and `merged` is whether the project is merged (see
+  **Projects**).
+- `dependsOn` is the projects this one waits on: the parents of the blockers of its open sub-issues, other than this
+  parent, whose body has a `Base:` line, by number. A blocker with no parent is left out. Each carries its own `base`
+  and `merged`.
+- `parent` in `blockedBy` is the number of the blocker's parent issue, or null.
 - `readyAt` is the time of the last `ready` labelled event on the issue, or null.
 - `pr` is the issue's pull request, open or merged (see **Pull requests**), or null. Its `state` is `OPEN` or
   `MERGED`.
@@ -132,27 +197,42 @@ project.sh --lint - <<'EOF'
 EOF
 ```
 
-`--check <n>` runs inside a clone of the repository. It fetches the base branch from origin, which moves local refs
-and nothing else, and prints:
+`--check <n>` runs inside a clone of the repository. It fetches `<from>` from origin every time, and the base branch
+only once it exists, which moves local refs and nothing else, and prints:
 
 ```
-{"number", "base", "ok", "lint": {"ok", "reasons"},
+{"number", "base", "from", "baseExists", "ok", "lint": {"ok", "reasons"},
  "premises": {"evaluated", "failures": [{"path", "symbol" (when one is missing), "why"}]},
  "history": {"stale": [{"sha", "subject", "pr" or null}]}}
 ```
 
 `ok` is true when the lint is clear, no premise failed and no commit is stale. `evaluated` is false while a blocker is
-still open (see **Is the body still current?**).
+still open, or while the base branch does not exist and a project in `dependsOn` is not `merged` (see **Is the body
+still current?**).
 
 `--order` puts a blocker before what it blocks. Only open sub-issues of the same parent count as blockers here. Among
-the issues free to go next, the one more open issues wait on, directly or not, goes first, then the lower number.
+the issues free to go next, the one more open issues wait on, directly or not, goes first, then the lower number. It
+also follows `dependsOn` from project to project, and fails when the projects wait on each other:
+`project: the projects have a cycle: #12 waits on #15 waits on #12`.
 
-**Finding the project when no number was given.** List the open issues that have open sub-issues, the most recently
-updated first, and ask the user which one with `AskUserQuestion`.
+### Picking the project
+
+`pj-design-details` and `pj-running` always ask which project to work on, with `AskUserQuestion`, even when they were
+given a number. List the open parents, and read the number they were given, if any.
 
 ```bash
-gh issue list --state open --limit 100 --json number,title,updatedAt,subIssuesSummary --jq '[.[] | select(.subIssuesSummary.total > .subIssuesSummary.completed)] | sort_by(.updatedAt) | reverse'
+gh issue list --label project --state open --limit 100 --json number,title,subIssuesSummary --jq 'sort_by(.number)'
+gh issue view <n> --json number,state,labels,parent
 ```
+
+- The recommended project is the parent of the number given when that is a sub-issue, or the number itself when it
+  carries `project`. When the recommended project is not in the list, say so in one line and ask without a
+  recommendation.
+- First print every project, one line each: `#<P> <title> (<completed> of <total> sub-issues closed)`.
+- The question has the header `Project` and at most 4 options: the recommended project first, marked
+  `(Recommended)`, then the rest by number. With one project only, the second option is `Stop`. The free-text answer
+  accepts any `#<P>` from the list.
+- When the list is empty, stop.
 
 ## The parent issue body
 
@@ -165,8 +245,8 @@ Base: `pj/<P>` from `<branch>`
 
 ## Design
 
-<the boundaries every task has to match: contracts, types, schemas, names, and why a new abstraction is needed
-if one is added>
+<the boundaries this project defines and its tasks have to match: contracts, types, schemas, names, and why a new
+abstraction is needed if one is added>
 
 ## Decisions
 
@@ -179,10 +259,15 @@ if one is added>
 
 The task list is the sub-issue list GitHub draws under the body. Never write a second one by hand.
 
-`Base:` names the project's base branch and, after `from`, the branch it was made from. That second branch is the
-one the user merges the base branch into at the end. `pj-design-and-plan` files the parent, creates `pj/<P>`, then
-adds the line to the body. It takes two steps because the branch name carries the parent's number. Nobody changes
-the line after that. A skill that rewrites the parent body keeps the line as it is.
+`## Design` holds only the boundaries this project defines. A boundary another project defines stays in that
+project's parent. Whoever reads the parent's `## Design`, the issue writer and the `workflow` skill alike, also reads
+the `## Design` of every parent in `dependsOn`.
+
+`Base:` names the project's base branch and, after `from`, the branch it is made from. That second branch is the one
+the user merges the base branch into at the end. `pj-design-and-plan` files the parent, then adds the line to the
+body. It takes two steps because the branch name carries the parent's number. The line is written before the branch
+exists, and `pj-running` creates the branch later (see **Projects**). Nobody changes the line after that. A skill
+that rewrites the parent body keeps the line as it is.
 
 ### The handover comment
 
@@ -252,7 +337,8 @@ The bar for a body is in **When an issue is ready**.
   and `A.b` as `b`. A backticked span with spaces, such as a test name, is no symbol.
 - **A `changed` entry names at least one symbol, and every symbol it names exists in that file at the tip of the
   base branch once every issue in its `blockedBy` has merged.** `--check` looks each one up. A file or a symbol a
-  blocker adds counts as existing, so a file a blocker adds is `changed` here. A new name, or a name from another
+  blocker adds counts as existing, so a file a blocker adds is `changed` here. A blocker in another project counts
+  the same, because that project is merged into `<from>` before this project's base branch is cut. A new name, or a name from another
   file, goes without backticks or into its own file's entry.
 - Each entry is one bullet. A long description may wrap onto indented lines, and blank lines between entries are
   allowed. The list ends at the first line that is neither a bullet nor indented.
@@ -342,8 +428,8 @@ Everything else is prose in the repository's language.
 - every decision under `## Decisions` has exactly one box checked, or it reads `None.`
 - `## Design` reads as the decisions say, with no "depending on D1" left in it
 - nothing in the body contradicts the parent's `## Design`
-- **it can be implemented straight from its body.** A worker who reads only this body, the parent's `## Design` and
-  the code finds nothing left to design. `project.sh` checks the part of this a script can see, as a lint:
+- **it can be implemented straight from its body.** A worker who reads only this body, the parent's `## Design`, the
+  `## Design` of every parent in `dependsOn` and the code finds nothing left to design. `project.sh` checks the part of this a script can see, as a lint:
 
 | Code | Fails when |
 | --- | --- |
@@ -367,22 +453,32 @@ Who checks, and when:
 | `pj-design-details` | before adding `ready` | `--check` with the lint clear, and the premises clear or not evaluated yet |
 | `pj-running` | before showing the order, for every issue in it, and again right before each issue starts | a clear `--check` |
 
-An issue is **workable** when it carries `ready`, every issue in its `blockedBy` is `CLOSED`, and `--check` is clear.
+An issue is **workable** when it carries `ready`, every issue in its `blockedBy` is `CLOSED`, `--check` is clear, and
+its project has `baseExists`, or every project in `dependsOn` is `merged`. The last part is the same condition the
+premises wait for.
 
 ### Is the body still current?
 
-A body is drawn against the code of its day. `--check` asks whether it still holds at the tip of the base branch.
+A body is drawn against the code of its day. `--check` asks whether it still holds at the tip of the base branch, or
+at the tip of `origin/<from>` while the base branch does not exist yet, since that is where it will be cut from.
 
 - **Premises.** Every `changed` and `deleted` path exists, and no `added` path does. Every symbol of a `changed` entry
-  is still found in its file. The premises are evaluated **only once every `blockedBy` is closed**. Until then the
-  blockers are still meant to change these files, and the result reads not evaluated.
+  is still found in its file. The premises are evaluated **only once every `blockedBy` is closed, and the project has
+  `baseExists` or every project in `dependsOn` is `merged`**. Until then the blockers are still meant to change these
+  files, and the result reads not evaluated.
 - **History.** Every commit on the base branch's first-parent line since `readyAt` that touched a path in the file
   list is a candidate. A candidate is **anticipated** when a merged pull request it came from has `Implements #<x>`
-  as its head and x is in this issue's transitive `blockedBy`: its blockers, their blockers, and so on through the
-  project, closed issues included. Every other candidate is **stale**. With no `readyAt` there is no history.
+  as its head with x in this issue's transitive `blockedBy`, has `pj/<Q>` as head and `<from>` as base, or has
+  `pj/<Q>` as base, with Q in the waited projects. The last case covers a `pj/<Q>` fast-forwarded into `<from>`,
+  which brings the commits of Q's sub-issues along without a merge pull request. The waited projects are the ones
+  this project waits on, the projects of the blockers in this issue's transitive `blockedBy`, and the projects those
+  wait on, directly or not. The transitive `blockedBy` is its blockers, their blockers, and so on through the
+  project, closed issues included. A blocker in another project enters by its number and is not followed further.
+  Every other candidate is **stale**. With no `readyAt`, or no base branch, there is no history.
 
-The design was written knowing its blockers would land first, so their commits were foreseen. A commit from anywhere
-else that touched these files was not.
+The design was written knowing its blockers would land first, and that the projects it waits on would be merged
+into `<from>` before its base branch was cut, so their commits were foreseen. A commit from anywhere else that
+touched these files was not.
 
 `ready` comes off when something changes what the body says, such as a decision elsewhere. **Whoever takes it off
 leaves a comment** on the issue saying what changed and where. A skill marks that comment (see **Comments**).

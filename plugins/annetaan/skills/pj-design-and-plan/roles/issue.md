@@ -17,18 +17,20 @@ body.
 
 ## Drafting an issue
 
-`Mode: draft`. The prompt carries the request, the overall design with the whole split, and the id of your task.
-Other writers draw the other tasks at the same time. Stay inside yours.
+`Mode: draft`. The prompt carries the request, the overall design with every project and the whole split, and the
+ids of your task and its project. Other writers draw the other tasks at the same time. Stay inside yours.
 
 1. **Read the code your task touches**, and the callers and callees around it. The overall design named paths.
    You find the files, the functions and the patterns, by name. Read them where the prompt's "Read the code" line
    says: in the working tree, or at `origin/<from>` through `git show`, `git grep` and `git ls-tree`. In
-   `Mode: revise` there is no such line. Read at `origin/<base>`, as **Revising an issue** says.
+   `Mode: revise` there is no such line. Read where **Revising an issue** says.
 2. **Draw the task.** `## Design` opens with the file list from `format.md`, one entry per file, tests included. A
    `changed` entry names the existing symbols it rides on, and only names that exist in that file go in backticks.
    "Exist" means at the tip of the base branch once every task your task is blocked by has merged. The base branch
-   starts as the code step 1 reads. A file or a symbol a blocker adds counts, so a file a blocker adds is `changed`
-   in your task. An `added` entry names the file or symbol it follows. Prose after the list says how the pieces fit.
+   is cut from `<from>` later, so the code step 1 reads is where it starts. A file or a symbol a blocker adds counts,
+   blockers in other projects included, so a file a blocker adds is `changed` in your task. An `added` entry names
+   the file or symbol it follows. The boundaries to match are in your project's `## Design` and in the `## Design` of
+   the projects it waits on, both in the overall design. Prose after the list says how the pieces fit.
    Every acceptance criterion carries a backticked anchor: a test name, a command, or a file or symbol whose state
    is checked. Where a decision is still open, write the design as if the recommended option were checked. The
    reader then sees one consistent design, and `pj-design-details` rewrites the parts a different answer changes.
@@ -54,7 +56,8 @@ Other writers draw the other tasks at the same time. Stay inside yours.
 
 Reading the code may show that your task cannot be done as the split cut it. It needs something no task before it
 makes, it collides with another task in the same files with no order between them, it names more than 8 files, it
-cannot become implementable from its body without designing another task's part, or it is two tasks. **Say "the
+cannot become implementable from its body without designing another task's part, it is two tasks, or it would make
+two projects wait on each other. **Say "the
 split does not hold" instead of returning a body**, with what you found in the code and how you would cut it. The
 main session takes it to the planner.
 
@@ -82,15 +85,21 @@ you read between them.
 ```bash
 gh issue view <n> --json title,body,labels,comments,updatedAt
 gh issue view <P> --json title,body,labels,comments,updatedAt
+gh issue view <Q> --json title,body,labels,comments,updatedAt
 ```
 
-Read the same for every sibling issue the change could reach: one that shares a path with `n` in `files`, one linked
-to `n` by an edge, one that mentions `#n`, and one that names a symbol `n` changes. Keep the `updatedAt` of every
-body you read. A marked comment says why `ready` came off. A comment with no marker is a human speaking, so weigh it
-as one.
+`<Q>` is each parent in `parent.dependsOn` of the `project.sh <P>` JSON. Their `## Design` holds the boundaries those
+projects define, which this project matches (`format.md`, **The parent issue body**).
 
-**Read the code at the tip of the base branch.** `--check` fetched it, so it is at `origin/<base>`, where `<base>` is
-`base` in the `--check` JSON.
+Read the same for every sibling issue the change could reach, in this project or another: one that shares a path
+with `n` in `files`, one linked to `n` by an edge, one that mentions `#n`, and one that names a symbol `n` changes.
+Keep the `updatedAt` of every body you read. A marked comment says why `ready` came off. A comment with no marker is a
+human speaking, so weigh it as one.
+
+**Read the code where `--check` read it.** It fetched both branches it needs. When `baseExists` in the `--check`
+JSON is true, read at `origin/<base>`, where `<base>` is `base` in that JSON. When it is false, read at
+`origin/<from>`, where `<from>` is `from` in that JSON. The base branch will be cut from there, so count what the
+blockers add, those in other projects included, as existing.
 
 ### Round 1, the proposal
 
@@ -131,8 +140,16 @@ The main session sends the user's answers. Return:
 - **Parts 2 to N**, when the user approved a split: the title and body of each.
 - **Other issues** the answers reach: for each one, the number, the new body, the `updatedAt` you read, one line on
   why, and whether it reopens a decision there.
-- **The parent**: its new body, when the answers change its `## Design`, keeping its `Base:` line as it is.
-- **Edges to add or remove**, one per line as `#a blocked by #b`. Name a new part as `part k`.
+- **The parents**: for each open parent whose `## Design` the answers change, this project's or one in
+  `parent.dependsOn`, and whose project is not `merged` (`parent.merged` and `parent.dependsOn[].merged` in the
+  JSON): its number, its new body and the `updatedAt` you read, keeping its `Base:` line as it is. A boundary lives in
+  one parent only. A merged project's boundary is code now, whether its parent is closed or still open. Change that
+  in this issue or in a stub.
+- **Edges to add or remove**, one per line as `#a blocked by #b`. Name a new part as `part k`. An edge that makes an
+  issue of another project a blocker of `#a` may be added only while `#a`'s project has no base branch: for this
+  project, `parent.baseExists` in the prompt's JSON says so, and for another project `project.sh <Q>` does. It must
+  not make the projects wait on each other in a cycle. Otherwise the work needed becomes a stub in issue `n`'s
+  project (`format.md`, **Projects**). The parts of a split stay in the same project.
 - **A stub to file**, when merged code has to change outside this issue (see the rules below): its title and body.
 - **A blocker to close**: `#b`, resolved by the rewrite of `#m`.
 - **Ready**, yes or no, for issue `n` and each part. Yes means every decision is settled, `## Design` reads as the
@@ -157,6 +174,7 @@ The main session sends the user's answers. Return:
 
 - **Never point at a file by line number.** Point with a path and a symbol name.
 - **Never write dependencies into the body.** The main session files them as relationships.
+- **Never put a relationship on a parent.**
 - No checkbox outside `## Decisions`. Acceptance criteria are a plain list.
 - Each decision has 2 to 4 options and exactly one `(recommended)`.
 - The fixed tokens from `format.md` stay in English: the headings, `### D<n>.`, `(recommended)`, `Decided:`,

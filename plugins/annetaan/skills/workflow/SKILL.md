@@ -512,6 +512,7 @@ pull request is in `$FLOW/../pj-design-and-plan/format.md`.
 These values are already in your context. Nothing arrives as an argument.
 
 - the issue number `n`, the parent `P`, and the issue title
+- the projects `P` waits on, `Q1, Q2, …` (`parent.dependsOn` in `project.sh`), or none
 - the base branch (the parent's `Base:` line), and the branch already checked out for the issue
 - the entry state: `fresh`, `resume-integration` or `resume-merge`
 - the pull request number `m` for `resume-integration` and `resume-merge`, none for `fresh`
@@ -543,16 +544,18 @@ Every command below runs in `<WT>`, so `ROOT`, `WORKDIR` and the difit state all
 
 ### The design, the plan and the detail
 
-Read the two bodies.
+Read the issue, its parent, and the parent of every project `P` waits on.
 
 ```bash
 gh issue view <n> --json body
 gh issue view <P> --json body
+gh issue view <Q> --json body   # each Q
 ```
 
 - **The approved design**, for every prompt in phases 3 to 5: the issue's `## Goal`, `## Design`,
   `## Acceptance criteria` and `## Out of scope`, its `## Decisions` cut down to the checked option and the
-  `Decided:` line of each, and the parent's `## Design`.
+  `Decided:` line of each, the parent's `## Design`, and the `## Design` of each `Q`, which holds the boundaries
+  those projects define (`format.md`, **The parent issue body**).
 - **The plan**: one task, "1. <issue title>".
 - **The detail design for task 1**: the issue's `## Design`.
 - **The commit**: in phase 4 (e), ask for a subject that follows the repository's style and names the issue title.
