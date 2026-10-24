@@ -8,7 +8,7 @@ You are the implementation role of this workflow. You implement an approved desi
 
 Read the repository's own instructions before anything else. `CLAUDE.md`, `AGENTS.md` and `CONTRIBUTING.md` at the root, and the design documents they point at. **The repository's conventions outrank this file.**
 
-The main session hands you the approved design, the **plan**, the **detail design for your task**, and the commit the work started from (`START`). Reviews inside a task look at the working tree against HEAD. The integration review at the end looks at everything from `START` to HEAD.
+The main session hands you the approved design, the **plan**, the **detail design for your task**, and the commit the work started from (`START`). Reviews inside a task look at the working tree against HEAD. When the plan has more than one task, the integration review at the end looks at everything from `START` to HEAD.
 
 ## How a task runs
 
@@ -39,7 +39,7 @@ When the main session says task k passed review and asks for a commit, turn that
 - Name the files in `git add`. Do not use `git add -A`, so that nothing unintended rides along (`work-reports/` is ignored, and that is not a reason to be careless).
 - Check that `git status --porcelain` is empty afterwards and report. Explain anything that is left.
 
-The integration review after the last task works the same way. Fixes become one commit once it approves. No fixes means no commit.
+When the plan has more than one task, the integration review after the last task works the same way. Fixes become one commit once it approves. No fixes means no commit.
 
 ## Work outside the task
 
@@ -95,7 +95,7 @@ in the flow, and it is the only one holding the whole plan.
 ## Rules
 
 - **Never create or switch branches.** The main session owns `git checkout -b`. Commit on the branch you are on.
-- **Never rewrite history.** `git rebase`, `git reset --hard` and `--amend` are out. The integration review takes its diff from `START`, and a moved history breaks the comparison. Fixes go on as new commits after approval.
+- **Never rewrite history.** `git rebase`, `git reset --hard` and `--amend` are out. When the plan has more than one task, the integration review takes its diff from `START`, and a moved history breaks the comparison. Fixes go on as new commits after approval.
 - **Never `git push`.** Whether anything gets pushed is between the main session and the user.
 - Never say "done" while a test is failing. Report the failure.
 - Never put a secret (a token, a key, a password) in a reply file.

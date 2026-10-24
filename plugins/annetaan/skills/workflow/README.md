@@ -1,9 +1,10 @@
 # workflow
 
 This skill runs one implementation as **design, a design review where the repository accepts breaking changes,
-approval, then per task (implement, review rounds, one commit), then an integration review, then a finish step**,
-with each role in a session of its own. The review rounds run through Markdown files in the run's work report
-directory, one per round and one reply to each, so the whole review stays readable after the run.
+approval, then per task (implement, review rounds, one commit), then an integration review when the plan has more than
+one task, then a finish step**, with each role in a session of its own. The review rounds run through Markdown files
+in the run's work report directory, one per round and one reply to each, so the whole review stays readable after the
+run.
 
 ## Install
 
@@ -49,8 +50,9 @@ and pushing disappears too. If you already said what you wanted when you invoked
 PR"), that question is skipped and the answer shows up in the approval message so you can correct it.
 
 After the approval it runs by itself. Each task goes through implementation and review rounds, and a task that
-passes review becomes one commit. After the last task comes one integration review over the whole diff, then the
-ending you picked.
+passes review becomes one commit. When the plan has two or more tasks, one integration review over the whole diff
+comes after the last task. A plan of one task skips it, because its task review already read the whole diff. Then
+comes the ending you picked.
 
 **The approval settles the boundaries. The tasks get detailed one at a time.** What you approve up front is what
 crosses from one task into the next: the contracts, the types, the names, and the order things have to land in. The
@@ -71,16 +73,18 @@ session, folded together, capped at fifteen.
 
 pj-3-running works through a project's issues one at a time, and runs each one through this skill. That run has no
 design session, no approval and no questions. The issue's text is the approved design, and an issue only gets that
-far once it can be implemented as it stands. The issue becomes one task, with its review rounds and the integration review.
+far once it can be implemented as it stands. The issue becomes one task with its review rounds, so no integration
+review runs.
 
-The pull request body is `log.md` under a head of `Implements`, `Part of` and a two-line `## Plan`. The run pushes
-and opens the pull request as a draft against the project's base branch. pj-3-running merges it.
+The pull request body is `log.md` under a head of `Implements` and `Part of`. The run pushes and opens the pull
+request as a draft against the project's base branch. pj-3-running merges it.
 
 All of it happens in the worktree pj-3-running made for the project, so your own working tree is left alone.
 
-A stop before the task is committed leaves the work uncommitted in that worktree and pushes nothing. A stop once the
-task commit exists leaves a draft pull request with that commit and a paragraph on why it stopped. Either way the work
-left in the worktree is the one thing outside GitHub, and a resume redoes that work. The shape of the issues and the
+A stop before the task is committed leaves the work uncommitted in that worktree and pushes nothing. That work is
+the one thing outside GitHub, and the next run redoes it. A stop once the task commit exists can only come during the
+finish step, so the run finishes it: the report, the push and the draft pull request. A pull request exists only for
+a task commit that passed review. The shape of the issues and the
 pull requests is in [format.md](../pj-1-plan/format.md).
 
 ## What it leaves behind
@@ -94,7 +98,7 @@ work-reports/2026-09-19-1346-a1b2c3d/
   review/        one file per review round, and the reply to each
     task-1-round-1.md
     task-1-round-1-reply.md
-    integration-round-1.md
+    integration-round-1.md      plans of two or more tasks
   before.png     before and after, when the change shows on screen
   after.png
 ```

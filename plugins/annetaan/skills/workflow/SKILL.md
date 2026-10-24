@@ -1,15 +1,15 @@
 ---
 name: workflow
-description: Runs one implementation as design, a design review where the repository accepts breaking changes, approval, then per task (implement, review rounds, one commit), then an integration review, then a finish step that opens a pull request, pushes, or stops locally. The review rounds run through Markdown files in the run's work report directory. Use it only when the user names this skill or invokes /annetaan:workflow, or when pj-3-running loads it to run one issue, because it spawns four sub-sessions and adds commits. Do not use it for a one-off implementation request or for an ordinary code review request.
+description: Runs one implementation as design, a design review where the repository accepts breaking changes, approval, then per task (implement, review rounds, one commit), then an integration review when the plan has more than one task, then a finish step that opens a pull request, pushes, or stops locally. The review rounds run through Markdown files in the run's work report directory. Use it only when the user names this skill or invokes /annetaan:workflow, or when pj-3-running loads it to run one issue, because it spawns four sub-sessions and adds commits. Do not use it for a one-off implementation request or for an ordinary code review request.
 ---
 
 # workflow
 
-One implementation, run as **design, a design review where the repository accepts breaking changes, approval, then per task (implement, review rounds, one commit), then an integration review, then a finish step**, with each role in its own session.
+One implementation, run as **design, a design review where the repository accepts breaking changes, approval, then per task (implement, review rounds, one commit), then an integration review when the plan has more than one task, then a finish step**, with each role in its own session.
 The review rounds run through Markdown files under the run's work report directory, described in
 `$FLOW/review-files.md`.
 
-The design session returns a **plan**: an ordered list of small tasks. Implementation and review rounds run inside a task. A task the reviewer approves becomes **one commit**. After the last task an **integration review** looks at the whole diff once. Then the flow finishes.
+The design session returns a **plan**: an ordered list of small tasks. Implementation and review rounds run inside a task. A task the reviewer approves becomes **one commit**. After the last task of a plan with more than one task, an **integration review** looks at the whole diff once. Then the flow finishes.
 
 You are the main session, and you are the **orchestrator. You do not write code.** Sub-agents design, implement and review. You pass work between them and you are the only window onto the human.
 
@@ -138,7 +138,7 @@ This is the only approval point in the flow. Present the design summary and the 
 2. **Where do the commits go?** (a new branch `<name>` / the current branch `<name>`)
 3. **How does the flow finish?** (open a pull request / push only / stop locally)
 
-Say in the same message that everything after this runs on its own: per-task implementation and review rounds, the integration review, and the finish step.
+Say in the same message that everything after this runs on its own: per-task implementation and review rounds, the integration review when the plan has more than one task, and the finish step.
 
 **Derive the recommended answers and the available options from what you collected before you started.**
 
@@ -178,8 +178,9 @@ If this is not zero, the pull request will show those commits too, and they neve
 every finding is resolved because the task was approved. What is left is how this repository wants to be
 worked in, and that travels as the handover notes (phase 4 (d)).
 
-**Every task and the integration review run on the same two agents**: `annetaan:workflow-worker` for
-implementation and `annetaan:workflow-reviewer` for review, both opus / medium. There is no per-task choice to make.
+**Every task, and the integration review when the plan has more than one task, run on the same two agents**:
+`annetaan:workflow-worker` for implementation and `annetaan:workflow-reviewer` for review, both opus / medium. There
+is no per-task choice to make.
 Both ship with this plugin, and the model and effort are pinned in `agents/*.md`. Do not pass a `model` argument to
 `Agent`, because the definition holds the right value.
 
@@ -242,7 +243,7 @@ When the user says no, stop and ask what to do. Files under a directory git stil
 START=$(git rev-parse HEAD)
 ```
 
-**This value runs through the whole flow.** The integration review, the report and the final message all start from `START`.
+**This value runs through the whole flow.** The integration review when the plan has more than one task, the report and the final message all start from `START`.
 
 ### (d) Create the work directory
 
@@ -339,11 +340,13 @@ outlives a session.
 **Give the user a one-line progress report**: `task k/N done: <short SHA> <commit subject> (commit k since START <short SHA>)`. A long context can be summarised away, and the plan, `START` and the progress all rebuild from that line.
 
 **This task's implementation and review sessions are finished here.** Do not send them anything after this. The next
-task starts a new pair. After the last task, go to phase 5.
+task starts a new pair. One exception: when the last task is committed and phase 5 does not run (see **Phase 5**),
+keep that task's implementation session alive, because it writes the work report in phase 6. Its review session ends
+here as usual. After the last task, go to phase 5, or to phase 6 when the plan has one task (see **Phase 5**).
 
 ### When the plan breaks
 
-When the detail pass in (a) says the boundary no longer holds, or the implementation session reports that the design will not work, stop that task and have the design session **redraw the remaining plan** with `SendMessage`. Tell the user what the new plan is. Do not take approval again. A change to the design itself goes back to the user the same way a "no" or "conditional" in phase 1 does. No design review here.
+When the detail pass in (a) says the boundary no longer holds, or the implementation session reports that the design will not work, stop that task and have the design session **redraw the remaining plan** with `SendMessage`. Tell the user what the new plan is. Do not take approval again. A redraw changes the task count that phase 5 goes by. A change to the design itself goes back to the user the same way a "no" or "conditional" in phase 1 does. No design review here.
 
 ### The round cap
 
@@ -357,6 +360,14 @@ If round five does not come back `approve`, stop and report to the user. Lay out
 From an issue, the cap ends in the stop procedure there, with no question to the user.
 
 ## Phase 5: integration review
+
+**Phase 5 runs only when the plan has two or more tasks.** With one task, the task review already read the working
+tree against HEAD, and HEAD was still `START`. That is the same diff phase 5 would read, and there is no task boundary
+to look at. Count the tasks in the plan as it stands when its last task is committed. A redraw under **When the plan
+breaks** changes the count. With one task, a redraw can happen only while task 1 is in flight. When it grows the plan
+to several tasks, task 1's (d) ends its sessions as usual and phase 5 runs after the new last task. When it leaves
+one task, phase 5 is skipped. Once two tasks are committed, phase 5 runs. When a redraw leaves no task to run after
+task 1 is committed, phase 5 runs too, because task 1's (d) has already ended its sessions.
 
 Once every task is committed, **review the whole diff once.** A review inside a task cannot see the task boundaries: interfaces that do not line up, a rename done on one side only, work duplicated between tasks.
 
@@ -387,6 +398,7 @@ Review says `approve`, every finding is resolved, tests pass. Phase 6 starts whe
 
 **A session that worked on the code writes the work report, in every mode. Do not write it yourself.**
 
+- When phase 5 was skipped, the last task's implementation session is still alive (phase 4 (d)). `SendMessage` it.
 - When the integration review asked for fixes, that implementation session is still alive. `SendMessage` it.
 - When the integration review approved with nothing to fix, no session is left. Start one with the phase 3 prompt, carrying the progress and the handover notes, and ask it for the report and nothing else.
 
@@ -468,11 +480,13 @@ Whichever ending ran, close with: `START`, the commits stacked on it matched aga
 - **the path of the work report** (`<WORKDIR>/log.md`), which opens in an editor with the screenshots inline
 - the review files, under `<WORKDIR>/review/`
 - the screenshot paths, when the change shows on screen
+- when phase 5 was skipped, one line saying the integration review did not run because the plan had one task
 
 ## From an issue
 
 pj-3-running loads this skill to run one sub-issue of a project as one task. The issue was written to be implemented
-as it stands, so this entry has no design session, no approval and no questions. The shape of the issue and of its
+as it stands, so this entry has no design session, no approval and no questions. It has no integration review either,
+because the plan has one task. The shape of the issue and of its
 pull request is in `$FLOW/../pj-1-plan/format.md`.
 
 ### What pj-3-running has settled
@@ -481,9 +495,7 @@ These values are already in your context. Nothing arrives as an argument.
 
 - the issue number `n`, the parent `P`, and the issue title
 - the projects `P` waits on, `Q1, Q2, …` (`parent.dependsOn` in `project.sh`), or none
-- the base branch (the parent's `Base:` line), and the branch already checked out for the issue
-- the entry state: `fresh`, `resume-integration` or `resume-merge`
-- the pull request number `m` for `resume-integration` and `resume-merge`, none for `fresh`
+- the base branch (the parent's `Base:` line), and the branch pj-3-running just made from the tip of the base branch
 - the handover notes, seeded from the parent's handover comment
 - the run's worktree `<WT>`, and `<MAIN>`, the main working tree. The session is in `<WT>`, and the branch is
   checked out there
@@ -518,30 +530,26 @@ gh issue view <P> --json body
 gh issue view <Q> --json body   # each Q
 ```
 
-- **The approved design**, for every prompt in phases 3 to 5: the issue's `## Goal`, `## Design`,
+- **The approved design**, for every prompt in phases 3 and 4: the issue's `## Goal`, `## Design`,
   `## Acceptance criteria` and `## Out of scope`, its `## Decisions` cut down to the checked option, the lines under
   its box and the `Decided:` line of each, the parent's `## Design`, and the `## Design` of each `Q`, which holds the
   boundaries those projects define (`format.md`, **The parent issue body**).
-- **The plan**: one task, "1. <issue title>".
+- **The plan**: one task, "1. <issue title>", so phase 5 does not run.
 - **The detail design for task 1**: the issue's `## Design`.
 - **The commit**: in phase 4 (d), ask for a subject that follows the repository's style and names the issue title.
 
 ### Start point and work directory
 
-Phase 2 (c) takes `START` by the entry state.
+Phase 2 (c) takes `START=$(git rev-parse HEAD)`, right after pj-3-running made the branch. Phase 2 (d) runs as
+written.
 
-- `fresh`: `START=$(git rev-parse HEAD)`, right after pj-3-running made the branch.
-- `resume-integration`: `START=$(git merge-base origin/<base branch> HEAD)`.
+### Phases 3 and 4
 
-Phase 2 (d) runs as written. A resumed run gets a new `WORKDIR`.
-
-### Phases 3 to 5
-
-They run as written: a new implementation session and a new review session, five rounds, one commit, then the
-integration review over `START..HEAD`. The prompts gain a line each.
+They run as written: a new implementation session and a new review session, five rounds, one commit. The prompts gain
+a line each.
 
 - The phase 3 prompt: "This run comes from issue #<n>. Follow **Work outside the task** in your role instruction."
-- Both review prompts: "The design is issue #<n>. Its checked decisions bind."
+- The review prompt: "The design is issue #<n>. Its checked decisions bind."
 - Every prompt, implementation and review alike: "Your working directory must be the worktree `<WT>`. Run
   `git rev-parse --show-toplevel` first. When it prints anything else, call `EnterWorktree(path: "<WT>")` before
   anything else, or, when that tool is not available, start every command with `cd <WT>` and keep Edit and Write
@@ -558,16 +566,6 @@ Keep the handover lines from phase 4 (d) for pj-3-running.
   pj-3-running's **When workflow returns**.
 - **Adaptations** the implementation session lists: keep them for the review requests and for `log.md`.
 
-### `resume-integration`
-
-Go straight to phase 5. The progress comes from the task commit on the branch (`git log --oneline <START>..HEAD`).
-The line on what the task's review changed, the test results and the adaptations come from the stop paragraph in the
-pull request body (`gh pr view --json body`). The adaptations go into the review requests and `log.md` as usual.
-
-### `resume-merge`
-
-Return `finished` with the existing pull request. Nothing else runs.
-
 ### Phase 6 from an issue
 
 1. **The work report.** The request in **The work report** gains this, with the values filled in:
@@ -577,24 +575,18 @@ Return `finished` with the existing pull request. Nothing else runs.
    > ```markdown
    > Implements #<n>
    > Part of #<P>
-   >
-   > ## Plan
-   >
-   > - [x] <issue title> (<short sha of the task commit>)
-   > - [x] Integration review
    > ```
    >
    > List the adaptations the implementation session made to the issue's design under what changed.
 
-   The head is the one in `format.md` **Pull requests**, with both lines checked.
+   The head is the one in `format.md` **Pull requests**.
 2. **`changes.diff`** as written.
-3. **Push, then open or update the pull request.**
+3. **Push, then open the pull request.**
 
    ```bash
    git push -u origin <branch>
    cd "$WORKDIR"
-   gh pr create --draft --base <base branch> --title "<issue title>" --body-file log.md   # no pull request yet
-   gh pr edit <m> --title "<issue title>" --body-file log.md                               # resumed, one exists
+   gh pr create --draft --base <base branch> --title "<issue title>" --body-file log.md
    ```
 
    The `--attach` rules apply as in 6a. When gh is older than 2.99.0 and there are screenshots, open the pull
@@ -609,28 +601,22 @@ saying stop.
 
 The task commit decides the case, whatever the phase. Look for it in `git log --oneline <START>..HEAD`.
 
-- **No task commit yet.** Leave the working tree as it is. Push nothing and open no pull request.
-- **The task commit exists.**
-  1. Leave the fixes in flight in the working tree as they are.
-  2. Write `$WORKDIR/stopped.md`: the head from **Phase 6 from an issue**, with the task line checked with its SHA
-     and `- [ ] Integration review` unchecked, then one paragraph. The paragraph says why and where the run stopped,
-     what the task's review changed, the test and type check commands with their results, the adaptations the
-     implementation session listed (or none), and whether uncommitted work stays in `<WT>`.
-  3. Push, then `gh pr create --draft --base <base branch> --title "<issue title>" --body-file stopped.md`, or
-     `gh pr edit <m> --title "<issue title>" --body-file stopped.md` when the pull request exists, both from
-     `$WORKDIR`.
-- **Say plainly that the work left in `<WT>` is the one piece of state outside GitHub.** It is local, a resume
-  never uses it, and the work gets redone.
-- Send nothing more to the sessions in flight.
-- Return `stopped`.
+- **No task commit yet.** Leave the working tree as it is. Push nothing. Send nothing more to the sessions in flight.
+  Return `stopped`. **Say plainly that the work left in `<WT>` is the one piece of state outside GitHub.** It is
+  local, the next run never uses it, and the work gets redone.
+- **The task commit exists.** The stop came during phase 6, and the working tree is clean. Run steps 1 to 3 of
+  **Phase 6 from an issue** to the end: the report, the push and the draft pull request. Then return `finished`, with
+  `stop requested: yes` when the user said stop.
+- **A step of phase 6 fails before the pull request exists.** Return `stopped` with the reason `finish`, the step
+  that failed, its error message, and the path of `log.md` when step 1 wrote it.
 
 ### What it hands back to pj-3-running
 
-- **`finished`**: the pull request number, the SHA of the task commit, the handover lines, and the paths of any
-  screenshots that could not be attached.
-- **`stopped`**: the reason (`round cap`, `blocking`, `diverged`, `user` or `work-reports`), whether uncommitted
-  work stays in `<WT>` (yes or no), the pull request number or none, and the text of the `Unplanned:` or
-  `Diverged:` report.
+- **`finished`**: the pull request number `m`, the SHA of the task commit, the handover lines, the paths of any
+  screenshots that could not be attached, and `stop requested` (yes or no).
+- **`stopped`**: the reason (`round cap`, `blocking`, `diverged`, `user`, `work-reports` or `finish`), whether
+  uncommitted work stays in `<WT>` (yes or no), and the text of the `Unplanned:` or `Diverged:` report, or for
+  `finish` the step that failed, its message and the path of `log.md` when there is one. A run that returns `stopped` has opened no pull request.
 
 ## Rules for the whole flow
 
@@ -638,7 +624,7 @@ The task commit decides the case, whatever the phase. Look for it in `git log --
 - **The review session never changes code.** It writes findings. The implementation session fixes them.
 - **The design review session never changes code and sends one report.** It runs once, before approval, never on task detailing or a plan redraw, and the flow goes on without it when it cannot start.
 - **The review files are written once.** Each round and each reply is a new file under `$WORKDIR/review/`, in the shape `$FLOW/review-files.md` gives. Nobody edits one after it is written.
-- **The design session lives for the whole flow. An implementation session and a review session live for one task.** Inside a task they continue through `SendMessage`, because throwing the context away between rounds repeats arguments that were already settled. At the commit they are finished, and the next task starts a new pair.
+- **The design session lives for the whole flow. An implementation session and a review session live for one task.** Inside a task they continue through `SendMessage`, because throwing the context away between rounds repeats arguments that were already settled. At the commit they are finished, and the next task starts a new pair. The implementation session of a one-task plan also writes the work report.
 - **Keep the reports from the sub-agents short.** The role instructions cap them. A report that pastes a diff or a log fills the one context that holds the whole plan, which is yours. When a long one arrives, say so, and ask for the gist next time.
 - **One task is one commit, and a commit happens only after approval.** A commit mid-round drops the diff out of the working-tree view the review reads.
 - **No branches, no history rewriting from the sub-sessions.** The main session owns `git checkout -b`. `git rebase`, `git reset --hard` and `--amend` break the `START` comparison. The role instructions say the same.

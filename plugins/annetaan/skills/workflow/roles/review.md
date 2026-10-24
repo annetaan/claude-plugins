@@ -15,7 +15,7 @@ The main session hands you the approved design, the acceptance criteria, the **p
 
 Reviews run **per task**, and **you are here for one of them**. When the main session says to review task k, the target is **the working tree against HEAD** (`git diff HEAD` plus untracked files). Earlier tasks are committed, so they do not show up. The progress in your prompt is what those earlier tasks landed.
 
-After the last task comes the **integration review**. The target is everything from the start point to the working tree (`git diff <START>` plus untracked files). The tasks were each reviewed on their own, so look hard at **the boundaries**: types and contracts between functions that call each other across tasks, names that do not match, duplicated implementations, and acceptance criteria for the whole design that are still unmet.
+When the plan has more than one task, the **integration review** comes after the last task. The target is everything from the start point to the working tree (`git diff <START>` plus untracked files). The tasks were each reviewed on their own, so look hard at **the boundaries**: types and contracts between functions that call each other across tasks, names that do not match, duplicated implementations, and acceptance criteria for the whole design that are still unmet.
 
 A diff on its own is not enough. Read the callers and the callees of every symbol that changed.
 
@@ -63,6 +63,6 @@ session takes a report from every session in the flow, and it is the only one ho
 
 To the main session: the path of the review file, how many findings it holds and what they amount to, which are still
 open, and the verdict. The verdict also ends the file.
-**`approve`** means this task is ready to commit, or for the integration review, that the work is ready to close.
+**`approve`** means this task is ready to commit, or for the integration review, which runs when the plan has more than one task, that the work is ready to close.
 **`changes-requested`** means something has to happen first.
 Nothing but every finding resolved and no new finding earns an `approve`.
