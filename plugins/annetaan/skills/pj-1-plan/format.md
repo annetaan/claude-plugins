@@ -77,12 +77,7 @@ edge is the only record of it. Parents get no relationships of their own, and no
 **The base branch.** Only `pj-3-running` creates `pj/<P>`. It does so when it starts on the project, the base branch does
 not exist yet, and every project in `dependsOn` is `merged`, which always holds for a project that waits on none. It
 cuts the base branch from the tip of `<from>`, the branch the parent's `Base:` line names after `from`, through the
-API:
-
-```bash
-gh api "repos/{owner}/{repo}/git/ref/heads/<from>" --jq .object.sha
-gh api "repos/{owner}/{repo}/git/refs" -f ref="refs/heads/pj/<P>" -f sha="<sha>"
-```
+GitHub API, in `run.sh start` (`pj-3-running/scripts/run.sh`).
 
 `pj-1-plan` writes the `Base:` line into every parent when it files it, before any of these branches exists.
 A base branch cut later starts from a newer `<from>`, and conflicts less when it is merged back at the end.
@@ -101,8 +96,8 @@ current?**).
 
 **Closing a parent** as completed means its project is merged. When `pj-3-running` reads an open parent that is
 `merged`, it closes it with a marked comment and `--reason completed`, both when it starts on that project and when
-it starts on a project that waits on it. A human may also close it after merging. The merge itself is the human's
-job.
+it starts on a project that waits on it. It closes it through `run.sh close`, which refuses a parent `project.sh` does
+not read as `merged`. A human may also close it after merging. The merge itself is the human's job.
 
 **An edge across projects may be added only while the blocked project has no base branch.** The base branch is cut
 from `<from>` once, and has no way to take in another project's work later. Once it exists, work the project needs

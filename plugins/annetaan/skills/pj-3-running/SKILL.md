@@ -33,9 +33,13 @@ them nothing.
 issue, the sub-issue body, the labels, the relationships, the blockers, the comments and the pull requests. Its table
 of the three skills says where this one sits. Everything below refers to it.
 
-This skill uses two more things:
+This skill uses three more things:
 
 - the script `$RUNNING/../pj-1-plan/scripts/project.sh`, written `project.sh` below
+- the script `$RUNNING/scripts/run.sh`, written `run.sh` below. Every subcommand prints one JSON object with a
+  `status`. A `stop` whose `reason` the section at hand does not name, such as `project` when `project.sh` fails,
+  stops the run: quote `message`. A non-zero exit is a usage error or an unexpected failure: quote its message and
+  stop the run
 - the `workflow` skill, loaded with the Skill tool as `annetaan:workflow`
 
 **Language**: talk to the user in the user's language. Write issue, comment and pull request text in the repository's
@@ -45,27 +49,6 @@ language, as `format.md` says.
 
 This skill creates branches, pushes, opens and merges pull requests, and edits issues and labels. **Start it only when the user names it or invokes `/annetaan:pj-3-running`.**
 
-```bash
-git worktree list --porcelain     # the first worktree line is <MAIN>
-git remote get-url origin
-gh --version                      # 2.94.0 or later
-gh auth status
-gh repo view --json nameWithOwner,hasIssuesEnabled,defaultBranchRef,viewerPermission,squashMergeAllowed,mergeCommitAllowed,rebaseMergeAllowed
-```
-
-**Each of these stops the run.** Say which one failed and stop.
-
-- not a git repository
-- no `origin`
-- `gh` older than 2.94.0, or not logged in
-- issues turned off
-- `viewerPermission` other than `WRITE`, `MAINTAIN` or `ADMIN`
-- no merge method allowed
-
-A dirty `<MAIN>` does not stop the run. The run never works in it.
-
-A `gh` older than 2.99.0 does not stop the run. workflow falls back for the screenshots.
-
 **The project.** Pick it as `format.md` says under **Picking the project**. The project picked is `<P>`. Print
 `project #<P>` once, so that a context summary can find it again. A number given only decides which project is
 recommended, and the run still covers the whole order of the project picked.
@@ -73,107 +56,113 @@ recommended, and the run still covers the whole order of the project picked.
 Then run `mktemp -d` once for the whole run. `$TMP` below is the directory it printed. The start may already write
 comment files there. A shell variable does not outlive one command, so write the path in full each time.
 
-**The base branch.** Read the project and take `parent.base` as `<base>` and `parent.from` as `<from>`, the branch
-the base branch is made from. When `project.sh` fails, for example with `has no Base: line`, quote its message and
-stop.
+Then check everything the run needs.
 
 ```bash
-$RUNNING/../pj-1-plan/scripts/project.sh <P>
+$RUNNING/scripts/run.sh start <P>
 ```
 
-Then go through these in order.
+`start` checks the clone, `gh` and the repository, and reads the project with `project.sh`. It creates the base
+branch from the tip of `<from>` when the base branch is missing and every project `<P>` waits on is merged, as
+`format.md` says under **Projects**. Then it fetches the base branch and reads the rules on it.
 
-1. **No sub-issue at all**: say the project has nothing to run, and end.
-2. **Every sub-issue is closed**: when `parent.merged` is true, close the parent as **Closing a merged project**
-   says, report it, and end. Otherwise say that every sub-issue is closed, that `<base>` holds the whole project, that
-   merging `<base>` into `<from>` through a pull request is the user's job, and that the parent closes when a
-   pj-3-running run sees that merge, or when the user closes it after merging. When `parent.baseExists` is false, also
-   say that the base branch is gone from origin. End.
-3. **Close the merged projects `<P>` waits on.** Each `<Q>` in `parent.dependsOn` whose `merged` is true and whose
-   `state` is `OPEN` is closed as **Closing a merged project** says. Its comment says that `#<P>` starts now.
-4. **`parent.baseExists` is true**: go on to the fetch below.
-5. **`parent.baseExists` is false**:
-   - When a sub-issue has a `pr` whose `state` is `MERGED`, stop. The base branch is gone from origin. It may
-     already have been merged into `<from>` and deleted.
-   - When a project in `parent.dependsOn` has `merged` false, stop and list each one as `#<Q> <title>`. One whose
-     `state` is `CLOSED` was closed as not planned, without a merge: remove the edges to it with
-     `/annetaan:pj-2-doctor`. One whose `state` is `OPEN` has to be finished with `/annetaan:pj-3-running`, and
-     its base branch, `dependsOn[].base`, merged into `<from>` through a pull request.
-   - Otherwise create the base branch from the tip of `<from>`, as `format.md` says under **Projects**. Write
-     `{owner}` and `{repo}` literally, `gh` fills them in. A failure of either command stops the run. Quote it.
+**First close each parent in `close`**, as **Closing a merged project** says, whatever the status. Then act by
+`status`.
 
-     ```bash
-     gh api "repos/{owner}/{repo}/git/ref/heads/<from>" --jq .object.sha
-     gh api "repos/{owner}/{repo}/git/refs" -f ref="refs/heads/pj/<P>" -f sha="<sha>"
-     ```
+- **`stop`**: act by `reason`.
+  - `not-a-repo`, `no-origin`, `gh` (not installed, or older than 2.94.0), `gh-auth`, `issues-off`, `permission`
+    (`viewerPermission` other than `WRITE`, `MAINTAIN` or `ADMIN`), `project` (`project.sh` failed, for example with
+    `has no Base: line`), `create-failed`, `fetch-failed` and `no-merge-method`: say which check failed, quote
+    `message`, and stop.
+  - `base-gone`: the base branch is gone from origin, and a sub-issue's pull request into it has merged. It may
+    already have been merged into `<from>` and deleted. Stop.
+  - `waits`: the base branch is missing, and a project `<P>` waits on is not merged. Stop and list each entry of
+    `waits` as `#<Q> <title>`. One whose `state` is `CLOSED` was closed as not planned, without a merge: remove the
+    edges to it with `/annetaan:pj-2-doctor`. One whose `state` is `OPEN` has to be finished with
+    `/annetaan:pj-3-running`, and its base branch, `base`, merged into `<from>` through a pull request.
+  - `self-merge`: pj-3-running merges its own pull requests, so a rule on the base branch that wants another
+    person's review stops it. Name each code in `blockedBy` in words, and stop.
+    - `rule-approvals`: a ruleset wants approving reviews.
+    - `rule-code-owners`: a ruleset wants a code owner's review, and a CODEOWNERS file exists.
+    - `merge-queue`: a ruleset sends merges through a merge queue.
+    - `classic-approvals`: classic branch protection wants approving reviews.
+    - `classic-code-owners`: classic branch protection wants a code owner's review, and a CODEOWNERS file exists.
+- **`empty`**: the project has no sub-issue at all. Say it has nothing to run, and end.
+- **`done`**: every sub-issue is closed. When `project.merged` is true, `close` held `<P>`. Report its close, and
+  end. Otherwise say that every sub-issue is closed, that `<base>` holds the whole project, that merging `<base>` into
+  `<from>` through a pull request is the user's job, and that the parent closes when a pj-3-running run sees that
+  merge, or when the user closes it after merging. When `project.baseExists` is false, also say that the base branch
+  is gone from origin. End.
+- **`run`**: keep `main` as `<MAIN>`, `worktree` as `<WT>`, `project.base` as `<base>`, `project.from` as `<from>`,
+  and keep `created` and `rules`. When `created` is not null, this run created the base branch. Print
+  `<base> created from <from> at <short sha>`, and keep the SHA for phase 3.
 
-     Print `pj/<P> created from <from> at <short sha>`, keep the SHA for phase 3, and run `project.sh <P>` again.
+When `rules.selfMerge` is `unknown`, the rules on the base branch could not be read. The rules call failed, or the
+branch is protected and reading its classic protection needs admin rights. Ask once.
 
-Every stop in this list comes before the worktree is entered.
-
-Then fetch the base branch. The fetch moves the remote-tracking ref and nothing else. The run builds on
-`origin/<base>` and never checks out a local `<base>`, so the user may have `<base>` checked out in `<MAIN>`.
-
-```bash
-git -C "<MAIN>" fetch --quiet origin "+refs/heads/<base>:refs/remotes/origin/<base>"
 ```
+AskUserQuestion: Can a pull request be merged here with no approving review?
+  - Go on
+  - Stop
+```
+
+On Stop, stop the run.
+
+`rules.requiredChecks` says whether the base branch requires status checks: `yes`, `no` or `unknown`. The merge in
+**When workflow returns** waits by it. `rules.mergeMethod` is the merge method, the first of squash, merge and
+rebase that the repository and the rules on the base branch allow.
+
+A dirty `<MAIN>` does not stop the run. The run never works in it.
+
+A `gh` older than 2.99.0 does not stop the run. `attach` is false then, and workflow falls back for the screenshots.
+
+Every stop here comes before the worktree is entered.
+
+`start` fetched the base branch into `origin/<base>`. The fetch moves the remote-tracking ref and nothing else. The run
+builds on `origin/<base>` and never checks out a local `<base>`, so the user may have `<base>` checked out in `<MAIN>`.
 
 ### Closing a merged project
 
-**The base branch** closes a parent in two places. `<Q>` below is that parent: `<P>` itself, or a project in
-`parent.dependsOn`. **Close only an open parent that `project.sh` reads as `merged`, and always as completed.**
+`start` lists in `close` the parents to close: `<P>` itself once it is merged, with `self` true, and each open
+project `<P>` waits on that is merged. `<Q>` below is one of them. **A parent closes only through `run.sh close`,
+which refuses one that `project.sh` does not read as `merged`, and closes it as completed.**
 
-Write `$TMP/<Q>-closed.md`. It starts with `**[pj-3-running]**` and says that the project's base branch is merged into
-the branch it was made from and that every sub-issue is closed. The base branch is `dependsOn[].base` for a project
-`<P>` waits on, and `<base>` for `<P>`. For a project `<P>` waits on, the comment adds that `#<P>`, which waits on
-it, starts now. Then post it and close the parent.
+Write `$TMP/<Q>-closed.md`. It starts with `**[pj-3-running]**` and says that the project's base branch, the entry's
+`base`, is merged into the branch it was made from and that every sub-issue is closed. For a project `<P>` waits on,
+the comment adds that `#<P>`, which waits on it, starts now. Then post it and close the parent.
 
 ```bash
-gh issue comment <Q> --body-file "$TMP/<Q>-closed.md"
-gh issue close <Q> --reason completed
+$RUNNING/scripts/run.sh close <P> <Q> --comment "$TMP/<Q>-closed.md"
 ```
+
+`already` true means the parent was closed by then, and nothing was posted. `not-due` should not happen after
+`start`. Report it and stop.
 
 ### The worktree
 
-Look for `<WT>` among the worktrees.
+Put `<WT>` on the tip of the base branch.
 
 ```bash
-git -C "<MAIN>" worktree list --porcelain
+$RUNNING/scripts/run.sh worktree <P>
 ```
 
-- **`<WT>` is listed with `prunable`**: its directory is gone. Run `git -C "<MAIN>" worktree prune`, then create it
-  as in the last case.
-- **`<WT>` is listed and `git -C "<WT>" status --porcelain` prints nothing**: move it onto the fetched base.
+It fetches the base branch again. It creates `<WT>`, moves a clean one onto `origin/<base>`, or prunes and recreates
+one whose directory is gone. `action` says which. Act by `status`.
 
-  ```bash
-  git -C "<WT>" switch --detach origin/<base>
-  ```
-
-- **`<WT>` is listed and `status --porcelain` prints something**: an earlier run stopped with work in flight. Ask
-  once.
+- **`dirty`**: an earlier run stopped with work in flight, and nothing was changed. `changes` lists it as
+  `git status --porcelain` prints it. Ask once.
 
   ```
   AskUserQuestion: <WT> holds uncommitted work from an earlier run. The next run redoes it.
-    - Discard it and go on (Recommended) - git -C <WT> reset --hard, then git -C <WT> clean -fd. Ignored files such as work-reports/ stay.
+    - Discard it and go on (Recommended) - run.sh resets and cleans <WT>, then moves it onto the base. Ignored files such as work-reports/ stay.
     - Stop and look at <WT>
   ```
 
-  On the first answer, discard it and move onto the base.
-
-  ```bash
-  git -C "<WT>" reset --hard
-  git -C "<WT>" clean -fd
-  git -C "<WT>" switch --detach origin/<base>
-  ```
-
-  On the second, stop the run. Name `<WT>` and say that `git -C <WT> diff` shows the work.
-- **`<WT>` is not listed but the path exists**: stop. It is not a worktree of this repository, and nothing here may
-  touch it.
-- **Otherwise** create it.
-
-  ```bash
-  git -C "<MAIN>" worktree add --detach "<WT>" origin/<base>
-  ```
+  On the first answer, run `$RUNNING/scripts/run.sh worktree <P> --discard`, and act on what it prints as here. On
+  the second, stop the run. Name `<WT>` and say that `git -C <WT> diff` shows the work.
+- **`stop`** with `foreign`: `<WT>` exists but is not a worktree of this repository, and nothing here may touch it.
+  Stop. With `fetch-failed`, quote `message` and stop.
+- **`ready`**: enter it.
 
 **Then enter it, once.**
 
@@ -199,75 +188,29 @@ Two paths must stay out of git, and pj-3-running checks both here, once, because
 - `work-reports/` in `<WT>`, where workflow writes its reports
 
 ```bash
-git -C "<MAIN>" check-ignore -q .claude/worktrees/ && echo IGNORED || echo NOT_IGNORED
-git check-ignore -q work-reports/ && echo IGNORED || echo NOT_IGNORED
+$RUNNING/scripts/run.sh ignore <P>
 ```
 
-Keep the trailing slashes. A pattern that ends in `/` matches only a directory, and before the first run there is no
-`work-reports/`, so `check-ignore work-reports` answers `NOT_IGNORED` even when the rule is there.
+Act by `status`.
 
-When either prints `NOT_IGNORED`, ask once, naming the paths that are not ignored.
+- **`ok`**: go on.
+- **`ask`**: ask once, naming the paths in `notIgnored`.
 
-```
-AskUserQuestion: These paths are not ignored in this repository: <paths>. pj-3-running works in .claude/worktrees/ and workflow writes its reports to work-reports/.
-  - Ignore them in this clone (Recommended) - adds them to .git/info/exclude and commits nothing
-  - Stop
-```
+  ```
+  AskUserQuestion: These paths are not ignored in this repository: <paths>. pj-3-running works in .claude/worktrees/ and workflow writes its reports to work-reports/.
+    - Ignore them in this clone (Recommended) - adds them to .git/info/exclude and commits nothing
+    - Stop
+  ```
 
-On the first answer, append each path that was not ignored to the exclude file git resolves, then run both checks
-again. Every worktree of a clone shares that one file, so the line written from `<WT>` holds in `<MAIN>` too. In a
-linked worktree `.git` is a file, so write no path under it by hand.
-
-```bash
-printf '.claude/worktrees/\n' >> "$(git rev-parse --path-format=absolute --git-path info/exclude)"
-printf 'work-reports/\n' >> "$(git rev-parse --path-format=absolute --git-path info/exclude)"
-```
+  On the first answer, run `$RUNNING/scripts/run.sh ignore <P> --add`. It appends each path to the exclude file git
+  resolves, which every worktree of the clone shares, and checks again. Act on what it prints as here.
+- **`stop`** with `still-not-ignored`: a `.gitignore` rule, such as `!work-reports/`, overrides the exclude file for
+  the paths in `notIgnored`. Say so, and stop.
 
 **Never edit `.gitignore` here.** That commit would land on the base branch with no pull request.
 
-On Stop, leave `<WT>` as phase 6 step 1 says and end the run. `<WT>` stays in place, and the report says that
+On a stop, leave `<WT>` as phase 6 step 1 says and end the run. `<WT>` stays in place, and the report says that
 `git -C "<MAIN>" worktree remove <WT>` removes it.
-
-### Can a self-merge go through?
-
-pj-3-running merges its own pull requests, so a rule on the base branch that wants another person's review stops it.
-Write `{owner}` and `{repo}` literally, `gh` fills them in.
-
-```bash
-gh api "repos/{owner}/{repo}/rules/branches/<base>"
-gh api "repos/{owner}/{repo}/branches/<base>" --jq .protected
-gh api graphql -f query='{repository(owner:"<owner>",name:"<name>"){ref(qualifiedName:"refs/heads/<base>"){branchProtectionRule{requiredApprovingReviewCount requiresCodeOwnerReviews requiresStatusChecks}}}}'
-git ls-tree --name-only origin/<base> -- CODEOWNERS .github/CODEOWNERS docs/CODEOWNERS
-```
-
-**Stop when any of these holds**, and name it:
-
-- a `pull_request` rule with `parameters.required_approving_review_count` above 0
-- a `pull_request` rule with `parameters.require_code_owner_review` true, and a CODEOWNERS file exists
-- a `merge_queue` rule
-- classic protection with `requiredApprovingReviewCount` above 0
-- classic protection with `requiresCodeOwnerReviews` true, and a CODEOWNERS file exists
-
-When the rules call fails, or `protected` is true while the GraphQL rule comes back null (reading it needs admin
-rights), ask once.
-
-```
-AskUserQuestion: Can a pull request be merged here with no approving review?
-  - Go on
-  - Stop
-```
-
-**Note whether the base branch requires status checks**: a `required_status_checks` rule, or classic protection
-with `requiresStatusChecks` true. When neither could be read, count it as unknown. The merge in phase 5 waits by it.
-
-### Picking the merge method
-
-Take the first the repository allows: squash, else merge, else rebase.
-
-- Leave out merge when a `required_linear_history` rule exists.
-- When a `pull_request` rule has `parameters.allowed_merge_methods`, keep only the methods it lists.
-
-No method left stops the run.
 
 ## Phase 1: the order
 
@@ -333,7 +276,7 @@ Show the user:
   "(merged as PR #<m>, closes now)" where it is `MERGED`
 - the waiting list
 - the base branch, with "created now from `<from>` at `<sha>`" when this run created it, the branch pattern and the
-  merge method
+  merge method, `rules.mergeMethod`
 - each parent closed at the start, as `#<Q>`
 - the worktree `<WT>`, where the whole run happens, and that `<MAIN>` is not touched, so the user can keep working
   there
@@ -383,8 +326,7 @@ Nothing runs in parallel. There is one worktree, `<WT>`. For each issue `<k>` in
      not close an issue on a merge into a branch other than the default branch. Then close the issue.
 
      ```bash
-     gh issue comment <k> --body-file "$TMP/<k>-closed.md"
-     gh issue close <k> --reason completed
+     $RUNNING/scripts/run.sh close <P> <k> --comment "$TMP/<k>-closed.md"
      ```
 
      Print `#<k> done (<i>/<N>): PR #<m> merged earlier, issue closed` and take the next issue. No workflow run and
@@ -441,7 +383,7 @@ phase 6. The pull request stays a draft, and the next run merges it.
 2. Wait for the required checks. The pull request was pushed seconds ago, and its check runs may not exist yet.
    `--watch` does not wait for a check that has not registered. It exits at once with "no required checks
    reported".
-   - **No status checks required** (noted in **Can a self-merge go through?**): go straight to the watch below.
+   - **No status checks required** (`rules.requiredChecks` is `no`): go straight to the watch below.
    - **Required, or unknown**: first wait until a required check shows up, about five minutes at most.
 
      ```bash
@@ -464,7 +406,7 @@ phase 6. The pull request stays a draft, and the next run merges it.
    "No required checks" after that counts as a pass. **A failing check stops the run.** The pull request stays a
    draft, and the next run merges it.
 3. `gh pr ready <m>`
-4. Merge with the method from **Picking the merge method**. A failure stops the run.
+4. Merge with `rules.mergeMethod`. A failure stops the run.
 
    ```bash
    gh pr merge <m> --squash      # or --merge, or --rebase
@@ -474,11 +416,11 @@ phase 6. The pull request stays a draft, and the next run merges it.
    `<MAIN>` has `<base>` checked out. Step 6 deletes the branch.
 
 5. Close the issue. The merge into the base branch closed nothing. Write `$TMP/<k>-closed.md` worded as in the
-   `merged` case of phase 5 step 3, naming `#<m>`, then post it and close the issue.
+   `merged` case of phase 5 step 3, naming `#<m>`, then post it and close the issue. After the merge `project.sh`
+   reads the issue's `pr` as `MERGED`, so the close is due.
 
    ```bash
-   gh issue comment <k> --body-file "$TMP/<k>-closed.md"
-   gh issue close <k> --reason completed
+   $RUNNING/scripts/run.sh close <P> <k> --comment "$TMP/<k>-closed.md"
    ```
 
 6. Move `<WT>` onto the merged base, then delete the head branch here and on origin.
@@ -544,10 +486,10 @@ Every way the run ends comes here: the run order is done, the run stopped, or th
    ```
 
    A worktree entered by path is never deleted by `ExitWorktree`. Where that tool is not available, `cd "<MAIN>"`.
-2. `project.sh <P>`. **When every sub-issue is closed**, tell the user what **The base branch** says when every
-   sub-issue is closed and the project is not `merged`: `<base>` holds the whole project, merging it into `<from>`
-   through a pull request is theirs to do, and the parent closes as completed when a pj-3-running run sees that merge,
-   or when the user closes it after merging. Ask nothing.
+2. `project.sh <P>`. **When every sub-issue is closed**, tell the user what **Before you start** says for `done`
+   when the project is not `merged`: `<base>` holds the whole project, merging it into `<from>` through a pull request
+   is theirs to do, and the parent closes as completed when a pj-3-running run sees that merge, or when the user
+   closes it after merging. Ask nothing.
 
 ## Report to the user
 
@@ -578,7 +520,7 @@ Every way the run ends comes here: the run order is done, the run stopped, or th
 - **Whenever you take `ready` off an issue, add `blocker`.**
 - **The next run never uses the work a stopped run left in `<WT>`.** The work is redone.
 - **Never push to the base branch, to `<from>` or to the default branch, and never rewrite their history.** The one
-  branch this skill creates outside a pull request is the project's base branch, through the API, as **The base
-  branch** says.
-- **Close a parent only when `project.sh` reads it `merged`, always with `--reason completed`.**
+  branch this skill creates outside a pull request is the project's base branch, through the API, in `run.sh start`.
+- **Close an issue or a parent only through `run.sh close`, which refuses one that is not due, and closes as
+  completed.**
 - After a context summary, rebuild the run from the progress lines and `project.sh <P>`.
