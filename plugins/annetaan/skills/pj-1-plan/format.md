@@ -7,9 +7,13 @@ change here is a change to all three.
 
 | Skill | What it does |
 | --- | --- |
-| `pj-1-plan` | designs the whole in broad strokes, splits it into tasks, groups the tasks into projects of up to ten, and files one parent issue per project and one sub-issue per task with the decisions it needs |
-| `pj-2-details` | settles each sub-issue's decisions with the user, makes each one implementable as written, splitting it when it turns out to be two tasks, draws the stubs, resolves the blockers, and labels an issue `ready` |
-| `pj-3-running` | creates a project's base branch when it first starts on the project, then works through the workable issues one pull request at a time, running the `workflow` skill on each and merging it into the base branch before the next starts |
+| `pj-1-plan` | designs the whole in broad strokes, splits it into tasks, groups the tasks into projects of up to ten, and files one parent issue per project with its run order and one sub-issue per task with the decisions it needs |
+| `pj-2-doctor` | reviews a whole project against the boxes the user ticked and the code, has the issue writers redraw what no longer holds, draws the stubs, resolves the blockers, rewrites the run order, and labels an issue `ready` |
+| `pj-3-running` | creates a project's base branch when it first starts on the project, then works down the run order one pull request at a time, running the `workflow` skill on each and merging it into the base branch before the next starts |
+
+**The user decides by ticking boxes on GitHub.** Every question a task raises is a decision in its sub-issue
+(**Decisions**). No skill asks a task's decision in the conversation. `pj-2-doctor` talks with the user about
+everything else: a split, two boxes ticked in one decision, and its changes before they are written.
 
 ## Principle
 
@@ -47,6 +51,7 @@ gh repo view --json nameWithOwner,hasIssuesEnabled,defaultBranchRef
 | A task | one **sub-issue** of the parent. One task becomes one pull request. |
 | Where the work lands | the **base branch** `pj/<P>`. pj-3-running creates it on the project's first start, from the tip of the branch the user picked when the project was filed, the default branch unless they said otherwise. The parent's `Base:` line names both. Every sub-issue's pull request merges into the base branch. |
 | An order between tasks | a native **blocked by** relationship. Never written into a body. |
+| The run order | the numbered list under the parent's **`## Order`** (see **The run order**). |
 | An order between projects | no record of its own. It follows from the order between tasks (see **Projects**). |
 | A task that can be implemented straight from its body | the **`ready`** label |
 | Something `pj-3-running` stopped on | the **`blocker`** label |
@@ -63,7 +68,7 @@ One request can become several projects, `PJ1, PJ2, …` while it is planned, ea
 tasks are numbered `T1…Tn` across the whole request. Every project from one request is made from the same branch.
 
 **A project holds at most 10 tasks.** Like the 8-file limit, it is a rule of the split. `pj-1-plan` cuts
-the request so that no project holds more than ten. When `pj-2-details` later splits an issue or files stubs and
+the request so that no project holds more than ten. When `pj-2-doctor` later splits an issue or files stubs and
 a project goes past ten, it stays one project, and nobody asks whether to split it.
 
 **Project P waits on project Q** when an open sub-issue of P is blocked by a sub-issue of Q, open or closed. That
@@ -153,7 +158,7 @@ one that does not name both branches. `--lint` reads no parent.
 
 ```bash
 project.sh <P>               # the whole project, as JSON
-project.sh <P> --order       # the open sub-issues in dependency order, as a JSON array of the same issue objects
+project.sh <P> --order       # the run order, and the ## Order list to write
 project.sh <P> --check <n>   # whether sub-issue <n> can be implemented from its body now (see When an issue is ready)
 project.sh --lint <file>     # the lint of one body, from a file, or from standard input with -
 ```
@@ -163,8 +168,11 @@ project.sh --lint <file>     # the lint of one body, from a file, or from standa
 ```
 {"parent": {"number", "title", "state", "stateReason", "updatedAt", "body", "base", "from",
             "baseExists", "merged",
-            "dependsOn": [{"number", "title", "state", "stateReason", "base", "merged"}]},
- "issues": [{"number", "title", "state", "updatedAt", "readyAt", "labels": [names],
+            "dependsOn": [{"number", "title", "state", "stateReason", "base", "merged"}],
+            "order": [numbers],
+            "orderCheck": {"ok", "unknown": [numbers], "duplicate": [numbers],
+                           "early": [{"number", "blocker"}], "missing": [numbers]}},
+ "issues": [{"number", "title", "state", "stateReason", "updatedAt", "readyAt", "labels": [names],
              "blockedBy": [{"number", "state", "parent"}], "blocking": [numbers],
              "pr": {"number", "state", "isDraft", "url"} or null, "stub",
              "files": [{"path", "kind", "symbols": [names]}], "designPaths": [paths],
@@ -179,6 +187,9 @@ project.sh --lint <file>     # the lint of one body, from a file, or from standa
 - `dependsOn` is the projects this one waits on: the parents of the blockers of its open sub-issues, other than this
   parent, whose body has a `Base:` line, by number. A blocker with no parent is left out. Each carries its own `base`
   and `merged`.
+- `order` is the numbers under `## Order`, as written. `orderCheck.ok` is false when the list names a number that is
+  no sub-issue (`unknown`), names one twice (`duplicate`), or puts an open issue before an open blocker of the same
+  project (`early`). `missing` is the open sub-issues the list leaves out, and does not make it false.
 - `parent` in `blockedBy` is the number of the blocker's parent issue, or null.
 - `readyAt` is the time of the last `ready` labelled event on the issue, or null.
 - `pr` is the issue's pull request, open or merged (see **Pull requests**), or null. Its `state` is `OPEN` or
@@ -210,14 +221,16 @@ only once it exists, which moves local refs and nothing else, and prints:
 still open, or while the base branch does not exist and a project in `dependsOn` is not `merged` (see **Is the body
 still current?**).
 
-`--order` puts a blocker before what it blocks. Only open sub-issues of the same parent count as blockers here. Among
-the issues free to go next, the one more open issues wait on, directly or not, goes first, then the lower number. It
-also follows `dependsOn` from project to project, and fails when the projects wait on each other:
-`project: the projects have a cycle: #12 waits on #15 waits on #12`.
+`--order` prints `{"order": [issue objects], "list": [numbers]}`. `order` is the open sub-issues, each a blocker
+before what it blocks. Only open sub-issues of the same parent count as blockers here. Among the issues free to go
+next, the one written earlier under `## Order` goes first, then the one more open issues wait on, directly or not,
+then the lower number. `list` is what to write under `## Order`: the sub-issues closed as completed, where the list
+has them and then by number, followed by `order`. `--order` also follows `dependsOn` from project to project, and
+fails when the projects wait on each other: `project: the projects have a cycle: #12 waits on #15 waits on #12`.
 
 ### Picking the project
 
-`pj-2-details` and `pj-3-running` always ask which project to work on, with `AskUserQuestion`, even when they were
+`pj-2-doctor` and `pj-3-running` always ask which project to work on, with `AskUserQuestion`, even when they were
 given a number. List the open parents, and read the number they were given, if any.
 
 ```bash
@@ -239,6 +252,11 @@ gh issue view <n> --json number,state,labels,parent
 ```markdown
 Base: `pj/<P>` from `<branch>`
 
+## Order
+
+1. #<n>
+2. #<m>
+
 ## Goal
 
 <what is true once every sub-issue is closed, in a few sentences>
@@ -257,11 +275,28 @@ abstraction is needed if one is added>
 <what the request might be read to include and this project leaves alone>
 ```
 
-The task list is the sub-issue list GitHub draws under the body. Never write a second one by hand.
+The task list is the sub-issue list GitHub draws under the body. `## Order` is the one list of sub-issues a body
+holds, and it says the order, not what the tasks are.
 
 `## Design` holds only the boundaries this project defines. A boundary another project defines stays in that
 project's parent. Whoever reads the parent's `## Design`, the issue writer and the `workflow` skill alike, also reads
 the `## Design` of every parent in `dependsOn`.
+
+### The run order
+
+`## Order` holds one numbered line per sub-issue, `1. #<n>`, and nothing else. GitHub draws each reference with the
+issue's title and whether it is open or closed, so the list shows the progress with nobody ticking anything.
+
+- **`pj-3-running` works down it from the top**, and stops at the first open issue that is not workable (see **When
+  an issue is ready**). Nothing is skipped.
+- **A human may reorder it by hand.** It must not put an issue before an open blocker of the same project.
+- **`pj-1-plan` writes it when it files the project, and `pj-2-doctor` rewrites it** from
+  `project.sh <P> --order`, whose `list` keeps the human's order wherever the blockers allow it. The closed issues
+  come first, then the open ones. An issue closed as not planned leaves the list.
+- **`pj-3-running` never writes it.** A closed issue shows as closed where it stands.
+
+`project.sh <P>` reads the list as `parent.order` and checks it as `parent.orderCheck` (see **Reading a project**).
+An issue missing from the list, such as a stub filed during a run, waits for `pj-2-doctor` to place it.
 
 `Base:` names the project's base branch and, after `from`, the branch it is made from. That second branch is the one
 the user merges the base branch into at the end. `pj-1-plan` files the parent, then adds the line to the
@@ -346,7 +381,7 @@ The bar for a body is in **When an issue is ready**.
 
 **The size limit is 8 files, and it belongs to the split.** `pj-1-plan` cuts every task to 8 files at most,
 tests included, so that its review fits in one sitting. It is a planning rule, not a condition on the issue. When
-`pj-2-details` or the implementation later takes a file list past 8, the issue stays one issue and one pull
+`pj-2-doctor` or the implementation later takes a file list past 8, the issue stays one issue and one pull
 request, and nobody asks whether to split it.
 
 ### Decisions
@@ -356,13 +391,16 @@ request, and nobody asks whether to split it.
 reason.
 
 - Each decision is `### D<n>. <question>`, then why it matters, then **2 to 4 options** as `- [ ]` lines.
+- **An option says what it changes** on indented lines under its box: the behaviour, the names, the files. The
+  user decides from the body alone, with no one to ask.
 - `(recommended)` marks the option the writer would pick. **Exactly one option per decision carries it.**
 - **A decision is settled when exactly one of its boxes is checked.** No box checked means open. Two or more checked
   is a contradiction to raise with the user.
-- **A box a human ticks on GitHub counts the same** as one a skill checks. The skills read the body and do not care
-  who checked it.
-- **An answer that is none of the options** becomes a new option line, checked.
-- Once settled, a line goes under the options, starting with `Decided:`, with the reason in one or two sentences.
+- **A human settles a decision by ticking its box on GitHub.** Ticking leaves the label alone.
+- **An answer that is none of the options** is a new option line the human writes and ticks, or a comment on the
+  issue. `pj-2-doctor` has the writer work either into the body.
+- A line starting with `Decided:` may follow the options, with the reason in one or two sentences. A human may write
+  it, and a writer that redraws the body keeps it.
 - `D<n>` is never renumbered, even when a decision is dropped. Elsewhere a decision is referred to as `#<issue> D<n>`.
 
 ```markdown
@@ -371,13 +409,19 @@ reason.
 The worker reads it on every job, and the admin screen writes it.
 
 - [ ] An environment variable
+  `RetrySettings` reads `RETRY_MAX`. Changing it needs a deploy.
 - [x] A column on `settings` (recommended)
+  `RetrySettings` reads the `settings` row. Also adds a migration, `db/migrate/add_retry_max.sql`.
 
 Decided: the admin screen has to change it without a deploy.
 ```
 
-**A sub-issue with no decisions** writes `None.` under `## Decisions`. It gets `ready` as soon as it is filed, when its
-lint is clear.
+**The body holds whichever box is ticked.** `## Design` and the file list are written for the recommended option,
+and say nothing that another option would make untrue. What an option changes beyond that is under its box. When the
+user ticks another option, the worker reads the design together with the lines under the ticked box.
+`pj-2-doctor` has the writer redraw the body when those lines change the file list or reach past this issue.
+
+**A sub-issue with no decisions** writes `None.` under `## Decisions`.
 
 ### Stubs
 
@@ -406,7 +450,7 @@ To be drawn.
 To be drawn.
 ```
 
-**A stub never carries `ready`.** `pj-2-details` draws it into a full body first.
+**A stub never carries `ready`.** `pj-2-doctor` has the writer draw it into a full body first.
 
 ## Fixed tokens
 
@@ -416,7 +460,7 @@ These stay in English whatever language the repository uses, because the skills 
 - `(recommended)`, `Decided:`, `None.` and `To be drawn.`
 - the kinds in the file list: `added`, `changed` and `deleted`
 - the markers (see **Comments**)
-- `Base:` and `from` in the parent body's first line
+- `Base:` and `from` in the parent body's first line, and the parent's `## Order`
 - in a pull request body, `Implements`, `Part of`, `## Plan` and `Integration review`
 
 Everything else is prose in the repository's language.
@@ -427,7 +471,8 @@ Everything else is prose in the repository's language.
 
 - every decision under `## Decisions` has exactly one box checked, or it reads `None.`
 - `## Design` reads as the decisions say, with no "depending on D1" left in it
-- nothing in the body contradicts the parent's `## Design`
+- nothing in the body contradicts the parent's `## Design`, or another open issue
+- the project review found nothing left on it (see `pj-2-doctor`)
 - **it can be implemented straight from its body.** A worker who reads only this body, the parent's `## Design`, the
   `## Design` of every parent in `dependsOn` and the code finds nothing left to design. `project.sh` checks the part of this a script can see, as a lint:
 
@@ -443,14 +488,15 @@ Everything else is prose in the repository's language.
 | `decisions-open` | a decision is open |
 | `decisions-contradictory` | a decision is contradictory |
 
-Only a skill or a human adds `ready`. Ticking boxes on GitHub settles decisions and leaves the label alone.
+Only `pj-2-doctor` adds `ready`, after its project review. Ticking boxes on GitHub settles decisions and leaves the
+label alone, so the user runs `pj-2-doctor` after ticking.
 
 Who checks, and when:
 
 | Skill | When | Accepts |
 | --- | --- | --- |
 | `pj-1-plan` | before filing | a lint whose only reason is `decisions-open` |
-| `pj-2-details` | before adding `ready` | `--check` with the lint clear, and the premises clear or not evaluated yet |
+| `pj-2-doctor` | before adding `ready` | `--check` with the lint clear, the premises clear or not evaluated yet, and no review finding left |
 | `pj-3-running` | before showing the order, for every issue in it, and again right before each issue starts | a clear `--check` |
 
 An issue is **workable** when it carries `ready`, every issue in its `blockedBy` is `CLOSED`, `--check` is clear, and
@@ -505,7 +551,7 @@ leaves a comment** on the issue saying what changed and where. A skill marks tha
 Either way a marked comment on the stopped issue says what diverged, and names the decision as `#<issue> D<n>` when
 there is one.
 
-`pj-2-details` resolves both. A blocker that needs no code of its own is resolved by rewriting the issue in
+`pj-2-doctor` resolves both. A blocker that needs no code of its own is resolved by rewriting the issue in
 question. A stub blocker resolved that way is then closed with a marked comment that points at the rewrite.
 
 ```bash
@@ -513,11 +559,11 @@ gh issue comment <m> --body-file <file>
 gh issue close <m> --reason completed
 ```
 
-An issue loses `blocker` when it gets `ready`. `pj-2-details` adds the one and removes the other in one
+An issue loses `blocker` when it gets `ready`. `pj-2-doctor` adds the one and removes the other in one
 command.
 
 **Whenever `pj-3-running` takes `ready` off an issue, it adds `blocker`.** An issue it stopped on is then always the
-first thing `pj-2-details` shows.
+first thing `pj-2-doctor` takes up.
 
 ## Comments
 
@@ -525,7 +571,7 @@ Every comment a skill's main session posts starts with a bold marker, then the t
 
 | Marker | Posted by |
 | --- | --- |
-| `**[pj-2-details]**` | `pj-2-details` |
+| `**[pj-2-doctor]**` | `pj-2-doctor` |
 | `**[pj-3-running]**` | `pj-3-running` |
 
 **A comment with no marker is from a human.** A skill reads it as one.

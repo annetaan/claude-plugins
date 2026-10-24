@@ -83,47 +83,50 @@ Every run leaves a work report behind, inside the repository under `work-reports
 up. The skill checks that git ignores that directory before it writes anything, and asks before touching
 `.gitignore`.
 
-### pj-1-plan, pj-2-details, pj-3-running
+### pj-1-plan, pj-2-doctor, pj-3-running
 
 These three skills run a piece of work too large for one pull request as one or more projects on GitHub. A project is a
-parent issue labelled `project`, which holds that project's design, plus one sub-issue per task, at most ten tasks per
-project. The order comes from GitHub's own blocked-by relationships, and one may run from a task in one project to a
-task in another. Each project's work lands on a branch of its own, `pj/` and the parent's number. `pj-3-running` creates
-it on the project's first run, from a branch you pick when the projects are filed, the default branch unless you name
-another. A project that waits on another gets its branch only after the other one is merged into that branch. Every
+parent issue labelled `project`, which holds that project's design and its run order, plus one sub-issue per task, at
+most ten tasks per project. The dependencies are GitHub's own blocked-by relationships, and one may run from a task
+in one project to a task in another. The run order is a numbered list in the parent, `1. #12`, `2. #13`, and GitHub
+shows each line with the issue's title and whether it is closed, so the list doubles as the progress. You may reorder
+it by hand.
+
+You decide by ticking boxes on GitHub. Every question a task raises is a decision in its sub-issue, a few options as
+checkboxes with one recommended, and each option says what it changes. No skill asks you a task's decision in the
+conversation.
+
+Each project's work lands on a branch of its own, `pj/` and the parent's number. `pj-3-running` creates it on the
+project's first run, from a branch you pick when the projects are filed, the default branch unless you name another.
+A project that waits on another gets its branch only after the other one is merged into that branch. Every
 sub-issue's pull request merges into its project's branch. Merging that branch back into the branch it came from,
-through a pull request, is left to you. After that the parent is closed, by the next `pj-3-running` run or by you, and a
-closed parent means its project is merged. A project of ten tasks gets back to the branch it came from sooner than one
-of thirty. GitHub holds the whole state, so a project can stop and pick up again in another session or on another
-machine. [format.md](skills/pj-1-plan/format.md) describes the shape.
+through a pull request, is left to you. After that the parent is closed, by the next `pj-3-running` run or by you, and
+a closed parent means its project is merged. GitHub holds the whole state, so a project can stop and pick up again in
+another session or on another machine. [format.md](skills/pj-1-plan/format.md) describes the shape.
 
-`/annetaan:pj-1-plan` ([details](skills/pj-1-plan/SKILL.md)) starts with a planner session. It
-draws the whole in broad strokes, splits it into tasks, and groups the tasks into projects of up to ten. You answer
-the plan-level questions, approve the split and pick the branch the projects start from. Nothing reaches GitHub
-before that. Then one issue writer per task, in parallel, draws its task against the code and picks out what you
-have to decide. Each decision is written as checkboxes with one option recommended. The parents and their
-sub-issues are filed. No branch is created yet.
+`/annetaan:pj-1-plan` ([details](skills/pj-1-plan/SKILL.md)) starts with a planner session. It draws the whole in
+broad strokes, splits it into tasks, and groups the tasks into projects of up to ten. You answer the plan-level
+questions, approve the split and pick the branch the projects start from. Nothing reaches GitHub before that. Then
+one issue writer per task, in parallel, draws its task against the code and picks out what you have to decide. The
+design is written so that it holds whichever box you tick. The parents, their run order and their sub-issues are
+filed. No branch is created yet, and no issue is `ready` yet.
 
-`/annetaan:pj-2-details` ([details](skills/pj-2-details/SKILL.md)) asks which project to work on, every
-time. A number you pass, of a parent or of one of its sub-issues, puts that project first. It then lines up the
-project's issues without `ready` yet, `blocker` issues first, and works down that order itself. Up to three issue
-writers draw ahead in the background, so the next issue's questions are usually waiting by the time you finish
-answering one. Type `stop` in any answer to end there. The issue writer proposes, you decide, and the issue is
-rewritten to match. When an answer changes another issue, that issue is updated, and if it was `ready` it loses
-`ready` with a comment. An issue that turns out to be two tasks is split. An issue that grows past eight files and a
-project that grows past ten tasks both stay as they are, because both limits are for `pj-1-plan` to cut by.
-`ready` goes on only when the issue can be implemented straight from its body: symbols named for every changed file
-that exist once its blockers have merged, and acceptance criteria anchored to tests or commands. Ticking a box on
-GitHub settles a decision too.
+`/annetaan:pj-2-doctor` ([details](skills/pj-2-doctor/SKILL.md)) asks which project to work on, every time. A
+reviewer session reads the whole project against the boxes you ticked, the code, and each issue in it: a ticked
+option the design does not hold, two issues that disagree on a name, a missing blocked-by, a stub, a blocker. One
+issue writer per issue with a finding redraws it, and a question only you can answer becomes a new decision to tick.
+The reviewer reads the rewrites once more. The doctor asks you only about a split, two boxes ticked in one decision,
+and the changes before it writes them. Then it rewrites the run order and labels `ready` every issue that came out
+clear. Run it once after `pj-1-plan`, tick the boxes it lists, and run it again.
 
 `/annetaan:pj-3-running` ([details](skills/pj-3-running/SKILL.md)) asks which project to work on, the same way. On the
 project's first run it creates the project's branch. When a project it waits on is not merged yet, it lists those
 projects and stops instead. It closes the parent of any project it finds merged, its own or one it waits on. Then it
-checks that you can merge your own pull request into the project's branch without an approving review, and checks
-every issue in the order. Any issue that needs design
-again sends the run back to `pj-2-details` before anything starts. After you approve the order, each issue goes
-through the same steps in turn, in a git worktree of the project's own under `.claude/worktrees/`, so you can keep
-working in your clone while the run goes on. It gets a branch.
+checks that you can merge your own pull request into the project's branch without an approving review. It walks the
+run order from the top and takes issues until the first one that is not workable, then checks every issue it took.
+Any issue that needs design again sends the run back to `pj-2-doctor` before anything starts. After you approve the
+order, each issue goes through the same steps in turn, in a git worktree of the project's own under
+`.claude/worktrees/`, so you can keep working in your clone while the run goes on. It gets a branch.
 [workflow](skills/workflow/README.md#driven-from-an-issue) runs it as one task, with review rounds in difit and an
 integration review. A draft pull request follows, with the work report as its body. Then the merge into the project's
 branch, by squash where the repository allows it. pj-3-running then closes the issue itself, because GitHub closes
@@ -132,23 +135,26 @@ come first stops the run and gets the `blocker` label. The next run picks up whe
 
 ```
 /annetaan:pj-1-plan add CSV export to every report screen
-/annetaan:pj-2-details
+/annetaan:pj-2-doctor
+/annetaan:pj-2-doctor
 /annetaan:pj-3-running
 ```
 
-The second and third always ask which project, and an issue number passed after either one puts its project first.
+Tick the open decisions on GitHub between the two `pj-2-doctor` runs. The doctor and the runner always ask which
+project, and an issue number passed after either one puts its project first.
 
 ```mermaid
 flowchart TD
     req(["your request"]) --> plan["pj-1-plan<br/>planner splits the work into<br/>projects of up to ten tasks,<br/>issue writers draw each task"]
-    plan --> approve(["you approve the split"]) --> filed["a parent issue per project,<br/>labelled project, and its sub-issues<br/>decisions as checkboxes,<br/>order as blocked-by"]
-    filed --> details["pj-2-details<br/>you decide, the writer rewrites,<br/>ready once implementable as written"]
-    details --> run["pj-3-running, per project<br/>makes its branch on the first run,<br/>then per ready issue: branch, workflow,<br/>draft pull request, merge<br/>into the project's branch"]
-    run -->|"stub or blocker"| details
+    plan --> approve(["you approve the split"]) --> filed["a parent issue per project,<br/>labelled project, with its run order,<br/>and its sub-issues<br/>decisions as checkboxes,<br/>dependencies as blocked-by"]
+    filed --> doctor["pj-2-doctor<br/>reviewer reads the whole project,<br/>writers redraw what does not hold,<br/>run order rewritten, ready on what is clear"]
+    doctor --> run["pj-3-running, per project<br/>makes its branch on the first run,<br/>then down the run order: branch, workflow,<br/>draft pull request, merge<br/>into the project's branch"]
+    run -->|"stub or blocker"| doctor
     run -->|"all merged"| done(["you merge the project's branch<br/>into the branch it came from<br/>through a pull request,<br/>then its parent closes"])
     done -.->|"a project that waits on it"| run
 
-    you(["you, on GitHub"]) -.->|"tick a box"| filed
+    you(["you, on GitHub"]) -.->|"tick a box,<br/>reorder the run order"| filed
+    filed -.->|"after ticking"| doctor
 
     classDef human fill:#fff,stroke:#888,stroke-dasharray: 5 5
     class req,approve,you,done human
@@ -242,7 +248,8 @@ The model and the effort are pinned here, and a skill selects one by name alone.
 | `annetaan:workflow-worker` | opus | medium | implementation, for every task |
 | `annetaan:workflow-reviewer` | opus | medium | review, for every task and the integration review |
 | `annetaan:pj-planner` | opus | high | planning for `pj-1-plan`. the projects, their designs, and the split into tasks |
-| `annetaan:pj-issue-writer` | opus | high | one sub-issue, drawn against the code. drafts it for `pj-1-plan`, revises it for `pj-2-details` |
+| `annetaan:pj-issue-writer` | opus | high | one sub-issue, drawn against the code. drafts it for `pj-1-plan`, revises it for `pj-2-doctor` |
+| `annetaan:pj-reviewer` | opus | high | project review for `pj-2-doctor`. reads the whole project against the ticked boxes, the code and each issue |
 | `annetaan:doc-meta-overview` | opus | high | overview for `doc-meta`. finds what a per-sentence flag misses |
 
 `pj-3-running` has no agents of its own. It runs workflow's.
@@ -273,5 +280,5 @@ uses the name from there on.
 The replacement happens only in SKILL.md. A file the skill hands to a sub-agent, such as `workflow/roles/*.md`, is
 read as plain text. It has to work the path out from where it was read, or take it from the prompt.
 
-A skill that reads another skill's file goes through its own directory, as `pj-2-details` reads
-`$DETAILS/../pj-1-plan/format.md`.
+A skill that reads another skill's file goes through its own directory, as `pj-2-doctor` reads
+`$DOCTOR/../pj-1-plan/format.md`.

@@ -1,6 +1,6 @@
 ---
 name: pj-1-plan
-description: Starts a project on GitHub. Designs a large request in broad strokes, splits it into tasks, has one sub-session per task draw that task in detail and pick out what a human has to decide, groups the tasks into projects of up to 10, and per project files a parent issue labelled `project` and one sub-issue per task, with the decisions as checkboxes and the order as native blocked-by relationships that may cross projects. Each parent's `Base:` line names its base branch, `pj/<parent number>`, and a branch the user picks, and pj-3-running creates the base branch later. The first of three skills, followed by pj-2-details and pj-3-running. Use it only when the user names this skill or invokes /annetaan:pj-1-plan, because it creates issues and labels on GitHub. Do not use it for a change small enough for one pull request.
+description: Starts a project on GitHub. Designs a large request in broad strokes, splits it into tasks, has one sub-session per task draw that task in detail and pick out what a human has to decide, groups the tasks into projects of up to 10, and per project files a parent issue labelled `project` and one sub-issue per task, with the decisions as checkboxes the user ticks on GitHub, each option saying what it changes, the dependencies as native blocked-by relationships that may cross projects, and the run order as a numbered list in the parent. Each parent's `Base:` line names its base branch, `pj/<parent number>`, and a branch the user picks, and pj-3-running creates the base branch later. The first of three skills, followed by pj-2-doctor and pj-3-running. Use it only when the user names this skill or invokes /annetaan:pj-1-plan, because it creates issues and labels on GitHub. Do not use it for a change small enough for one pull request.
 ---
 
 # pj-1-plan
@@ -90,8 +90,8 @@ Show:
   branch back through a pull request is the user's job, outside the skills
 - one line saying every task is cut to 8 files at most, tests included, and every project to 10 tasks at most, the
   size limits in `format.md`
-- the labels this run will create from `format.md`, `ready` and `project`, and the ones the repository already has
-  and will reuse
+- the label this run will create from `format.md`, `project`, or that the repository already has it and it will be
+  reused
 
 Ask both questions in one call.
 
@@ -158,7 +158,7 @@ in full each time.
 
 Accept a body only when the lint reports no reason, or `decisions-open` alone. Then read it for what the lint cannot
 see: a file list of 8 entries at most (`format.md`, **The file list**), no line numbers, no checkbox outside
-`## Decisions`, no dependencies written into the body. Send a body that fails back to its writer with `SendMessage`
+`## Decisions`, no dependencies written into the body, and lines under every option saying what it changes. Send a body that fails back to its writer with `SendMessage`
 and say what to fix. Write the fixed body over the same file.
 
 ## Phase 4: filing
@@ -177,19 +177,22 @@ gh issue edit <P> --body-file "$TMP/PJ<j>-base.md"
 # 4. each sub-issue under its project's parent, after the ones it waits on in any project.
 #    Leave out --blocked-by when it waits on nothing
 gh issue create --parent <P> --blocked-by <n>,<m> --title "<title>" --body-file "$TMP/T<k>.md"
-# 5. make sure ready exists (format.md, Labels), then add it to every sub-issue whose lint is clear
-gh issue edit <n> --add-label ready
+# 5. the run order under each parent, from --order's list, right after the Base: line (format.md, The run order)
+$PLAN/scripts/project.sh <P> --order
+gh issue edit <P> --body-file "$TMP/PJ<j>-order.md"
 ```
 
 Steps 2 and 3 run as a pair for each parent, because the branch name carries the parent's number (`format.md`, **The
 parent issue body**). **Every parent has its `Base:` line before step 4 starts**, because `project.sh` reads a
 blocker's parent as a project only when its body has one. No branch is created here. Keep the mapping from `PJ<j>`
 to the parent's number and from `T<k>` to the issue number as you go, because the next `--blocked-by` and `--parent`
-need them. Only a body whose decisions read `None.` can have a clear lint at this point. Skip step 5 when there is
-none, so that no label gets created for nothing.
+need them.
+
+Step 5 writes `## Order` with one line `1. #<n>` per number in `list`, between the `Base:` line and `## Goal`. No
+issue gets `ready` here. Only `pj-2-doctor` adds it, after it has reviewed the whole project.
 
 **When a command fails halfway**, stop and tell the user what was filed and what was not, with the numbers, and which
-parents have their `Base:` line. Never retry the whole run, or the issues double. A parent without the line cannot be
+parents have their `Base:` line and their `## Order`. Never retry the whole run, or the issues double. A parent without the line cannot be
 read by `project.sh`.
 
 Then check the result once per parent, against the split the user approved:
@@ -199,7 +202,8 @@ $PLAN/scripts/project.sh <P>
 $PLAN/scripts/project.sh <P> --order
 ```
 
-`parent.base` is `pj/<P>`, `parent.from` is `<from>`, and `parent.baseExists` is false. The numbers in
+`parent.base` is `pj/<P>`, `parent.from` is `<from>`, `parent.baseExists` is false, and `parent.orderCheck.ok` is
+true with `missing` empty. The numbers in
 `parent.dependsOn` are the parents of the projects this one waits on in the plan. Every task of the project is there,
 its `blockedBy` matches the split, across projects included, with the `parent` of each blocker matching the project
 of that task, the decision counts and the lint match the bodies, and `--order` finds no cycle of either kind. Report
@@ -212,16 +216,23 @@ One block per project, in the project order:
 - the parent issue URL
 - the base branch `pj/<P>` and `<from>`, saying the branch is not created yet
 - the parents of the projects it waits on, as `#<P>`
-- one line per sub-issue: number, title, the issues it waits on, those in other projects included, as `#<n>`, the
-  open decisions by count, and `ready` or not. For a `None.` issue without `ready`, the lint's reason codes
+- one line per sub-issue: number, title, the issues it waits on, those in other projects included, as `#<n>`, and the
+  open decisions by count
 
-Then the next steps: `/annetaan:pj-2-details` to settle the decisions, then `/annetaan:pj-3-running` once issues
-are `ready`. Both ask which project to work on, and a number given to them becomes the recommended first option
-(`format.md`, **Picking the project**). Say that a decision can also be settled by ticking a box on GitHub, and that
-a skill or a human still adds `ready` afterwards. `pj-3-running` creates a project's base branch on its first start on
-that project, and a project that waits on others starts once they are merged into `<from>`. Once every sub-issue of a
-project is merged, the user merges `pj/<P>` into `<from>` through a pull request, and the next `pj-3-running` closes the
-parent, or the user closes it.
+Then the next steps, in this order:
+
+1. `/annetaan:pj-2-doctor`, right away. It reviews the whole project against the code and against each issue, has the
+   writers fix what does not hold, and labels `ready` what is clear.
+2. The user ticks the open decisions on GitHub. Each option says what it changes, so the body is all they need.
+3. `/annetaan:pj-2-doctor` again, after ticking. It reviews the project with the ticked boxes and labels the issues
+   `ready`.
+4. `/annetaan:pj-3-running`. It works down the parent's `## Order` and stops at the first issue that is not workable.
+
+Both skills ask which project to work on, and a number given to them becomes the recommended first option
+(`format.md`, **Picking the project**). The user may reorder `## Order` by hand. `pj-3-running` creates a project's
+base branch on its first start on that project, and a project that waits on others starts once they are merged into
+`<from>`. Once every sub-issue of a project is merged, the user merges `pj/<P>` into `<from>` through a pull request,
+and the next `pj-3-running` closes the parent, or the user closes it.
 
 ## Rules
 
