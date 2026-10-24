@@ -333,16 +333,17 @@ Nothing runs in parallel. There is one worktree, `<WT>`. For each issue `<k>` in
      no handover rewrite.
    - **`pr.state` is `OPEN`** as `#<m>`: its task commit passed review, and only the merge is left. Go to **When
      workflow returns**, as `finished` with `<m>` and no handover lines. No workflow run and no handover rewrite.
-   - **`pr` is null**: make a fresh branch, then run From an issue.
+   - **`pr` is null**: make a fresh branch in `<WT>` from the tip of `origin/<base>`, then run From an issue.
 
      ```bash
-     git fetch --quiet origin "+refs/heads/<base>:refs/remotes/origin/<base>"
-     git switch --no-track -c <branch> origin/<base>
+     $RUNNING/scripts/run.sh branch <P> <branch>
      ```
 
-     A local `<branch>` may be left over from a stop during the task. When
-     `git rev-list --count origin/<base>..<branch>` prints 0, delete it with `git branch -D <branch>` and create it
-     again. Otherwise it holds unpushed work. Stop and ask the user.
+     - **`ok`**: go to step 4. A leftover `<branch>` with no commits of its own was deleted and made again.
+     - **`stop`** with `unpushed`: stop the run. Name `<branch>` and the number in `commits`, and say that
+       `git -C <WT> log origin/<base>..<branch>` shows them. A `finish` stop in an earlier run leaves exactly this.
+       Pushing the branch or deleting it is the user's call.
+     - **`stop`** with `checked-out`: stop the run, and name the worktree in `worktree` that holds `<branch>`.
 4. **Run From an issue.** These are what it expects you to have settled, so say them in your context before you
    start it: `n` (= `<k>`), `P`, the issue title, the projects `<P>` waits on (the `parent.dependsOn` numbers, or
    none), the base branch, the branch you just made, the handover notes, and the paths `<WT>` and `<MAIN>`.
@@ -369,78 +370,30 @@ workflow hands over to this section by name, with `finished` or `stopped`.
 **`finished`** carries the pull request `<m>`, the SHA of the task commit, the handover lines, the paths of any
 screenshots that could not be attached, and `stop requested` (yes or no).
 
-**With `stop requested: yes`, do not merge.** The user said stop. Fold the handover lines as step 7 says, then go to
+**With `stop requested: yes`, do not merge.** The user said stop. Fold the handover lines as step 3 says, then go to
 phase 6. The pull request stays a draft, and the next run merges it.
 
-1. Check the pull request.
+1. Write `$TMP/<k>-closed.md` worded as in the `merged` case of phase 5 step 3, naming `#<m>`. The merge into the base
+   branch closes nothing, so `run.sh merge` closes the issue with it.
+2. Merge the pull request, close `#<k>`, move `<WT>` onto the merged base and delete the head branch. Run this as a
+   background command and wait for it to exit, because waiting on the checks can outlast a foreground command.
 
    ```bash
-   gh pr view <m> --json reviewDecision,mergeStateStatus,isDraft,headRefName
+   $RUNNING/scripts/run.sh merge <P> <k> <m> --comment "$TMP/<k>-closed.md"
    ```
 
-   Take `<branch>` from `headRefName`. Stop when `reviewDecision` is `REVIEW_REQUIRED` or `CHANGES_REQUESTED`, or
-   when `mergeStateStatus` is `DIRTY`.
-2. Wait for the required checks. The pull request was pushed seconds ago, and its check runs may not exist yet.
-   `--watch` does not wait for a check that has not registered. It exits at once with "no required checks
-   reported".
-   - **No status checks required** (`rules.requiredChecks` is `no`): go straight to the watch below.
-   - **Required, or unknown**: first wait until a required check shows up, about five minutes at most.
-
-     ```bash
-     for i in $(seq 30)
-     do
-       n=$(gh pr checks <m> --required --json name --jq length 2>/dev/null)
-       [ "${n:-0}" -gt 0 ] && break
-       sleep 10
-     done
-     echo "required checks: ${n:-0}"
-     ```
-
-     Run it as a background command and wait for it to exit, because a foreground `sleep` may be refused. Still 0
-     when the checks are required: stop the run. Still 0 when unknown: go on.
-
-   ```bash
-   gh pr checks <m> --required --watch --fail-fast
-   ```
-
-   "No required checks" after that counts as a pass. **A failing check stops the run.** The pull request stays a
-   draft, and the next run merges it.
-3. `gh pr ready <m>`
-4. Merge with `rules.mergeMethod`. A failure stops the run.
-
-   ```bash
-   gh pr merge <m> --squash      # or --merge, or --rebase
-   ```
-
-   Do not let gh delete the branch. To delete it, gh switches `<WT>` to `<base>`, and git refuses that while
-   `<MAIN>` has `<base>` checked out. Step 6 deletes the branch.
-
-5. Close the issue. The merge into the base branch closed nothing. Write `$TMP/<k>-closed.md` worded as in the
-   `merged` case of phase 5 step 3, naming `#<m>`, then post it and close the issue. After the merge `project.sh`
-   reads the issue's `pr` as `MERGED`, so the close is due.
-
-   ```bash
-   $RUNNING/scripts/run.sh close <P> <k> --comment "$TMP/<k>-closed.md"
-   ```
-
-6. Move `<WT>` onto the merged base, then delete the head branch here and on origin.
-
-   ```bash
-   git fetch --quiet origin "+refs/heads/<base>:refs/remotes/origin/<base>"
-   git switch --detach origin/<base>
-   git rev-parse --verify --quiet refs/heads/<branch> && git branch -D <branch>
-   git push origin --delete <branch>
-   ```
-
-   A pull request merged from the `OPEN` path of phase 5 step 3 has no local branch, so `git branch -D` runs only when
-   `git rev-parse` finds one. When the push says the remote ref does not exist, the repository deleted the head branch
-   on merge. Go on.
-
-7. **Fold the handover lines into the notes.** Merge duplicates, keep fifteen lines at most, and drop the oldest
+   - **`stop`** with `review`, `conflict`, `merge-failed` or `not-the-pr`: say so, quote `message`, and go to phase 6.
+   - **`stop`** with `no-checks` or `checks-failed`: quote `message`. The pull request stays a draft, and the next run
+     merges it. Go to phase 6.
+   - **`merged`** with a non-empty `errors`: the merge went through, and a later step failed. Report each `step` with
+     its `message`, fold the handover lines as step 3 says, then go to phase 6. When `close` failed, the issue stays
+     open with its pull request merged, and the next run closes it.
+   - **`merged`**: go on.
+3. **Fold the handover lines into the notes.** Merge duplicates, keep fifteen lines at most, and drop the oldest
    first. Rewrite the parent's handover comment as `format.md` says under "The handover comment": read its
    `updated_at` again first, and keep any change a human made since. Create it when there is none. With no handover
    lines, as on the `OPEN` path of phase 5 step 3, skip this step.
-8. Print one progress line: `#<k> done (<i>/<N>): PR #<m> merged`. After a context summary, rebuild the run order and
+4. Print one progress line: `#<k> done (<i>/<N>): PR #<m> merged`. After a context summary, rebuild the run order and
    the progress from these lines and `project.sh <P>`.
 
 Then take the next issue.
@@ -521,6 +474,6 @@ Every way the run ends comes here: the run order is done, the run stopped, or th
 - **The next run never uses the work a stopped run left in `<WT>`.** The work is redone.
 - **Never push to the base branch, to `<from>` or to the default branch, and never rewrite their history.** The one
   branch this skill creates outside a pull request is the project's base branch, through the API, in `run.sh start`.
-- **Close an issue or a parent only through `run.sh close`, which refuses one that is not due, and closes as
-  completed.**
+- **Close an issue or a parent only through `run.sh close` or `run.sh merge`, which refuse one that is not due, and
+  close as completed.**
 - After a context summary, rebuild the run from the progress lines and `project.sh <P>`.

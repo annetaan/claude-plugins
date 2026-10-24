@@ -2,8 +2,10 @@
 # Runs the mechanical steps of pj-3-running for one project and prints each result as one JSON object.
 # The judgment and the questions stay in the skill. --discard and --add carry the user's answers back.
 # Writes on GitHub: start creates the project's base branch through the API when it is due, and close comments on an
-# issue and closes it as completed. Writes in git: start and worktree fetch the base branch into origin/<base>,
-# worktree creates and moves the run's worktree, and ignore --add appends to the clone's info/exclude.
+# issue and closes it as completed. merge marks the pull request ready, merges it, comments on and closes the issue,
+# and deletes the head branch on origin. Writes in git: start and worktree fetch the base branch into origin/<base>,
+# worktree creates and moves the run's worktree, branch creates the issue's branch in <WT>, merge moves <WT> onto the
+# merged base and deletes the local head branch, and ignore --add appends to the clone's info/exclude.
 # It reads the project with ../../pj-1-plan/scripts/project.sh, and never parses an issue body itself.
 set -euo pipefail
 
@@ -15,13 +17,16 @@ usage: run.sh start <P>                       check the clone, gh and the reposi
        run.sh close <P> <n> --comment <file>  comment on and close #<n> as completed, when it is due
        run.sh worktree <P> [--discard]        put the run's worktree on the tip of origin/<base>
        run.sh ignore <P> [--add]              whether .claude/worktrees/ and work-reports/ are ignored; --add writes them to info/exclude
+       run.sh branch <P> <branch>             create <branch> in the run's worktree from the tip of origin/<base>
+       run.sh merge <P> <k> <m> --comment <file> [--wait <seconds>]
+                                              wait for the required checks, merge #<m> into the base branch, close #<k>, delete the head branch
 Every subcommand prints one JSON object with "status" and exits 0. "stop" carries "reason" and "message".
 Exit 1 means a usage error or an unexpected failure.
 USAGE
   exit 1
 }
 
-number() { case "$2" in ''|*[!0-9]*) die "$1 must be an issue number: $2" ;; esac; }
+number() { case "$2" in ''|*[!0-9]*) die "$1 must be a number: $2" ;; esac; }
 
 [ $# -ge 2 ] || usage
 number "the project" "$2"
@@ -32,6 +37,15 @@ case "$1" in
             [ -f "$5" ] || die "no such file: $5" ;;
   worktree) [ $# -eq 2 ] || { [ $# -eq 3 ] && [ "$3" = "--discard" ]; } || usage ;;
   ignore)   [ $# -eq 2 ] || { [ $# -eq 3 ] && [ "$3" = "--add" ]; } || usage ;;
+  branch)   [ $# -eq 3 ] || usage ;;
+  merge)    { [ $# -eq 6 ] || [ $# -eq 8 ]; } && [ "$5" = "--comment" ] || usage
+            number "the issue" "$3"
+            number "the pull request" "$4"
+            [ -f "$6" ] || die "no such file: $6"
+            if [ $# -eq 8 ]; then
+              [ "$7" = "--wait" ] || usage
+              number "the wait in seconds" "$8"
+            fi ;;
   *)        usage ;;
 esac
 
@@ -40,7 +54,7 @@ command -v python3 >/dev/null 2>&1 || die "python3 is not installed"
 PROJECT_SH="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/../../pj-1-plan/scripts/project.sh"
 
 read -r -d '' PY <<'PY' || true
-import json, os, re, shutil, subprocess, sys
+import json, os, re, shutil, subprocess, sys, time
 
 PROJECT_SH, SUB, P = sys.argv[1], sys.argv[2], int(sys.argv[3])
 ARGS = sys.argv[4:]
@@ -195,21 +209,44 @@ def close_issue(n, comment_file):
     return None
 
 def worktrees(main):
-    """The worktrees of the clone as [(path, prunable)]."""
+    """The worktrees of the clone as [(path, prunable, branch)]. branch is None on a detached HEAD."""
     out = []
     for block in git(main, "worktree", "list", "--porcelain").split("\n\n"):
         lines = block.splitlines()
         if lines and lines[0].startswith("worktree "):
-            out.append((lines[0][len("worktree "):], any(l.startswith("prunable") for l in lines[1:])))
+            heads = [l[len("branch refs/heads/"):] for l in lines[1:] if l.startswith("branch refs/heads/")]
+            out.append((lines[0][len("worktree "):], any(l.startswith("prunable") for l in lines[1:]),
+                        heads[0] if heads else None))
     return out
 
 def listed(main, wt):
     """None when wt is no worktree of the clone, otherwise whether it is prunable."""
     real = os.path.realpath(wt)
-    for path, prunable in worktrees(main):
+    for path, prunable, _ in worktrees(main):
         if os.path.realpath(path) == real:
             return prunable
     return None
+
+def checked_out_in(main, branch):
+    """The path of the worktree that has branch checked out, or None."""
+    for path, _, head in worktrees(main):
+        if head == branch:
+            return path
+    return None
+
+def has_branch(where, branch):
+    return run("git", "-C", where, "rev-parse", "--verify", "--quiet", "refs/heads/" + branch).returncode == 0
+
+def registered(m):
+    """How many required checks have registered on #m. A failed call or unreadable output counts as none."""
+    r = run("gh", "pr", "checks", str(m), "--required", "--json", "name")
+    if r.returncode != 0:
+        return 0
+    try:
+        found = json.loads(r.stdout)
+    except ValueError:
+        return 0
+    return len(found) if isinstance(found, list) else 0
 
 def version(text):
     m = re.search(r"gh version (\d+)\.(\d+)\.(\d+)", text)
@@ -363,7 +400,129 @@ def ignore():
              notIgnored=left, added=not_ignored)
     emit(status="ok", notIgnored=[], added=not_ignored)
 
-{"start": start, "close": close, "worktree": worktree, "ignore": ignore}[SUB]()
+def branch():
+    main, wt = located()
+    if listed(main, wt) is not False:
+        die("%s is no worktree of this clone. run.sh worktree %d first" % (wt, P))
+    b = ARGS[0]
+    base = project(P)["parent"]["base"]
+    if run("git", "check-ref-format", "--branch", b).returncode != 0:
+        die("not a valid branch name: " + b)
+    if not fetch(main, base):
+        stop("fetch-failed", "cannot fetch %s from origin" % base, branch=b)
+    changes = git(wt, "status", "--porcelain").splitlines()
+    if changes:
+        stop("dirty", "%s has uncommitted changes" % wt, worktree=wt)
+    if has_branch(wt, b):
+        holder = checked_out_in(main, b)
+        mine = holder is not None and os.path.realpath(holder) == os.path.realpath(wt)
+        if holder is not None and not mine:
+            stop("checked-out", "%s is checked out in %s" % (b, holder), branch=b, worktree=holder)
+        ahead = int(git(wt, "rev-list", "--count", "origin/%s..%s" % (base, b)).strip())
+        if ahead > 0:
+            stop("unpushed", "%s holds %d commit(s) that origin/%s does not have" % (b, ahead, base),
+                 branch=b, commits=ahead)
+        if mine:
+            git(wt, "switch", "--detach")
+        git(wt, "branch", "-D", b)
+    git(wt, "switch", "--no-track", "-c", b, "origin/" + base)
+    emit(status="ok", branch=b, start=git(wt, "rev-parse", "HEAD").strip())
+
+def merge():
+    k, m, comment = int(ARGS[0]), int(ARGS[1]), ARGS[3]
+    wait = int(ARGS[5]) if ARGS[4:5] == ["--wait"] else 300
+    proj = project(P)
+    issue = next((i for i in proj["issues"] if i["number"] == k), None)
+    if issue is None:
+        die("#%d is not a sub-issue of #%d" % (k, P))
+    pr = issue["pr"]
+    if pr is None or pr["number"] != m:
+        stop("not-the-pr", "#%d is not the pull request project.sh reports for #%d" % (m, k),
+             pr=(pr or {}).get("number"))
+    main, wt = located()
+    base = proj["parent"]["base"]
+    view = repo_view()
+    found = rules(view["nameWithOwner"], base, view, main)
+    r = run("gh", "pr", "view", str(m), "--json", "reviewDecision,mergeStateStatus,isDraft,headRefName,state")
+    if r.returncode != 0:
+        die("cannot read #%d: %s" % (m, r.stderr.strip()))
+    pv = json.loads(r.stdout)
+    b = pv["headRefName"]
+
+    merged_earlier = pr["state"] == "MERGED"
+    if not merged_earlier:
+        if pv.get("reviewDecision") in ("REVIEW_REQUIRED", "CHANGES_REQUESTED"):
+            stop("review", "#%d has review decision %s" % (m, pv["reviewDecision"]), pr=m)
+        if pv.get("mergeStateStatus") == "DIRTY":
+            stop("conflict", "#%d conflicts with %s" % (m, base), pr=m)
+        method = found["mergeMethod"]
+        if method is None:
+            stop("no-merge-method", "the rules on %s leave no merge method that %s allows"
+                 % (base, view["nameWithOwner"]), pr=m)
+        if found["requiredChecks"] != "no":
+            # A pull request pushed seconds ago may have no check runs yet, and --watch does not wait for a check
+            # that has not registered.
+            deadline = time.monotonic() + wait
+            while True:
+                n = registered(m)
+                left = deadline - time.monotonic()
+                if n > 0 or left <= 0:
+                    break
+                time.sleep(min(10, left))
+            if n == 0 and found["requiredChecks"] == "yes":
+                stop("no-checks", "no required check registered on #%d within %d seconds" % (m, wait), pr=m)
+        r = run("gh", "pr", "checks", str(m), "--required", "--watch", "--fail-fast")
+        text = r.stdout + r.stderr
+        if r.returncode != 0 and "no required checks reported" not in text:
+            stop("checks-failed", "\n".join(text.strip().splitlines()[-5:]), pr=m)
+        if pv.get("isDraft"):
+            r = run("gh", "pr", "ready", str(m))
+            if r.returncode != 0:
+                stop("merge-failed", "cannot mark #%d ready: %s" % (m, r.stderr.strip()), pr=m)
+        # No --delete-branch: to delete it gh switches <WT> to <base>, and git refuses that while <MAIN> has <base>
+        # checked out. The cleanup below deletes the branch. No --admin: a rule the user set is never bypassed.
+        r = run("gh", "pr", "merge", str(m), "--" + method)
+        if r.returncode != 0:
+            stop("merge-failed", "cannot merge #%d: %s" % (m, r.stderr.strip()), pr=m)
+
+    errors = []
+    if issue["state"] == "CLOSED":
+        closed = "already-closed"
+    else:
+        failed = close_issue(k, comment)
+        if failed:
+            errors.append({"step": "close", "message": "%s: %s" % (failed["step"], failed["message"])})
+            closed = "open"
+        else:
+            closed = "closed"
+
+    # Every step from here on reports a failure in errors and goes on. The merge has happened.
+    if not fetch(main, base):
+        errors.append({"step": "fetch", "message": "cannot fetch %s from origin" % base})
+    r = run("git", "-C", wt, "switch", "--detach", "origin/" + base)
+    if r.returncode != 0:
+        errors.append({"step": "switch", "message": r.stderr.strip()})
+    local = "absent"
+    if has_branch(wt, b):
+        r = run("git", "-C", wt, "branch", "-D", b)
+        if r.returncode == 0:
+            local = "deleted"
+        else:
+            local = "kept"
+            errors.append({"step": "delete-local", "message": r.stderr.strip()})
+    r = run("git", "-C", wt, "push", "--quiet", "origin", "--delete", b)
+    if r.returncode == 0:
+        remote = "deleted"
+    elif "remote ref does not exist" in r.stderr:
+        remote = "absent"
+    else:
+        remote = "kept"
+        errors.append({"step": "delete-remote", "message": r.stderr.strip()})
+    emit(status="merged", pr=m, branch={"name": b, "local": local, "remote": remote},
+         method=None if merged_earlier else found["mergeMethod"], mergedEarlier=merged_earlier, issue=closed,
+         errors=errors)
+
+{"start": start, "close": close, "worktree": worktree, "ignore": ignore, "branch": branch, "merge": merge}[SUB]()
 PY
 
 exec python3 -c "$PY" "$PROJECT_SH" "$@"
