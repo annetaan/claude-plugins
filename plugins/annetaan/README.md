@@ -14,7 +14,7 @@ marketplace in `/plugin`.
 ## Skills
 
 A skill whose `description` matches a request normally starts without being named. The ones here do not. `workflow`
-runs a long-lived local server, opens a browser and adds commits on its own. The pj skills create, edit and close
+spawns several sessions and adds commits on its own. The pj skills create, edit and close
 issues and labels on GitHub, and `pj-3-running` also creates each project's branch, pushes, opens and merges pull
 requests. The doc skills make a file next to your document, rewrite the document itself, and can add one commit of
 their own to `.gitignore` after asking. Any of these is enough reason to wait, so each skill here starts only when you
@@ -27,12 +27,12 @@ name it or invoke its slash form.
 Runs one implementation through sessions with different jobs. A design session writes the plan, then details each
 task as its turn comes. In a repository that accepts breaking changes, a design review session pushes the design
 toward its ideal shape once, before approval. An implementation session writes the code for one task. A review
-session reads it and posts findings. Those last two are new for every task. You approve once, near the start, and
+session reads it and writes its findings to a file. Those last two are new for every task. You approve once, near the start, and
 answer two questions about where the commits go and how the run should end.
 
-The review rounds happen in [difit](https://github.com/yoshiko-pg/difit), a local diff viewer. difit is the wire
-between the implementation session and the review session, and it is also a web page. Open it and your comments
-land in the same threads, on the same footing as the reviewer's.
+The review rounds run through Markdown files in the run's work report directory. The review session writes one file
+per round, and the implementation session answers each finding in a reply file next to it. Nobody edits a file once
+it is written, so the directory reads back as the whole review, in order.
 
 ```mermaid
 flowchart TD
@@ -46,18 +46,17 @@ flowchart TD
         direction TB
         detail["design session<br/>details this task against<br/>the code as it now stands"]
         impl["implementation session<br/>new for this task<br/>writes it, commits nothing"]
-        difit["difit<br/>working tree vs HEAD"]
-        review["review session<br/>new for this task<br/>posts findings as threads"]
-        respond["implementation session<br/>replies, then fixes"]
+        review["review session<br/>new for this task<br/>reads working tree vs HEAD,<br/>writes a round file"]
+        respond["implementation session<br/>fixes, then writes a reply file"]
         commit["one commit<br/>plus 5 lines of handover notes"]
-        detail --> impl --> difit --> review
+        detail --> impl --> review
         review -->|"changes requested<br/>5 rounds per task, fixed"| respond
-        respond --> difit
+        respond --> review
         review -->|approve| commit
         commit -->|tasks left| detail
     end
 
-    commit -->|last task| integ["integration review<br/>difit: working tree vs START"]
+    commit -->|last task| integ["integration review<br/>working tree vs START"]
     integ -->|changes requested| integfix["fix, then one more commit"]
     integfix --> integ
     integ -->|approve| report["work report<br/>work-reports/2026-09-19-1346-a1b2c3d/"]
@@ -65,10 +64,8 @@ flowchart TD
     report --> push["push only"]
     report --> local["nothing pushed"]
 
-    you(["you, in the browser"]) -.->|comments| difit
-
     classDef human fill:#fff,stroke:#888,stroke-dasharray: 5 5
-    class req,you human
+    class req human
 ```
 
 The "per task" block repeats for every task in the plan, and nothing inside it runs in parallel, because there is one
@@ -127,7 +124,7 @@ run order from the top and takes issues until the first one that is not workable
 Any issue that needs design again sends the run back to `pj-2-doctor` before anything starts. After you approve the
 order, each issue goes through the same steps in turn, in a git worktree of the project's own under
 `.claude/worktrees/`, so you can keep working in your clone while the run goes on. It gets a branch.
-[workflow](skills/workflow/README.md#driven-from-an-issue) runs it as one task, with review rounds in difit and an
+[workflow](skills/workflow/README.md#driven-from-an-issue) runs it as one task, with review rounds and an
 integration review. A draft pull request follows, with the work report as its body. Then the merge into the project's
 branch, by squash where the repository allows it. pj-3-running then closes the issue itself, because GitHub closes
 nothing on a merge into a branch other than the default. Work nobody planned becomes a new issue. Work that has to
@@ -165,8 +162,8 @@ What they need:
 - `gh` 2.94.0 or later, logged in.
 - Issues turned on in the repository.
 - The commands run from a clone of the repository.
-- For `pj-3-running`: write access, a project branch that accepts a merge with no approving review, and what
-  workflow needs (difit). Your own working tree may be dirty, because the run works in a worktree of its own.
+- For `pj-3-running`: write access and a project branch that accepts a merge with no approving review. Your own
+  working tree may be dirty, because the run works in a worktree of its own.
 
 The `ready`, `blocker` and `project` labels are created when missing, and a label that already exists is reused as
 it is.

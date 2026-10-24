@@ -1,6 +1,6 @@
 ---
 name: pj-3-running
-description: Asks which project to work on, with a number given as the recommended one. Creates the project's base branch on its first start, once every project it waits on is merged, and closes the parent of a merged project. Works down the run order in the parent's Order list one sub-issue at a time, and stops at the first issue that is not workable. Each one runs through the workflow skill as one task with review rounds in difit and an integration review, then pj-3-running merges its pull request into the project's base branch and closes the issue itself before the next starts. Works in a git worktree of its own, so the main working tree stays free for the user. Files unplanned work as stub issues and stops on a blocker. The third of three skills, after pj-1-plan and pj-2-doctor. Use it only when the user names this skill or invokes /annetaan:pj-3-running, because it creates branches, pushes, opens and merges pull requests, edits issues and labels, and keeps a local difit server running for the whole run.
+description: Asks which project to work on, with a number given as the recommended one. Creates the project's base branch on its first start, once every project it waits on is merged, and closes the parent of a merged project. Works down the run order in the parent's Order list one sub-issue at a time, and stops at the first issue that is not workable. Each one runs through the workflow skill as one task with review rounds and an integration review, then pj-3-running merges its pull request into the project's base branch and closes the issue itself before the next starts. Works in a git worktree of its own, so the main working tree stays free for the user. Files unplanned work as stub issues and stops on a blocker. The third of three skills, after pj-1-plan and pj-2-doctor. Use it only when the user names this skill or invokes /annetaan:pj-3-running, because it creates branches, pushes, opens and merges pull requests, and edits issues and labels.
 ---
 
 # pj-3-running
@@ -33,10 +33,9 @@ them nothing.
 issue, the sub-issue body, the labels, the relationships, the blockers, the comments and the pull requests. Its table
 of the three skills says where this one sits. Everything below refers to it.
 
-This skill uses three more things:
+This skill uses two more things:
 
 - the script `$RUNNING/../pj-1-plan/scripts/project.sh`, written `project.sh` below
-- the script `$RUNNING/../workflow/scripts/difit-session.sh`, only to stop the difit server when the run ends
 - the `workflow` skill, loaded with the Skill tool as `annetaan:workflow`
 
 **Language**: talk to the user in the user's language. Write issue, comment and pull request text in the repository's
@@ -44,8 +43,7 @@ language, as `format.md` says.
 
 ## Before you start
 
-This skill creates branches, pushes, opens and merges pull requests, edits issues and labels, and keeps a local
-server running. **Start it only when the user names it or invokes `/annetaan:pj-3-running`.**
+This skill creates branches, pushes, opens and merges pull requests, and edits issues and labels. **Start it only when the user names it or invokes `/annetaan:pj-3-running`.**
 
 ```bash
 git worktree list --porcelain     # the first worktree line is <MAIN>
@@ -53,7 +51,6 @@ git remote get-url origin
 gh --version                      # 2.94.0 or later
 gh auth status
 gh repo view --json nameWithOwner,hasIssuesEnabled,defaultBranchRef,viewerPermission,squashMergeAllowed,mergeCommitAllowed,rebaseMergeAllowed
-command -v difit || echo "falls back to npx difit"
 ```
 
 **Each of these stops the run.** Say which one failed and stop.
@@ -189,7 +186,7 @@ to enter `<WT>` themselves, because their directory resets on every bash call.
 
 **Every command from here to the end of the run runs in `<WT>`.** After a context summary, run
 `git rev-parse --show-toplevel`, and enter `<WT>` again when it prints anything else. Between issues `<WT>` holds a
-detached HEAD. A stop from here on, even one before the approval, leaves `<WT>` as phase 6 step 2 says.
+detached HEAD. A stop from here on, even one before the approval, leaves `<WT>` as phase 6 step 1 says.
 
 `<WT>` has none of `<MAIN>`'s ignored files, such as installed dependencies or a `.env`. The first worker prepares
 what the tests need and leaves the steps in the handover notes, so later issues find them there.
@@ -228,7 +225,7 @@ printf 'work-reports/\n' >> "$(git rev-parse --path-format=absolute --git-path i
 
 **Never edit `.gitignore` here.** That commit would land on the base branch with no pull request.
 
-On Stop, leave `<WT>` as phase 6 step 2 says and end the run. `<WT>` stays in place, and the report says that
+On Stop, leave `<WT>` as phase 6 step 1 says and end the run. `<WT>` stays in place, and the report says that
 `git -C "<MAIN>" worktree remove <WT>` removes it.
 
 ### Can a self-merge go through?
@@ -342,12 +339,11 @@ Show the user:
   there
 - that `<WT>` has none of `<MAIN>`'s ignored files, such as dependencies or a `.env`, so the first worker prepares
   them
-- how each issue runs: a branch, workflow's **From an issue** (one task with review rounds in difit, then an
-  integration review), a draft pull request into the base branch, then a merge by pj-3-running, which then closes the
+- how each issue runs: a branch, workflow's **From an issue** (one task with review rounds, then an
+  integration review, with the review files in its work report), a draft pull request into the base branch, then a merge by pj-3-running, which then closes the
   issue. GitHub does not close it on a merge into a branch other than the default branch.
 - that merging the base branch into `<from>` is the user's job, outside this skill, and that the parent `#<P>` closes
   as completed once a run sees that merge
-- that difit opens once, and the user can comment there at any time
 - that the run stops on a blocker, a divergence, the round cap, a merge that does not go through, or the user saying
   stop
 
@@ -370,7 +366,6 @@ The approval covers this run only (`format.md`, **Principle**).
    Follow its **From an issue** section for every issue. **Load it again when a context summary has dropped it.**
 2. Read the handover comment with the command in `format.md` under "The handover comment". Keep its lines as the
    handover notes. With no comment, the notes are empty.
-3. The difit port starts as none.
 
 ## Phase 5: one issue at a time
 
@@ -419,8 +414,7 @@ Nothing runs in parallel. There is one worktree, `<WT>`. For each issue `<k>` in
 4. **Run From an issue.** These are what it expects you to have settled, so say them in your context before you
    start it: `n` (= `<k>`), `P`, the issue title, the projects `<P>` waits on (the `parent.dependsOn` numbers, or
    none), the base branch, the checked-out branch, the entry state, `m`
-   (none for `fresh`), the handover notes, the difit port, and the paths `<WT>` and `<MAIN>`. After the first issue,
-   keep the port workflow reports and pass it to every later one.
+   (none for `fresh`), the handover notes, and the paths `<WT>` and `<MAIN>`.
 
 ### Unplanned work
 
@@ -539,13 +533,7 @@ below is written to a file under `$TMP` and starts with `**[pj-3-running]**`.
 
 Every way the run ends comes here: the run order is done, the run stopped, or the user said stop.
 
-1. When a difit port was set, stop the server.
-
-   ```bash
-   $RUNNING/../workflow/scripts/difit-session.sh stop
-   ```
-
-2. Leave `<WT>`, only when this session entered it in **The worktree**. A stop before that point, such as a base
+1. Leave `<WT>`, only when this session entered it in **The worktree**. A stop before that point, such as a base
    branch gone from origin, a base branch that cannot be created, or a dirty `<WT>` the user wants to look at, skips
    this step. `<WT>` stays for the next
    run. The detach frees the branch for `<MAIN>`, and it works on a dirty tree too. Keep the `-C`, so the command
@@ -560,7 +548,7 @@ Every way the run ends comes here: the run order is done, the run stopped, or th
    ```
 
    A worktree entered by path is never deleted by `ExitWorktree`. Where that tool is not available, `cd "<MAIN>"`.
-3. `project.sh <P>`. **When every sub-issue is closed**, tell the user what **The base branch** says when every
+2. `project.sh <P>`. **When every sub-issue is closed**, tell the user what **The base branch** says when every
    sub-issue is closed and the project is not `merged`: `<base>` holds the whole project, merging it into `<from>`
    through a pull request is theirs to do, and the parent closes as completed when a pj-3-running run sees that merge,
    or when the user closes it after merging. Ask nothing.

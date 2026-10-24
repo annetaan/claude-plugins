@@ -2,8 +2,8 @@
 
 This skill runs one implementation as **design, a design review where the repository accepts breaking changes,
 approval, then per task (implement, review rounds, one commit), then an integration review, then a finish step**,
-with each role in a session of its own. The review rounds happen in [difit](https://github.com/yoshiko-pg/difit)
-comment threads. Open the same server in a browser and you write into the same threads the agents do.
+with each role in a session of its own. The review rounds run through Markdown files in the run's work report
+directory, one per round and one reply to each, so the whole review stays readable after the run.
 
 ## Install
 
@@ -15,7 +15,7 @@ comment threads. Open the same server in a browser and you write into the same t
 ## Use it
 
 Name the skill, or invoke `/annetaan:workflow`. It never starts on its own. You name it, or pj-3-running runs it for
-one issue, because it runs a local server for as long as the flow lasts, opens a browser, and adds commits.
+one issue, because it spawns several sessions and adds commits.
 
 ```
 /annetaan:workflow add filter conditions to the search form
@@ -63,7 +63,7 @@ laid out, and its changes stay uncommitted in the working tree. Saying "stop" pa
 
 The implementation and review sessions **start fresh for every task**, and both run on opus at medium effort,
 whatever the task. A task boundary is a cheap place to
-start over. The code is in git, the plan is with the orchestrator, and every review thread is resolved. What is left
+start over. The code is in git, the plan is with the orchestrator, and every review finding is resolved. What is left
 is how this repository wants to be worked in, and that rides along as **handover notes**: five lines from each
 session, folded together, capped at fifteen.
 
@@ -71,9 +71,7 @@ session, folded together, capped at fifteen.
 
 pj-3-running works through a project's issues one at a time, and runs each one through this skill. That run has no
 design session, no approval and no questions. The issue's text is the approved design, and an issue only gets that
-far once it can be implemented as it stands. The issue becomes one task. Its review rounds and the integration review
-happen in the same difit you can open in the browser, and the server stays up across issues on one port, so the tab
-you opened keeps working.
+far once it can be implemented as it stands. The issue becomes one task, with its review rounds and the integration review.
 
 The pull request body is `log.md` under a head of `Implements`, `Part of` and a two-line `## Plan`. The run pushes
 and opens the pull request as a draft against the project's base branch. pj-3-running merges it.
@@ -93,6 +91,10 @@ Every run writes a work report.
 work-reports/2026-09-19-1346-a1b2c3d/
   log.md         what changed, how it was verified, what the review changed, the screenshots
   changes.diff   the diff from the start commit to HEAD
+  review/        one file per review round, and the reply to each
+    task-1-round-1.md
+    task-1-round-1-reply.md
+    integration-round-1.md
   before.png     before and after, when the change shows on screen
   after.png
 ```
@@ -110,8 +112,8 @@ picks a structure. Whatever it picks, the report has to answer what changed, how
 that were actually run, what the review changed, and which commit answers which task in the plan.
 
 When the ending was a pull request, `log.md` becomes the pull request body. When it was not, `log.md` is what
-you read instead. Open it in an editor and the screenshots come with it. To look at the diff interactively again,
-`difit-session.sh start . <start commit>` brings difit back.
+you read instead. Open it in an editor and the screenshots come with it. `review/` holds how each finding was
+raised and answered.
 
 ## Screenshots
 
@@ -127,7 +129,6 @@ before it touches anything**.
 ## What you need
 
 - to be inside a `git` repository
-- `difit`, which falls back to `npx difit` when it is missing
 - a clean working tree
 - `gh`, for the pull request ending only
 
@@ -145,22 +146,9 @@ screenshots it could not attach.
 | `roles/design-review.md` | the role for the design review session, which pushes the design toward its ideal shape once, before approval |
 | `roles/work.md` | the role for the implementation session |
 | `roles/review.md` | the role for the review session |
-| `scripts/difit-session.sh` | keeps exactly one difit server per working tree |
+| `review-files.md` | the shape of the review files, read by the review and implementation sessions |
 
 The design, implementation and review sessions run on agents that ship with the plugin (`../../agents/`). Design is
 `annetaan:workflow-design` (opus / high). The design review is `annetaan:workflow-design-review` (fable / medium),
 once before approval. Implementation is `annetaan:workflow-worker` and review is
 `annetaan:workflow-reviewer`, both opus / medium. The full list is in [the plugin README](../../README.md).
-
-`difit-session.sh` works on its own too.
-
-```
-difit-session.sh start <target-ref> <base-ref> [port]   # target "." compares the working tree against base
-difit-session.sh refresh          # pin the diff to the current state, carrying unresolved threads over
-difit-session.sh comments         # read unresolved threads as JSON
-difit-session.sh add --as <review|work> '<json>'   # post a comment or a reply
-difit-session.sh resolve <id...>
-difit-session.sh open | url | port | status | stop
-```
-
-State goes in `$(git rev-parse --git-dir)/annetaan-workflow.json`, which leaves the working tree alone.

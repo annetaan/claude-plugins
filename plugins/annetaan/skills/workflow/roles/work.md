@@ -58,35 +58,20 @@ its checked decisions bind. There is no design session to go back to, so three t
 
 ## Review rounds
 
-The main session tells you to read the comments and respond. Work through them in order.
+The main session names the review file of the round. The format and the file names are in
+`$FLOW/review-files.md`. Read it once.
 
-```bash
-$FLOW/scripts/difit-session.sh comments        # unresolved threads, as JSON
-```
+**Answer every open finding** in the reply file next to the round file, one line each, as that file shows.
 
-**Reply to every thread before you decide what to do about it.**
+- **`fixed`** with what you changed, once the fix is in the working tree.
+- **`disagree`** with your reasoning, when you think the finding is wrong. Change nothing for it. The reviewer
+  decides next round.
+- Write the reply file once, after the fixes. Never edit a review file.
+- **A fix is still not a commit.** The main session sends the reply back for review. Commits happen after approval,
+  on the main session's word.
 
-```bash
-# reply
-$FLOW/scripts/difit-session.sh add --as work '{"type":"reply","threadId":"<id>","filePath":"<path>","position":{"side":"new","line":42},"body":"Fixed: ..."}'
-
-# resolve only the threads you have actually handled
-$FLOW/scripts/difit-session.sh resolve <threadId> [<threadId>...]
-```
-
-**Copy `filePath` and `position` straight from the thread you are replying to.** When `threadId` and
-`position` disagree, difit **takes `position`**. A miscopied value lands your reply on somebody else's
-thread. Copying `filePath` and `position` out of the JSON that `comments` returned is the only safe way.
-`position` is sometimes `{"side":"new","line":42}` and sometimes `{"side":"new","line":{"start":36,"end":39}}`.
-Copy the whole thing.
-
-- **Always pass `--as work`.** It records who spoke, so the reviewer can still tell your rebuttal from their own finding after `refresh` carries the thread into the next round. Without it the label reads `[?]`.
-- **Never resolve in silence.** Reply with what you did, then resolve.
-- **Never resolve a finding you disagree with.** Reply with your reasoning, leave it open, and let the reviewer decide next round.
-- Comments a human wrote in the browser arrive through the same path. Handle them the same way.
-- **A fix is still not a commit.** The main session refreshes difit and sends it back for review. Commits happen after approval, on the main session's word.
-
-Report to the main session when you are through: which threads you fixed, which you replied to and left open and why, and what the tests printed.
+Report to the main session when you are through: the path of the reply file, how many findings you fixed, which you
+disagreed with and why, and what the tests printed.
 
 ## Notes for the next session
 
@@ -103,8 +88,8 @@ No explanation of the code. That is in git. No design and no plan either. The ma
 ## Report length
 
 **Report the gist.** After implementing, that is the files you changed and what the change amounts to, the commands
-you ran and what they printed. After a review round, it is how many threads you fixed, which ones you left open and
-why, and what the tests printed. **Do not paste a diff or a log.** The main session takes a report from every session
+you ran and what they printed. After a review round, it is how many findings you fixed, which ones you disagreed with
+and why, and what the tests printed. **Do not paste a diff or a log.** The main session takes a report from every session
 in the flow, and it is the only one holding the whole plan.
 
 ## Rules
@@ -113,6 +98,6 @@ in the flow, and it is the only one holding the whole plan.
 - **Never rewrite history.** `git rebase`, `git reset --hard` and `--amend` are out. The integration review takes its diff from `START`, and a moved history breaks the comparison. Fixes go on as new commits after approval.
 - **Never `git push`.** Whether anything gets pushed is between the main session and the user.
 - Never say "done" while a test is failing. Report the failure.
-- Never put a secret (a token, a key, a password) in a comment body.
-- Write comment bodies, commit messages and reports in the language the repository uses. Where the repository gives nothing to go on, use the language the user is using.
-- **Never point at a file by line number** in prose. difit comment positions are a separate thing, because difit requires that format.
+- Never put a secret (a token, a key, a password) in a reply file.
+- Write reply files, commit messages and reports in the language the repository uses. Where the repository gives nothing to go on, use the language the user is using.
+- **Never point at a file by line number.** Point with a path and a symbol name.
