@@ -1,12 +1,13 @@
 ---
 name: workflow
-description: Runs one implementation as design, a design review where the repository accepts breaking changes, approval, then per task (implement, review rounds, one commit), then an integration review, then a finish step that opens a pull request, pushes, or stops locally. The review rounds happen in difit, a local diff viewer, so a human can write into the same threads from a browser. Use it only when the user names this skill or invokes /annetaan:workflow, or when pj-3-running loads it to run one issue, because it starts a long-running local server, opens a browser, spawns four sub-sessions, and adds commits. Do not use it for a one-off implementation request or for an ordinary code review request.
+description: Runs one implementation as design, a design review where the repository accepts breaking changes, approval, then per task (implement, review rounds, one commit), then an integration review, then a finish step that opens a pull request, pushes, or stops locally. The review rounds run through Markdown files in the run's work report directory. Use it only when the user names this skill or invokes /annetaan:workflow, or when pj-3-running loads it to run one issue, because it spawns four sub-sessions and adds commits. Do not use it for a one-off implementation request or for an ordinary code review request.
 ---
 
 # workflow
 
 One implementation, run as **design, a design review where the repository accepts breaking changes, approval, then per task (implement, review rounds, one commit), then an integration review, then a finish step**, with each role in its own session.
-The review rounds happen in difit comment threads. Open the same server in a browser and a human writes into the same threads.
+The review rounds run through Markdown files under the run's work report directory, described in
+`$FLOW/review-files.md`.
 
 The design session returns a **plan**: an ordered list of small tasks. Implementation and review rounds run inside a task. A task the reviewer approves becomes **one commit**. After the last task an **integration review** looks at the whole diff once. Then the flow finishes.
 
@@ -23,8 +24,8 @@ it changes. Everything it does not mention runs as written.
 
 ## Before you start
 
-This skill starts a long-running local server, opens a browser, and adds commits. **Start it only when the user names
-it or invokes `/annetaan:workflow`, or pj-3-running loads it for an issue.**
+This skill spawns sub-sessions and adds commits. **Start it only when the user names it or invokes
+`/annetaan:workflow`, or pj-3-running loads it for an issue.**
 
 Run these checks and keep every answer. Phase 1 needs all of them.
 
@@ -34,7 +35,6 @@ git status --porcelain                   # must be empty
 git branch --show-current                # where commits land if the user keeps this branch
 git symbolic-ref --quiet refs/remotes/origin/HEAD | sed 's|refs/remotes/origin/||'   # the default branch
 git remote get-url origin                # is there a remote at all
-command -v difit || echo "falls back to npx difit"
 gh auth status                           # informational, see below
 gh --version                             # --attach needs 2.99.0 or later
 ```
@@ -175,8 +175,8 @@ If this is not zero, the pull request will show those commits too, and they neve
 **The implementation and review sessions start fresh for every task.**
 
 **A task boundary throws away almost nothing.** The code is in git, the design and the plan are in your hands, and
-the unresolved threads are zero because the task was approved. What is left is how this repository wants to be
-worked in, and that travels as the handover notes (phase 4 (e)).
+every finding is resolved because the task was approved. What is left is how this repository wants to be
+worked in, and that travels as the handover notes (phase 4 (d)).
 
 **Every task and the integration review run on the same two agents**: `annetaan:workflow-worker` for
 implementation and `annetaan:workflow-reviewer` for review, both opus / medium. There is no per-task choice to make.
@@ -201,7 +201,7 @@ The name is the one you put in the approval message. When the user chose the cur
 
 ### (b) Make sure `work-reports/` is ignored
 
-Screenshots and the work report go to **`work-reports/` inside the repository**. Outside the repository they grow on disk where nobody sees them. Inside the repository, **check first that git is not tracking it.**
+Screenshots, the review files and the work report go to **`work-reports/` inside the repository**. Outside the repository they grow on disk where nobody sees them. Inside the repository, **check first that git is not tracking it.**
 
 ```bash
 ROOT=$(git rev-parse --show-toplevel)
@@ -242,13 +242,13 @@ When the user says no, stop and ask what to do. Files under a directory git stil
 START=$(git rev-parse HEAD)
 ```
 
-**This value runs through the whole flow.** The difit target, the integration review, the report and the final message all start from `START`.
+**This value runs through the whole flow.** The integration review, the report and the final message all start from `START`.
 
 ### (d) Create the work directory
 
 ```bash
 WORKDIR="$ROOT/work-reports/$(date +%Y-%m-%d-%H%M)-${START:0:7}"
-mkdir -p "$WORKDIR"
+mkdir -p "$WORKDIR/review"
 echo "$START" "$WORKDIR"
 ```
 
@@ -263,7 +263,7 @@ where you make it.
 
 ```
 Agent(subagent_type: "annetaan:workflow-worker", description: "implementation, task k",
-      prompt: "Read $FLOW/roles/work.md first and follow the role it describes.\n\nApproved design:\n<the full design>\n\nPlan:\n<the full plan>\n\nDetail design for this task:\n<what the design session returned for task k. For task 1, the part of the approved design that covers it>\n\nStart point START: <the SHA>\nBranch: <branch name>\n\nProgress:\n<the tasks already done and the commit that closed each, as the matching `git log --oneline` lines. \"none\" for task 1>\n\nHandover notes from the earlier sessions:\n<the notes you have been accumulating. \"none\" for task 1>\n\nImplement task k, \"<task name>\", of the plan. **Do not commit yet.** Report back once the tests pass.")
+      prompt: "Read $FLOW/roles/work.md first and follow the role it describes.\n\nApproved design:\n<the full design>\n\nPlan:\n<the full plan>\n\nDetail design for this task:\n<what the design session returned for task k. For task 1, the part of the approved design that covers it>\n\nStart point START: <the SHA>\nBranch: <branch name>\nReview files: <absolute path of WORKDIR>/review\n\nProgress:\n<the tasks already done and the commit that closed each, as the matching `git log --oneline` lines. \"none\" for task 1>\n\nHandover notes from the earlier sessions:\n<the notes you have been accumulating. \"none\" for task 1>\n\nImplement task k, \"<task name>\", of the plan. **Do not commit yet.** Report back once the tests pass.")
 ```
 
 ### Screenshots
@@ -278,12 +278,12 @@ Agent(subagent_type: "annetaan:workflow-worker", description: "implementation, t
 
 **One implementation session covers one task.** Every review round for that task continues through `SendMessage` to
 the same agent, because answering a finding on your own code needs the context that wrote it. The commit in phase 4
-(e) ends it. You never message it again, and the next task starts a new one.
+(d) ends it. You never message it again, and the next task starts a new one.
 
 ## Phase 4: the task loop
 
 Work the plan one task at a time. Nothing runs in parallel, because there is one working tree.
-A task is **(a) detail it and implement, (b) show the diff in difit, (c) review, (d) respond, back to (c), then (e) commit on approve**.
+A task is **(a) detail it and implement, (b) review, (c) respond, back to (b), then (d) commit on approve**.
 
 **(a) Detail the task, then implement**
 
@@ -301,52 +301,30 @@ Then start a new implementation session with the phase 3 prompt.
 
 Check that the tests pass before you send anything to review. `git status --porcelain` shows the change sitting in the working tree, and `git log -1` shows HEAD has not moved.
 
-**(b) Show the diff in difit**
-
-difit shows **the working tree against HEAD**, which is every uncommitted change including untracked files. That is exactly the current task.
-
-First time:
-```bash
-$FLOW/scripts/difit-session.sh start . HEAD
-$FLOW/scripts/difit-session.sh open
-```
-Give the URL to the user. **From here the user can write comments straight from the browser.** Those comments reach the implementation session through the same path as the reviewer's findings.
-
-Every time after that, including the next round of the same task and the first round of the next task:
-```bash
-$FLOW/scripts/difit-session.sh refresh
-```
-
-**Skip this and the review session reads a stale diff.** difit pins the diff at start-up, so later edits show up only after a restart. The restart reuses the port, so ask the user to reload the browser.
-
-A restart drops the comments on the server, so `refresh` **carries unresolved threads over by itself**. Each conversation becomes one body under a new id, and every utterance keeps a `[review]`, `[work]` or `[User]` label, so a finding still reads differently from a rebuttal after the carry. Resolved threads are dropped. That is why the order in (d) matters. Handled threads get resolved and disappear, and only live disagreements survive into the next round. Line positions come from the previous round, and the carried body says so.
-
-**Right after a task is approved and committed, there should be zero unresolved threads.** An old thread showing up in the next task's first `refresh` means the previous task was closed wrong.
-
-**(c) Review**
+**(b) Review**
 
 **Round 1 of every task starts a new review session.**
 
 ```
 Agent(subagent_type: "annetaan:workflow-reviewer", description: "review, task k",
-      prompt: "Read $FLOW/roles/review.md first and follow the role it describes.\n\nApproved design and acceptance criteria:\n<the full design>\n\nPlan:\n<the full plan>\n\nDetail design for this task:\n<the same one the implementation session got>\n\nProgress:\n<the tasks already done and the commit that closed each. \"none\" for task 1>\n\nUnder review: task k, \"<task name>\". The diff sits between the working tree and HEAD (`git diff HEAD` plus untracked files). difit shows the same diff.")
+      prompt: "Read $FLOW/roles/review.md first and follow the role it describes.\n\nApproved design and acceptance criteria:\n<the full design>\n\nPlan:\n<the full plan>\n\nDetail design for this task:\n<the same one the implementation session got>\n\nProgress:\n<the tasks already done and the commit that closed each. \"none\" for task 1>\n\nReview files: <absolute path of WORKDIR>/review\n\nUnder review: task k, \"<task name>\". The diff sits between the working tree and HEAD (`git diff HEAD` plus untracked files). Write round 1 as `task-<k>-round-1.md`.")
 ```
 
-Every round after that goes to the same session with `SendMessage`, as "the diff has been updated, review it again".
-A reviewer has to remember what it asked for and what the implementation side answered back. The session ends with
-the task, at (e).
+Every round after that goes to the same session with `SendMessage`, as "the diff has been updated, and the reply is
+`task-<k>-round-<r>-reply.md`. Review it again as round `<r+1>`". A reviewer has to remember what it asked for and
+what the implementation side answered back. The session ends with the task, at (d).
 
-An `approve` with zero unresolved threads goes to (e). Anything else goes to (d).
+Read the verdict at the end of the round file yourself. `approve` goes to (d). Anything else goes to (c).
 
-**(d) Respond**
+**(c) Respond**
 
 `SendMessage` to the implementation session.
 
-> Review comments are in difit. Read them with `$FLOW/scripts/difit-session.sh comments`, reply to each thread, then fix what needs fixing. Leave a thread open with your reasoning when you disagree. **Do not commit yet.** Report back once the tests pass.
+> The review is `<WORKDIR>/review/task-<k>-round-<r>.md`. Fix what needs fixing, and write your answer to every open finding in `task-<k>-round-<r>-reply.md` next to it. Answer `disagree` with your reasoning when you disagree. **Do not commit yet.** Report back once the tests pass.
 
-Go back to the `refresh` in (b), then to (c). Count one round.
+Go back to (b). Count one round.
 
-**(e) Commit on approve**
+**(d) Commit on approve**
 
 `SendMessage` to the implementation session.
 
@@ -370,7 +348,7 @@ When the detail pass in (a) says the boundary no longer holds, or the implementa
 ### The round cap
 
 **Five rounds per task. Fixed.** It does not move at approval.
-Each (c) counts as one round, and the count resets when the task changes.
+Each (b) counts as one round, and the count resets when the task changes.
 
 If round five does not come back `approve`, stop and report to the user. Lay out what is still open and what each side said, and ask for a decision. **That task's changes are sitting uncommitted in the working tree.** Say that, and say that `git stash` or `git checkout -- .` can park or drop them. Do not keep the rounds going forever.
 
@@ -382,30 +360,26 @@ From an issue, the cap ends in the stop procedure there, with no question to the
 
 Once every task is committed, **review the whole diff once.** A review inside a task cannot see the task boundaries: interfaces that do not line up, a rename done on one side only, work duplicated between tasks.
 
-Switch the difit target to the whole change. The base changes, so this is `stop` then `start` rather than `refresh`.
-
-```bash
-$FLOW/scripts/difit-session.sh stop
-$FLOW/scripts/difit-session.sh start . <START>
-```
-
-That shows the working tree, which should be empty at this point, against `START`, which is every commit put together. Fixes from the integration review land uncommitted in the working tree, so later rounds follow with `refresh` on the same target.
+The target is the working tree against `START` (`git diff <START>` plus untracked files), which is every commit put
+together. The working tree should be empty at this point. Fixes from the integration review land uncommitted in the
+working tree, so later rounds see them in the same diff.
 
 **The integration review starts a new review session.**
 
 ```
 Agent(subagent_type: "annetaan:workflow-reviewer", description: "integration review",
-      prompt: "Read $FLOW/roles/review.md first and follow the role it describes.\n\nApproved design and acceptance criteria:\n<the full design>\n\nPlan, with the commit that closed each task:\n<the plan plus the matching `git log --oneline` lines>\n\n<the request below>")
+      prompt: "Read $FLOW/roles/review.md first and follow the role it describes.\n\nApproved design and acceptance criteria:\n<the full design>\n\nPlan, with the commit that closed each task:\n<the plan plus the matching `git log --oneline` lines>\n\nReview files: <absolute path of WORKDIR>/review\n\n<the request below>")
 ```
 
-> Every task is committed. This is the integration review. The target is `git diff <START>..HEAD`, plus the working tree from the next round onward. The tasks were reviewed one at a time, so look at **the boundaries**: types and contracts between functions that call each other across tasks, names that do not match, duplicated implementations, and acceptance criteria for the whole design that are still unmet.
+> Every task is committed. This is the integration review. The target is `git diff <START>` plus untracked files. Write round 1 as `integration-round-1.md`. The tasks were reviewed one at a time, so look at **the boundaries**: types and contracts between functions that call each other across tasks, names that do not match, duplicated implementations, and acceptance criteria for the whole design that are still unmet.
 
 **`changes-requested` starts a new implementation session as well**, with the phase 3 prompt. The progress is every task, the handover notes are everything you have collected, and the request is to
-answer the integration review. From there the (c), (d), (b) loop is the same as phase 4, and the cap is the same
+answer the integration review. From there the (b), (c) loop is the same as phase 4, with the `integration-round-<r>`
+files, and the cap is the same
 **five rounds**. Neither session gets rebuilt during those rounds. Fixes become **one commit** after approval, with a
 subject that says what it is, such as "integration review fixes". No fixes means no commit.
 
-Review says `approve`, zero unresolved threads, tests pass. Phase 6 starts when all three hold.
+Review says `approve`, every finding is resolved, tests pass. Phase 6 starts when all three hold.
 
 ## Phase 6: finish
 
@@ -418,7 +392,7 @@ Review says `approve`, zero unresolved threads, tests pass. Phase 6 starts when 
 
 The request:
 
-> Write a work report at `<WORKDIR>/log.md`. If this repository has `.github/PULL_REQUEST_TEMPLATE.md`, use it as the skeleton. Otherwise read a few recent merged pull requests (`gh pr list --state merged --limit 5`) and follow how they are written. With nothing to go on, choose a structure yourself. Whatever structure you choose, a reader has to come away with: what changed, how it was verified (the commands that were run and what they printed), what the review changed, the screenshots if the change shows on screen, and which commit answers which task in the plan. Screenshots sit in the same directory, so link them relatively, as `![before](./before.png)`. Write it in the language this repository uses. **Do not create files outside this directory.**
+> Write a work report at `<WORKDIR>/log.md`. If this repository has `.github/PULL_REQUEST_TEMPLATE.md`, use it as the skeleton. Otherwise read a few recent merged pull requests (`gh pr list --state merged --limit 5`) and follow how they are written. With nothing to go on, choose a structure yourself. Whatever structure you choose, a reader has to come away with: what changed, how it was verified (the commands that were run and what they printed), what the review changed, read from the files under `./review/`, the screenshots if the change shows on screen, and which commit answers which task in the plan. Screenshots sit in the same directory, so link them relatively, as `![before](./before.png)`. Write it in the language this repository uses. **Do not create files outside this directory.**
 
 **Keep the file name `log.md`.** Claude Code refuses a Write from a sub-agent when the name of the `.md` file
 starts with `report`, `summary`, `findings` or `analysis`, in any case ("Subagents should return findings as text,
@@ -428,7 +402,7 @@ not write report files."). Nothing in settings, the environment, CLAUDE.md or ag
 results the earlier sessions reported. Those sessions are gone, and that part of the history now lives in your
 context and nowhere else.
 
-Drop the diff next to it, so the change stays readable once difit is gone.
+Drop the diff next to it, so the report and the review files can be read against it.
 
 ```bash
 git diff <START>..HEAD > "$WORKDIR/changes.diff"
@@ -441,7 +415,6 @@ Then take one of the three endings below, whichever the user picked at approval.
 ### 6a. Open a pull request
 
 ```bash
-$FLOW/scripts/difit-session.sh stop
 git push -u origin <branch>
 ```
 
@@ -479,17 +452,12 @@ Carry the pull request URL into the closing report below.
 ### 6b. Push only
 
 ```bash
-$FLOW/scripts/difit-session.sh stop
 git push -u origin <branch>
 ```
 
 Tell the user the branch is pushed and no pull request was opened, and give the path of `log.md`.
 
 ### 6c. Stop locally
-
-```bash
-$FLOW/scripts/difit-session.sh stop
-```
 
 Nothing is pushed. Tell the user so plainly, and add how to undo the commits (`git revert <START>..HEAD`) so the decision is theirs to make.
 
@@ -498,7 +466,7 @@ Nothing is pushed. Tell the user so plainly, and add how to undo the commits (`g
 Whichever ending ran, close with: `START`, the commits stacked on it matched against the tasks in the plan, the design summary, and what the review changed. Then:
 
 - **the path of the work report** (`<WORKDIR>/log.md`), which opens in an editor with the screenshots inline
-- how to bring difit back for another look: `$FLOW/scripts/difit-session.sh start . <START>`
+- the review files, under `<WORKDIR>/review/`
 - the screenshot paths, when the change shows on screen
 
 ## From an issue
@@ -517,12 +485,11 @@ These values are already in your context. Nothing arrives as an argument.
 - the entry state: `fresh`, `resume-integration` or `resume-merge`
 - the pull request number `m` for `resume-integration` and `resume-merge`, none for `fresh`
 - the handover notes, seeded from the parent's handover comment
-- the difit port, or none for the first issue of the run
 - the run's worktree `<WT>`, and `<MAIN>`, the main working tree. The session is in `<WT>`, and the branch is
   checked out there
 
-pj-3-running has already run its checks (`gh`, difit) on `<WT>` and confirmed that `work-reports/` is ignored there.
-Every command below runs in `<WT>`, so `ROOT`, `WORKDIR` and the difit state all come from there. Never touch
+pj-3-running has already run its checks (`gh`) on `<WT>` and confirmed that `work-reports/` is ignored there.
+Every command below runs in `<WT>`, so `ROOT` and `WORKDIR` come from there. Never touch
 `<MAIN>`. The user works in it during the run.
 
 ### What it skips
@@ -540,7 +507,6 @@ Every command below runs in `<WT>`, so `ROOT`, `WORKDIR` and the difit state all
 
   On `NOT_IGNORED`, take the stop procedure with the reason `work-reports`. Never ask about `.gitignore` here.
 - Endings 6b and 6c, and **Report to the user**. What goes back to pj-3-running replaces the report.
-- `difit-session.sh stop`, except as the first half of a restart. pj-3-running stops the server.
 
 ### The design, the plan and the detail
 
@@ -558,7 +524,7 @@ gh issue view <Q> --json body   # each Q
   boundaries those projects define (`format.md`, **The parent issue body**).
 - **The plan**: one task, "1. <issue title>".
 - **The detail design for task 1**: the issue's `## Design`.
-- **The commit**: in phase 4 (e), ask for a subject that follows the repository's style and names the issue title.
+- **The commit**: in phase 4 (d), ask for a subject that follows the repository's style and names the issue title.
 
 ### Start point and work directory
 
@@ -568,20 +534,6 @@ Phase 2 (c) takes `START` by the entry state.
 - `resume-integration`: `START=$(git merge-base origin/<base branch> HEAD)`.
 
 Phase 2 (d) runs as written. A resumed run gets a new `WORKDIR`.
-
-### difit across issues
-
-One difit server serves the whole pj-3-running run, on one port, so the browser tab the user opened keeps working.
-
-- **No port yet**, the first issue of the run: in phase 4 (b), `start . HEAD`, then `difit-session.sh port`. Keep
-  the port for pj-3-running and run `open`. This is the only time the browser opens in the run.
-- **A port already**, every later issue: at the start of phase 4 (b), `stop`, then `start . HEAD <port>`.
-- Within the issue, `refresh` runs as written.
-- Phase 5 becomes `stop`, then `start . <START> <port>`.
-- `resume-integration` starts there directly. With a port, `stop`, then `start . <START> <port>`. With no port yet,
-  `start . <START>`, then `port` and `open` as above.
-
-Comments the user writes in the browser reach the implementation session through phase 4 (d) as always.
 
 ### Phases 3 to 5
 
@@ -597,7 +549,7 @@ integration review over `START..HEAD`. The prompts gain a line each.
 - Every review request, the round 1 prompt and each "review it again" `SendMessage`, also carries the adaptations
   the implementation session has listed so far, under "Adaptations", or "none".
 
-Keep the handover lines from phase 4 (e) for pj-3-running.
+Keep the handover lines from phase 4 (d) for pj-3-running.
 
 ### Reports from the implementation session
 
@@ -685,40 +637,14 @@ The task commit decides the case, whatever the phase. Look for it in `git log --
 - **You do not write code.** The implementation session implements and the review session reviews. Code you write yourself never passes through a review.
 - **The review session never changes code.** It writes findings. The implementation session fixes them.
 - **The design review session never changes code and sends one report.** It runs once, before approval, never on task detailing or a plan redraw, and the flow goes on without it when it cannot start.
-- **One difit server per working tree.** Start, restart and stop all go through `difit-session.sh`. Calling `difit` by hand multiplies ports and tabs.
+- **The review files are written once.** Each round and each reply is a new file under `$WORKDIR/review/`, in the shape `$FLOW/review-files.md` gives. Nobody edits one after it is written.
 - **The design session lives for the whole flow. An implementation session and a review session live for one task.** Inside a task they continue through `SendMessage`, because throwing the context away between rounds repeats arguments that were already settled. At the commit they are finished, and the next task starts a new pair.
 - **Keep the reports from the sub-agents short.** The role instructions cap them. A report that pastes a diff or a log fills the one context that holds the whole plan, which is yours. When a long one arrives, say so, and ask for the gist next time.
-- **One task is one commit, and a commit happens only after approval.** A commit mid-round drops the diff out of difit's working-tree view and out of the review.
+- **One task is one commit, and a commit happens only after approval.** A commit mid-round drops the diff out of the working-tree view the review reads.
 - **No branches, no history rewriting from the sub-sessions.** The main session owns `git checkout -b`. `git rebase`, `git reset --hard` and `--amend` break the `START` comparison. The role instructions say the same.
 - **Do not lose `START`.** The phase 2 message to the user and the per-task progress lines in phase 4 are the copies that survive a summarised context.
 - **Never write into `work-reports/` without checking it is ignored.** Unchecked, the report and the screenshots ride into the next commit. Ask the user before adding it to `.gitignore`.
 - **Do not move anything under `$WORKDIR` into version control.** The report, the screenshots and the diff are worth more untracked. Move them only when the user asks.
-- Report a failure when it happens: a failing test, a design that falls apart, difit refusing to start. **Approved commits are already on the branch and the task in flight is uncommitted in the working tree.** Say both.
-- Run `difit-session.sh stop` when the flow is interrupted, or the server keeps running.
+- Report a failure when it happens: a failing test, a design that falls apart. **Approved commits are already on the branch and the task in flight is uncommitted in the working tree.** Say both.
 - From an issue, the main session also pushes and opens the draft pull request. Nothing is merged here. pj-3-running
   merges.
-- From an issue, difit stops only when pj-3-running ends or stops the run.
-
-## Checking state
-
-```bash
-$FLOW/scripts/difit-session.sh status     # port, URL, pid, target (a task shows target=. base=HEAD, the integration review shows base=START)
-$FLOW/scripts/difit-session.sh comments   # unresolved threads, as JSON
-```
-
-## difit comment format (measured)
-
-```jsonc
-// a new finding
-{"type":"thread","filePath":"src/x.ts","position":{"side":"new","line":42},"body":"..."}
-// a range
-{"type":"thread","filePath":"src/x.ts","position":{"side":"new","line":{"start":36,"end":39}},"body":"..."}
-// a reply, where threadId alone is not enough. filePath and position are required too, with the values of the original thread
-{"type":"reply","threadId":"<id>","filePath":"src/x.ts","position":{"side":"new","line":42},"body":"..."}
-```
-
-An array passes several at once. `side` is `"new"` on the added side of the diff and `"old"` on the removed side.
-
-**The author comes from `add --as <review|work>`.** Writing `author` into the JSON gets forgotten, so the script injects it into every element of the payload. Comments from the browser UI get `author` set to `"User"` by difit itself, which is how a human's writing stays recognisable. `refresh` folds that `author` into a `[…]` label in the body, and repeated carries never double the label.
-
-**The trap in replies**: when `threadId` and `position` disagree, difit **takes `position`**. A reply pointing at another line lands on that line's thread. Copy `filePath` and `position` wholesale out of the `comments` JSON when you build a reply.

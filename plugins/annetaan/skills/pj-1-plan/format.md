@@ -576,8 +576,8 @@ Every comment a skill's main session posts starts with a bold marker, then the t
 
 **A comment with no marker is from a human.** A skill reads it as one.
 
-`pj-1-plan` files issues and posts no comments. Pull request review happens in difit, so a pull request
-carries no review-thread markers.
+`pj-1-plan` files issues and posts no comments. The review of a pull request lives in the review files of its work
+report (the `workflow` skill), so a pull request carries no review-thread markers.
 
 ## Pull requests
 
