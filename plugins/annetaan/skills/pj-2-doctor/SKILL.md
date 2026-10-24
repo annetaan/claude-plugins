@@ -1,0 +1,279 @@
+---
+name: pj-2-doctor
+description: Asks which project to work on, with a number given as the recommended one, then reviews the whole project against the boxes the user ticked on GitHub, against the code and against each issue in it. Has one issue writer per issue redraw what no longer holds, draws the stubs, resolves the blockers, rewrites the run order in the parent's Order list, and labels the issues ready. Asks the user no task decision, because the user ticks those on GitHub. Asks only about a split, two boxes ticked in one decision, and its changes before they are written. Run it again after ticking. The second of three skills, after pj-1-plan and before pj-3-running. Use it only when the user names this skill or invokes /annetaan:pj-2-doctor, because it edits, files and closes issues and changes labels on GitHub.
+---
+
+# pj-2-doctor
+
+The second of the three pj skills: it reviews a filed project after the user has ticked its boxes, fixes what no
+longer holds, rewrites the run order, and labels the issues `ready`.
+
+You are the main session. **You decide nothing, and you never write an issue body.** The user decides by ticking
+boxes on GitHub, the reviewer reads the whole project, an issue writer reads the code and redraws one issue, and you
+carry their output to the user and onto GitHub.
+
+## Paths: `$DOCTOR`
+
+**`$DOCTOR` below means `${CLAUDE_SKILL_DIR}`**, the absolute path of this skill's directory.
+
+`$DOCTOR` is not a shell variable. Replace it with the real absolute path when you run bash and when you write a
+prompt for a sub-agent. Sub-agents have not read this instruction, so a relative path or a literal `$DOCTOR` finds
+them nothing.
+
+**Read `$DOCTOR/../pj-1-plan/format.md` before anything else.** It is the only description of the parent issue, the
+run order, the sub-issue body, the decisions, the labels, the relationships, the blockers and the comments.
+Everything below refers to it.
+
+This skill uses these files:
+
+- the script `$DOCTOR/../pj-1-plan/scripts/project.sh`, written `project.sh` below
+- the reviewer's role file `$DOCTOR/roles/review.md`
+- the issue writer's role file `$DOCTOR/../pj-1-plan/roles/issue.md`
+
+**Language**: talk to the user in the user's language. Write issue text in the repository's language, as `format.md`
+says.
+
+## Before you start
+
+This skill edits, files and closes issues and changes labels on GitHub. **Start it only when the user names it or
+invokes `/annetaan:pj-2-doctor`.**
+
+```bash
+git rev-parse --show-toplevel
+gh --version          # 2.94.0 or later
+gh auth status
+gh repo view --json nameWithOwner,hasIssuesEnabled,defaultBranchRef
+```
+
+- **Any of these failing stops the skill**: not a git repository, `gh` older than 2.94.0, `gh` not logged in, or
+  issues turned off. Say which one and stop. The clone is needed because `project.sh --check` runs inside one.
+- A dirty working tree does not matter. This skill reads the code and changes nothing in it.
+
+**The project.** Pick it as `format.md` says under **Picking the project**. The project picked is `<P>`. Print
+`project #<P>` once, so that a context summary can find it again.
+
+Run `mktemp -d` once for the whole run. `$TMP` below is the directory it printed. A shell variable does not outlive
+one command, so write the path in full each time.
+
+## Phase 1: the diagnosis
+
+1. Read the project.
+
+   ```bash
+   $DOCTOR/../pj-1-plan/scripts/project.sh <P>
+   $DOCTOR/../pj-1-plan/scripts/project.sh <P> --order
+   ```
+
+   When `project.sh` fails, for instance with `has no Base: line`, quote its message and stop. **When `--order`
+   fails on a cycle**, within the project or between projects, show the user the cycle it names and stop. Nothing
+   can be ordered until a human removes an edge.
+2. **Check every open sub-issue** whose `pr` is not merged. An open issue whose pull request merged is waiting for
+   `pj-3-running` to close it. Leave it alone.
+
+   ```bash
+   $DOCTOR/../pj-1-plan/scripts/project.sh <P> --check <k>
+   ```
+
+3. **Start the reviewer.**
+
+   ```
+   Agent(subagent_type: "annetaan:pj-reviewer", description: "review #<P>",
+         prompt: "Read $DOCTOR/roles/review.md first and follow the role it describes. The project format is in $DOCTOR/../pj-1-plan/format.md.\n\nParent: #<P>\n\nproject.sh <P>:\n<the JSON>\n\nproject.sh <P> --check, per issue:\n<each JSON>")
+   ```
+
+   `annetaan:pj-reviewer` ships with this plugin and is pinned to opus at high effort with code changes disabled.
+   **Keep it alive until phase 4 ends.** Phase 3 sends it the rewritten bodies.
+4. **Show the user the diagnosis**, one line per open sub-issue, in `--order` order:
+   - number and title, and `ready`, `blocker` or `stub` when it is one
+   - the open decisions, by count, and the contradictory ones
+   - the reviewer's findings, in a few words each
+   - `clear` when the reviewer found nothing and the check passed
+
+   Then one line for each parent with a finding, and the edges the reviewer would change.
+
+**When nothing has a finding and no open decision is left**, go to phase 4 with no writers. Only the labels and the
+run order may still change.
+
+## Phase 2: the questions
+
+Ask the user only what is not a task decision. **Never ask a task decision in the conversation.** An open decision
+is ticked on GitHub, and a question the reviewer raised becomes a new decision in the issue (kind 10 in
+`roles/review.md`).
+
+Ask with `AskUserQuestion`, at most four questions per call, one issue per question, header `#<n>`:
+
+- **A proposed split** (kind 11): split as proposed, or keep one issue and rework it. Each option says what it files
+  and how the edges move.
+- **Two boxes ticked in one decision** (kind 2): which option stands. List the ticked options, the recommended one
+  first.
+- **A ticked option the code rules out** (kind 3): what the reviewer found, and the options it leaves.
+
+Other takes `stop`, which ends the run with nothing written. Say that once before the first call.
+
+An answer here is the user's decision, so the writer of that issue works it into the body as a ticked box.
+
+## Phase 3: the writers
+
+**Start one issue writer per issue with a finding**, the parents included, all in one message.
+
+```
+Agent(subagent_type: "annetaan:pj-issue-writer", description: "revise #<n>", run_in_background: true,
+      prompt: "Read $DOCTOR/../pj-1-plan/roles/issue.md first and follow the role it describes. The project format is in $DOCTOR/../pj-1-plan/format.md. project.sh is $DOCTOR/../pj-1-plan/scripts/project.sh.\n\nMode: revise\n\nParent: #<P>\nIssue: #<n>\n\nproject.sh <P>:\n<the JSON>\n\nproject.sh <P> --check <n>:\n<the JSON, or none for a parent>\n\nThe review's findings on #<n>:\n<the findings>\n\nThe user's answers:\n<the phase 2 answers on #<n>, or none>")
+```
+
+`annetaan:pj-issue-writer` ships with this plugin and is pinned to opus at high effort with code changes disabled.
+**Keep each writer alive until phase 4 ends.**
+
+**Each writer writes its own issue only.** A finding a writer says belongs to another issue goes to that issue's
+writer with `SendMessage`. Start one when that issue has none yet.
+
+**Lint each body that comes back.** Write it to `$TMP/<n>.md`.
+
+```bash
+$DOCTOR/../pj-1-plan/scripts/project.sh --lint "$TMP/<n>.md"
+```
+
+Accept a clear lint, or `decisions-open` when a decision is still open. Read each parent's body against the parent
+shape in `format.md` instead: its headings, no line numbers, its `Base:` line and its `## Order` unchanged. Send a
+body that fails back to its writer with `SendMessage` and say what to fix.
+
+**When a writer could not fix something** that needs the user, ask it as phase 2 says, and send the answer back to
+the writer.
+
+**When every writer has returned**, send the reviewer the rewritten bodies with `SendMessage`. Its second return is
+the last word for this run. **There is no third round.** An issue it still finds something on goes into the report
+without `ready`, and the next run takes it up.
+
+Print one line `#<k> rewritten` as each body is accepted, and `review 2 done` when the reviewer returns, so a context
+summary can find where the run stood.
+
+## Phase 4: approval and writing
+
+**Show the user what will be written**, then ask once.
+
+- each body to rewrite, as `#<n>`, with what changed in one line
+- the new issues: the parts of a split and the stubs
+- the edges to add and remove
+- the blockers to close
+- `ready` to add, and `ready` to take off, each with why
+- the new `## Order`, one line per issue as it will read
+
+```
+AskUserQuestion: Write these changes to GitHub?
+  - Write them
+  - Stop without writing
+```
+
+The approval covers this run only (`format.md`, **Principle**).
+
+**`ready` goes on an issue** when it is open, `--check` passes with the lint clear and the premises clear or not
+evaluated yet, and the reviewer's last return lists it as clear. `ready` stays on an issue that still meets this.
+**`ready` comes off** an issue that had it and no longer meets this.
+
+Write in this order. **When a command fails halfway**, stop and tell the user what was written and what was not, with
+the numbers.
+
+1. **Re-read `updatedAt`** of every issue about to be written, the parents included, and compare it with the one its
+   writer read.
+
+   ```bash
+   gh issue view <k> --json updatedAt,body
+   ```
+
+   When it moved, someone changed the issue in the meantime. Send the current body to its writer to merge, lint the
+   new body, and go on (`format.md`, **Writing bodies**).
+2. **File what is new.** For a split, file parts 2 to N and keep a map from each part to its number. A stub is filed
+   blocking the issue it was found in. Both go under `<P>`.
+
+   ```bash
+   gh issue create --parent <P> --title "<title>" --body-file "$TMP/part<k>.md"
+   gh issue create --parent <P> --blocking <n> --title "<title>" --body-file "$TMP/stub.md"
+   ```
+
+3. **Write the bodies**, with `--title` when the title changed.
+
+   ```bash
+   gh issue edit <k> --body-file "$TMP/<k>.md"
+   ```
+
+4. **Change the edges**, one at a time, with the part numbers from step 2.
+
+   **Before adding `#a blocked by #b` across projects**, that is when `#b` has a parent and it is not `#a`'s parent,
+   check the blocked side. With `<Pa>` the parent of `#a`, run `project.sh <Pa>`. When its `parent.baseExists` is
+   true, do not add the edge, and say so in the report (`format.md`, **Projects**). **Never put an edge on a
+   parent.**
+
+   ```bash
+   gh issue edit <a> --add-blocked-by <b>
+   gh issue edit <a> --remove-blocked-by <b>
+   $DOCTOR/../pj-1-plan/scripts/project.sh <X> --order
+   ```
+
+   **After the edges change, run `--order` in every project they touched**: `<P>`, and the parent `<X>` of each end
+   of each edge changed. On a cycle, remove the last edge added and say so in the report.
+5. **Close a blocker that needs no code.** Post a marked comment on the stub that points at the rewritten issue,
+   then close it.
+
+   ```bash
+   gh issue comment <b> --body-file "$TMP/<b>-comment.md"
+   gh issue close <b> --reason completed
+   ```
+
+6. **The labels.** Make sure `ready` exists with the command in `format.md` under "Labels". Check each issue again
+   right before it gets `ready`, because the bodies and the edges just changed.
+
+   ```bash
+   $DOCTOR/../pj-1-plan/scripts/project.sh <P> --check <k>
+   gh issue edit <k> --add-label ready
+   gh issue edit <k> --add-label ready --remove-label blocker
+   ```
+
+   **An issue that carries `blocker` loses it in the same command.** A check that fails now leaves `ready` off, and
+   the report names the failures.
+
+   **Whoever takes `ready` off leaves a comment** (`format.md`, **Is the body still current?**). It starts with
+   `**[pj-2-doctor]**` and says what changed and why.
+
+   ```bash
+   gh issue edit <k> --remove-label ready
+   gh issue comment <k> --body-file "$TMP/<k>-comment.md"
+   ```
+
+7. **The run order.** Read it again, now that the edges and the issues have changed, and write `list` under the
+   parent's `## Order`, one line per number as `1. #<n>`. Keep the rest of the parent body as it is. Re-read the
+   parent's `updatedAt` right before the edit, and work in a change a human made since.
+
+   ```bash
+   $DOCTOR/../pj-1-plan/scripts/project.sh <P> --order
+   gh issue view <P> --json updatedAt,body
+   gh issue edit <P> --body-file "$TMP/<P>-order.md"
+   ```
+
+   Skip the edit when the list reads the same. Then run `project.sh <P>` and confirm that `parent.orderCheck.ok` is
+   true and `missing` is empty.
+
+## Report to the user
+
+- every open sub-issue, one line each, in the new run order: `ready` or not, and when not, why
+- **the decisions left for the user**, one line each, as `#<n> D<k> <question>` with the issue URL. This is the
+  user's next step: tick them on GitHub, then run `/annetaan:pj-2-doctor` again
+- the issues filed, the edges changed, the blockers closed and the parents rewritten
+- what the second review still found, by issue
+- the next step: `/annetaan:pj-3-running` when the first open issue of the run order is `ready`. It works down the
+  order and stops at the first issue that is not workable. When `parent.baseExists` is false and a project in
+  `parent.dependsOn` is not `merged`, add one sentence: `pj-3-running` starts this project after each such `#<Q>` is
+  merged into `<from>`.
+
+## Rules
+
+- **You decide nothing.** The user decides, the reviewer finds, and the writer writes.
+- **Never ask a task decision in the conversation.** It goes into the issue as a box to tick.
+- **You never write a body yourself**, except the `## Order` list of the parent.
+- **Each writer writes its own issue only. Only you write to GitHub**, and only after the phase 4 approval. Every
+  comment you post starts with `**[pj-2-doctor]**`.
+- **Never put a relationship on a parent.**
+- **Always pass a body with `--body-file`.** Never create a label with `--force`.
+- **Re-read `updatedAt` before every edit. Never edit a closed issue.**
+- **A sub-issue body goes out only after its lint passes**, and a parent's only after you read it against its shape.
+- After a context summary, take `<P>` again from the `project #<P>` line, and rebuild where the run stood from the
+  progress lines and `project.sh <P>`. A writer or a reviewer whose handle is gone is started again.

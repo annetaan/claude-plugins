@@ -6,7 +6,8 @@
 # base branch exists on origin (baseExists), and whether a project is merged into the branch it was made from.
 # The shape it reads is described in ../format.md.
 # This script is the only place that parses a sub-issue body (## Design, ## Acceptance criteria, ## Decisions),
-# the parent's Base: line (the base branch and the branch it was made from), and the Implements head of a pull request.
+# the parent's Base: line (the base branch and the branch it was made from) and its ## Order list, and the Implements
+# head of a pull request.
 set -euo pipefail
 
 die() { echo "project: $*" >&2; exit 1; }
@@ -14,7 +15,7 @@ die() { echo "project: $*" >&2; exit 1; }
 usage() {
   cat >&2 <<'USAGE'
 usage: project.sh [-R <owner/repo>] <parent>               the whole project, as JSON
-       project.sh [-R <owner/repo>] <parent> --order       the open sub-issues in dependency order, as a JSON array
+       project.sh [-R <owner/repo>] <parent> --order       the run order, and the ## Order list to write, as JSON
        project.sh [-R <owner/repo>] <parent> --check <n>   whether sub-issue <n> can be implemented from its body now
        project.sh --lint <file|->                          lint one sub-issue body, read from a file or standard input
   -R <owner/repo>   read another repository (default: the repository of the current directory)
@@ -52,6 +53,7 @@ ENTRY_RE = re.compile(r"^\s*[-*]\s+`([^`]+)`\s+\((added|changed|deleted)\):\s*(.
 IDENT_RE = re.compile(r"^[A-Za-z_$][\w$]*(\.[A-Za-z_$][\w$]*)*$")
 OPTION_RE = re.compile(r"^\s*[-*]\s+\[([ xX])\]\s")
 BASE_RE = re.compile(r"^Base:\s*`?([^`\s]+)`?\s+from\s+`?([^`\s]+)`?\s*$")
+ORDER_RE = re.compile(r"^\s*\d+\.\s+#(\d+)\b")
 IMPLEMENTS_RE = re.compile(r"^Implements #(\d+)\s*$")
 
 def die(msg):
@@ -78,6 +80,16 @@ def base_of(body):
         if m:
             return m.group(1), m.group(2)
     return None
+
+def order_of(body):
+    """The issue numbers of the numbered list under the parent's ## Order, in the order written."""
+    _, secs = split_sections(body)
+    out = []
+    for line in secs.get("Order", "").split("\n"):
+        m = ORDER_RE.match(line)
+        if m:
+            out.append(int(m.group(1)))
+    return out
 
 def implements(body):
     """The issue number in a pull request's head, the first line with any text on it, or None."""
@@ -253,6 +265,7 @@ for node in parent["subIssues"]["nodes"]:
         "number": node["number"],
         "title": node["title"],
         "state": node["state"],
+        "stateReason": node.get("stateReason"),
         "updatedAt": node["updatedAt"],
         "readyAt": max(ready_events) if ready_events else None,
         "labels": [l["name"] for l in node["labels"]["nodes"]],
@@ -273,6 +286,82 @@ for node in parent["subIssues"]["nodes"]:
     })
 issues.sort(key=lambda i: i["number"])
 by_number = {i["number"]: i for i in issues}
+
+# The run order: the open sub-issues, blockers first. Only edges between open sub-issues count.
+# A closed blocker is done, and a blocker outside the project is not this script's to order.
+# Among the issues free to go next, the one written earlier under the parent's ## Order goes first,
+# then the one more open issues wait on, then the lower number.
+written = order_of(parent["body"])
+position = {}
+for k, n in enumerate(written):
+    position.setdefault(n, k)
+open_ = {i["number"]: i for i in issues if i["state"] == "OPEN"}
+waits_on = {n: sorted({b["number"] for b in i["blockedBy"] if b["number"] in open_}) for n, i in open_.items()}
+unblocks = {n: [] for n in open_}
+for n, deps in waits_on.items():
+    for d in deps:
+        unblocks[d].append(n)
+
+def find_cycle(nodes):
+    """Return one cycle among nodes as a list of numbers, the first one repeated at the end."""
+    state = {}
+    for start in sorted(nodes):
+        if start in state:
+            continue
+        stack = [(start, iter(waits_on[start]))]
+        path = [start]
+        state[start] = 1
+        while stack:
+            n, it = stack[-1]
+            nxt = next((d for d in it if d in nodes), None)
+            if nxt is None:
+                state[n] = 2
+                stack.pop()
+                path.pop()
+            elif state.get(nxt) == 1:
+                return path[path.index(nxt):] + [nxt]
+            elif nxt not in state:
+                state[nxt] = 1
+                stack.append((nxt, iter(waits_on[nxt])))
+                path.append(nxt)
+    return []
+
+def waiting_count(n, seen=None):
+    """How many open issues wait on n, directly or not."""
+    seen = set() if seen is None else seen
+    for m in unblocks[n]:
+        if m not in seen:
+            seen.add(m)
+            waiting_count(m, seen)
+    return len(seen)
+
+def run_order():
+    """The open sub-issues in run order, and a cycle among them (empty when there is none)."""
+    left = {n: len(deps) for n, deps in waits_on.items()}
+    result = []
+    free = [n for n, c in left.items() if c == 0]
+    while free:
+        free.sort(key=lambda n: (position.get(n, len(written)), -waiting_count(n), n))
+        n = free.pop(0)
+        result.append(n)
+        for m in unblocks[n]:
+            left[m] -= 1
+            if left[m] == 0:
+                free.append(m)
+    if len(result) < len(open_):
+        return result, find_cycle({n for n in open_ if n not in result})
+    return result, []
+
+def order_check():
+    """Whether the ## Order list can be run as written. unknown: a number that is no sub-issue. duplicate: a number
+    written twice. early: an open issue written before an open blocker of the same project. missing: an open
+    sub-issue not written, which does not make the list wrong."""
+    early = [{"number": n, "blocker": b} for n in open_ if n in position
+             for b in waits_on[n] if b in position and position[b] > position[n]]
+    unknown = sorted({n for n in written if n not in by_number})
+    duplicate = sorted({n for n in written if written.count(n) > 1})
+    return {"ok": not unknown and not duplicate and not early, "unknown": unknown, "duplicate": duplicate,
+            "early": early, "missing": [n for n in sorted(open_) if n not in position]}
 
 def waits_on_parents(number, subs):
     """The projects project <number> waits on, as {parent number: parent}: the parents of the blockers of its open
@@ -387,7 +476,9 @@ if MODE == "project":
                        base=base, **{"from": made_from},
                        baseExists=base_exists,
                        merged=merged(parent, [i["state"] for i in issues], own["reached"]),
-                       dependsOn=depends_on),
+                       dependsOn=depends_on,
+                       order=written,
+                       orderCheck=order_check()),
         "issues": issues,
     }, ensure_ascii=False))
     sys.exit(0)
@@ -478,68 +569,22 @@ if MODE == "check":
     }, ensure_ascii=False))
     sys.exit(0)
 
-# --order: the open sub-issues, blockers first. Only edges between open sub-issues count.
-# A closed blocker is done, and a blocker outside the project is not this script's to order.
-open_ = {i["number"]: i for i in issues if i["state"] == "OPEN"}
-waits_on = {n: sorted({b["number"] for b in i["blockedBy"] if b["number"] in open_}) for n, i in open_.items()}
-unblocks = {n: [] for n in open_}
-for n, deps in waits_on.items():
-    for d in deps:
-        unblocks[d].append(n)
-
-def find_cycle(nodes):
-    """Return one cycle among nodes as a list of numbers, the first one repeated at the end."""
-    state = {}
-    for start in sorted(nodes):
-        if start in state:
-            continue
-        stack = [(start, iter(waits_on[start]))]
-        path = [start]
-        state[start] = 1
-        while stack:
-            n, it = stack[-1]
-            nxt = next((d for d in it if d in nodes), None)
-            if nxt is None:
-                state[n] = 2
-                stack.pop()
-                path.pop()
-            elif state.get(nxt) == 1:
-                return path[path.index(nxt):] + [nxt]
-            elif nxt not in state:
-                state[nxt] = 1
-                stack.append((nxt, iter(waits_on[nxt])))
-                path.append(nxt)
-    return []
-
-def waiting_count(n, seen=None):
-    """How many open issues wait on n, directly or not."""
-    seen = set() if seen is None else seen
-    for m in unblocks[n]:
-        if m not in seen:
-            seen.add(m)
-            waiting_count(m, seen)
-    return len(seen)
-
-left = {n: len(deps) for n, deps in waits_on.items()}
-result = []
-free = [n for n, c in left.items() if c == 0]
-while free:
-    free.sort(key=lambda n: (-waiting_count(n), n))
-    n = free.pop(0)
-    result.append(n)
-    for m in unblocks[n]:
-        left[m] -= 1
-        if left[m] == 0:
-            free.append(m)
-
-if len(result) < len(open_):
-    cycle = find_cycle({n for n in open_ if n not in result})
+# --order: the run order and the ## Order list (see run_order).
+result, cycle = run_order()
+if cycle:
     die("the blocked-by relationships have a cycle: " + " blocked by ".join("#%d" % n for n in cycle))
 
 # The projects this one waits on, directly or not, must not wait on it in turn.
 walk_projects(parent["number"])
 
-print(json.dumps([open_[n] for n in result], ensure_ascii=False))
+# The ## Order list: the issues closed as completed first, where the list has them and then by number, then the
+# run order. An issue closed as not planned is no work and leaves the list.
+done = []
+for n in written + [i["number"] for i in issues]:
+    i = by_number.get(n)
+    if i and i["state"] == "CLOSED" and i["stateReason"] == "COMPLETED" and n not in done:
+        done.append(n)
+print(json.dumps({"order": [open_[n] for n in result], "list": done + result}, ensure_ascii=False))
 PY
 
 if [ "$MODE" = "lint" ]; then
@@ -571,7 +616,7 @@ query($owner: String!, $name: String!, $n: Int!) {
       subIssues(first: 100) {
         totalCount
         nodes {
-          number title state updatedAt body
+          number title state stateReason updatedAt body
           labels(first: 50) { nodes { name } }
           blockedBy(first: 50) { nodes { number state parent { number title state stateReason body } } }
           blocking(first: 50) { nodes { number } }

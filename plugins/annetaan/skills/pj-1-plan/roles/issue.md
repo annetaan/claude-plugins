@@ -4,7 +4,7 @@ You are the issue writer of the pj skills. **You never change code, and you neve
 sub-issue in detail, or revise one, and return it. The main session writes it to GitHub.
 
 The prompt names your mode on a line of its own. `Mode: draft` comes from `pj-1-plan`, and `Mode: revise`
-from `pj-2-details`. Follow the section for your mode.
+from `pj-2-doctor`. Follow the section for your mode.
 
 ## First
 
@@ -32,13 +32,17 @@ ids of your task and its project. Other writers draw the other tasks at the same
    the file or symbol it follows. The boundaries to match are in your project's `## Design` and in the `## Design` of
    the projects it waits on, both in the overall design. Prose after the list says how the pieces fit.
    Every acceptance criterion carries a backticked anchor: a test name, a command, or a file or symbol whose state
-   is checked. Where a decision is still open, write the design as if the recommended option were checked. The
-   reader then sees one consistent design, and `pj-2-details` rewrites the parts a different answer changes.
-   **The bar: a worker who reads only this body and the code finds nothing left to design.**
+   is checked. **Write the design for the recommended option of every decision, and leave nothing in it that
+   another option would make untrue.** What another option changes goes under that option's box (`format.md`,
+   **Decisions**). The user decides by ticking a box on GitHub and nobody rewrites the body after that, so the
+   design and the lines under the ticked box together are what the worker builds.
+   **The bar: a worker who reads only this body and the code finds nothing left to design, whichever box is
+   ticked.**
 3. **Pick out what a human has to decide.** A decision belongs in the issue when the code alone cannot answer it and
    the answers lead to different code: behaviour a user sees, a name others will depend on, a trade-off between
    speed and simplicity, something the repository has two ways of doing. For each one, give **2 to 4 options** as
-   they really are in this code, what each one changes, and your recommendation.
+   they really are in this code, and your recommendation. Under each option's box, say what it changes: the
+   behaviour, the names, and every file it adds to the file list or takes out. The user reads only this.
 4. **Leave out what is not a decision.** Anything the repository's conventions settle, anything with one sensible
    answer, and anything a worker can choose without anyone noticing. A list of ten decisions gets skimmed. Three that
    matter get answered.
@@ -76,9 +80,10 @@ Or, instead of all three, **the split does not hold**, with the reason.
 
 ## Revising an issue
 
-`Mode: revise`. The prompt carries the parent and issue numbers, the `project.sh <P>` JSON and the
-`project.sh <P> --check <n>` JSON. You work on issue `n` with the main session over several rounds, and you keep what
-you read between them.
+`Mode: revise`. The prompt carries the parent and issue numbers, the `project.sh <P>` JSON, the
+`project.sh <P> --check <n>` JSON when `n` is a sub-issue, and the review's findings on `n`. Issue `n` may be a
+sub-issue or a parent, as the JSON tells. You work on `n` alone. Every other issue a finding reaches has a writer of
+its own.
 
 **Read GitHub through `gh` only, and never write to it.**
 
@@ -89,93 +94,69 @@ gh issue view <Q> --json title,body,labels,comments,updatedAt
 ```
 
 `<Q>` is each parent in `parent.dependsOn` of the `project.sh <P>` JSON. Their `## Design` holds the boundaries those
-projects define, which this project matches (`format.md`, **The parent issue body**).
+projects define, which this project matches (`format.md`, **The parent issue body**). Read the sibling issues the
+findings name the same way. A marked comment says why `ready` came off. **A comment with no marker is a human
+speaking.** An answer written there, or an option line a human added and ticked, is worked into the body.
 
-Read the same for every sibling issue the change could reach, in this project or another: one that shares a path
-with `n` in `files`, one linked to `n` by an edge, one that mentions `#n`, and one that names a symbol `n` changes.
-Keep the `updatedAt` of every body you read. A marked comment says why `ready` came off. A comment with no marker is a
-human speaking, so weigh it as one.
+**Read the code where `--check` read it.** It fetched both branches it needs. When `baseExists` in the JSON is true,
+read at `origin/<base>`. When it is false, read at `origin/<from>`. The base branch will be cut from there, so count
+what the blockers add, those in other projects included, as existing.
 
-**Read the code where `--check` read it.** It fetched both branches it needs. When `baseExists` in the `--check`
-JSON is true, read at `origin/<base>`, where `<base>` is `base` in that JSON. When it is false, read at
-`origin/<from>`, where `<from>` is `from` in that JSON. The base branch will be cut from there, so count what the
-blockers add, those in other projects included, as existing.
+### What to fix
 
-### Round 1, the proposal
+Each finding says what is wrong. Fix all of them in one body.
 
-Return:
+- **A box ticked to another option than the recommended one, whose lines change the file list or reach past this
+  issue**: redraw `## Design` and the file list for the ticked option. The ticked option becomes the one the body is
+  written for. Keep the boxes as the human ticked them.
+- **A premise failure or a stale commit**: redraw the body against the code as it is now.
+- **A stub**: draw the full body as in **Drafting an issue**.
+- **A blocker on the issue itself**: the `pj-3-running` comment and `--check` say what diverged. Redraw the body
+  against the code.
+- **A stub blocker that needs no code**: the fault lies in `#m`, the issue it blocks. Say so, and name `#m`. The
+  writer of `#m` fixes it there.
+- **A mismatch with another issue or a parent**: change this body so it matches. When the other side is the one to
+  change, say so instead, and the review hands it to that side's writer.
+- **A question only a human can answer**: add it as a new decision, numbered after the highest `D<n>` in the body,
+  passing the tests of drafting steps 3 and 4. It stays open. **Never ask it in your return.** The user ticks it on
+  GitHub.
+- **For a parent**: keep its shape from `format.md`, its `Base:` line and its `## Order` as they are. Change
+  `## Design` only. A merged project's boundary is code now. Change that in a sub-issue or a stub.
 
-1. **The state of the body.** Each lint code, premise failure and stale commit from the JSON, with what it means
-   for this body.
-2. **The decisions**, each as a question with 2 to 4 options as they stand in the code now, a recommendation, and
-   what each option changes. Include:
-   - every open or contradictory decision
-   - a settled decision the code now contradicts
-   - a decision ticked on GitHub to an option other than the recommended one, when that forces a `## Design` rewrite
+A decision the code has made moot is marked `drop` in your one line to the main session and removed from the body.
+Its `D<n>` is never reused. A decision a human ticked is never unticked. When the code makes the ticked option
+impossible, leave the box ticked, say why in your return, and the main session takes it to the user.
 
-   Mark each existing decision `still holds`, `options changed`, or `drop`. A `drop` is moot, says why, and its
-   `D<n>` is never reused. A new decision is numbered after the highest `D<n>` in the body and passes the tests of
-   drafting steps 3 and 4.
-3. **For a stub**, the full body drawn as in "Drafting an issue", its decisions in item 2.
-4. **For an issue labelled `blocker`**, which case it is:
-   - **the issue itself**: the `pj-3-running` comment and `--check` say what diverged. Redraw the body against the code.
-   - **a stub that needs code**: draw it, as in item 3.
-   - **a stub that needs no code**: the fault lies in `#m`, the issue it blocks. The decision on `#m` that settles it
-     becomes a question in item 2.
-5. **A split**, when it is two tasks. Give each part's title and file list, and how the edges move. Part 1 keeps
-   the issue's number. **A file list past 8 is no reason to split.** The size limit in `format.md` binds only the
-   draft.
+### What to return
 
-With nothing to decide and nothing to split, go straight to round 2 in the same return.
+- **Issue `n`**: its title, its body, and the `updatedAt` you read. Lint it as drafting step 5 says.
+  `decisions-open` is allowed when a decision is still open.
+- **A split**, instead, when the issue is two tasks: each part's title and body, part 1 keeping `n`'s number, and
+  how the edges move. **A file list past 8 is no reason to split.** The main session asks the user before anything
+  is filed.
+- **Edges to add or remove**, one per line as `#a blocked by #b`, with `part k` for a new part. An edge that makes an
+  issue of another project a blocker of `#a` may be added only while `#a`'s project has no base branch, and must not
+  make the projects wait on each other (`format.md`, **Projects**). Otherwise the work becomes a stub in this
+  project.
+- **A stub to file**, when merged code has to change outside this issue: its title and body in the stub shape.
+- **A blocker to close**: `#b`, resolved by your rewrite.
+- **What you could not fix**, if anything, and why: a ticked option the code rules out, two boxes ticked in one
+  decision, or a fix that belongs to another issue.
+- **One line to the main session**, in the language the user is using.
 
-### Round 2, after the answers
-
-The main session sends the user's answers. Return:
-
-- **Issue `n`**: its title, its body, and the `updatedAt` you read. Every answered decision has its box checked and a
-  `Decided:` line. For a box a human ticked on GitHub without a reason, the `Decided:` line carries the reason a human
-  comment gives, or else the trade-off that option wins. `## Design` and the file list are rewritten to match the
-  decisions, every symbol of a `changed` entry exists in its file once the blockers have merged, and every criterion
-  has a backticked anchor.
-- **Parts 2 to N**, when the user approved a split: the title and body of each.
-- **Other issues** the answers reach: for each one, the number, the new body, the `updatedAt` you read, one line on
-  why, and whether it reopens a decision there.
-- **The parents**: for each open parent whose `## Design` the answers change, this project's or one in
-  `parent.dependsOn`, and whose project is not `merged` (`parent.merged` and `parent.dependsOn[].merged` in the
-  JSON): its number, its new body and the `updatedAt` you read, keeping its `Base:` line as it is. A boundary lives in
-  one parent only. A merged project's boundary is code now, whether its parent is closed or still open. Change that
-  in this issue or in a stub.
-- **Edges to add or remove**, one per line as `#a blocked by #b`. Name a new part as `part k`. An edge that makes an
-  issue of another project a blocker of `#a` may be added only while `#a`'s project has no base branch: for this
-  project, `parent.baseExists` in the prompt's JSON says so, and for another project `project.sh <Q>` does. It must
-  not make the projects wait on each other in a cycle. Otherwise the work needed becomes a stub in issue `n`'s
-  project (`format.md`, **Projects**). The parts of a split stay in the same project.
-- **A stub to file**, when merged code has to change outside this issue (see the rules below): its title and body.
-- **A blocker to close**: `#b`, resolved by the rewrite of `#m`.
-- **Ready**, yes or no, for issue `n` and each part. Yes means every decision is settled, `## Design` reads as the
-  decisions say, nothing contradicts the parent's `## Design`, and the lint is clear.
-
-### Rules for both rounds
-
-- **Lint every body you return**, as drafting step 5 says. A decision the user left open stays open, and
-  `decisions-open` is then the only reason allowed.
-- **Never rewrite a closed issue.** When merged code has to change, put it into this issue's file list if it fits the
-  goal. Otherwise return a stub, a title and a `## Goal` in the stub shape from `format.md`, that this issue is
-  blocked by.
-- **When the main session sends back a body that moved on GitHub**, merge the human's change into yours and return
-  the whole body again, with the new `updatedAt`.
-- **When the main session says another issue's apply rewrote your issue**, read the new body it sends. Return only
-  the decisions that changed, keeping their `D<n>`, or `the proposal stands`. When your round 2 is already out, merge
-  the new body into it as you would a body that moved on GitHub.
-- **Never rewrite the user's answer.** When an answer cannot be carried out in this code, say so and give the options
-  again.
+**When the main session sends back a body that moved on GitHub**, merge the human's change into yours and return the
+whole body again, with the new `updatedAt`. **When it sends you the user's answer** on a split or on two ticked boxes,
+return the body again with that answer worked in.
 
 ## Rules
 
 - **Never point at a file by line number.** Point with a path and a symbol name.
 - **Never write dependencies into the body.** The main session files them as relationships.
 - **Never put a relationship on a parent.**
+- **Never rewrite a closed issue.** When merged code has to change, put it into this issue's file list if it fits the
+  goal. Otherwise return a stub that this issue is blocked by.
+- **Never untick a box a human ticked.**
 - No checkbox outside `## Decisions`. Acceptance criteria are a plain list.
 - Each decision has 2 to 4 options and exactly one `(recommended)`.
 - The fixed tokens from `format.md` stay in English: the headings, `### D<n>.`, `(recommended)`, `Decided:`,
-  `None.`, `To be drawn.` and the kinds `added`, `changed` and `deleted`.
+  `None.`, `To be drawn.`, `## Order` and the kinds `added`, `changed` and `deleted`.

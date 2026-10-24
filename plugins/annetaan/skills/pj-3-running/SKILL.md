@@ -1,11 +1,12 @@
 ---
 name: pj-3-running
-description: Asks which project to work on, with a number given as the recommended one. Creates the project's base branch on its first start, once every project it waits on is merged, and closes the parent of a merged project. Works through the ready sub-issues of a GitHub project one at a time. Each one runs through the workflow skill as one task with review rounds in difit and an integration review, then pj-3-running merges its pull request into the project's base branch and closes the issue itself before the next starts. Works in a git worktree of its own, so the main working tree stays free for the user. Files unplanned work as stub issues and stops on a blocker. The third of three skills, after pj-1-plan and pj-2-details. Use it only when the user names this skill or invokes /annetaan:pj-3-running, because it creates branches, pushes, opens and merges pull requests, edits issues and labels, and keeps a local difit server running for the whole run.
+description: Asks which project to work on, with a number given as the recommended one. Creates the project's base branch on its first start, once every project it waits on is merged, and closes the parent of a merged project. Works down the run order in the parent's Order list one sub-issue at a time, and stops at the first issue that is not workable. Each one runs through the workflow skill as one task with review rounds in difit and an integration review, then pj-3-running merges its pull request into the project's base branch and closes the issue itself before the next starts. Works in a git worktree of its own, so the main working tree stays free for the user. Files unplanned work as stub issues and stops on a blocker. The third of three skills, after pj-1-plan and pj-2-doctor. Use it only when the user names this skill or invokes /annetaan:pj-3-running, because it creates branches, pushes, opens and merges pull requests, edits issues and labels, and keeps a local difit server running for the whole run.
 ---
 
 # pj-3-running
 
-The third of the three pj skills: it takes the `ready` sub-issues of a project and merges one pull request per issue.
+The third of the three pj skills: it works down a project's run order, the parent's `## Order`, and merges one pull
+request per issue.
 
 You are the main session. **You do not write code.** workflow's sessions implement and review. You own the branch,
 the merge, the issues, the labels and the notices.
@@ -99,7 +100,7 @@ Then go through these in order.
      already have been merged into `<from>` and deleted.
    - When a project in `parent.dependsOn` has `merged` false, stop and list each one as `#<Q> <title>`. One whose
      `state` is `CLOSED` was closed as not planned, without a merge: remove the edges to it with
-     `/annetaan:pj-2-details`. One whose `state` is `OPEN` has to be finished with `/annetaan:pj-3-running`, and
+     `/annetaan:pj-2-doctor`. One whose `state` is `OPEN` has to be finished with `/annetaan:pj-3-running`, and
      its base branch, `dependsOn[].base`, merged into `<from>` through a pull request.
    - Otherwise create the base branch from the tip of `<from>`, as `format.md` says under **Projects**. Write
      `{owner}` and `{repo}` literally, `gh` fills them in. A failure of either command stops the run. Quote it.
@@ -283,16 +284,18 @@ No method left stops the run.
    **When `--order` fails on a cycle**, within the project or between projects, show the user the cycle it names
    and stop.
 2. **Build the run order.** First put every open issue whose `pr.state` is `MERGED` at the front, whatever its labels
-   and blockers. Its pull request has merged and only the close is left. Then walk `--order`. Take an issue when it
-   is open, carries `ready`, and every open issue in its `blockedBy` is already in the run order. An issue put at the
-   front counts as already in the run order.
-3. Among the issues free to go next, one whose `pr.state` is `OPEN` goes first. Otherwise keep the `--order`
-   sequence.
-4. List the `ready` issues left out as **waiting**, each with the issue it waits on.
-5. **An empty run order** ends the skill here. Report that nothing is workable, how many issues wait and how many are
-   not `ready`, and the next step, `/annetaan:pj-2-details`. An issue with a merged pull request makes the run
-   order non-empty.
-6. Run `git branch -a` once. Pick a branch pattern in the repository's own naming that holds the issue number, such
+   and blockers. Its pull request has merged and only the close is left. Then walk `parent.order` from the top and
+   skip the closed issues. Take each open issue while it is workable (`format.md`, **When an issue is ready**), with
+   the issues already taken counting as closed. Phase 2 runs the `--check` part of that. **Stop the walk at the first
+   open issue that is not.** Nothing after it is taken, even when it is workable, because the order is the user's
+   (`format.md`, **The run order**).
+   - **`parent.order` is empty, or `parent.orderCheck.ok` is false**: stop, show what `orderCheck` names, and give the
+     next step, `/annetaan:pj-2-doctor`.
+3. List the issue the walk stopped at, with why it is not workable, and the open issues after it as **waiting**. List
+   the issues in `orderCheck.missing` too, as not in the order.
+4. **An empty run order** ends the skill here. Report the issue the walk stopped at and why, and the next step,
+   `/annetaan:pj-2-doctor`. An issue with a merged pull request makes the run order non-empty.
+5. Run `git branch -a` once. Pick a branch pattern in the repository's own naming that holds the issue number, such
    as `feat/<n>-<slug>`. Phase 3 shows it.
 
 ## Phase 2: the pre-check
@@ -315,14 +318,14 @@ $RUNNING/../pj-1-plan/scripts/project.sh <P> --check <k>
 
 3. Write `$TMP/<k>-check.md` and post it. It starts with `**[pj-3-running]**`, then lists the lint codes, each premise
    failure (path, symbol, why) and each stale commit (SHA, subject, pull request), and ends with "Settle it with
-   /annetaan:pj-2-details."
+   /annetaan:pj-2-doctor."
 
    ```bash
    gh issue comment <k> --body-file "$TMP/<k>-check.md"
    ```
 
 **If any issue failed, do not start.** No issue in the order may need design when the run begins. Report which
-issues failed and why, and the next step, `/annetaan:pj-2-details`.
+issues failed and why, and the next step, `/annetaan:pj-2-doctor`.
 
 ## Phase 3: approval
 
@@ -375,8 +378,8 @@ Nothing runs in parallel. There is one worktree, `<WT>`. For each issue `<k>` in
 
 1. **Re-read the project** with `project.sh <P>`.
    - The issue is closed: skip it.
-   - `ready` is gone, because a human took it off, and `pr` is not merged: skip it and every issue in the run waiting
-     on it, and tell the user which.
+   - `ready` is gone, because a human took it off, and `pr` is not merged: the run stops here, as the walk in phase 1
+     would have. Tell the user, and go to phase 6.
 2. **Check again** with `project.sh <P> --check <k>`, unless `pr` is merged. A failure gets the marks from phase 2,
    and the run stops (phase 6).
 3. **Settle the entry state.**
@@ -425,7 +428,8 @@ workflow hands over to this section by name. An `Unplanned:` report marked `late
 
 1. Write `$TMP/stub-<j>.md` in the shape of `format.md` **Stubs**. Its `## Goal` holds what was found, why it matters,
    and "found while working on #<k>".
-2. File it with no label and no edges. pj-2-details sets the edges when it draws the stub.
+2. File it with no label and no edges. pj-2-doctor sets the edges and places it in the run order when it has it
+   drawn.
 
    ```bash
    gh issue create --parent <P> --title "<title>" --body-file "$TMP/stub-<j>.md"
@@ -574,7 +578,7 @@ Every way the run ends comes here: the run order is done, the run stopped, or th
   run asks whether to discard it, and that a resume never uses it because the work gets redone
 - the screenshots that could not be attached, with their paths and the URL of the pull request
 - what is workable now and what is waiting
-- the next step: `/annetaan:pj-2-details` when a `blocker` or a stub exists, otherwise `/annetaan:pj-3-running`.
+- the next step: `/annetaan:pj-2-doctor` when a `blocker` or a stub exists, otherwise `/annetaan:pj-3-running`.
   When every sub-issue is closed, the user merges `<base>` into `<from>` through a pull request. The next run then
   closes the parent, or the user closes it.
 

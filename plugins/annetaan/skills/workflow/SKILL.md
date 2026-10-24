@@ -553,9 +553,9 @@ gh issue view <Q> --json body   # each Q
 ```
 
 - **The approved design**, for every prompt in phases 3 to 5: the issue's `## Goal`, `## Design`,
-  `## Acceptance criteria` and `## Out of scope`, its `## Decisions` cut down to the checked option and the
-  `Decided:` line of each, the parent's `## Design`, and the `## Design` of each `Q`, which holds the boundaries
-  those projects define (`format.md`, **The parent issue body**).
+  `## Acceptance criteria` and `## Out of scope`, its `## Decisions` cut down to the checked option, the lines under
+  its box and the `Decided:` line of each, the parent's `## Design`, and the `## Design` of each `Q`, which holds the
+  boundaries those projects define (`format.md`, **The parent issue body**).
 - **The plan**: one task, "1. <issue title>".
 - **The detail design for task 1**: the issue's `## Design`.
 - **The commit**: in phase 4 (e), ask for a subject that follows the repository's style and names the issue title.
