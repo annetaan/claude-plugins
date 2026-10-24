@@ -244,7 +244,7 @@ The model and the effort are pinned here, and a skill selects one by name alone.
 | `annetaan:workflow-design` | opus | high | design. returns the design and the plan |
 | `annetaan:workflow-design-review` | fable | medium | design review. once, before approval, where the repository accepts breaking changes |
 | `annetaan:workflow-worker` | opus | medium | implementation, for every task |
-| `annetaan:workflow-reviewer` | opus | medium | review, for every task and the integration review |
+| `annetaan:workflow-reviewer` | opus | medium | review, for every task, and the integration review when the plan has more than one task |
 | `annetaan:pj-planner` | opus | high | planning for `pj-1-plan`. the projects, their designs, and the split into tasks |
 | `annetaan:pj-issue-writer` | opus | high | one sub-issue, drawn against the code. drafts it for `pj-1-plan`, revises it for `pj-2-doctor` |
 | `annetaan:pj-reviewer` | opus | high | project review for `pj-2-doctor`. reads the whole project against the ticked boxes, the code and each issue |

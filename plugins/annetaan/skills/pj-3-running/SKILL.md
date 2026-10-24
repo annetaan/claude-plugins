@@ -135,8 +135,7 @@ the comment adds that `#<P>`, which waits on it, starts now. Then post it and cl
 $RUNNING/scripts/run.sh close <P> <Q> --comment "$TMP/<Q>-closed.md"
 ```
 
-`already` true means the parent was closed by then, and nothing was posted. `not-due` should not happen after
-`start`. Report it and stop.
+`already` true means the parent was closed by then and nothing was posted. Report a `not-due` after `start` and stop.
 
 ### The worktree
 
@@ -342,7 +341,8 @@ Nothing runs in parallel. There is one worktree, `<WT>`. For each issue `<k>` in
      - **`ok`**: go to step 4. A leftover `<branch>` with no commits of its own was deleted and made again.
      - **`stop`** with `unpushed`: stop the run. Name `<branch>` and the number in `commits`, and say that
        `git -C <WT> log origin/<base>..<branch>` shows them. A `finish` stop in an earlier run leaves exactly this.
-       Pushing the branch or deleting it is the user's call.
+       The user picks the way out. A draft pull request from `<branch>` into `<base>` with the work report's `log.md`
+       as its body makes the next run merge it. Deleting `<branch>` makes the next run redo the issue.
      - **`stop`** with `checked-out`: stop the run, and name the worktree in `worktree` that holds `<branch>`.
 4. **Run From an issue.** These are what it expects you to have settled, so say them in your context before you
    start it: `n` (= `<k>`), `P`, the issue title, the projects `<P>` waits on (the `parent.dependsOn` numbers, or
@@ -399,7 +399,7 @@ phase 6. The pull request stays a draft, and the next run merges it.
 Then take the next issue.
 
 **`stopped`** carries the reason, whether uncommitted work stays in `<WT>` (yes or no), and the text of the
-`Unplanned:` or `Diverged:` report, or the failure message for `finish`. A stopped run has opened no pull request.
+`Unplanned:` or `Diverged:` report, or for `finish` the failed step. A stopped run has opened no pull request.
 Act by the reason, then go to phase 6. Every comment below is written to a file under `$TMP` and starts with
 `**[pj-3-running]**`.
 
@@ -417,8 +417,8 @@ Act by the reason, then go to phase 6. Every comment below is written to a file 
   listing the points left open.
 - **`user`**: nothing goes to GitHub.
 - **`work-reports`**: report it. It should not happen after the check in **Paths this clone must ignore**.
-- **`finish`**: report the step of workflow's phase 6 that failed, with its message. Nothing goes to GitHub. The task
-  commit stays on the local branch, and the next run's branch step stops on it as unpushed work.
+- **`finish`**: report the failed step of workflow's phase 6, its message, and the path of `log.md` when there is one.
+  The next run stops on the task commit as `unpushed` in phase 5 step 3, which names the way out.
 
 ## Phase 6: end of the run
 

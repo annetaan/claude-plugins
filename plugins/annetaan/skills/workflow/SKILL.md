@@ -607,16 +607,16 @@ The task commit decides the case, whatever the phase. Look for it in `git log --
 - **The task commit exists.** The stop came during phase 6, and the working tree is clean. Run steps 1 to 3 of
   **Phase 6 from an issue** to the end: the report, the push and the draft pull request. Then return `finished`, with
   `stop requested: yes` when the user said stop.
-- **A step of phase 6 fails before the pull request exists.** Return `stopped` with the reason `finish` and the error
-  message.
+- **A step of phase 6 fails before the pull request exists.** Return `stopped` with the reason `finish`, the step
+  that failed, its error message, and the path of `log.md` when step 1 wrote it.
 
 ### What it hands back to pj-3-running
 
 - **`finished`**: the pull request number `m`, the SHA of the task commit, the handover lines, the paths of any
   screenshots that could not be attached, and `stop requested` (yes or no).
 - **`stopped`**: the reason (`round cap`, `blocking`, `diverged`, `user`, `work-reports` or `finish`), whether
-  uncommitted work stays in `<WT>` (yes or no), and the text of the `Unplanned:` or `Diverged:` report, or the
-  failure message for `finish`. A run that returns `stopped` has opened no pull request.
+  uncommitted work stays in `<WT>` (yes or no), and the text of the `Unplanned:` or `Diverged:` report, or for
+  `finish` the step that failed, its message and the path of `log.md` when there is one. A run that returns `stopped` has opened no pull request.
 
 ## Rules for the whole flow
 
