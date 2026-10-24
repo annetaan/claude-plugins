@@ -1,6 +1,6 @@
 ---
 name: pj-3-running
-description: Asks which project to work on, with a number given as the recommended one. Creates the project's base branch on its first start, once every project it waits on is merged, and closes the parent of a merged project. Works down the run order in the parent's Order list one sub-issue at a time, and stops at the first issue that is not workable. Each one runs through the workflow skill as one task with review rounds and an integration review, then pj-3-running merges its pull request into the project's base branch and closes the issue itself before the next starts. Works in a git worktree of its own, so the main working tree stays free for the user. Files unplanned work as stub issues and stops on a blocker. The third of three skills, after pj-1-plan and pj-2-doctor. Use it only when the user names this skill or invokes /annetaan:pj-3-running, because it creates branches, pushes, opens and merges pull requests, and edits issues and labels.
+description: Asks which project to work on, with a number given as the recommended one. Creates the project's base branch on its first start, once every project it waits on is merged, and closes the parent of a merged project. Works down the run order in the parent's Order list one sub-issue at a time, and stops at the first issue that is not workable. Each one runs through the workflow skill as one task with review rounds, then pj-3-running merges its pull request into the project's base branch and closes the issue itself before the next starts. Works in a git worktree of its own, so the main working tree stays free for the user. Files unplanned work as stub issues and stops on a blocker. The third of three skills, after pj-1-plan and pj-2-doctor. Use it only when the user names this skill or invokes /annetaan:pj-3-running, because it creates branches, pushes, opens and merges pull requests, and edits issues and labels.
 ---
 
 # pj-3-running
@@ -153,7 +153,7 @@ git -C "<MAIN>" worktree list --porcelain
   once.
 
   ```
-  AskUserQuestion: <WT> holds uncommitted work from an earlier run. A resume redoes it.
+  AskUserQuestion: <WT> holds uncommitted work from an earlier run. The next run redoes it.
     - Discard it and go on (Recommended) - git -C <WT> reset --hard, then git -C <WT> clean -fd. Ignored files such as work-reports/ stay.
     - Stop and look at <WT>
   ```
@@ -329,8 +329,8 @@ issues failed and why, and the next step, `/annetaan:pj-2-doctor`.
 Show the user:
 
 - the project, `#<P> <title>`
-- the run order, one line each as `#<k> <title>`, with "(resumes PR #<m>)" where `pr.state` is `OPEN` and "(merged
-  as PR #<m>, closes now)" where it is `MERGED`
+- the run order, one line each as `#<k> <title>`, with "(PR #<m> open, merges now)" where `pr.state` is `OPEN` and
+  "(merged as PR #<m>, closes now)" where it is `MERGED`
 - the waiting list
 - the base branch, with "created now from `<from>` at `<sha>`" when this run created it, the branch pattern and the
   merge method
@@ -339,8 +339,8 @@ Show the user:
   there
 - that `<WT>` has none of `<MAIN>`'s ignored files, such as dependencies or a `.env`, so the first worker prepares
   them
-- how each issue runs: a branch, workflow's **From an issue** (one task with review rounds, then an
-  integration review, with the review files in its work report), a draft pull request into the base branch, then a merge by pj-3-running, which then closes the
+- how each issue runs: a branch, workflow's **From an issue** (one task with review rounds, with the review files
+  in its work report), a draft pull request into the base branch, then a merge by pj-3-running, which then closes the
   issue. GitHub does not close it on a merge into a branch other than the default branch.
 - that merging the base branch into `<from>` is the user's job, outside this skill, and that the parent `#<P>` closes
   as completed once a run sees that merge
@@ -377,8 +377,8 @@ Nothing runs in parallel. There is one worktree, `<WT>`. For each issue `<k>` in
      would have. Tell the user, and go to phase 6.
 2. **Check again** with `project.sh <P> --check <k>`, unless `pr` is merged. A failure gets the marks from phase 2,
    and the run stops (phase 6).
-3. **Settle the entry state.**
-   - **`pr.state` is `MERGED`** as `#<m>`: the state is `merged`. Write `$TMP/<k>-closed.md`. It starts with
+3. **Take the path `pr` gives.**
+   - **`pr.state` is `MERGED`** as `#<m>`: close the issue. Write `$TMP/<k>-closed.md`. It starts with
      `**[pj-3-running]**`, says PR #<m> merged into `<base>`, and says pj-3-running closed the issue because GitHub does
      not close an issue on a merge into a branch other than the default branch. Then close the issue.
 
@@ -389,7 +389,9 @@ Nothing runs in parallel. There is one worktree, `<WT>`. For each issue `<k>` in
 
      Print `#<k> done (<i>/<N>): PR #<m> merged earlier, issue closed` and take the next issue. No workflow run and
      no handover rewrite.
-   - **`pr` is null**: the state is `fresh`.
+   - **`pr.state` is `OPEN`** as `#<m>`: its task commit passed review, and only the merge is left. Go to **When
+     workflow returns**, as `finished` with `<m>` and no handover lines. No workflow run and no handover rewrite.
+   - **`pr` is null**: make a fresh branch, then run From an issue.
 
      ```bash
      git fetch --quiet origin "+refs/heads/<base>:refs/remotes/origin/<base>"
@@ -399,22 +401,9 @@ Nothing runs in parallel. There is one worktree, `<WT>`. For each issue `<k>` in
      A local `<branch>` may be left over from a stop during the task. When
      `git rev-list --count origin/<base>..<branch>` prints 0, delete it with `git branch -D <branch>` and create it
      again. Otherwise it holds unpushed work. Stop and ask the user.
-   - **`pr.state` is `OPEN`** as `#<m>`:
-
-     ```bash
-     gh pr checkout <m>
-     gh pr view <m> --json body
-     ```
-
-     When git refuses because the branch is checked out in another worktree, stop and name that worktree. The user
-     has the branch open there.
-
-     The body holds the head from `format.md` **Pull requests**. `- [ ] Integration review` means
-     `resume-integration`. Both lines checked means `resume-merge`. No head at all: stop and report.
 4. **Run From an issue.** These are what it expects you to have settled, so say them in your context before you
    start it: `n` (= `<k>`), `P`, the issue title, the projects `<P>` waits on (the `parent.dependsOn` numbers, or
-   none), the base branch, the checked-out branch, the entry state, `m`
-   (none for `fresh`), the handover notes, and the paths `<WT>` and `<MAIN>`.
+   none), the base branch, the branch you just made, the handover notes, and the paths `<WT>` and `<MAIN>`.
 
 ### Unplanned work
 
@@ -435,17 +424,20 @@ workflow hands over to this section by name. An `Unplanned:` report marked `late
 
 workflow hands over to this section by name, with `finished` or `stopped`.
 
-**`finished`** carries the pull request `<m>`, the SHA of the task commit, the handover lines, and the paths of any
-screenshots that could not be attached.
+**`finished`** carries the pull request `<m>`, the SHA of the task commit, the handover lines, the paths of any
+screenshots that could not be attached, and `stop requested` (yes or no).
+
+**With `stop requested: yes`, do not merge.** The user said stop. Fold the handover lines as step 7 says, then go to
+phase 6. The pull request stays a draft, and the next run merges it.
 
 1. Check the pull request.
 
    ```bash
-   gh pr view <m> --json reviewDecision,mergeStateStatus,isDraft,body
+   gh pr view <m> --json reviewDecision,mergeStateStatus,isDraft,headRefName
    ```
 
-   Stop when `reviewDecision` is `REVIEW_REQUIRED` or `CHANGES_REQUESTED`, when `mergeStateStatus` is `DIRTY`, or
-   when the head in the body is not fully checked.
+   Take `<branch>` from `headRefName`. Stop when `reviewDecision` is `REVIEW_REQUIRED` or `CHANGES_REQUESTED`, or
+   when `mergeStateStatus` is `DIRTY`.
 2. Wait for the required checks. The pull request was pushed seconds ago, and its check runs may not exist yet.
    `--watch` does not wait for a check that has not registered. It exits at once with "no required checks
    reported".
@@ -470,7 +462,7 @@ screenshots that could not be attached.
    ```
 
    "No required checks" after that counts as a pass. **A failing check stops the run.** The pull request stays a
-   draft with its head fully checked, so the next run picks it up as `resume-merge`.
+   draft, and the next run merges it.
 3. `gh pr ready <m>`
 4. Merge with the method from **Picking the merge method**. A failure stops the run.
 
@@ -494,23 +486,27 @@ screenshots that could not be attached.
    ```bash
    git fetch --quiet origin "+refs/heads/<base>:refs/remotes/origin/<base>"
    git switch --detach origin/<base>
-   git branch -D <branch>
+   git rev-parse --verify --quiet refs/heads/<branch> && git branch -D <branch>
    git push origin --delete <branch>
    ```
 
-   When the push says the remote ref does not exist, the repository deleted the head branch on merge. Go on.
+   A pull request merged from the `OPEN` path of phase 5 step 3 has no local branch, so `git branch -D` runs only when
+   `git rev-parse` finds one. When the push says the remote ref does not exist, the repository deleted the head branch
+   on merge. Go on.
 
 7. **Fold the handover lines into the notes.** Merge duplicates, keep fifteen lines at most, and drop the oldest
    first. Rewrite the parent's handover comment as `format.md` says under "The handover comment": read its
-   `updated_at` again first, and keep any change a human made since. Create it when there is none.
+   `updated_at` again first, and keep any change a human made since. Create it when there is none. With no handover
+   lines, as on the `OPEN` path of phase 5 step 3, skip this step.
 8. Print one progress line: `#<k> done (<i>/<N>): PR #<m> merged`. After a context summary, rebuild the run order and
    the progress from these lines and `project.sh <P>`.
 
 Then take the next issue.
 
-**`stopped`** carries the reason, whether uncommitted work stays in `<WT>` (yes or no), the pull request number or
-none, and the text of the `Unplanned:` or `Diverged:` report. Act by the reason, then go to phase 6. Every comment
-below is written to a file under `$TMP` and starts with `**[pj-3-running]**`.
+**`stopped`** carries the reason, whether uncommitted work stays in `<WT>` (yes or no), and the text of the
+`Unplanned:` or `Diverged:` report, or the failure message for `finish`. A stopped run has opened no pull request.
+Act by the reason, then go to phase 6. Every comment below is written to a file under `$TMP` and starts with
+`**[pj-3-running]**`.
 
 - **`blocking`**: make sure `blocker` exists. File the stub in the shape of `format.md` **Stubs**, from the
   `Unplanned:` text, blocking `#<k>`.
@@ -519,15 +515,15 @@ below is written to a file under `$TMP` and starts with `**[pj-3-running]**`.
   gh issue create --parent <P> --blocking <k> --label blocker --title "<title>" --body-file "$TMP/stub-<j>.md"
   ```
 
-  Post a comment on `#<k>`: the run stopped, `#<k>` is blocked by the stub `#<b>`, and why. When there is a pull
-  request, post one on it too (`gh pr comment <m> --body-file <file>`).
+  Post a comment on `#<k>`: the run stopped, `#<k>` is blocked by the stub `#<b>`, and why.
 - **`diverged`**: make sure `blocker` exists, then `gh issue edit <k> --remove-label ready --add-label blocker`.
-  Post a comment on `#<k>` with the `Diverged:` text, naming the decision as `#<x> D<n>` when there is one, and the
-  same on the pull request when there is one.
-- **`round cap`**: keep the labels. The body still holds, and the review did not settle. Post a comment on `#<k>`,
-  and on the pull request when there is one, listing the points left open.
+  Post a comment on `#<k>` with the `Diverged:` text, naming the decision as `#<x> D<n>` when there is one.
+- **`round cap`**: keep the labels. The body still holds, and the review did not settle. Post a comment on `#<k>`
+  listing the points left open.
 - **`user`**: nothing goes to GitHub.
 - **`work-reports`**: report it. It should not happen after the check in **Paths this clone must ignore**.
+- **`finish`**: report the step of workflow's phase 6 that failed, with its message. Nothing goes to GitHub. The task
+  commit stays on the local branch, and the next run's branch step stops on it as unpushed work.
 
 ## Phase 6: end of the run
 
@@ -563,7 +559,7 @@ Every way the run ends comes here: the run order is done, the run stopped, or th
 - the stubs filed, the `later` ones and the `blocker` ones
 - where the run stopped and why, or that the run order is done
 - **the uncommitted work left in `<WT>`, when there is some.** `git -C <WT> diff` shows it. Say plainly that the next
-  run asks whether to discard it, and that a resume never uses it because the work gets redone
+  run asks whether to discard it, and that the next run never uses it because the work gets redone
 - the screenshots that could not be attached, with their paths and the URL of the pull request
 - what is workable now and what is waiting
 - the next step: `/annetaan:pj-2-doctor` when a `blocker` or a stub exists, otherwise `/annetaan:pj-3-running`.
@@ -578,9 +574,9 @@ Every way the run ends comes here: the run order is done, the run stopped, or th
 - **One issue at a time.**
 - **Everything runs in `<WT>`.** Never switch, stash, commit or clean in `<MAIN>`. The user works there.
 - **Never `--admin`. Never create a label with `--force`. Always pass a body with `--body-file`.**
-- **Never merge a pull request whose head is not fully checked.**
+- **Never merge a pull request that `project.sh` does not report as the issue's `pr`.**
 - **Whenever you take `ready` off an issue, add `blocker`.**
-- **A resume never uses the work a stopped run left in `<WT>`.** The work is redone.
+- **The next run never uses the work a stopped run left in `<WT>`.** The work is redone.
 - **Never push to the base branch, to `<from>` or to the default branch, and never rewrite their history.** The one
   branch this skill creates outside a pull request is the project's base branch, through the API, as **The base
   branch** says.

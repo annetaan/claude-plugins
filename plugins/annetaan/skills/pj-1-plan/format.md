@@ -25,8 +25,7 @@ Two things live outside GitHub, and only these two:
 
 - **the user's approval within a run.** An approval covers the run it was given in. The next run asks again.
 - **the uncommitted work a stopped run leaves in its worktree** `<MAIN>/.claude/worktrees/pj-<P>`, where `<MAIN>`
-  is the main working tree. It is local. A resume never uses it. The work is redone as the issue's one task, or as
-  its integration review.
+  is the main working tree. It is local. The next run never uses it. The work is redone as the issue's one task.
 
 The worktree itself is a place to work, not state. A run creates it when it is missing.
 
@@ -461,7 +460,7 @@ These stay in English whatever language the repository uses, because the skills 
 - the kinds in the file list: `added`, `changed` and `deleted`
 - the markers (see **Comments**)
 - `Base:` and `from` in the parent body's first line, and the parent's `## Order`
-- in a pull request body, `Implements`, `Part of`, `## Plan` and `Integration review`
+- in a pull request body, `Implements` and `Part of`
 
 Everything else is prose in the repository's language.
 
@@ -589,7 +588,8 @@ report (the `workflow` skill), so a pull request carries no review-thread marker
 - **The pull request of an issue** is a pull request into the base branch whose head reads `Implements #<n>`. An open
   one wins over a merged one, and the lower number wins within the same state. One closed without a merge never
   counts. `project.sh` reports it as `pr`.
-- A pull request exists only once the issue's task is committed. It stays a draft until just before the merge.
+- A pull request exists only once the task commit has passed review, so an open one has only the merge left. The next
+  run of `pj-3-running` merges it. It stays a draft until just before the merge.
 - Merge with squash, else a merge commit, else rebase, the first one the repository allows. After the merge, delete
   the head branch on origin and locally. Never `--admin`.
 
@@ -598,16 +598,9 @@ The body begins with this head:
 ```markdown
 Implements #<n>
 Part of #<P>
-
-## Plan
-
-- [x] <issue title> (<short sha>)
-- [ ] Integration review
 ```
 
-`## Plan` has exactly these two lines, because an issue is one task. The first is checked with its commit once the
-task passed review. The second is checked once the integration review passed. Below the head goes `workflow`'s
-`log.md`, or a paragraph saying why the work stopped and where.
+Below the head goes `workflow`'s `log.md`.
 
 The head is the first line with any text on it. GitHub ignores closing keywords such as `Closes` in a pull request
 into a branch other than the default branch, so the merge closes nothing. `pj-3-running` closes the issue itself after

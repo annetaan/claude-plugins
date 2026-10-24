@@ -56,7 +56,8 @@ flowchart TD
         commit -->|tasks left| detail
     end
 
-    commit -->|last task| integ["integration review<br/>working tree vs START"]
+    commit -->|"last task, two or more"| integ["integration review<br/>working tree vs START"]
+    commit -->|"last task, plan of one"| report
     integ -->|changes requested| integfix["fix, then one more commit"]
     integfix --> integ
     integ -->|approve| report["work report<br/>work-reports/2026-09-19-1346-a1b2c3d/"]
@@ -124,10 +125,10 @@ run order from the top and takes issues until the first one that is not workable
 Any issue that needs design again sends the run back to `pj-2-doctor` before anything starts. After you approve the
 order, each issue goes through the same steps in turn, in a git worktree of the project's own under
 `.claude/worktrees/`, so you can keep working in your clone while the run goes on. It gets a branch.
-[workflow](skills/workflow/README.md#driven-from-an-issue) runs it as one task, with review rounds and an
-integration review. A draft pull request follows, with the work report as its body. Then the merge into the project's
-branch, by squash where the repository allows it. pj-3-running then closes the issue itself, because GitHub closes
-nothing on a merge into a branch other than the default. Work nobody planned becomes a new issue. Work that has to
+[workflow](skills/workflow/README.md#driven-from-an-issue) runs it as one task, with review rounds. A draft pull
+request follows, with the work report as its body. Then the merge into the project's branch, by squash where the
+repository allows it. pj-3-running then closes the issue itself, because GitHub closes nothing on a merge into a
+branch other than the default. Work nobody planned becomes a new issue. Work that has to
 come first stops the run and gets the `blocker` label. The next run picks up where this one stopped.
 
 ```
