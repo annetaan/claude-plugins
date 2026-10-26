@@ -6,6 +6,10 @@ one task, then a finish step**, with each role in a session of its own. The revi
 in the run's work report directory, one per round and one reply to each, so the whole review stays readable after the
 run.
 
+workflow is the plugin's core skill for one implementation. You run it yourself for a change that fits one pull
+request. For larger work, pj-3-running runs it once per issue (see [Driven from an issue](#driven-from-an-issue) and
+[How the skills fit together](../../README.md#how-the-skills-fit-together)).
+
 ## Install
 
 ```

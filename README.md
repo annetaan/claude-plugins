@@ -26,9 +26,18 @@ Or let Claude Code do it. Open `/plugin`, go to Marketplaces, pick `annetaan` an
 
 ## Plugins
 
-| Plugin | Install | What is in it |
+| Plugin | Install | Skills |
 | --- | --- | --- |
-| [annetaan](plugins/annetaan) | `/plugin install annetaan@annetaan` | [workflow](plugins/annetaan/skills/workflow), which runs one implementation as design, a design review where the repository accepts breaking changes, approval, then per task (implement, review rounds, one commit), then an integration review when there is more than one task, then a finish step. The review rounds leave a file per round in the work report. Also [pj-1-plan, pj-2-doctor and pj-3-running](plugins/annetaan/README.md#pj-1-plan-pj-2-doctor-pj-3-running), which run a larger piece of work as projects on GitHub of up to ten tasks each: a parent issue with its run order and one sub-issue per task, the decisions ticked by you on GitHub and reviewed across the whole project, then each issue implemented through workflow and merged as its own pull request into its project's own branch, which you merge back into the branch it started from when the project is done. And [doc-write](plugins/annetaan/README.md#doc-write), which writes a document in one of four styles, and [doc-meta, doc-review and doc-revise](plugins/annetaan/README.md#doc-meta), which let you flag sentences in a document with an opinion and have the document revised to match. |
+| [annetaan](plugins/annetaan) | `/plugin install annetaan@annetaan` | [8 skills](plugins/annetaan/README.md#skills) |
+
+- [workflow](plugins/annetaan/skills/workflow) runs one implementation, from design to pull request.
+- [pj-1-plan, pj-2-doctor and pj-3-running](plugins/annetaan/README.md#pj-1-plan-pj-2-doctor-pj-3-running) run larger
+  work as projects on GitHub, each task implemented through workflow.
+- [doc-write](plugins/annetaan/README.md#doc-write) and
+  [doc-meta, doc-review and doc-revise](plugins/annetaan/README.md#doc-meta) write and revise documents.
+
+[How the skills fit together](plugins/annetaan/README.md#how-the-skills-fit-together) explains how workflow and the
+pj skills relate.
 
 ## License
 
