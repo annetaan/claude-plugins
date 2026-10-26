@@ -1,9 +1,9 @@
 ---
-name: pj-2-doctor
-description: Asks which project to work on, with a number given as the recommended one, then reviews the whole project against the boxes the user ticked on GitHub, against the code and against each issue in it. Has one issue writer per issue redraw what no longer holds, draws the stubs, resolves the blockers, rewrites the run order in the parent's Order list, and labels the issues ready. Asks the user no task decision, because the user ticks those on GitHub. Asks only about a split, two boxes ticked in one decision, and its changes before they are written. Run it again after ticking. The second of three skills, after pj-1-plan and before pj-3-running. Use it only when the user names this skill or invokes /annetaan:pj-2-doctor, because it edits, files and closes issues and changes labels on GitHub.
+name: pj2-doctor
+description: Asks which project to work on, with a number given as the recommended one, then reviews the whole project against the boxes the user ticked on GitHub, against the code and against each issue in it. Has one issue writer per issue redraw what no longer holds, draws the stubs, resolves the blockers, rewrites the run order in the parent's Order list, and labels the issues ready. Asks the user no task decision, because the user ticks those on GitHub. Asks only about a split, two boxes ticked in one decision, and its changes before they are written. Run it again after ticking. The second of three skills, after pj1-plan and before pj3-running. Use it only when the user names this skill or invokes /annetaan:pj2-doctor, because it edits, files and closes issues and changes labels on GitHub.
 ---
 
-# pj-2-doctor
+# pj2-doctor
 
 The second of the three pj skills: it reviews a filed project after the user has ticked its boxes, fixes what no
 longer holds, rewrites the run order, and labels the issues `ready`.
@@ -20,7 +20,7 @@ carry their output to the user and onto GitHub.
 prompt for a sub-agent. Sub-agents have not read this instruction, so a relative path or a literal `$DOCTOR` finds
 them nothing.
 
-**Read `$DOCTOR/../pj-1-plan/format.md`, `$DOCTOR/../pj-1-plan/state.md` and `$DOCTOR/../pj-1-plan/between-skills.md`
+**Read `$DOCTOR/../pj1-plan/format.md`, `$DOCTOR/../pj1-plan/state.md` and `$DOCTOR/../pj1-plan/between-skills.md`
 before anything else.** `format.md` is the only description of the parent issue, the run order, the sub-issue body,
 the decisions and the relationships. `state.md` is how `project.sh` reads a project and when an issue is ready.
 `between-skills.md` holds the labels, the blockers, the comments and picking the project. Everything below refers to
@@ -28,9 +28,9 @@ them.
 
 This skill uses these files:
 
-- the script `$DOCTOR/../pj-1-plan/scripts/project.sh`, written `project.sh` below
+- the script `$DOCTOR/../pj1-plan/scripts/project.sh`, written `project.sh` below
 - the reviewer's role file `$DOCTOR/roles/review.md`
-- the issue writer's role file `$DOCTOR/../pj-1-plan/roles/issue.md`
+- the issue writer's role file `$DOCTOR/../pj1-plan/roles/issue.md`
 
 **Language**: talk to the user in the user's language. Write issue text in the repository's language, as `format.md`
 says.
@@ -38,7 +38,7 @@ says.
 ## Before you start
 
 This skill edits, files and closes issues and changes labels on GitHub. **Start it only when the user names it or
-invokes `/annetaan:pj-2-doctor`.**
+invokes `/annetaan:pj2-doctor`.**
 
 ```bash
 git rev-parse --show-toplevel
@@ -62,25 +62,25 @@ one command, so write the path in full each time.
 1. Read the project.
 
    ```bash
-   $DOCTOR/../pj-1-plan/scripts/project.sh <P>
-   $DOCTOR/../pj-1-plan/scripts/project.sh <P> --order
+   $DOCTOR/../pj1-plan/scripts/project.sh <P>
+   $DOCTOR/../pj1-plan/scripts/project.sh <P> --order
    ```
 
    When `project.sh` fails, for instance with `has no Base: line`, quote its message and stop. **When `--order`
    fails on a cycle**, within the project or between projects, show the user the cycle it names and stop. Nothing
    can be ordered until a human removes an edge.
 2. **Check every open sub-issue** whose `pr` is not merged. An open issue whose pull request merged is waiting for
-   `pj-3-running` to close it. Leave it alone.
+   `pj3-running` to close it. Leave it alone.
 
    ```bash
-   $DOCTOR/../pj-1-plan/scripts/project.sh <P> --check <k>
+   $DOCTOR/../pj1-plan/scripts/project.sh <P> --check <k>
    ```
 
 3. **Start the reviewer.**
 
    ```
    Agent(subagent_type: "annetaan:pj-reviewer", description: "review #<P>",
-         prompt: "Read $DOCTOR/roles/review.md first and follow the role it describes. The project format is in $DOCTOR/../pj-1-plan/format.md. The state of a project is in $DOCTOR/../pj-1-plan/state.md. The agreements between the skills are in $DOCTOR/../pj-1-plan/between-skills.md.\n\nParent: #<P>\n\nproject.sh <P>:\n<the JSON>\n\nproject.sh <P> --check, per issue:\n<each JSON>")
+         prompt: "Read $DOCTOR/roles/review.md first and follow the role it describes. The project format is in $DOCTOR/../pj1-plan/format.md. The state of a project is in $DOCTOR/../pj1-plan/state.md. The agreements between the skills are in $DOCTOR/../pj1-plan/between-skills.md.\n\nParent: #<P>\n\nproject.sh <P>:\n<the JSON>\n\nproject.sh <P> --check, per issue:\n<each JSON>")
    ```
 
    `annetaan:pj-reviewer` ships with this plugin and is pinned to opus at high effort with code changes disabled.
@@ -120,7 +120,7 @@ An answer here is the user's decision, so the writer of that issue works it into
 
 ```
 Agent(subagent_type: "annetaan:pj-issue-writer", description: "revise #<n>", run_in_background: true,
-      prompt: "Read $DOCTOR/../pj-1-plan/roles/issue.md first and follow the role it describes. The project format is in $DOCTOR/../pj-1-plan/format.md. project.sh is $DOCTOR/../pj-1-plan/scripts/project.sh.\n\nMode: revise\n\nParent: #<P>\nIssue: #<n>\n\nproject.sh <P>:\n<the JSON>\n\nproject.sh <P> --check <n>:\n<the JSON, or none for a parent>\n\nThe review's findings on #<n>:\n<the findings>\n\nThe user's answers:\n<the phase 2 answers on #<n>, or none>")
+      prompt: "Read $DOCTOR/../pj1-plan/roles/issue.md first and follow the role it describes. The project format is in $DOCTOR/../pj1-plan/format.md. project.sh is $DOCTOR/../pj1-plan/scripts/project.sh.\n\nMode: revise\n\nParent: #<P>\nIssue: #<n>\n\nproject.sh <P>:\n<the JSON>\n\nproject.sh <P> --check <n>:\n<the JSON, or none for a parent>\n\nThe review's findings on #<n>:\n<the findings>\n\nThe user's answers:\n<the phase 2 answers on #<n>, or none>")
 ```
 
 `annetaan:pj-issue-writer` ships with this plugin and is pinned to opus at high effort with code changes disabled.
@@ -132,7 +132,7 @@ writer with `SendMessage`. Start one when that issue has none yet.
 **Lint each body that comes back.** Write it to `$TMP/<n>.md`.
 
 ```bash
-$DOCTOR/../pj-1-plan/scripts/project.sh --lint "$TMP/<n>.md"
+$DOCTOR/../pj1-plan/scripts/project.sh --lint "$TMP/<n>.md"
 ```
 
 Accept a clear lint, or `decisions-open` when a decision is still open. Read each parent's body against the parent
@@ -193,7 +193,7 @@ returns with the reviewer's strings. **No reviewer reads it again, and there is 
    [ "$got" = "$(printf '%s' "$want" | sort)" ] || { echo "the diff holds other changes"; fail=1; }
    echo "fail=$fail"
    CHECK
-   $DOCTOR/../pj-1-plan/scripts/project.sh --lint "$TMP/<n>.exact.md"
+   $DOCTOR/../pj1-plan/scripts/project.sh --lint "$TMP/<n>.exact.md"
    ```
 
    Per finding, `old` occurs once in the body the reviewer read and nowhere in the returned one, and the expected
@@ -272,7 +272,7 @@ the numbers.
    ```bash
    gh issue edit <a> --add-blocked-by <b>
    gh issue edit <a> --remove-blocked-by <b>
-   $DOCTOR/../pj-1-plan/scripts/project.sh <X> --order
+   $DOCTOR/../pj1-plan/scripts/project.sh <X> --order
    ```
 
    **After the edges change, run `--order` in every project they touched**: `<P>`, and the parent `<X>` of each end
@@ -289,7 +289,7 @@ the numbers.
    again right before it gets `ready`, because the bodies and the edges just changed.
 
    ```bash
-   $DOCTOR/../pj-1-plan/scripts/project.sh <P> --check <k>
+   $DOCTOR/../pj1-plan/scripts/project.sh <P> --check <k>
    gh issue edit <k> --add-label ready
    gh issue edit <k> --add-label ready --remove-label blocker
    ```
@@ -298,7 +298,7 @@ the numbers.
    the report names the failures.
 
    **Whoever takes `ready` off leaves a comment** (`between-skills.md`, **Labels**). It starts with
-   `**[pj-2-doctor]**` and says what changed and why.
+   `**[pj2-doctor]**` and says what changed and why.
 
    ```bash
    gh issue edit <k> --remove-label ready
@@ -310,7 +310,7 @@ the numbers.
    parent's `updatedAt` right before the edit, and work in a change a human made since.
 
    ```bash
-   $DOCTOR/../pj-1-plan/scripts/project.sh <P> --order
+   $DOCTOR/../pj1-plan/scripts/project.sh <P> --order
    gh issue view <P> --json updatedAt,body
    gh issue edit <P> --body-file "$TMP/<P>-order.md"
    ```
@@ -323,14 +323,14 @@ the numbers.
 - every open sub-issue, one line each, in the new run order: `ready` or not, and when not, why. An issue left
   without `ready` by the second review gives its `design` findings as the reason
 - **the decisions left for the user**, one line each, as `#<n> D<k> <question>` with the issue URL. This is the
-  user's next step: tick them on GitHub, then run `/annetaan:pj-2-doctor` again
+  user's next step: tick them on GitHub, then run `/annetaan:pj2-doctor` again
 - the issues filed, the edges changed, the blockers closed and the parents rewritten
 - the `exact` fixes made after the second review, by issue
 - the `design` findings left, by issue
-- the next step: `/annetaan:pj-2-doctor` again only when a decision or a `design` finding is left, never just to put
-  `ready` on. `/annetaan:pj-3-running` when the first open issue of the run order is `ready`. It works down the
+- the next step: `/annetaan:pj2-doctor` again only when a decision or a `design` finding is left, never just to put
+  `ready` on. `/annetaan:pj3-running` when the first open issue of the run order is `ready`. It works down the
   order and stops at the first issue that is not workable. When `parent.baseExists` is false and a project in
-  `parent.dependsOn` is not `merged`, add one sentence: `pj-3-running` starts this project after each such `#<Q>` is
+  `parent.dependsOn` is not `merged`, add one sentence: `pj3-running` starts this project after each such `#<Q>` is
   merged into `<from>`.
 
 ## Rules
@@ -340,7 +340,7 @@ the numbers.
 - **You never write a body yourself**, except the `## Order` list of the parent. The writer applies an `exact` fix,
   and you only compare it.
 - **Each writer writes its own issue only. Only you write to GitHub**, and only after the phase 4 approval. Every
-  comment you post starts with `**[pj-2-doctor]**`.
+  comment you post starts with `**[pj2-doctor]**`.
 - **Never put a relationship on a parent.**
 - **Always pass a body with `--body-file`.** Never create a label with `--force`.
 - **Re-read `updatedAt` before every edit. Never edit a closed issue.**
