@@ -486,8 +486,8 @@ Whichever ending ran, close with: `START`, the commits stacked on it matched aga
 
 pj-3-running loads this skill to run one sub-issue of a project as one task. The issue was written to be implemented
 as it stands, so this entry has no design session, no approval and no questions. It has no integration review either,
-because the plan has one task. The shape of the issue and of its
-pull request is in `$FLOW/../pj-1-plan/format.md`.
+because the plan has one task. The shape of the issue is in `$FLOW/../pj-1-plan/format.md`, and the shape of its
+pull request in `$FLOW/../pj-1-plan/between-skills.md` under **Pull requests**.
 
 ### What pj-3-running has settled
 
@@ -579,7 +579,7 @@ Keep the handover lines from phase 4 (d) for pj-3-running.
    >
    > List the adaptations the implementation session made to the issue's design under what changed.
 
-   The head is the one in `format.md` **Pull requests**.
+   The head is the one in `between-skills.md` **Pull requests**.
 2. **`changes.diff`** as written.
 3. **Push, then open the pull request.**
 

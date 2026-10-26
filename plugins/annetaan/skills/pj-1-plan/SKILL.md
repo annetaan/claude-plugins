@@ -19,8 +19,9 @@ one issue writer per task draws that task, and you carry their output to the use
 for a sub-agent. Sub-agents have not read this instruction, so a relative path or a literal `$PLAN` finds them
 nothing.
 
-**Read `$PLAN/format.md` before anything else.** It is the only description of the parent issue, the sub-issue body,
-the decisions, the labels and the relationships. Everything below refers to it.
+**Read `$PLAN/format.md` and `$PLAN/between-skills.md` before anything else.** `format.md` is the only description
+of the parent issue, the sub-issue body, the decisions and the relationships. `between-skills.md` holds the labels,
+the base branch and picking the project. Everything below refers to them.
 
 **Language**: talk to the user in the user's language. Write issue text in the repository's language, as `format.md`
 says.
@@ -43,7 +44,7 @@ git branch --show-current
 - Keep the default branch's name and the current branch's name for phase 2. A detached HEAD prints no current
   branch.
 - A dirty working tree does not matter. This skill reads the code and changes nothing in it. It creates no branch
-  either: `pj-3-running` creates each project's base branch (`format.md`, **Projects**).
+  either: `pj-3-running` creates each project's base branch (`between-skills.md`, **The base branch**).
 
 ## Phase 1: the overall design
 
@@ -90,8 +91,8 @@ Show:
   branch back through a pull request is the user's job, outside the skills
 - one line saying every task is cut to 8 files at most, tests included, and every project to 10 tasks at most, the
   size limits in `format.md`
-- the label this run will create from `format.md`, `project`, or that the repository already has it and it will be
-  reused
+- the label this run will create from `between-skills.md`, `project`, or that the repository already has it and it
+  will be reused
 
 Ask both questions in one call.
 
@@ -168,7 +169,7 @@ The sub-issue bodies sit in `$TMP` from phase 3. Write the planner's parent body
 across every project, so that every `--blocked-by` names an issue that already exists.
 
 ```bash
-# 1. make sure the project label exists (format.md, Labels)
+# 1. make sure the project label exists (between-skills.md, Labels)
 # 2. each parent, in project order, with the planner's body for it
 gh issue create --label project --title "<project title>" --body-file "$TMP/PJ<j>.md"
 # 3. the Base: line on top of that parent's body
@@ -202,8 +203,8 @@ $PLAN/scripts/project.sh <P>
 $PLAN/scripts/project.sh <P> --order
 ```
 
-`parent.base` is `pj/<P>`, `parent.from` is `<from>`, `parent.baseExists` is false, and `parent.orderCheck.ok` is
-true with `missing` empty. The numbers in
+The fields are in `$PLAN/state.md` under **Reading a project**. `parent.base` is `pj/<P>`, `parent.from` is
+`<from>`, `parent.baseExists` is false, and `parent.orderCheck.ok` is true with `missing` empty. The numbers in
 `parent.dependsOn` are the parents of the projects this one waits on in the plan. Every task of the project is there,
 its `blockedBy` matches the split, across projects included, with the `parent` of each blocker matching the project
 of that task, the decision counts and the lint match the bodies, and `--order` finds no cycle of either kind. Report
@@ -229,10 +230,10 @@ Then the next steps, in this order:
 4. `/annetaan:pj-3-running`. It works down the parent's `## Order` and stops at the first issue that is not workable.
 
 Both skills ask which project to work on, and a number given to them becomes the recommended first option
-(`format.md`, **Picking the project**). The user may reorder `## Order` by hand. `pj-3-running` creates a project's
-base branch on its first start on that project, and a project that waits on others starts once they are merged into
-`<from>`. Once every sub-issue of a project is merged, the user merges `pj/<P>` into `<from>` through a pull request,
-and the next `pj-3-running` closes the parent, or the user closes it.
+(`between-skills.md`, **Picking the project**). The user may reorder `## Order` by hand. `pj-3-running` creates a
+project's base branch on its first start on that project, and a project that waits on others starts once they are
+merged into `<from>`. Once every sub-issue of a project is merged, the user merges `pj/<P>` into `<from>` through a
+pull request, and the next `pj-3-running` closes the parent, or the user closes it.
 
 ## Rules
 
@@ -240,7 +241,7 @@ and the next `pj-3-running` closes the parent, or the user closes it.
   yourself never passed through anyone who read the code. The `Base:` line in phase 4 step 3 is the one line you
   add, and you add nothing else.
 - **Nothing reaches GitHub before the phase 2 approval.** Labels included.
-- **You create no branch.** `pj-3-running` creates every base branch (`format.md`, **Projects**).
+- **You create no branch.** `pj-3-running` creates every base branch (`between-skills.md`, **The base branch**).
 - **Only you write to GitHub.** The sub-agents only read it, so the order and the numbers stay in one place.
 - **Dependencies go into relationships only**, across projects too, and never onto a parent. See `format.md`.
 - **Never create a label with `--force`.**
