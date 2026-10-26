@@ -11,6 +11,75 @@ Install it once. As skills get added, run `claude plugin marketplace update anne
 `claude plugin update annetaan@annetaan` in a shell to keep up, or turn on auto-update for the `annetaan`
 marketplace in `/plugin`.
 
+## How the skills fit together
+
+### workflow is the core
+
+`workflow` runs one implementation for one request: a design, your approval, then each task implemented, reviewed
+and committed, and at the end an optional pull request. Everything in this plugin that writes code goes through it.
+While it runs, its state lives in the session and in its work report under `work-reports/` on disk. Nothing reaches
+GitHub until the finish step opens a pull request or pushes.
+
+### The pj skills drive workflow
+
+The pj skills are for work too large for one pull request, and they write no code themselves. `pj-1-plan` splits the
+work into a parent issue and its sub-issues. You tick the decisions on GitHub. `pj-2-doctor` makes the issues ready.
+`pj-3-running` runs `workflow` once per sub-issue, merges each pull request into the project's branch and closes the
+issue. The three pass nothing to each other through the conversation. Each one reads the project from GitHub afresh.
+
+Which skill to start with:
+
+- A change that fits one pull request: `/annetaan:workflow`.
+- Anything larger: `/annetaan:pj-1-plan`.
+
+The doc skills are a separate family, for writing and revising documents, and do not use either of these.
+
+### GitHub holds the state
+
+In short, from [format.md](skills/pj-1-plan/format.md)'s The parts:
+
+| What | On GitHub |
+| --- | --- |
+| a project | parent issue, label `project` |
+| a task | a sub-issue |
+| your decisions | ticked checkboxes |
+| an order between tasks | blocked-by |
+| the run order | the parent's `## Order` |
+| can run | `ready` label |
+| stopped on | `blocker` label |
+| where the work lands | branch `pj/12` |
+| one task's change | one pull request |
+| what sessions learnt | the parent's handover comment |
+
+Only two pieces of a project's state live outside GitHub: your approval within one run, which the next run asks for
+again, and the uncommitted work a stopped run leaves in its worktree under `.claude/worktrees/`, which the next run
+never uses. Because of this, a project can stop anywhere and resume in another session or on another machine.
+
+The work report of each issue is a record, not state. It stays local and no later run reads it. Only its `log.md`
+reaches GitHub, as the pull request's body.
+
+```mermaid
+flowchart TB
+    you(["you"])
+    subgraph gh["GitHub: the whole state"]
+        direction LR
+        project["project"] --- subs["sub-issues"]
+    end
+    subgraph pj["pj skills"]
+        direction LR
+        plan["pj-1-plan"] --> doctor["pj-2-doctor"] --> running["pj-3-running"]
+    end
+    wf["workflow"]
+    you -.->|"tick decisions"| gh
+    gh <-->|"read and write"| pj
+    pj -->|"pj-3-running, once per sub-issue"| wf
+    classDef human fill:#fff,stroke:#888,stroke-dasharray: 5 5
+    class you human
+```
+
+The pj skills keep nothing between runs. Each one reads the project from GitHub and writes back to it, and you make
+your decisions there too.
+
 ## Skills
 
 A skill whose `description` matches a request normally starts without being named. The ones here do not. `workflow`
@@ -74,8 +143,8 @@ working tree. Everything after the approval runs on its own. A task that passes 
 commit list reads back as the plan. A task that does not settle in five rounds comes back to you with the open
 points laid out, and its changes stay uncommitted in the working tree.
 
-`pj-3-running` drives the same flow for one issue at a time, with no design session, no approval and no questions,
-because the issue is the approved design. See [Driven from an issue](skills/workflow/README.md#driven-from-an-issue).
+`pj-3-running` runs this flow once per issue ([Driven from an issue](skills/workflow/README.md#driven-from-an-issue),
+[How the skills fit together](#how-the-skills-fit-together)).
 
 Every run leaves a work report behind, inside the repository under `work-reports/` so that you notice them piling
 up. The skill checks that git ignores that directory before it writes anything, and asks before touching
@@ -99,8 +168,8 @@ project's first run, from a branch you pick when the projects are filed, the def
 A project that waits on another gets its branch only after the other one is merged into that branch. Every
 sub-issue's pull request merges into its project's branch. Merging that branch back into the branch it came from,
 through a pull request, is left to you. After that the parent is closed, by the next `pj-3-running` run or by you, and
-a closed parent means its project is merged. GitHub holds the whole state, so a project can stop and pick up again in
-another session or on another machine. [format.md](skills/pj-1-plan/format.md) describes the shape.
+a closed parent means its project is merged. [How the skills fit together](#how-the-skills-fit-together) says where
+the state lives, and [format.md](skills/pj-1-plan/format.md) describes its exact shape.
 
 `/annetaan:pj-1-plan` ([details](skills/pj-1-plan/SKILL.md)) starts with a planner session. It draws the whole in
 broad strokes, splits it into tasks, and groups the tasks into projects of up to ten. You answer the plan-level
