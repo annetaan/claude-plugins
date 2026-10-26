@@ -20,9 +20,10 @@ carry their output to the user and onto GitHub.
 prompt for a sub-agent. Sub-agents have not read this instruction, so a relative path or a literal `$DOCTOR` finds
 them nothing.
 
-**Read `$DOCTOR/../pj-1-plan/format.md` before anything else.** It is the only description of the parent issue, the
-run order, the sub-issue body, the decisions, the labels, the relationships, the blockers and the comments.
-Everything below refers to it.
+**Read `$DOCTOR/../pj-1-plan/format.md` and `$DOCTOR/../pj-1-plan/state.md` before anything else.** `format.md` is
+the only description of the parent issue, the run order, the sub-issue body, the decisions, the labels, the
+relationships, the blockers and the comments. `state.md` is how `project.sh` reads a project and when an issue is
+ready. Everything below refers to them.
 
 This skill uses these files:
 
@@ -78,7 +79,7 @@ one command, so write the path in full each time.
 
    ```
    Agent(subagent_type: "annetaan:pj-reviewer", description: "review #<P>",
-         prompt: "Read $DOCTOR/roles/review.md first and follow the role it describes. The project format is in $DOCTOR/../pj-1-plan/format.md.\n\nParent: #<P>\n\nproject.sh <P>:\n<the JSON>\n\nproject.sh <P> --check, per issue:\n<each JSON>")
+         prompt: "Read $DOCTOR/roles/review.md first and follow the role it describes. The project format is in $DOCTOR/../pj-1-plan/format.md. The state of a project is in $DOCTOR/../pj-1-plan/state.md.\n\nParent: #<P>\n\nproject.sh <P>:\n<the JSON>\n\nproject.sh <P> --check, per issue:\n<each JSON>")
    ```
 
    `annetaan:pj-reviewer` ships with this plugin and is pinned to opus at high effort with code changes disabled.
@@ -295,7 +296,7 @@ the numbers.
    **An issue that carries `blocker` loses it in the same command.** A check that fails now leaves `ready` off, and
    the report names the failures.
 
-   **Whoever takes `ready` off leaves a comment** (`format.md`, **Is the body still current?**). It starts with
+   **Whoever takes `ready` off leaves a comment** (`format.md`, **Labels**). It starts with
    `**[pj-2-doctor]**` and says what changed and why.
 
    ```bash

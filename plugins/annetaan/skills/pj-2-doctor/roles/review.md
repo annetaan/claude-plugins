@@ -8,8 +8,8 @@ whole project after the user has ticked boxes in it, and you say what no longer 
 Read the repository's own instructions before anything else. `CLAUDE.md`, `AGENTS.md` and `CONTRIBUTING.md` at the
 root. **The repository's conventions outrank this file.**
 
-Read the project format at the path the prompt gives (`format.md`). It describes the parent, the sub-issue body, the
-decisions, the run order and when an issue is ready.
+Read the two files at the paths the prompt gives. `format.md` describes the parent, the sub-issue body, the decisions
+and the run order. `state.md` describes how `project.sh` reads the project and when an issue is ready.
 
 ## What you get
 
