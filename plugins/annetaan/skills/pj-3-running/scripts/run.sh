@@ -237,16 +237,35 @@ def checked_out_in(main, branch):
 def has_branch(where, branch):
     return run("git", "-C", where, "rev-parse", "--verify", "--quiet", "refs/heads/" + branch).returncode == 0
 
+# gh pr checks exits 1 with one of these when it read the pull request and found nothing to report: no check at all on
+# the head commit, or checks but none required. Both strings come from gh's populateStatusChecks
+# (pkg/cmd/pr/checks/checks.go). The first does not contain the second.
+NO_CHECKS = "no checks reported on the"
+NO_REQUIRED = "no required checks reported on the"
+
+def nothing_required(text):
+    """Whether gh's output says it found no required check, as opposed to failing to read the checks."""
+    return NO_CHECKS in text or NO_REQUIRED in text
+
 def registered(m):
-    """How many required checks have registered on #m. A failed call or unreadable output counts as none."""
+    """How many required checks have registered on #m, as a pair (n, error) in which exactly one side is None.
+
+    (n, None) when gh read the pull request: n is the number of required checks, 0 when gh says there is none.
+    (None, error) when gh failed for any other reason or printed something other than a JSON list.
+    """
     r = run("gh", "pr", "checks", str(m), "--required", "--json", "name")
     if r.returncode != 0:
-        return 0
+        text = r.stdout + r.stderr
+        if nothing_required(text):
+            return 0, None
+        return None, r.stderr.strip() or r.stdout.strip() or "gh pr checks exited %d" % r.returncode
     try:
         found = json.loads(r.stdout)
     except ValueError:
-        return 0
-    return len(found) if isinstance(found, list) else 0
+        return None, "unreadable output from gh pr checks"
+    if not isinstance(found, list):
+        return None, "unreadable output from gh pr checks"
+    return len(found), None
 
 def version(text):
     m = re.search(r"gh version (\d+)\.(\d+)\.(\d+)", text)
@@ -460,23 +479,28 @@ def merge():
             stop("no-merge-method", "the rules on %s leave no merge method that %s allows"
                  % (base, view["nameWithOwner"]), pr=m)
         if found["requiredChecks"] != "no":
-            # With no, the base branch requires no checks, so nothing is waited on or watched. gh's wording for a
-            # branch with no checks at all ("no checks reported on the '<branch>' branch", exit 1) would otherwise
-            # read as a failure.
+            # With no, the base branch requires no checks, so nothing is waited on or watched.
             # A pull request pushed seconds ago may have no check runs yet, and --watch does not wait for a check
-            # that has not registered.
+            # that has not registered, so the loop polls until one does or the wait runs out. A failed read does
+            # not end the loop early; only the last poll counts.
+            # unknown waits like yes, but merges when no required check registered: the merge never passes --admin,
+            # so GitHub still refuses a merge that a required check blocks. The watch below then doubles as the last
+            # look for a check that registered late.
+            # A read that failed is reported as checks-unreadable, never taken as zero checks.
             deadline = time.monotonic() + wait
             while True:
-                n = registered(m)
+                n, error = registered(m)
                 left = deadline - time.monotonic()
-                if n > 0 or left <= 0:
+                if (n is not None and n > 0) or left <= 0:
                     break
                 time.sleep(min(10, left))
+            if n is None:
+                stop("checks-unreadable", "cannot read the checks on #%d: %s" % (m, error), pr=m)
             if n == 0 and found["requiredChecks"] == "yes":
                 stop("no-checks", "no required check registered on #%d within %d seconds" % (m, wait), pr=m)
             r = run("gh", "pr", "checks", str(m), "--required", "--watch", "--fail-fast")
             text = r.stdout + r.stderr
-            if r.returncode != 0 and "no required checks reported" not in text:
+            if r.returncode != 0 and not nothing_required(text):
                 stop("checks-failed", "\n".join(text.strip().splitlines()[-5:]), pr=m)
         if pv.get("isDraft"):
             r = run("gh", "pr", "ready", str(m))
