@@ -141,17 +141,80 @@ body that fails back to its writer with `SendMessage` and say what to fix.
 the writer.
 
 **When every writer has returned**, send the reviewer the rewritten bodies with `SendMessage`. Its second return is
-the last word for this run. **There is no third round.** An issue it still finds something on goes into the report
-without `ready`, and the next run takes it up.
+the last word for this run. **There is no third round.** Every finding in it starts with `exact` or `design`
+(`roles/review.md`). **A `design` finding stays open**: its issue goes into the report without `ready`, and the next
+run takes it up. **An `exact` finding is closed in this run**, as **Exact findings** below says.
 
-Print one line `#<k> rewritten` as each body is accepted, and `review 2 done` when the reviewer returns, so a context
-summary can find where the run stood.
+Print one line `#<k> rewritten` as each body is accepted, `review 2 done` when the reviewer returns, and
+`#<k> exact fixed` as each issue passes the check under **Exact findings**, so a context summary can find where the
+run stood.
+
+### Exact findings
+
+An `exact` finding is one string for another on one line. The writer applies it, and you only compare the body it
+returns with the reviewer's strings. **No reviewer reads it again, and there is no retry.**
+
+1. **Send the findings.** Send each issue's `exact` findings to its writer with `SendMessage`, one message per issue,
+   the `old:` and `new:` lines exactly as the reviewer wrote them. Do this on an issue that also has a `design`
+   finding too. When the issue has no writer yet, start one as above, `Mode: revise`, with these findings as "The
+   review's findings".
+2. **Keep the body the reviewer read**, CR stripped. For an issue rewritten in this run:
+
+   ```bash
+   tr -d '\r' < "$TMP/<n>.md" > "$TMP/<n>.before.md"
+   ```
+
+   For any other issue:
+
+   ```bash
+   gh issue view <n> --json body --jq .body | tr -d '\r' > "$TMP/<n>.before.md"
+   ```
+
+3. **Check the returned body.** Write it to `$TMP/<n>.exact.md`. List the findings in the heredoc, the `old` string
+   on one line and its `new` string on the next, exactly as the reviewer wrote them.
+
+   ```bash
+   bash <<'CHECK'
+   B="$TMP/<n>.before.md" A="$TMP/<n>.exact.md" fail=0 want=
+   while IFS= read -r old && IFS= read -r new; do
+     [ "$(grep -oF -- "$old" "$B" | wc -l)" -eq 1 ] || { echo "not once in before: $old"; fail=1; }
+     [ "$(grep -oF -- "$old" "$A" | wc -l)" -eq 0 ] || { echo "still in after: $old"; fail=1; }
+     L=$(grep -F -- "$old" "$B")
+     E=${L/"$old"/"$new"}
+     grep -qxF -- "$E" "$A" || { echo "expected line missing: $E"; fail=1; }
+     want+="< $L"$'\n'"> $E"$'\n'
+   done <<'FINDINGS'
+   <old of finding 1>
+   <new of finding 1>
+   FINDINGS
+   got=$(diff <(printf '%s\n' "$(cat "$B")") <(printf '%s\n' "$(cat "$A")") | grep '^[<>] ' | sort)
+   [ "$got" = "$(printf '%s' "$want" | sort)" ] || { echo "the diff holds other changes"; fail=1; }
+   echo "fail=$fail"
+   CHECK
+   $DOCTOR/../pj-1-plan/scripts/project.sh --lint "$TMP/<n>.exact.md"
+   ```
+
+   Per finding, `old` occurs once in the body the reviewer read and nowhere in the returned one, and the expected
+   line, the line that held `old` with `old` replaced by `new`, is a whole line of the returned body. With `old` and
+   `new` both quoted, `${L/"$old"/"$new"}` replaces them literally. Keep the assignment to `E` unquoted, because the
+   bash 3.2 of macOS keeps the inner quotes when the whole expansion is quoted. Then `diff` has exactly one `<` line
+   and one `>` line per finding: the lines that held `old`, and the expected lines. A difference in the final
+   newline alone does not count. **The check passes** when it prints `fail=0` and the lint is clear or reports only
+   `decisions-open`. Read a parent against the parent shape instead of the lint, as above.
+4. **On a pass**, make the returned body the one phase 4 writes, and print `#<n> exact fixed`.
+
+   ```bash
+   cp "$TMP/<n>.exact.md" "$TMP/<n>.md"
+   ```
+
+5. **On a failure**, or when the writer applied none of them, every `exact` finding on that issue counts as `design`.
+   `$TMP/<n>.md` stays as it was, or absent. Send nothing back to the writer.
 
 ## Phase 4: approval and writing
 
 **Show the user what will be written**, then ask once.
 
-- each body to rewrite, as `#<n>`, with what changed in one line
+- each body to rewrite, as `#<n>`, with what changed in one line, an `exact` fix included
 - the new issues: the parts of a split and the stubs
 - the edges to add and remove
 - the blockers to close
@@ -167,7 +230,8 @@ AskUserQuestion: Write these changes to GitHub?
 The approval covers this run only (`format.md`, **Principle**).
 
 **`ready` goes on an issue** when it is open, `--check` passes with the lint clear and the premises clear or not
-evaluated yet, and the reviewer's last return lists it as clear. `ready` stays on an issue that still meets this.
+evaluated yet, and no review finding is left on it: the reviewer's last return lists it as clear, or every finding it
+has there is `exact` and the issue printed `#<k> exact fixed`. `ready` stays on an issue that still meets this.
 **`ready` comes off** an issue that had it and no longer meets this.
 
 Write in this order. **When a command fails halfway**, stop and tell the user what was written and what was not, with
@@ -254,12 +318,15 @@ the numbers.
 
 ## Report to the user
 
-- every open sub-issue, one line each, in the new run order: `ready` or not, and when not, why
+- every open sub-issue, one line each, in the new run order: `ready` or not, and when not, why. An issue left
+  without `ready` by the second review gives its `design` findings as the reason
 - **the decisions left for the user**, one line each, as `#<n> D<k> <question>` with the issue URL. This is the
   user's next step: tick them on GitHub, then run `/annetaan:pj-2-doctor` again
 - the issues filed, the edges changed, the blockers closed and the parents rewritten
-- what the second review still found, by issue
-- the next step: `/annetaan:pj-3-running` when the first open issue of the run order is `ready`. It works down the
+- the `exact` fixes made after the second review, by issue
+- the `design` findings left, by issue
+- the next step: `/annetaan:pj-2-doctor` again only when a decision or a `design` finding is left, never just to put
+  `ready` on. `/annetaan:pj-3-running` when the first open issue of the run order is `ready`. It works down the
   order and stops at the first issue that is not workable. When `parent.baseExists` is false and a project in
   `parent.dependsOn` is not `merged`, add one sentence: `pj-3-running` starts this project after each such `#<Q>` is
   merged into `<from>`.
@@ -268,7 +335,8 @@ the numbers.
 
 - **You decide nothing.** The user decides, the reviewer finds, and the writer writes.
 - **Never ask a task decision in the conversation.** It goes into the issue as a box to tick.
-- **You never write a body yourself**, except the `## Order` list of the parent.
+- **You never write a body yourself**, except the `## Order` list of the parent. The writer applies an `exact` fix,
+  and you only compare it.
 - **Each writer writes its own issue only. Only you write to GitHub**, and only after the phase 4 approval. Every
   comment you post starts with `**[pj-2-doctor]**`.
 - **Never put a relationship on a parent.**

@@ -182,8 +182,10 @@ filed. No branch is created yet, and no issue is `ready` yet.
 reviewer session reads the whole project against the boxes you ticked, the code, and each issue in it: a ticked
 option the design does not hold, two issues that disagree on a name, a missing blocked-by, a stub, a blocker. One
 issue writer per issue with a finding redraws it, and a question only you can answer becomes a new decision to tick.
-The reviewer reads the rewrites once more. The doctor asks you only about a split, two boxes ticked in one decision,
-and the changes before it writes them. Then it rewrites the run order and labels `ready` every issue that came out
+The reviewer reads the rewrites once more. A finding it then tags as a pure text fix, one string for another, goes
+back to the writer and is checked against the reviewer's strings with no third review, so the issue can still be
+labelled `ready` in the same run. The doctor asks you only about a split, two boxes ticked in one decision, and the
+changes before it writes them. Then it rewrites the run order and labels `ready` every issue that came out
 clear. Run it once after `pj-1-plan`, tick the boxes it lists, and run it again.
 
 `/annetaan:pj-3-running` ([details](skills/pj-3-running/SKILL.md)) asks which project to work on, the same way. On the
