@@ -88,8 +88,8 @@ All of it happens in the worktree pj-3-running made for the project, so your own
 A stop before the task is committed leaves the work uncommitted in that worktree and pushes nothing. That work is
 the one thing outside GitHub, and the next run redoes it. A stop once the task commit exists can only come during the
 finish step, so the run finishes it: the report, the push and the draft pull request. A pull request exists only for
-a task commit that passed review. The shape of the issues and the
-pull requests is in [format.md](../pj-1-plan/format.md).
+a task commit that passed review. The shape of the issues is in [format.md](../pj-1-plan/format.md), and the shape
+of the pull requests in [between-skills.md](../pj-1-plan/between-skills.md).
 
 ## What it leaves behind
 
