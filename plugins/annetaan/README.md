@@ -169,7 +169,9 @@ A project that waits on another gets its branch only after the other one is merg
 sub-issue's pull request merges into its project's branch. Merging that branch back into the branch it came from,
 through a pull request, is left to you. After that the parent is closed, by the next `pj-3-running` run or by you, and
 a closed parent means its project is merged. [How the skills fit together](#how-the-skills-fit-together) says where
-the state lives, and [format.md](skills/pj-1-plan/format.md) describes its exact shape.
+the state lives. [format.md](skills/pj-1-plan/format.md) describes the issues and their bodies,
+[state.md](skills/pj-1-plan/state.md) how the state of a project is read, and
+[between-skills.md](skills/pj-1-plan/between-skills.md) how the three skills work together.
 
 `/annetaan:pj-1-plan` ([details](skills/pj-1-plan/SKILL.md)) starts with a planner session. It draws the whole in
 broad strokes, splits it into tasks, and groups the tasks into projects of up to ten. You answer the plan-level
