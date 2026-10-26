@@ -460,6 +460,9 @@ def merge():
             stop("no-merge-method", "the rules on %s leave no merge method that %s allows"
                  % (base, view["nameWithOwner"]), pr=m)
         if found["requiredChecks"] != "no":
+            # With no, the base branch requires no checks, so nothing is waited on or watched. gh's wording for a
+            # branch with no checks at all ("no checks reported on the '<branch>' branch", exit 1) would otherwise
+            # read as a failure.
             # A pull request pushed seconds ago may have no check runs yet, and --watch does not wait for a check
             # that has not registered.
             deadline = time.monotonic() + wait
@@ -471,10 +474,10 @@ def merge():
                 time.sleep(min(10, left))
             if n == 0 and found["requiredChecks"] == "yes":
                 stop("no-checks", "no required check registered on #%d within %d seconds" % (m, wait), pr=m)
-        r = run("gh", "pr", "checks", str(m), "--required", "--watch", "--fail-fast")
-        text = r.stdout + r.stderr
-        if r.returncode != 0 and "no required checks reported" not in text:
-            stop("checks-failed", "\n".join(text.strip().splitlines()[-5:]), pr=m)
+            r = run("gh", "pr", "checks", str(m), "--required", "--watch", "--fail-fast")
+            text = r.stdout + r.stderr
+            if r.returncode != 0 and "no required checks reported" not in text:
+                stop("checks-failed", "\n".join(text.strip().splitlines()[-5:]), pr=m)
         if pv.get("isDraft"):
             r = run("gh", "pr", "ready", str(m))
             if r.returncode != 0:
