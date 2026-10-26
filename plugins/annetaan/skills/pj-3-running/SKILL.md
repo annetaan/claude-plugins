@@ -29,9 +29,10 @@ The user keeps working in `<MAIN>` while the run goes on. The run never switches
 prompt for a sub-agent. Sub-agents have not read this instruction, so a relative path or a literal `$RUNNING` finds
 them nothing.
 
-**Read `$RUNNING/../pj-1-plan/format.md` before anything else.** It is the only description of the parent
-issue, the sub-issue body, the labels, the relationships, the blockers, the comments and the pull requests. Its table
-of the three skills says where this one sits. Everything below refers to it.
+**Read `$RUNNING/../pj-1-plan/format.md` and `$RUNNING/../pj-1-plan/state.md` before anything else.** `format.md`
+is the only description of the parent issue, the sub-issue body, the labels, the relationships, the blockers, the
+comments and the pull requests. Its table of the three skills says where this one sits. `state.md` is how
+`project.sh` reads a project and when an issue is ready and workable. Everything below refers to them.
 
 This skill uses three more things:
 
@@ -224,7 +225,7 @@ On a stop, leave `<WT>` as phase 6 step 1 says and end the run. `<WT>` stays in 
    and stop.
 2. **Build the run order.** First put every open issue whose `pr.state` is `MERGED` at the front, whatever its labels
    and blockers. Its pull request has merged and only the close is left. Then walk `parent.order` from the top and
-   skip the closed issues. Take each open issue while it is workable (`format.md`, **When an issue is ready**), with
+   skip the closed issues. Take each open issue while it is workable (`state.md`, **When an issue is workable**), with
    the issues already taken counting as closed. Phase 2 runs the `--check` part of that. **Stop the walk at the first
    open issue that is not.** Nothing after it is taken, even when it is workable, because the order is the user's
    (`format.md`, **The run order**).
