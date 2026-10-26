@@ -112,8 +112,9 @@ AskUserQuestion: Can a pull request be merged here with no approving review?
 On Stop, stop the run.
 
 `rules.requiredChecks` says whether the base branch requires status checks: `yes`, `no` or `unknown`. The merge in
-**When workflow returns** waits by it. `rules.mergeMethod` is the merge method, the first of squash, merge and
-rebase that the repository and the rules on the base branch allow.
+**When workflow returns** waits by it. With `unknown` the merge waits for a required check as with `yes`, and merges
+when none registers, because GitHub still refuses a merge that a required check blocks. `rules.mergeMethod` is the
+merge method, the first of squash, merge and rebase that the repository and the rules on the base branch allow.
 
 A dirty `<MAIN>` does not stop the run. The run never works in it.
 
@@ -386,8 +387,8 @@ phase 6. The pull request stays a draft, and the next run merges it.
    ```
 
    - **`stop`** with `review`, `conflict`, `merge-failed` or `not-the-pr`: say so, quote `message`, and go to phase 6.
-   - **`stop`** with `no-checks` or `checks-failed`: quote `message`. The pull request stays a draft, and the next run
-     merges it. Go to phase 6.
+   - **`stop`** with `no-checks`, `checks-unreadable` or `checks-failed`: quote `message`. The pull request stays a
+     draft, and the next run merges it. Go to phase 6.
    - **`merged`** with a non-empty `errors`: the merge went through, and a later step failed. Report each `step` with
      its `message`, fold the handover lines as step 3 says, then go to phase 6. When `close` failed, the issue stays
      open with its pull request merged, and the next run closes it.
