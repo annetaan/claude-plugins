@@ -59,42 +59,26 @@ The work report of each issue is a record, not state. It stays local and no late
 reaches GitHub, as the pull request's body.
 
 ```mermaid
-flowchart LR
-    subgraph local["your machine: nothing carried between runs"]
-        plan["pj-1-plan"]
-        doctor["pj-2-doctor"]
-        running["pj-3-running"]
-        wf["workflow, once per sub-issue<br/>implement, review rounds,<br/>one commit"]
-        running -->|"one issue at a time"| wf
-    end
-    subgraph gh["GitHub: the whole state of a project"]
-        parent["parent issue, label project<br/>Base: line, Order list,<br/>handover comment"]
-        subs["sub-issues<br/>decisions as checkboxes,<br/>blocked-by, ready / blocker"]
-        prs["one pull request<br/>per sub-issue"]
-        base["branch pj/12"]
-        from["the branch it came from"]
-    end
-    parent ~~~ subs
+flowchart TB
     you(["you"])
-    plan -->|"files, with Base: and Order list"| parent
-    plan -->|"files, with blocked-by"| subs
-    doctor -->|"rewrites Order list"| parent
-    doctor -->|"redraws, labels ready"| subs
-    running -->|"creates on first run"| base
-    running -->|"handover comment,<br/>closes when merged"| parent
-    running -->|"closes, files stubs,<br/>labels blocker"| subs
-    running -->|"merges"| prs
-    wf -->|"pushes, opens draft"| prs
-    prs -->|"merged into"| base
-    you -.->|"tick boxes"| subs
-    you -.->|"reorder Order list"| parent
-    you -.->|"merge pj/12 into it<br/>through a pull request"| from
+    subgraph gh["GitHub: the whole state"]
+        direction LR
+        project["project"] --- subs["sub-issues"]
+    end
+    subgraph pj["pj skills"]
+        direction LR
+        plan["pj-1-plan"] --> doctor["pj-2-doctor"] --> running["pj-3-running"]
+    end
+    wf["workflow"]
+    you -.->|"tick decisions"| gh
+    gh <-->|"read and write"| pj
+    pj -->|"pj-3-running, once per sub-issue"| wf
     classDef human fill:#fff,stroke:#888,stroke-dasharray: 5 5
     class you human
 ```
 
-Each pj skill starts by reading the project from GitHub, so the arrows show only what each one writes. Dashed arrows
-are yours.
+The pj skills keep nothing between runs. Each one reads the project from GitHub and writes back to it, and you make
+your decisions there too.
 
 ## Skills
 
