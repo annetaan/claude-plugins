@@ -29,10 +29,12 @@ The user keeps working in `<MAIN>` while the run goes on. The run never switches
 prompt for a sub-agent. Sub-agents have not read this instruction, so a relative path or a literal `$RUNNING` finds
 them nothing.
 
-**Read `$RUNNING/../pj-1-plan/format.md` and `$RUNNING/../pj-1-plan/state.md` before anything else.** `format.md`
-is the only description of the parent issue, the sub-issue body, the labels, the relationships, the blockers, the
-comments and the pull requests. Its table of the three skills says where this one sits. `state.md` is how
-`project.sh` reads a project and when an issue is ready and workable. Everything below refers to them.
+**Read `$RUNNING/../pj-1-plan/between-skills.md` and `$RUNNING/../pj-1-plan/state.md` before anything else.**
+`between-skills.md` holds the labels, the base branch, the handover comment, the blockers, the comments and the pull
+requests. Its table of the three skills says where this one sits. `state.md` is how `project.sh` reads a project and
+when an issue is ready and workable. Everything below refers to them. `$RUNNING/../pj-1-plan/format.md` describes the
+issues and their bodies, and is read only at the sections this file names: **The run order**, **Stubs**, **Fixed
+tokens** and **Writing bodies**.
 
 This skill uses three more things:
 
@@ -44,13 +46,13 @@ This skill uses three more things:
 - the `workflow` skill, loaded with the Skill tool as `annetaan:workflow`
 
 **Language**: talk to the user in the user's language. Write issue, comment and pull request text in the repository's
-language, as `format.md` says.
+language (`format.md`, **Writing bodies**). The tokens in (`format.md`, **Fixed tokens**) stay in English.
 
 ## Before you start
 
 This skill creates branches, pushes, opens and merges pull requests, and edits issues and labels. **Start it only when the user names it or invokes `/annetaan:pj-3-running`.**
 
-**The project.** Pick it as `format.md` says under **Picking the project**. The project picked is `<P>`. Print
+**The project.** Pick it as `between-skills.md` says under **Picking the project**. The project picked is `<P>`. Print
 `project #<P>` once, so that a context summary can find it again. A number given only decides which project is
 recommended, and the run still covers the whole order of the project picked.
 
@@ -65,7 +67,7 @@ $RUNNING/scripts/run.sh start <P>
 
 `start` checks the clone, `gh` and the repository, and reads the project with `project.sh`. It creates the base
 branch from the tip of `<from>` when the base branch is missing and every project `<P>` waits on is merged, as
-`format.md` says under **Projects**. Then it fetches the base branch and reads the rules on it.
+`between-skills.md` says under **The base branch**. Then it fetches the base branch and reads the rules on it.
 
 **First close each parent in `close`**, as **Closing a merged project** says, whatever the status. Then act by
 `status`.
@@ -249,7 +251,7 @@ $RUNNING/../pj-1-plan/scripts/project.sh <P> --check <k>
 
 **For each issue whose `ok` is false**, mark it.
 
-1. Make sure `blocker` exists with the command in `format.md` under "Labels".
+1. Make sure `blocker` exists with the command in `between-skills.md` under "Labels".
 2. Take `ready` off and put `blocker` on.
 
    ```bash
@@ -296,7 +298,7 @@ AskUserQuestion: Start the run?
   - Do not start
 ```
 
-The approval covers this run only (`format.md`, **Principle**).
+The approval covers this run only (`between-skills.md`, **Principle**).
 
 ## Phase 4: before the first issue
 
@@ -307,8 +309,8 @@ The approval covers this run only (`format.md`, **Principle**).
    ```
 
    Follow its **From an issue** section for every issue. **Load it again when a context summary has dropped it.**
-2. Read the handover comment with the command in `format.md` under "The handover comment". Keep its lines as the
-   handover notes. With no comment, the notes are empty.
+2. Read the handover comment with the command in `between-skills.md` under "The handover comment". Keep its lines
+   as the handover notes. With no comment, the notes are empty.
 
 ## Phase 5: one issue at a time
 
@@ -391,9 +393,9 @@ phase 6. The pull request stays a draft, and the next run merges it.
      open with its pull request merged, and the next run closes it.
    - **`merged`**: go on.
 3. **Fold the handover lines into the notes.** Merge duplicates, keep fifteen lines at most, and drop the oldest
-   first. Rewrite the parent's handover comment as `format.md` says under "The handover comment": read its
-   `updated_at` again first, and keep any change a human made since. Create it when there is none. With no handover
-   lines, as on the `OPEN` path of phase 5 step 3, skip this step.
+   first. Rewrite the parent's handover comment as `between-skills.md` says under "The handover comment": read
+   its `updated_at` again first, and keep any change a human made since. Create it when there is none. With no
+   handover lines, as on the `OPEN` path of phase 5 step 3, skip this step.
 4. Print one progress line: `#<k> done (<i>/<N>): PR #<m> merged`. After a context summary, rebuild the run order and
    the progress from these lines and `project.sh <P>`.
 

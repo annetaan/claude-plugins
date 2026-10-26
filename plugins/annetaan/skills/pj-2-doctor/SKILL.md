@@ -20,10 +20,11 @@ carry their output to the user and onto GitHub.
 prompt for a sub-agent. Sub-agents have not read this instruction, so a relative path or a literal `$DOCTOR` finds
 them nothing.
 
-**Read `$DOCTOR/../pj-1-plan/format.md` and `$DOCTOR/../pj-1-plan/state.md` before anything else.** `format.md` is
-the only description of the parent issue, the run order, the sub-issue body, the decisions, the labels, the
-relationships, the blockers and the comments. `state.md` is how `project.sh` reads a project and when an issue is
-ready. Everything below refers to them.
+**Read `$DOCTOR/../pj-1-plan/format.md`, `$DOCTOR/../pj-1-plan/state.md` and `$DOCTOR/../pj-1-plan/between-skills.md`
+before anything else.** `format.md` is the only description of the parent issue, the run order, the sub-issue body,
+the decisions and the relationships. `state.md` is how `project.sh` reads a project and when an issue is ready.
+`between-skills.md` holds the labels, the blockers, the comments and picking the project. Everything below refers to
+them.
 
 This skill uses these files:
 
@@ -50,7 +51,7 @@ gh repo view --json nameWithOwner,hasIssuesEnabled,defaultBranchRef
   issues turned off. Say which one and stop. The clone is needed because `project.sh --check` runs inside one.
 - A dirty working tree does not matter. This skill reads the code and changes nothing in it.
 
-**The project.** Pick it as `format.md` says under **Picking the project**. The project picked is `<P>`. Print
+**The project.** Pick it as `between-skills.md` says under **Picking the project**. The project picked is `<P>`. Print
 `project #<P>` once, so that a context summary can find it again.
 
 Run `mktemp -d` once for the whole run. `$TMP` below is the directory it printed. A shell variable does not outlive
@@ -79,7 +80,7 @@ one command, so write the path in full each time.
 
    ```
    Agent(subagent_type: "annetaan:pj-reviewer", description: "review #<P>",
-         prompt: "Read $DOCTOR/roles/review.md first and follow the role it describes. The project format is in $DOCTOR/../pj-1-plan/format.md. The state of a project is in $DOCTOR/../pj-1-plan/state.md.\n\nParent: #<P>\n\nproject.sh <P>:\n<the JSON>\n\nproject.sh <P> --check, per issue:\n<each JSON>")
+         prompt: "Read $DOCTOR/roles/review.md first and follow the role it describes. The project format is in $DOCTOR/../pj-1-plan/format.md. The state of a project is in $DOCTOR/../pj-1-plan/state.md. The agreements between the skills are in $DOCTOR/../pj-1-plan/between-skills.md.\n\nParent: #<P>\n\nproject.sh <P>:\n<the JSON>\n\nproject.sh <P> --check, per issue:\n<each JSON>")
    ```
 
    `annetaan:pj-reviewer` ships with this plugin and is pinned to opus at high effort with code changes disabled.
@@ -228,7 +229,7 @@ AskUserQuestion: Write these changes to GitHub?
   - Stop without writing
 ```
 
-The approval covers this run only (`format.md`, **Principle**).
+The approval covers this run only (`between-skills.md`, **Principle**).
 
 **`ready` goes on an issue** when it is open, `--check` passes with the lint clear and the premises clear or not
 evaluated yet, and no review finding is left on it: the reviewer's last return lists it as clear, or every finding it
@@ -246,7 +247,7 @@ the numbers.
    ```
 
    When it moved, someone changed the issue in the meantime. Send the current body to its writer to merge, lint the
-   new body, and go on (`format.md`, **Writing bodies**).
+   new body, and go on (`between-skills.md`, **Writing to GitHub**).
 2. **File what is new.** For a split, file parts 2 to N and keep a map from each part to its number. A stub is filed
    blocking the issue it was found in. Both go under `<P>`.
 
@@ -284,8 +285,8 @@ the numbers.
    gh issue close <b> --reason completed
    ```
 
-6. **The labels.** Make sure `ready` exists with the command in `format.md` under "Labels". Check each issue again
-   right before it gets `ready`, because the bodies and the edges just changed.
+6. **The labels.** Make sure `ready` exists with the command in `between-skills.md` under "Labels". Check each issue
+   again right before it gets `ready`, because the bodies and the edges just changed.
 
    ```bash
    $DOCTOR/../pj-1-plan/scripts/project.sh <P> --check <k>
@@ -296,7 +297,7 @@ the numbers.
    **An issue that carries `blocker` loses it in the same command.** A check that fails now leaves `ready` off, and
    the report names the failures.
 
-   **Whoever takes `ready` off leaves a comment** (`format.md`, **Labels**). It starts with
+   **Whoever takes `ready` off leaves a comment** (`between-skills.md`, **Labels**). It starts with
    `**[pj-2-doctor]**` and says what changed and why.
 
    ```bash

@@ -11,6 +11,9 @@ root. **The repository's conventions outrank this file.**
 Read the two files at the paths the prompt gives. `format.md` describes the parent, the sub-issue body, the decisions
 and the run order. `state.md` describes how `project.sh` reads the project and when an issue is ready.
 
+The prompt also gives the path of `between-skills.md`, what the skills agree on between them. Look up only its
+**Blockers**.
+
 ## What you get
 
 The prompt carries the parent number `P`, the `project.sh <P>` JSON, and the `project.sh <P> --check <n>` JSON of
@@ -39,7 +42,7 @@ the code. Then read the issues against each other.
 4. **A human comment the body does not answer yet**: an answer that is none of the options, or a correction.
 5. **What `--check` failed on**: each lint code other than `decisions-open`, each premise failure, each stale
    commit.
-6. **A stub**, and **an issue labelled `blocker`**, with which case of `format.md` **Blockers** it is.
+6. **A stub**, and **an issue labelled `blocker`**, with which case of `between-skills.md` **Blockers** it is.
 7. **A mismatch between issues.** A name, a type, a file or a behaviour that one issue adds and another uses
    differently. Say which side should change, and why.
 8. **A mismatch with a parent's `## Design`.** Say whether the issue or the parent should change.
