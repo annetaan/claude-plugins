@@ -1,6 +1,6 @@
 ---
 name: workflow
-description: Runs one implementation as design, a design review where the repository accepts breaking changes, approval, then per task (implement, review rounds, one commit), then an integration review when the plan has more than one task, then a finish step that opens a pull request, pushes, or stops locally. The review rounds run through Markdown files in the run's work report directory. Use it only when the user names this skill or invokes /annetaan:workflow, or when pj-3-running loads it to run one issue, because it spawns four sub-sessions and adds commits. Do not use it for a one-off implementation request or for an ordinary code review request.
+description: Runs one implementation as design, a design review where the repository accepts breaking changes, approval, then per task (implement, review rounds, one commit), then an integration review when the plan has more than one task, then a finish step that opens a pull request, pushes, or stops locally. The review rounds run through Markdown files in the run's work report directory. Use it only when the user names this skill or invokes /annetaan:workflow, or when pj3-running loads it to run one issue, because it spawns four sub-sessions and adds commits. Do not use it for a one-off implementation request or for an ordinary code review request.
 ---
 
 # workflow
@@ -13,7 +13,7 @@ The design session returns a **plan**: an ordered list of small tasks. Implement
 
 You are the main session, and you are the **orchestrator. You do not write code.** Sub-agents design, implement and review. You pass work between them and you are the only window onto the human.
 
-**When pj-3-running loads this skill for an issue, follow From an issue.** It says which parts below it skips and which
+**When pj3-running loads this skill for an issue, follow From an issue.** It says which parts below it skips and which
 it changes. Everything it does not mention runs as written.
 
 ## Paths: `$FLOW`
@@ -25,7 +25,7 @@ it changes. Everything it does not mention runs as written.
 ## Before you start
 
 This skill spawns sub-sessions and adds commits. **Start it only when the user names it or invokes
-`/annetaan:workflow`, or pj-3-running loads it for an issue.**
+`/annetaan:workflow`, or pj3-running loads it for an issue.**
 
 Run these checks and keep every answer. Phase 1 needs all of them.
 
@@ -484,23 +484,23 @@ Whichever ending ran, close with: `START`, the commits stacked on it matched aga
 
 ## From an issue
 
-pj-3-running loads this skill to run one sub-issue of a project as one task. The issue was written to be implemented
+pj3-running loads this skill to run one sub-issue of a project as one task. The issue was written to be implemented
 as it stands, so this entry has no design session, no approval and no questions. It has no integration review either,
-because the plan has one task. The shape of the issue is in `$FLOW/../pj-1-plan/format.md`, and the shape of its
-pull request in `$FLOW/../pj-1-plan/between-skills.md` under **Pull requests**.
+because the plan has one task. The shape of the issue is in `$FLOW/../pj1-plan/format.md`, and the shape of its
+pull request in `$FLOW/../pj1-plan/between-skills.md` under **Pull requests**.
 
-### What pj-3-running has settled
+### What pj3-running has settled
 
 These values are already in your context. Nothing arrives as an argument.
 
 - the issue number `n`, the parent `P`, and the issue title
 - the projects `P` waits on, `Q1, Q2, …` (`parent.dependsOn` in `project.sh`), or none
-- the base branch (the parent's `Base:` line), and the branch pj-3-running just made from the tip of the base branch
+- the base branch (the parent's `Base:` line), and the branch pj3-running just made from the tip of the base branch
 - the handover notes, seeded from the parent's handover comment
 - the run's worktree `<WT>`, and `<MAIN>`, the main working tree. The session is in `<WT>`, and the branch is
   checked out there
 
-pj-3-running has already run its checks (`gh`) on `<WT>` and confirmed that `work-reports/` is ignored there.
+pj3-running has already run its checks (`gh`) on `<WT>` and confirmed that `work-reports/` is ignored there.
 Every command below runs in `<WT>`, so `ROOT` and `WORKDIR` come from there. Never touch
 `<MAIN>`. The user works in it during the run.
 
@@ -509,7 +509,7 @@ Every command below runs in `<WT>`, so `ROOT` and `WORKDIR` come from there. Nev
 - **Does this repository accept breaking changes?** Ask nothing and write nothing to memory.
 - All of phase 1: the design session, the design review, the open questions, the approval dialog, and the check for
   commits that came before this flow.
-- Phase 2 (a) and (b). pj-3-running owns the branch. Keep the first two lines of (b) as a guard, because (d) needs
+- Phase 2 (a) and (b). pj3-running owns the branch. Keep the first two lines of (b) as a guard, because (d) needs
   `ROOT` from the first one.
 
   ```bash
@@ -518,7 +518,7 @@ Every command below runs in `<WT>`, so `ROOT` and `WORKDIR` come from there. Nev
   ```
 
   On `NOT_IGNORED`, take the stop procedure with the reason `work-reports`. Never ask about `.gitignore` here.
-- Endings 6b and 6c, and **Report to the user**. What goes back to pj-3-running replaces the report.
+- Endings 6b and 6c, and **Report to the user**. What goes back to pj3-running replaces the report.
 
 ### The design, the plan and the detail
 
@@ -540,7 +540,7 @@ gh issue view <Q> --json body   # each Q
 
 ### Start point and work directory
 
-Phase 2 (c) takes `START=$(git rev-parse HEAD)`, right after pj-3-running made the branch. Phase 2 (d) runs as
+Phase 2 (c) takes `START=$(git rev-parse HEAD)`, right after pj3-running made the branch. Phase 2 (d) runs as
 written.
 
 ### Phases 3 and 4
@@ -557,13 +557,13 @@ a line each.
 - Every review request, the round 1 prompt and each "review it again" `SendMessage`, also carries the adaptations
   the implementation session has listed so far, under "Adaptations", or "none".
 
-Keep the handover lines from phase 4 (d) for pj-3-running.
+Keep the handover lines from phase 4 (d) for pj3-running.
 
 ### Reports from the implementation session
 
-- **`Unplanned:` with `later`**: hand it to pj-3-running's **Unplanned work** as soon as it arrives. The task goes on.
+- **`Unplanned:` with `later`**: hand it to pj3-running's **Unplanned work** as soon as it arrives. The task goes on.
 - **`Unplanned:` with `blocking`**, and **`Diverged:`**: take the stop procedure, then hand the report to
-  pj-3-running's **When workflow returns**.
+  pj3-running's **When workflow returns**.
 - **Adaptations** the implementation session lists: keep them for the review requests and for `log.md`.
 
 ### Phase 6 from an issue
@@ -610,7 +610,7 @@ The task commit decides the case, whatever the phase. Look for it in `git log --
 - **A step of phase 6 fails before the pull request exists.** Return `stopped` with the reason `finish`, the step
   that failed, its error message, and the path of `log.md` when step 1 wrote it.
 
-### What it hands back to pj-3-running
+### What it hands back to pj3-running
 
 - **`finished`**: the pull request number `m`, the SHA of the task commit, the handover lines, the paths of any
   screenshots that could not be attached, and `stop requested` (yes or no).
@@ -632,5 +632,5 @@ The task commit decides the case, whatever the phase. Look for it in `git log --
 - **Never write into `work-reports/` without checking it is ignored.** Unchecked, the report and the screenshots ride into the next commit. Ask the user before adding it to `.gitignore`.
 - **Do not move anything under `$WORKDIR` into version control.** The report, the screenshots and the diff are worth more untracked. Move them only when the user asks.
 - Report a failure when it happens: a failing test, a design that falls apart. **Approved commits are already on the branch and the task in flight is uncommitted in the working tree.** Say both.
-- From an issue, the main session also pushes and opens the draft pull request. Nothing is merged here. pj-3-running
+- From an issue, the main session also pushes and opens the draft pull request. Nothing is merged here. pj3-running
   merges.

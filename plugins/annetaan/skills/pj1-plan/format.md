@@ -1,8 +1,8 @@
 # The issues of a project
 
 This file holds how a project is laid out as issues: the parent body, the sub-issue body, the decisions and the run
-order. The planner and the issue writer read only this file. The project reviewer, `pj-1-plan` and `pj-2-doctor` read
-it first too, and `pj-3-running` and the `workflow` skill look up sections of it. How `project.sh` judges a project is
+order. The planner and the issue writer read only this file. The project reviewer, `pj1-plan` and `pj2-doctor` read
+it first too, and `pj3-running` and the `workflow` skill look up sections of it. How `project.sh` judges a project is
 in `state.md`, and what the skills agree on between them is in `between-skills.md`, both next to this file.
 
 ## The parts
@@ -16,15 +16,15 @@ in `state.md`, and what the skills agree on between them is in `between-skills.m
 | The run order | the numbered list under the parent's **`## Order`** (see **The run order**). |
 | An order between projects | no record of its own. It follows from the order between tasks (see **Projects**). |
 | A task that can be implemented straight from its body | the **`ready`** label |
-| Something `pj-3-running` stopped on | the **`blocker`** label |
+| Something `pj3-running` stopped on | the **`blocker`** label |
 
 ### Projects
 
 One request can become several projects, `PJ1, PJ2, …` while it is planned, each a parent issue of its own. The
 tasks are numbered `T1…Tn` across the whole request. Every project from one request is made from the same branch.
 
-**A project holds at most 10 tasks.** Like the 8-file limit, it is a rule of the split. `pj-1-plan` cuts
-the request so that no project holds more than ten. When `pj-2-doctor` later splits an issue or files stubs and
+**A project holds at most 10 tasks.** Like the 8-file limit, it is a rule of the split. `pj1-plan` cuts
+the request so that no project holds more than ten. When `pj2-doctor` later splits an issue or files stubs and
 a project goes past ten, it stays one project, and nobody asks whether to split it.
 
 **Project P waits on project Q** when an open sub-issue of P is blocked by a sub-issue of Q, open or closed. That
@@ -93,22 +93,22 @@ the `## Design` of every parent in `dependsOn`.
 `## Order` holds one numbered line per sub-issue, `1. #<n>`, and nothing else. GitHub draws each reference with the
 issue's title and whether it is open or closed, so the list shows the progress with nobody ticking anything.
 
-- **`pj-3-running` works down it from the top**, and stops at the first open issue that is not workable
+- **`pj3-running` works down it from the top**, and stops at the first open issue that is not workable
   (`state.md`, **When an issue is workable**). Nothing is skipped.
 - **A human may reorder it by hand.** It must not put an issue before an open blocker of the same project.
-- **`pj-1-plan` writes it when it files the project, and `pj-2-doctor` rewrites it** from
+- **`pj1-plan` writes it when it files the project, and `pj2-doctor` rewrites it** from
   `project.sh <P> --order`, whose `list` keeps the human's order wherever the blockers allow it. The closed issues
   come first, then the open ones. An issue closed as not planned leaves the list.
-- **`pj-3-running` never writes it.** A closed issue shows as closed where it stands.
+- **`pj3-running` never writes it.** A closed issue shows as closed where it stands.
 
 `project.sh <P>` reads the list as `parent.order` and checks it as `parent.orderCheck`
 (`state.md`, **Reading a project**). An issue missing from the list, such as a stub filed during a run, waits for
-`pj-2-doctor` to place it.
+`pj2-doctor` to place it.
 
 `Base:` names the project's base branch and, after `from`, the branch it is made from. That second branch is the one
-the user merges the base branch into at the end. `pj-1-plan` files the parent, then adds the line to the
+the user merges the base branch into at the end. `pj1-plan` files the parent, then adds the line to the
 body. It takes two steps because the branch name carries the parent's number. The line is written before the branch
-exists, and `pj-3-running` creates the branch later (`between-skills.md`, **The base branch**). Nobody changes the
+exists, and `pj3-running` creates the branch later (`between-skills.md`, **The base branch**). Nobody changes the
 line after that. A skill that rewrites the parent body keeps the line as it is.
 
 ## The sub-issue body
@@ -171,9 +171,9 @@ A body has to meet the bar for `ready` (`state.md`, **When an issue is ready**).
   allowed. The list ends at the first line that is neither a bullet nor indented.
 - Prose after the list is optional.
 
-**The size limit is 8 files, and it belongs to the split.** `pj-1-plan` cuts every task to 8 files at most,
+**The size limit is 8 files, and it belongs to the split.** `pj1-plan` cuts every task to 8 files at most,
 tests included, so that its review fits in one sitting. It is a planning rule, not a condition on the issue. When
-`pj-2-doctor` or the implementation later takes a file list past 8, the issue stays one issue and one pull
+`pj2-doctor` or the implementation later takes a file list past 8, the issue stays one issue and one pull
 request, and nobody asks whether to split it.
 
 ### Decisions
@@ -190,7 +190,7 @@ reason.
   is a contradiction to raise with the user.
 - **A human settles a decision by ticking its box on GitHub.**
 - **An answer that is none of the options** is a new option line the human writes and ticks, or a comment on the
-  issue. `pj-2-doctor` has the writer work either into the body.
+  issue. `pj2-doctor` has the writer work either into the body.
 - A line starting with `Decided:` may follow the options, with the reason in one or two sentences. A human may write
   it, and a writer that redraws the body keeps it.
 - `D<n>` is never renumbered, even when a decision is dropped. Elsewhere a decision is referred to as `#<issue> D<n>`.
@@ -211,7 +211,7 @@ Decided: the admin screen has to change it without a deploy.
 **The body holds whichever box is ticked.** `## Design` and the file list are written for the recommended option,
 and say nothing that another option would make untrue. What an option changes beyond that is under its box. When the
 user ticks another option, the worker reads the design together with the lines under the ticked box.
-`pj-2-doctor` has the writer redraw the body when those lines change the file list or reach past this issue.
+`pj2-doctor` has the writer redraw the body when those lines change the file list or reach past this issue.
 
 **A sub-issue with no decisions** writes `None.` under `## Decisions`.
 
