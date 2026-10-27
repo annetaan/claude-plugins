@@ -201,7 +201,7 @@ Agent(subagent_type: "annetaan:pj-issue-writer", description: "issue T<k>",
 ```
 
 `Waits on:` names the parents in `parent.waitsOn`. `annetaan:pj-issue-writer` ships with this plugin and is pinned to
-opus at high effort with code changes disabled.
+opus at medium effort with code changes disabled.
 
 Each writer sends back a title and a body in the shape `format.md` gives a sub-issue, or a statement that the split
 does not hold.

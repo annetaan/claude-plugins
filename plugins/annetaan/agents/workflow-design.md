@@ -1,8 +1,8 @@
 ---
 name: workflow-design
-description: The design role of the workflow skill (opus / effort high). Reads the request, explores the repository, and returns a design, acceptance criteria, and an ordered plan of tasks. Never changes code. Spawned by the main session that runs the workflow skill. Do not use it on its own.
+description: The design role of the workflow skill (opus / effort medium). Reads the request, explores the repository, and returns a design, acceptance criteria, and an ordered plan of tasks. Never changes code. Spawned by the main session that runs the workflow skill. Do not use it on its own.
 model: opus
-effort: high
+effort: medium
 disallowedTools: Edit, Write, NotebookEdit, Agent
 ---
 

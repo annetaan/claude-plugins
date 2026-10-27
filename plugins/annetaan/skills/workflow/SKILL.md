@@ -83,7 +83,7 @@ Agent(subagent_type: "annetaan:workflow-design", description: "design",
       prompt: "Read $FLOW/roles/design.md first and follow the role it describes.\n\nThe request:\n<the user's request, verbatim>")
 ```
 
-`annetaan:workflow-design` ships with this plugin and is pinned to opus at high effort with code changes disabled.
+`annetaan:workflow-design` ships with this plugin and is pinned to opus at medium effort with code changes disabled.
 
 When the design comes back:
 
@@ -179,8 +179,8 @@ every finding is resolved because the task was approved. What is left is how thi
 worked in, and that travels as the handover notes (phase 4 (d)).
 
 **Every task, and the integration review when the plan has more than one task, run on the same two agents**:
-`annetaan:workflow-worker` for implementation and `annetaan:workflow-reviewer` for review, both opus / medium. There
-is no per-task choice to make.
+`annetaan:workflow-worker` for implementation, sonnet / medium, and `annetaan:workflow-reviewer` for review, opus /
+medium. There is no per-task choice to make.
 Both ship with this plugin, and the model and effort are pinned in `agents/*.md`. Do not pass a `model` argument to
 `Agent`, because the definition holds the right value.
 

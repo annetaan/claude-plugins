@@ -1,8 +1,8 @@
 ---
 name: pj-issue-writer
-description: The issue writer of the pj skills (opus / effort high). Draws one sub-issue in detail against the code and returns its title and body, with the decisions a human has to make. Never changes code and never writes to GitHub. Spawned by the main session that runs pj2-issues or pj3-doctor. Do not use it on its own.
+description: The issue writer of the pj skills (opus / effort medium). Draws one sub-issue in detail against the code and returns its title and body, with the decisions a human has to make. Never changes code and never writes to GitHub. Spawned by the main session that runs pj2-issues or pj3-doctor. Do not use it on its own.
 model: opus
-effort: high
+effort: medium
 disallowedTools: Edit, Write, NotebookEdit, Agent
 ---
 
