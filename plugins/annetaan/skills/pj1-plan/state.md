@@ -32,7 +32,7 @@ project.sh --lint <file>     # the lint of one body, from a file, or from standa
             "order": [numbers],
             "orderCheck": {"ok", "unknown": [numbers], "duplicate": [numbers],
                            "early": [{"number", "blocker"}], "missing": [numbers]}},
- "issues": [{"number", "title", "state", "stateReason", "updatedAt", "readyAt", "labels": [names],
+ "issues": [{"number", "title", "wantedTitle", "state", "stateReason", "updatedAt", "readyAt", "labels": [names],
              "blockedBy": [{"number", "state", "parent"}], "blocking": [numbers],
              "pr": {"number", "state", "isDraft", "url"} or null, "stub",
              "files": [{"path", "kind", "symbols": [names]}], "designPaths": [paths],
@@ -50,6 +50,8 @@ project.sh --lint <file>     # the lint of one body, from a file, or from standa
 - `order` is the numbers under `## Order`, as written. `orderCheck.ok` is false when the list names a number that is
   no sub-issue (`unknown`), names one twice (`duplicate`), or puts an open issue before an open blocker of the same
   project (`early`). `missing` is the open sub-issues the list leaves out, and does not make it false.
+- `wantedTitle` is the title with the decision count from `format.md` **The title**. A skill edits the issue's title
+  when the two differ (`between-skills.md`, **Titles**).
 - `parent` in `blockedBy` is the number of the blocker's parent issue, or null.
 - `readyAt` is the time of the last `ready` labelled event on the issue, or null.
 - `pr` is the issue's pull request, open or merged (see **The pull request of an issue** below), or null. Its `state`
