@@ -50,7 +50,8 @@ points the design session did not take in, marked `(from the design review)`.
 3. How does the flow finish? A pull request, a push, or nothing pushed at all.
 
 The options adjust to what the repository can do. No `gh` login and the pull request option disappears. No `origin`
-and pushing disappears too. If you already said what you wanted when you invoked the skill ("branch it and open a
+and pushing disappears too. Choose to commit straight onto the default branch and the pull request
+option disappears, and the third question is asked again. If you already said what you wanted when you invoked the skill ("branch it and open a
 PR"), that question is skipped and the answer shows up in the approval message so you can correct it.
 
 After the approval it runs by itself. Each task goes through implementation and review rounds, and a task that
