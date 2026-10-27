@@ -70,7 +70,8 @@ that fight.
 
 ### What to return
 
-- **Title**, one line, in the language the repository uses.
+- **Title**, one line, in the language the repository uses, without the decision count. The skills add it
+  (`format.md`, **The title**). Never end a title with ` (<n>/<m>)`.
 - **Body**, in the sub-issue shape from `format.md`, in the language the repository uses. Write `None.` under
   `## Decisions` when there are none.
 - **One line to the main session**, in the language the user is using: how many decisions, and anything about the
@@ -155,11 +156,12 @@ first character after `old: ` or `new: ` to the end of the line, exactly.
 
 ### What to return
 
-- **Issue `n`**: its title, its body, and the `updatedAt` you read. Lint it as drafting step 5 says.
+- **Issue `n`**: its title, its body, and the `updatedAt` you read. Return the title without the count, even though the
+  title read from GitHub carries one. Lint the body as drafting step 5 says.
   `decisions-open` is allowed when a decision is still open.
-- **A split**, instead, when the issue is two tasks: each part's title and body, part 1 keeping `n`'s number, and
-  how the edges move. **A file list past 8 is no reason to split.** The main session asks the user before anything
-  is filed.
+- **A split**, instead, when the issue is two tasks: each part's title, without the count, and body, part 1 keeping
+  `n`'s number, and how the edges move. **A file list past 8 is no reason to split.** The main session asks the user
+  before anything is filed.
 - **Edges to add or remove**, one per line as `#a blocked by #b`, with `part k` for a new part. An edge that makes an
   issue of another project a blocker of `#a` may be added only while `#a`'s project has no base branch, and must not
   make the projects wait on each other (`format.md`, **Projects**). Otherwise the work becomes a stub in this

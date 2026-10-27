@@ -182,6 +182,9 @@ gh issue create --parent <P> --blocked-by <n>,<m> --title "<title>" --body-file 
 # 5. the run order under each parent, from --order's list, right after the Base: line (format.md, The run order)
 $PLAN/scripts/project.sh <P> --order
 gh issue edit <P> --body-file "$TMP/PJ<j>-order.md"
+# 6. the titles, per parent (between-skills.md, Titles)
+$PLAN/scripts/project.sh <P>
+gh issue edit <k> --title "<wantedTitle>"
 ```
 
 Steps 2 and 3 run as a pair for each parent, because the branch name carries the parent's number (`format.md`, **The
@@ -193,9 +196,13 @@ need them.
 Step 5 writes `## Order` with one line `1. #<n>` per number in `list`, between the `Base:` line and `## Goal`. No
 issue gets `ready` here. Only `pj2-doctor` adds it, after it has reviewed the whole project.
 
+Step 4 files each title as the writer returned it, and step 6 gives each open sub-issue its decision count
+(`format.md`, **The title**).
+
 **When a command fails halfway**, stop and tell the user what was filed and what was not, with the numbers, and which
-parents have their `Base:` line and their `## Order`. Never retry the whole run, or the issues double. A parent without the line cannot be
-read by `project.sh`.
+parents have their `Base:` line and their `## Order`, and under which parents step 6 ran. Never retry the whole run,
+or the issues double. A parent without the line cannot be read by `project.sh`. A title still missing its count is
+fixed by the next `pj2-doctor` run.
 
 Then check the result once per parent, against the split the user approved:
 
@@ -208,8 +215,8 @@ The fields are in `$PLAN/state.md` under **Reading a project**. `parent.base` is
 `<from>`, `parent.baseExists` is false, and `parent.orderCheck.ok` is true with `missing` empty. The numbers in
 `parent.dependsOn` are the parents of the projects this one waits on in the plan. Every task of the project is there,
 its `blockedBy` matches the split, across projects included, with the `parent` of each blocker matching the project
-of that task, the decision counts and the lint match the bodies, and `--order` finds no cycle of either kind. Report
-anything that does not match.
+of that task, the decision counts and the lint match the bodies, every sub-issue's `title` equals its
+`wantedTitle`, and `--order` finds no cycle of either kind. Report anything that does not match.
 
 ## Report to the user
 
@@ -240,7 +247,7 @@ into `<from>`. The user merges it, and the next `pj3-running` closes the parent,
 
 - **You do not design and you do not write issue bodies.** The planner and the issue writers do. A body you write
   yourself never passed through anyone who read the code. The `Base:` line in phase 4 step 3 is the one line you
-  add, and you add nothing else.
+  add, and you add nothing else. Titles come from the writers and from `wantedTitle` only.
 - **Nothing reaches GitHub before the phase 2 approval.** Labels included.
 - **You create no branch.** `pj3-running` creates every base branch (`between-skills.md`, **The base branch**).
 - **Only you write to GitHub.** The sub-agents only read it, so the order and the numbers stay in one place.

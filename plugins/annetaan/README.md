@@ -161,7 +161,8 @@ it by hand.
 
 You decide by ticking boxes on GitHub. Every question a task raises is a decision in its sub-issue, a few options as
 checkboxes with one recommended, and each option says what it changes. No skill asks you a task's decision in the
-conversation.
+conversation. While a decision is open, the sub-issue's title ends with how many are settled, such as `(1/3)`, and the
+count goes away once every one is. Ticking a box leaves the title as it is until the next `pj2-doctor` run.
 
 Each project's work lands on a branch of its own, `pj/` and the parent's number. `pj3-running` creates it on the
 project's first run, from a branch you pick when the projects are filed, the default branch unless you name another.

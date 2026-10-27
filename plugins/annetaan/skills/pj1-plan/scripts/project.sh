@@ -8,6 +8,7 @@
 # This script is the only place that parses a sub-issue body (## Design, ## Acceptance criteria, ## Decisions),
 # the parent's Base: line (the base branch and the branch it was made from) and its ## Order list, and the Implements
 # head of a pull request.
+# It also derives the title a sub-issue should carry, with its decision count (wantedTitle).
 set -euo pipefail
 
 die() { echo "project: $*" >&2; exit 1; }
@@ -55,6 +56,7 @@ OPTION_RE = re.compile(r"^\s*[-*]\s+\[([ xX])\]\s")
 BASE_RE = re.compile(r"^Base:\s*`?([^`\s]+)`?\s+from\s+`?([^`\s]+)`?\s*$")
 ORDER_RE = re.compile(r"^\s*\d+\.\s+#(\d+)\b")
 IMPLEMENTS_RE = re.compile(r"^Implements #(\d+)\s*$")
+COUNT_RE = re.compile(r"(\s*\(\d+/\d+\))+\s*$")
 
 def die(msg):
     print("project: " + msg, file=sys.stderr)
@@ -185,6 +187,15 @@ def decisions(text):
             d["recommended"] += "(recommended)" in line
     return out
 
+def decision_counts(decs):
+    """The decisions by how many boxes each has checked: exactly one is settled, none is open, more is contradictory."""
+    return {
+        "total": len(decs),
+        "settled": sum(d["checked"] == 1 for d in decs),
+        "open": sum(d["checked"] == 0 for d in decs),
+        "contradictory": sum(d["checked"] > 1 for d in decs),
+    }
+
 def parse(body):
     order, secs = split_sections(body)
     design = secs.get("Design", "")
@@ -218,6 +229,14 @@ def lint(p):
     if any(d["checked"] > 1 for d in decs):
         reasons.append("decisions-contradictory")
     return {"ok": not reasons, "reasons": reasons}
+
+def titled(title, counts):
+    """The title a sub-issue should carry: every trailing (<n>/<m>) stripped, then (<settled>/<total>) appended while
+    a decision is not settled."""
+    bare = COUNT_RE.sub("", title)
+    if counts["settled"] < counts["total"]:
+        return bare + " (%d/%d)" % (counts["settled"], counts["total"])
+    return bare
 
 if MODE == "lint":
     src = sys.argv[2]
@@ -259,11 +278,13 @@ for pr in json.loads(listed.stdout):
 issues = []
 for node in parent["subIssues"]["nodes"]:
     p = parse(node["body"])
+    counts = decision_counts(p["decs"])
     ready_events = [e["createdAt"] for e in node["timelineItems"]["nodes"]
                     if e and (e.get("label") or {}).get("name") == "ready"]
     issues.append({
         "number": node["number"],
         "title": node["title"],
+        "wantedTitle": titled(node["title"], counts),
         "state": node["state"],
         "stateReason": node.get("stateReason"),
         "updatedAt": node["updatedAt"],
@@ -276,12 +297,7 @@ for node in parent["subIssues"]["nodes"]:
         "stub": p["stub"],
         "files": p["files"],
         "designPaths": [f["path"] for f in p["files"]],
-        "decisions": {
-            "total": len(p["decs"]),
-            "settled": sum(d["checked"] == 1 for d in p["decs"]),
-            "open": sum(d["checked"] == 0 for d in p["decs"]),
-            "contradictory": sum(d["checked"] > 1 for d in p["decs"]),
-        },
+        "decisions": counts,
         "lint": lint(p),
     })
 issues.sort(key=lambda i: i["number"])

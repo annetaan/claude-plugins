@@ -176,6 +176,23 @@ tests included, so that its review fits in one sitting. It is a planning rule, n
 `pj2-doctor` or the implementation later takes a file list past 8, the issue stays one issue and one pull
 request, and nobody asks whether to split it.
 
+### The title
+
+A sub-issue title is one short line in the repository's language. While any of its decisions is not settled, it ends
+with ` (<settled>/<total>)`. A decision is settled when exactly one of its boxes is checked, as **Decisions** below
+defines it, so an open decision and a contradictory one both count as not settled. Two decisions with none settled
+read `Add retry settings (0/2)`, then `Add retry settings (1/2)`, then `Add retry settings` once both are.
+
+- **No parentheses** when the issue has no decisions (`None.`, or a stub's `To be drawn.`), or when every decision is
+  settled.
+- **A trailing ` (<n>/<m>)` belongs to this count.** A title never ends with one for any other reason, such as
+  numbering the parts of a split.
+- **Nobody writes the count by hand.** A writer returns a title without it. `project.sh` derives the title an issue
+  should carry as `wantedTitle` (`state.md`, **Reading a project**), and the skills bring the titles in line with it
+  (`between-skills.md`, **Titles**).
+- Ticking a box on GitHub leaves the title as it was until the next `pj2-doctor` run.
+- A parent's title carries no count.
+
 ### Decisions
 
 **The checkboxes in `## Decisions` are the only checkboxes in the body.** GitHub counts the boxes in an issue list
@@ -268,6 +285,7 @@ These stay in English whatever language the repository uses, because the skills 
 - the section headings of both bodies, and `### D<n>.`
 - `(recommended)`, `Decided:`, `None.` and `To be drawn.`
 - the kinds in the file list: `added`, `changed` and `deleted`
+- the decision count ` (<settled>/<total>)` at the end of a sub-issue title (see **The title**)
 - the markers (`between-skills.md`, **Comments**)
 - `Base:` and `from` in the parent body's first line, and the parent's `## Order`
 - in a pull request body, `Implements` and `Part of` (`between-skills.md`, **Pull requests** and **The project's pull

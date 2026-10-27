@@ -11,7 +11,7 @@ this file.
 | Skill | What it does |
 | --- | --- |
 | `pj1-plan` | designs the whole in broad strokes, splits it into tasks, groups the tasks into projects of up to ten, and files one parent issue per project with its run order and one sub-issue per task with the decisions it needs |
-| `pj2-doctor` | reviews a whole project against the boxes the user ticked and the code, has the issue writers redraw what no longer holds, draws the stubs, resolves the blockers, rewrites the run order, and labels an issue `ready` |
+| `pj2-doctor` | reviews a whole project against the boxes the user ticked and the code, has the issue writers redraw what no longer holds, draws the stubs, resolves the blockers, rewrites the run order and the titles, and labels an issue `ready` |
 | `pj3-running` | creates a project's base branch when it first starts on the project, then works down the run order one pull request at a time, running the `workflow` skill on each and merging it into the base branch before the next starts, and once every sub-issue is closed, opens the pull request from the base branch into the branch it was made from |
 
 **The user decides by ticking boxes on GitHub.** Every question a task raises is a decision in its sub-issue
@@ -117,6 +117,21 @@ gh issue view <n> --json number,state,labels,parent
   accepts any `#<P>` from the list.
 - When the list is empty, stop.
 
+## Titles
+
+The count in a sub-issue title (`format.md`, **The title**) is written only by `pj1-plan` and `pj2-doctor`, each with
+one title sync after its bodies are on GitHub. The sync is this block, run once per parent.
+
+```bash
+project.sh <P>
+gh issue edit <k> --title "<wantedTitle>"   # each OPEN sub-issue whose wantedTitle differs from its title
+```
+
+- A closed issue is never retitled.
+- A sync that fails partway leaves a stale count, and the next `pj2-doctor` run fixes it. Nothing reads the count to
+  decide anything.
+- `pj3-running` never writes a title.
+
 ## The handover comment
 
 The parent carries one comment that starts with `**[pj3-running]** Handover notes`, fifteen lines at most below that
@@ -181,7 +196,8 @@ report (the `workflow` skill), so a pull request carries no review-thread marker
 
 **One pull request per sub-issue.**
 
-- Title: the issue's title.
+- Title: the issue's title. It carries no count, because `ready` needs every decision settled and `pj2-doctor`
+  syncs the title before it adds `ready` (see **Titles**).
 - Base: the base branch.
 - Branch: follows the repository's naming and contains the issue number.
 - **The pull request of an issue** is the one `project.sh` reports as `pr` (`state.md`, **Reading a project**).
