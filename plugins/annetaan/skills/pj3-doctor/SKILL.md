@@ -1,9 +1,9 @@
 ---
-name: pj2-doctor
-description: Asks which project to work on, with a number given as the recommended one, then reviews the whole project against the boxes the user ticked on GitHub, against the code and against each issue in it. Has one issue writer per issue redraw what no longer holds, draws the stubs, resolves the blockers, rewrites the run order in the parent's Order list, and labels the issues ready. Asks the user no task decision, because the user ticks those on GitHub. Asks only about a split, two boxes ticked in one decision, and its changes before they are written. Run it again after ticking. The second of three skills, after pj1-plan and before pj3-running. Use it only when the user names this skill or invokes /annetaan:pj2-doctor, because it edits, files and closes issues and changes labels on GitHub.
+name: pj3-doctor
+description: Asks which project to work on, with a number given as the recommended one, then reviews the whole project against the boxes the user ticked on GitHub, against the code and against each issue in it. Has one issue writer per issue redraw what no longer holds, draws the stubs, resolves the blockers, rewrites the run order in the parent's Order list, and labels the issues ready. Asks the user no task decision, because the user ticks those on GitHub. Asks only about a split, two boxes ticked in one decision, and its changes before they are written. Run it again after ticking. The second of three skills, after pj1-plan and before pj4-running. Use it only when the user names this skill or invokes /annetaan:pj3-doctor, because it edits, files and closes issues and changes labels on GitHub.
 ---
 
-# pj2-doctor
+# pj3-doctor
 
 The second of the three pj skills: it reviews a filed project after the user has ticked its boxes, fixes what no
 longer holds, rewrites the run order, and labels the issues `ready`.
@@ -38,7 +38,7 @@ says.
 ## Before you start
 
 This skill edits, files and closes issues and changes labels on GitHub. **Start it only when the user names it or
-invokes `/annetaan:pj2-doctor`.**
+invokes `/annetaan:pj3-doctor`.**
 
 ```bash
 git rev-parse --show-toplevel
@@ -70,7 +70,7 @@ one command, so write the path in full each time.
    fails on a cycle**, within the project or between projects, show the user the cycle it names and stop. Nothing
    can be ordered until a human removes an edge.
 2. **Check every open sub-issue** whose `pr` is not merged. An open issue whose pull request merged is waiting for
-   `pj3-running` to close it. Leave it alone.
+   `pj4-running` to close it. Leave it alone.
 
    ```bash
    $DOCTOR/../pj1-plan/scripts/project.sh <P> --check <k>
@@ -313,7 +313,7 @@ the numbers.
    the report names the failures.
 
    **Whoever takes `ready` off leaves a comment** (`between-skills.md`, **Labels**). It starts with
-   `**[pj2-doctor]**` and says what changed and why.
+   `**[pj3-doctor]**` and says what changed and why.
 
    ```bash
    gh issue edit <k> --remove-label ready
@@ -338,14 +338,14 @@ the numbers.
 - every open sub-issue, one line each, in the new run order: `ready` or not, and when not, why. An issue left
   without `ready` by the second review gives its `design` findings as the reason
 - **the decisions left for the user**, one line each, as `#<n> D<k> <question>` with the issue URL. This is the
-  user's next step: tick them on GitHub, then run `/annetaan:pj2-doctor` again
+  user's next step: tick them on GitHub, then run `/annetaan:pj3-doctor` again
 - the issues filed, the edges changed, the blockers closed, the parents rewritten and the titles changed
 - the `exact` fixes made after the second review, by issue
 - the `design` findings left, by issue
-- the next step: `/annetaan:pj2-doctor` again only when a decision or a `design` finding is left, never just to put
-  `ready` on. `/annetaan:pj3-running` when the first open issue of the run order is `ready`. It works down the
+- the next step: `/annetaan:pj3-doctor` again only when a decision or a `design` finding is left, never just to put
+  `ready` on. `/annetaan:pj4-running` when the first open issue of the run order is `ready`. It works down the
   order and stops at the first issue that is not workable. When `parent.baseExists` is false and a project in
-  `parent.dependsOn` is not `merged`, add one sentence: `pj3-running` starts this project after each such `#<Q>` is
+  `parent.dependsOn` is not `merged`, add one sentence: `pj4-running` starts this project after each such `#<Q>` is
   merged into `<from>`.
 
 ## Rules
@@ -355,7 +355,7 @@ the numbers.
 - **You never write a body yourself**, except the `## Order` list of the parent. Titles you write come from
   `wantedTitle` or from a writer. The writer applies an `exact` fix, and you only compare it.
 - **Each writer writes its own issue only. Only you write to GitHub**, and only after the phase 4 approval. Every
-  comment you post starts with `**[pj2-doctor]**`.
+  comment you post starts with `**[pj3-doctor]**`.
 - **Never put a relationship on a parent.**
 - **Always pass a body with `--body-file`.** Never create a label with `--force`.
 - **Re-read `updatedAt` before every edit. Never edit a closed issue.**

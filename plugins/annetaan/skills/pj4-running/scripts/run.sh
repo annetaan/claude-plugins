@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Runs the mechanical steps of pj3-running for one project and prints each result as one JSON object.
+# Runs the mechanical steps of pj4-running for one project and prints each result as one JSON object.
 # The judgment and the questions stay in the skill. --discard and --add carry the user's answers back.
 # Writes on GitHub: start creates the project's base branch through the API when it is due, and close comments on an
 # issue and closes it as completed. merge marks the pull request ready, merges it, comments on and closes the issue,
@@ -135,7 +135,7 @@ CLASSIC_QUERY = ("query($owner: String!, $name: String!, $q: String!) { reposito
                  "requiresCodeOwnerReviews requiresStatusChecks } } } }")
 
 def rules(repo, base, view, main):
-    """Whether pj3-running can merge its own pull requests into base, whether base requires status checks, and the
+    """Whether pj4-running can merge its own pull requests into base, whether base requires status checks, and the
     merge method to use."""
     owner, name = repo.split("/", 1)
     ruleset = api_json("repos/%s/rules/branches/%s" % (repo, base))
@@ -344,7 +344,7 @@ def start():
 
     found = rules(repo, base, view, main)
     if found["blockedBy"]:
-        stop("self-merge", "%s needs a review that pj3-running cannot give itself" % base,
+        stop("self-merge", "%s needs a review that pj4-running cannot give itself" % base,
              blockedBy=found["blockedBy"], **out)
     if found["mergeMethod"] is None:
         stop("no-merge-method", "the rules on %s leave no merge method that %s allows" % (base, repo), **out)

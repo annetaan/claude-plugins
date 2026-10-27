@@ -7,7 +7,7 @@ in the run's work report directory, one per round and one reply to each, so the 
 run.
 
 workflow is the plugin's core skill for one implementation. You run it yourself for a change that fits one pull
-request. For larger work, pj3-running runs it once per issue (see [Driven from an issue](#driven-from-an-issue) and
+request. For larger work, pj4-running runs it once per issue (see [Driven from an issue](#driven-from-an-issue) and
 [How the skills fit together](../../README.md#how-the-skills-fit-together)).
 
 ## Install
@@ -19,7 +19,7 @@ request. For larger work, pj3-running runs it once per issue (see [Driven from a
 
 ## Use it
 
-Name the skill, or invoke `/annetaan:workflow`. It never starts on its own. You name it, or pj3-running runs it for
+Name the skill, or invoke `/annetaan:workflow`. It never starts on its own. You name it, or pj4-running runs it for
 one issue, because it spawns several sessions and adds commits.
 
 ```
@@ -75,15 +75,15 @@ session, folded together, capped at fifteen.
 
 ## Driven from an issue
 
-pj3-running works through a project's issues one at a time, and runs each one through this skill. That run has no
+pj4-running works through a project's issues one at a time, and runs each one through this skill. That run has no
 design session, no approval and no questions. The issue's text is the approved design, and an issue only gets that
 far once it can be implemented as it stands. The issue becomes one task with its review rounds, so no integration
 review runs.
 
 The pull request body is `log.md` under a head of `Implements` and `Part of`. The run pushes and opens the pull
-request as a draft against the project's base branch. pj3-running merges it.
+request as a draft against the project's base branch. pj4-running merges it.
 
-All of it happens in the worktree pj3-running made for the project, so your own working tree is left alone.
+All of it happens in the worktree pj4-running made for the project, so your own working tree is left alone.
 
 A stop before the task is committed leaves the work uncommitted in that worktree and pushes nothing. That work is
 the one thing outside GitHub, and the next run redoes it. A stop once the task commit exists can only come during the

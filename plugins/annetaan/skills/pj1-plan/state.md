@@ -1,8 +1,8 @@
 # The state of a project
 
 This file holds how `project.sh` reads a project, and how it judges when a project is merged, when an issue is ready
-and when it is workable, and whether a body still holds against the code. `pj2-doctor`, its project reviewer and
-`pj3-running` read it first. The issues and their bodies are in `format.md`, and what the three skills agree on
+and when it is workable, and whether a body still holds against the code. `pj3-doctor`, its project reviewer and
+`pj4-running` read it first. The issues and their bodies are in `format.md`, and what the three skills agree on
 between them is in `between-skills.md`, both next to this file.
 
 ## Reading a project
@@ -115,7 +115,7 @@ current?**).
 - every decision under `## Decisions` has exactly one box checked, or it reads `None.`
 - `## Design` reads as the decisions say, with no "depending on D1" left in it
 - nothing in the body contradicts the parent's `## Design`, or another open issue
-- the project review found nothing left on it (see `pj2-doctor`)
+- the project review found nothing left on it (see `pj3-doctor`)
 - **it can be implemented straight from its body.** A worker who reads only this body, the parent's `## Design`, the
   `## Design` of every parent in `dependsOn` and the code finds nothing left to design. `project.sh` checks the part
   of this a script can see, as a lint (`format.md`, **What the lint checks**).

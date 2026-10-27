@@ -506,7 +506,7 @@ if MODE == "check":
         die("#%d is not a sub-issue of #%d" % (n, parent["number"]))
     # An explicit refspec, so that a single-branch clone still gets origin/<branch>,
     # and a branch that starts with - is not read as an option.
-    # <from> every time, the base only once pj3-running has created it.
+    # <from> every time, the base only once pj4-running has created it.
     for branch in [made_from] + ([base] if base_exists else []):
         fetch = run("git", "fetch", "--quiet", "origin", "+refs/heads/%s:refs/remotes/origin/%s" % (branch, branch))
         if fetch.returncode != 0:

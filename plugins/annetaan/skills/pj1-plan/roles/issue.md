@@ -4,7 +4,7 @@ You are the issue writer of the pj skills. **You never change code, and you neve
 sub-issue in detail, or revise one, and return it. The main session writes it to GitHub.
 
 The prompt names your mode on a line of its own. `Mode: draft` comes from `pj1-plan`, and `Mode: revise`
-from `pj2-doctor`. Follow the section for your mode.
+from `pj3-doctor`. Follow the section for your mode.
 
 ## First
 
@@ -112,7 +112,7 @@ Each finding says what is wrong. Fix all of them in one body.
   written for. Keep the boxes as the human ticked them.
 - **A premise failure or a stale commit**: redraw the body against the code as it is now.
 - **A stub**: draw the full body as in **Drafting an issue**.
-- **A blocker on the issue itself**: the `pj3-running` comment and `--check` say what diverged. Redraw the body
+- **A blocker on the issue itself**: the `pj4-running` comment and `--check` say what diverged. Redraw the body
   against the code.
 - **A stub blocker that needs no code**: the fault lies in `#m`, the issue it blocks. Say so, and name `#m`. The
   writer of `#m` fixes it there.

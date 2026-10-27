@@ -1,6 +1,6 @@
 ---
 name: pj1-plan
-description: Starts a project on GitHub. Designs a large request in broad strokes, splits it into tasks, has one sub-session per task draw that task in detail and pick out what a human has to decide, groups the tasks into projects of up to 10, and per project files a parent issue labelled `project` and one sub-issue per task, with the decisions as checkboxes the user ticks on GitHub, each option saying what it changes, the dependencies as native blocked-by relationships that may cross projects, and the run order as a numbered list in the parent. Each parent's `Base:` line names its base branch, `pj/<parent number>`, and a branch the user picks, and pj3-running creates the base branch later. The first of three skills, followed by pj2-doctor and pj3-running. Use it only when the user names this skill or invokes /annetaan:pj1-plan, because it creates issues and labels on GitHub. Do not use it for a change small enough for one pull request.
+description: Starts a project on GitHub. Designs a large request in broad strokes, splits it into tasks, has one sub-session per task draw that task in detail and pick out what a human has to decide, groups the tasks into projects of up to 10, and per project files a parent issue labelled `project` and one sub-issue per task, with the decisions as checkboxes the user ticks on GitHub, each option saying what it changes, the dependencies as native blocked-by relationships that may cross projects, and the run order as a numbered list in the parent. Each parent's `Base:` line names its base branch, `pj/<parent number>`, and a branch the user picks, and pj4-running creates the base branch later. The first of three skills, followed by pj3-doctor and pj4-running. Use it only when the user names this skill or invokes /annetaan:pj1-plan, because it creates issues and labels on GitHub. Do not use it for a change small enough for one pull request.
 ---
 
 # pj1-plan
@@ -44,7 +44,7 @@ git branch --show-current
 - Keep the default branch's name and the current branch's name for phase 2. A detached HEAD prints no current
   branch.
 - A dirty working tree does not matter. This skill reads the code and changes nothing in it. It creates no branch
-  either: `pj3-running` creates each project's base branch (`between-skills.md`, **The base branch**).
+  either: `pj4-running` creates each project's base branch (`between-skills.md`, **The base branch**).
 
 ## Phase 1: the overall design
 
@@ -85,10 +85,10 @@ Show:
 - each project in that order, as `PJ<j> <title>  (waits on PJ1, PJ2)` and its goal in one line, with its tasks below
   it, one line each, as `T<k> <title>  (after T2, T5)`, followed by the number of decisions the planner already sees
   in that task. A task in another project is named by its `T<k>` as well
-- one line saying that each project's base branch `pj/<P>` is created by `pj3-running` on its first start on that
+- one line saying that each project's base branch `pj/<P>` is created by `pj4-running` on its first start on that
   project, from the tip of the branch picked below, and that a project that waits on others starts once they are all
   merged into that branch. Every sub-issue's pull request merges into its project's base branch. Once every sub-issue
-  of a project is closed, `pj3-running` opens the pull request that takes its base branch back, and merging it is the
+  of a project is closed, `pj4-running` opens the pull request that takes its base branch back, and merging it is the
   user's job
 - one line saying every task is cut to 8 files at most, tests included, and every project to 10 tasks at most, the
   size limits in `format.md`
@@ -194,7 +194,7 @@ to the parent's number and from `T<k>` to the issue number as you go, because th
 need them.
 
 Step 5 writes `## Order` with one line `1. #<n>` per number in `list`, between the `Base:` line and `## Goal`. No
-issue gets `ready` here. Only `pj2-doctor` adds it, after it has reviewed the whole project.
+issue gets `ready` here. Only `pj3-doctor` adds it, after it has reviewed the whole project.
 
 Step 4 files each title as the writer returned it, and step 6 gives each open sub-issue its decision count
 (`format.md`, **The title**).
@@ -202,7 +202,7 @@ Step 4 files each title as the writer returned it, and step 6 gives each open su
 **When a command fails halfway**, stop and tell the user what was filed and what was not, with the numbers, and which
 parents have their `Base:` line and their `## Order`, and under which parents step 6 ran. Never retry the whole run,
 or the issues double. A parent without the line cannot be read by `project.sh`. A title still missing its count is
-fixed by the next `pj2-doctor` run.
+fixed by the next `pj3-doctor` run.
 
 Then check the result once per parent, against the split the user approved:
 
@@ -230,18 +230,18 @@ One block per project, in the project order:
 
 Then the next steps, in this order:
 
-1. `/annetaan:pj2-doctor`, right away. It reviews the whole project against the code and against each issue, has the
+1. `/annetaan:pj3-doctor`, right away. It reviews the whole project against the code and against each issue, has the
    writers fix what does not hold, and labels `ready` what is clear.
 2. The user ticks the open decisions on GitHub. Each option says what it changes, so the body is all they need.
-3. `/annetaan:pj2-doctor` again, after ticking. It reviews the project with the ticked boxes and labels the issues
+3. `/annetaan:pj3-doctor` again, after ticking. It reviews the project with the ticked boxes and labels the issues
    `ready`.
-4. `/annetaan:pj3-running`. It works down the parent's `## Order` and stops at the first issue that is not workable.
+4. `/annetaan:pj4-running`. It works down the parent's `## Order` and stops at the first issue that is not workable.
 
 Both skills ask which project to work on, and a number given to them becomes the recommended first option
-(`between-skills.md`, **Picking the project**). The user may reorder `## Order` by hand. `pj3-running` creates a
+(`between-skills.md`, **Picking the project**). The user may reorder `## Order` by hand. `pj4-running` creates a
 project's base branch on its first start on that project, and a project that waits on others starts once they are
-merged into `<from>`. Once every sub-issue of a project is merged, `pj3-running` opens the pull request from `pj/<P>`
-into `<from>`. The user merges it, and the next `pj3-running` closes the parent, or the user closes it.
+merged into `<from>`. Once every sub-issue of a project is merged, `pj4-running` opens the pull request from `pj/<P>`
+into `<from>`. The user merges it, and the next `pj4-running` closes the parent, or the user closes it.
 
 ## Rules
 
@@ -249,7 +249,7 @@ into `<from>`. The user merges it, and the next `pj3-running` closes the parent,
   yourself never passed through anyone who read the code. The `Base:` line in phase 4 step 3 is the one line you
   add, and you add nothing else. Titles come from the writers and from `wantedTitle` only.
 - **Nothing reaches GitHub before the phase 2 approval.** Labels included.
-- **You create no branch.** `pj3-running` creates every base branch (`between-skills.md`, **The base branch**).
+- **You create no branch.** `pj4-running` creates every base branch (`between-skills.md`, **The base branch**).
 - **Only you write to GitHub.** The sub-agents only read it, so the order and the numbers stay in one place.
 - **Dependencies go into relationships only**, across projects too, and never onto a parent. See `format.md`.
 - **Never create a label with `--force`.**
