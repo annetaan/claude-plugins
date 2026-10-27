@@ -77,7 +77,8 @@ git branch --show-current
          - Stop
      ```
 
-     On "Remove", take each one off and read the project again. Go on once `parent.startable` is true.
+     On "Remove", take each one off and read the project again. Go on once `parent.startable` is true. Keep the
+     numbers removed here for the planner's prompt in phase 1.
 
      ```bash
      gh issue edit <P> --remove-blocked-by <Q>
@@ -102,8 +103,10 @@ tree. Otherwise their prompt says to read the code at `origin/<from>`.
 
 ```
 Agent(subagent_type: "annetaan:pj-planner", description: "split #<P>",
-      prompt: "Read $ISSUES/roles/split.md first and follow the role it describes. The project format is in $ISSUES/../pj1-plan/format.md.\n\nParent: #<P>\n\nproject.sh <P>:\n<the JSON>\n\nRead the code: <the working tree | at origin/<from>>")
+      prompt: "Read $ISSUES/roles/split.md first and follow the role it describes. The project format is in $ISSUES/../pj1-plan/format.md.\n\nParent: #<P>\n\nproject.sh <P>:\n<the JSON>\n\nRemoved waits: <#Q, #R | none>\n\nRead the code: <the working tree | at origin/<from>>")
 ```
+
+`Removed waits:` names the projects whose edges **The project** step 2 removed in this run.
 
 `annetaan:pj-planner` ships with this plugin and is pinned to opus at high effort with code changes disabled.
 
@@ -160,12 +163,13 @@ $ISSUES/../pj1-plan/scripts/project.sh <Q>
 ```
 
 When it fails, for instance with `has no Base: line`, `#<Q>` is no project and gets no edge (`format.md`,
-**Relationships**). `parent.merged` in its output says whether `#<Q>` is merged. Send the line back to the planner
-with `SendMessage` when `#<Q>` is no project, or when it is an `add` line and `#<Q>` is not merged. The work becomes
-part of this split, or a request of its own.
+**Relationships**). `parent.merged` in its output says whether `#<Q>` is merged. A `#<Q>` whose `parent.state` is
+`CLOSED` and that is not `merged` was closed without a merge. It never merges, so it gets no edge either. Send the
+line back to the planner with `SendMessage` when `#<Q>` is no project, when it was closed without a merge, or when it
+is an `add` line and `#<Q>` is not merged. The work becomes part of this split, or a request of its own.
 
-**When the planner returned `conditional`** with `#<P> blocked by #<Q>`, `#<Q>` is a project and `parent.merged` is
-false for it, show the planner's reason and ask this instead. It is allowed only while `parent.baseExists` of `<P>` is
+**When the planner returned `conditional`** with `#<P> blocked by #<Q>`, `#<Q>` is a project, `parent.state` is
+`OPEN` and `parent.merged` is false for it, show the planner's reason and ask this instead. It is allowed only while `parent.baseExists` of `<P>` is
 false.
 
 ```

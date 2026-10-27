@@ -219,7 +219,8 @@ returns with the reviewer's strings. **No reviewer reads it again, and there is 
 **Check each parent edge to add before you show anything**, so that the approval offers only edges that step 4
 writes. When `parent.baseExists` of `<P>` is true, drop every parent edge to add, and say so. Otherwise run
 `project.sh <Q>` for each `add #<P> blocked by #<Q>`. When it fails, for instance with `has no Base: line`, `#<Q>` is
-no project. Drop the edge, and say so. Keep `parent.merged` of each `#<Q>` that passes.
+no project. Drop the edge, and say so. When its `parent.state` is `CLOSED` and it is not `merged`, `#<Q>` was closed
+without a merge and never merges. Drop that edge too, and say so. Keep `parent.merged` of each `#<Q>` that is left.
 
 ```bash
 $DOCTOR/../pj1-plan/scripts/project.sh <Q>

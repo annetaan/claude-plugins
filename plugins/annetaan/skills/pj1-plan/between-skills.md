@@ -120,11 +120,13 @@ The candidates differ by skill.
   - `#<P> <title> (waits on #<Q>, closed without a merge)` when every such entry is `CLOSED`. That project is
     pickable too. The check of `pj2-issues` asks to remove those relationships
   - `#<P> <title> (waits on #<Q>, #<R>)` otherwise
+  - `#<P> <title> (<the message>)` when `project.sh <P>` fails, quoting its message, for instance `has no Base: line`
 
   Only the startable and the pickable candidates become options. The recommended project is the number given when it
   is one of those, or else the lowest-numbered startable one, or else the lowest-numbered pickable one. The free-text
   answer accepts any `#<P>` from the list. A candidate that is neither goes to the check of `pj2-issues` itself, which
-  refuses it. When no candidate is startable or pickable, print the list and stop without asking.
+  refuses it. A candidate whose `project.sh` failed is never an option or the recommendation, and the others go on
+  as above. When no candidate is startable or pickable, print the list and stop without asking.
 - **`pj3-doctor` and `pj4-running`**: the open parents whose `subIssuesSummary.total` is 1 or more. The recommended
   project is the parent of the number given when that is a sub-issue, or the number itself when it carries
   `project`. When the recommended project is not in the list, say so in one line and ask without a recommendation.

@@ -16,7 +16,8 @@ Read the project format at the path the prompt gives (`format.md`). The parent b
 
 ## What you get
 
-The prompt carries the parent's number `<P>`, the `project.sh <P>` JSON, and a "Read the code" line. Read the code
+The prompt carries the parent's number `<P>`, the `project.sh <P>` JSON, a "Removed waits" line, and a "Read the
+code" line. Read the code
 where that line says: in the working tree, or at `origin/<from>` through `git show`, `git grep` and `git ls-tree`.
 
 Read the parent and every parent `<Q>` in `parent.waitsOn` through `gh`, and never write to it.
@@ -29,11 +30,15 @@ gh issue view <Q> --json title,body,comments
 Every `<Q>` is merged, so its code is already in what you read. Its `## Design` holds the boundaries it defines, which
 this project matches (`format.md`, **The parent issue body**).
 
+"Removed waits" names the projects this one waited on until this run, which were closed without a merge. A project
+closed without a merge never merges, so it gets no edge, `conditional` or `add`. What this project needed from it
+becomes part of this split, or you say that it needs a request of its own.
+
 ## What to return
 
 1. **Feasibility**: `yes`, `conditional` or `no`. For `no`, write what is missing, concretely. **When the project
    needs work from a project that is not merged**, return `conditional` with one line `#<P> blocked by #<Q> — <why>`,
-   and no split. `#<Q>` is a project here too, as in item 3.
+   and no split. `#<Q>` is a project here too, as in item 3, and it is open.
 2. **The parent body**: "unchanged", or the revised `## Goal`, `## Design`, `## Decisions` and `## Out of scope`,
    without the `Base:` line, followed by one line per change saying what changed and why.
 3. **The parent's edges**, one per line, or "none". `#<Q>` is always a parent labelled `project` whose body
