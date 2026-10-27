@@ -1,11 +1,11 @@
 ---
 name: pj4-running
-description: Asks which project to work on, with a number given as the recommended one. Creates the project's base branch on its first start, once every project it waits on is merged, and closes the parent of a merged project. Works down the run order in the parent's Order list one sub-issue at a time, and stops at the first issue that is not workable. Each one runs through the workflow skill as one task with review rounds, then pj4-running merges its pull request into the project's base branch and closes the issue itself before the next starts. Once every sub-issue is closed, opens the pull request from the base branch into the branch it was made from, and leaves its merge to the user. Works in a git worktree of its own, so the main working tree stays free for the user. Files unplanned work as stub issues and stops on a blocker. The third of three skills, after pj1-plan and pj3-doctor. Use it only when the user names this skill or invokes /annetaan:pj4-running, because it creates branches, pushes, opens and merges pull requests, and edits issues and labels.
+description: Asks which project to work on, among the projects that have sub-issues, with a number given as the recommended one. Creates the project's base branch on its first start, once every project it waits on is merged, and closes the parent of a merged project and names the projects that can be split now, as /annetaan:pj2-issues <P>. Works down the run order in the parent's Order list one sub-issue at a time, and stops at the first issue that is not workable. Each one runs through the workflow skill as one task with review rounds, then pj4-running merges its pull request into the project's base branch and closes the issue itself before the next starts. Once every sub-issue is closed, opens the pull request from the base branch into the branch it was made from, and leaves its merge to the user. Works in a git worktree of its own, so the main working tree stays free for the user. Files unplanned work as stub issues and stops on a blocker. The fourth of four skills, after pj1-plan, pj2-issues and pj3-doctor. Use it only when the user names this skill or invokes /annetaan:pj4-running, because it creates branches, pushes, opens and merges pull requests, and edits issues and labels.
 ---
 
 # pj4-running
 
-The third of the three pj skills: it works down a project's run order, the parent's `## Order`, and merges one pull
+The fourth of the four pj skills: it works down a project's run order, the parent's `## Order`, and merges one pull
 request per issue. Once every sub-issue is closed, it opens the project's pull request, from the base branch into
 `<from>`, and the user merges it.
 
@@ -32,7 +32,7 @@ them nothing.
 
 **Read `$RUNNING/../pj1-plan/between-skills.md` and `$RUNNING/../pj1-plan/state.md` before anything else.**
 `between-skills.md` holds the labels, the base branch, the handover comment, the blockers, the comments and the pull
-requests. Its table of the three skills says where this one sits. `state.md` is how `project.sh` reads a project and
+requests. Its table of the four skills says where this one sits. `state.md` is how `project.sh` reads a project and
 when an issue is ready and workable. Everything below refers to them. `$RUNNING/../pj1-plan/format.md` describes the
 issues and their bodies, and is read only at the sections this file names: **The run order**, **Stubs**, **Fixed
 tokens** and **Writing bodies**.
@@ -82,8 +82,9 @@ branch from the tip of `<from>` when the base branch is missing and every projec
     already have been merged into `<from>` and deleted. Stop.
   - `waits`: the base branch is missing, and a project `<P>` waits on is not merged. Stop and list each entry of
     `waits` as `#<Q> <title>`. One whose `state` is `CLOSED` was closed as not planned, without a merge: remove the
-    edges to it with `/annetaan:pj3-doctor`. One whose `state` is `OPEN` has to be finished with
-    `/annetaan:pj4-running`, and its base branch, `base`, merged into `<from>` through a pull request.
+    relationship `#<P> blocked by #<Q>` with `/annetaan:pj3-doctor`. One whose `state` is `OPEN` has to be merged
+    first: `/annetaan:pj2-issues <Q>` when it has no sub-issue yet, then `/annetaan:pj3-doctor` and
+    `/annetaan:pj4-running` on it, and its base branch, `base`, merged into `<from>` through its pull request.
   - `self-merge`: pj4-running merges its own pull requests, so a rule on the base branch that wants another
     person's review stops it. Name each code in `blockedBy` in words, and stop.
     - `rule-approvals`: a ruleset wants approving reviews.
@@ -91,7 +92,8 @@ branch from the tip of `<from>` when the base branch is missing and every projec
     - `merge-queue`: a ruleset sends merges through a merge queue.
     - `classic-approvals`: classic branch protection wants approving reviews.
     - `classic-code-owners`: classic branch protection wants a code owner's review, and a CODEOWNERS file exists.
-- **`empty`**: the project has no sub-issue at all. Say it has nothing to run, and end.
+- **`empty`**: the project has no sub-issue yet. It has not been split. Give the next step,
+  `/annetaan:pj2-issues <P>`, and end.
 - **`done`**: every sub-issue is closed. When `project.merged` is true, `close` held `<P>`. Report its close, and
   end. Otherwise open the project's pull request as **The project's pull request** says, report it, and end.
 - **`run`**: keep `main` as `<MAIN>`, `worktree` as `<WT>`, `project.base` as `<base>`, `project.from` as `<from>`,
@@ -138,6 +140,9 @@ $RUNNING/scripts/run.sh close <P> <Q> --comment "$TMP/<Q>-closed.md"
 ```
 
 `already` true means the parent was closed by then and nothing was posted. Report a `not-due` after `start` and stop.
+
+`startable` in the output lists the projects that wait on `<Q>`, have no sub-issue, and now wait on nothing unmerged,
+each as `number` and `title`. Keep them for the report. `already` true still carries `startable`.
 
 ### The worktree
 
@@ -474,6 +479,8 @@ $RUNNING/scripts/run.sh pr <P> --body "$TMP/<P>-pr.md"
 - the base branch `<base>`, and whether this run created it
 - the project's pull request with its URL, when there is one, and that merging it is the user's job
 - the parents closed in this run
+- the projects that can be split now, collected from the `startable` of each close, one line each as
+  `/annetaan:pj2-issues <R>` with its title
 - the worktree `<WT>`. The next run reuses it. The work reports live only under its `work-reports/`, and
   `git -C "<MAIN>" worktree remove <WT>` deletes it with those reports when the project is done
 - each merged issue with the URL of its pull request
@@ -485,7 +492,8 @@ $RUNNING/scripts/run.sh pr <P> --body "$TMP/<P>-pr.md"
 - what is workable now and what is waiting
 - the next step: `/annetaan:pj3-doctor` when a `blocker` or a stub exists, otherwise `/annetaan:pj4-running`.
   When every sub-issue is closed, the user merges the project's pull request. The next run then closes the parent, or
-  the user closes it.
+  the user closes it. When the list of projects that can be split now is not empty, `/annetaan:pj2-issues <R>` for
+  each.
 
 ## Rules
 

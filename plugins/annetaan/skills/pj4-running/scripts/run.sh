@@ -2,7 +2,8 @@
 # Runs the mechanical steps of pj4-running for one project and prints each result as one JSON object.
 # The judgment and the questions stay in the skill. --discard and --add carry the user's answers back.
 # Writes on GitHub: start creates the project's base branch through the API when it is due, and close comments on an
-# issue and closes it as completed. merge marks the pull request ready, merges it, comments on and closes the issue,
+# issue and closes it as completed, when it is due. For a parent it also lists the projects that can be split now
+# (startable). merge marks the pull request ready, merges it, comments on and closes the issue,
 # and deletes the head branch on origin. pr opens the pull request from the base branch into the branch it was made
 # from, once every sub-issue is closed. Writes in git: start and worktree fetch the base branch into origin/<base>,
 # worktree creates and moves the run's worktree, branch creates the issue's branch in <WT>, merge moves <WT> onto the
@@ -15,7 +16,7 @@ die() { echo "run: $*" >&2; exit 1; }
 usage() {
   cat >&2 <<'USAGE'
 usage: run.sh start <P>                       check the clone, gh and the repository, read the project, create its base branch when due, fetch it, read the merge rules
-       run.sh close <P> <n> --comment <file>  comment on and close #<n> as completed, when it is due
+       run.sh close <P> <n> --comment <file>  comment on and close #<n> as completed, when it is due. For a parent it also lists the projects that can be split now (startable)
        run.sh worktree <P> [--discard]        put the run's worktree on the tip of origin/<base>
        run.sh ignore <P> [--add]              whether .claude/worktrees/ and work-reports/ are ignored; --add writes them to info/exclude
        run.sh branch <P> <branch>             create <branch> in the run's worktree from the tip of origin/<base>
@@ -107,6 +108,11 @@ def project(p, **extra):
     if r.returncode != 0:
         stop("project", r.stderr.strip(), **extra)
     return json.loads(r.stdout)
+
+def read_project(p):
+    """project.sh <p>, parsed, or None when it fails."""
+    r = run(PROJECT_SH, str(p))
+    return json.loads(r.stdout) if r.returncode == 0 else None
 
 def repo_view():
     r = run("gh", "repo", "view", "--json", "nameWithOwner,hasIssuesEnabled,defaultBranchRef,viewerPermission,"
@@ -211,6 +217,19 @@ def close_issue(n, comment_file):
     if r.returncode != 0:
         return {"step": "close", "message": r.stderr.strip()}
     return None
+
+def startable_after(n, proj):
+    """The projects that wait on #n and can be split now, as [{number, title}]: parent.startable from project.sh.
+    A project project.sh cannot read is skipped."""
+    source = proj if n == P else read_project(n)
+    if source is None:
+        return []
+    found = []
+    for m in source["parent"]["waitedOnBy"]:
+        q = read_project(m)
+        if q is not None and q["parent"]["startable"]:
+            found.append({"number": m, "title": q["parent"]["title"]})
+    return sorted(found, key=lambda e: e["number"])
 
 def worktrees(main):
     """The worktrees of the clone as [(path, prunable, branch)]. branch is None on a detached HEAD."""
@@ -352,18 +371,20 @@ def start():
 
 def close():
     n, comment_file = int(ARGS[0]), ARGS[2]
-    state = due(project(P), n)
+    proj = project(P)
+    state = due(proj, n)
+    is_parent = n == P or any(d["number"] == n for d in proj["parent"]["waitsOn"])
     if state == "unknown":
         stop("unknown-issue", "#%d is neither #%d, a project it waits on, nor one of its sub-issues" % (n, P),
              number=n)
     if state == "not-due":
         stop("not-due", "#%d is not due to close" % n, number=n)
     if state == "already":
-        emit(status="closed", number=n, already=True)
+        emit(status="closed", number=n, already=True, startable=startable_after(n, proj) if is_parent else [])
     failed = close_issue(n, comment_file)
     if failed:
         die("cannot %s on #%d: %s" % (failed["step"], n, failed["message"]))
-    emit(status="closed", number=n, already=False)
+    emit(status="closed", number=n, already=False, startable=startable_after(n, proj) if is_parent else [])
 
 def worktree():
     main, wt = located()
