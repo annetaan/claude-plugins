@@ -12,7 +12,7 @@ this file.
 | --- | --- |
 | `pj1-plan` | designs the whole in broad strokes, splits it into tasks, groups the tasks into projects of up to ten, and files one parent issue per project with its run order and one sub-issue per task with the decisions it needs |
 | `pj2-doctor` | reviews a whole project against the boxes the user ticked and the code, has the issue writers redraw what no longer holds, draws the stubs, resolves the blockers, rewrites the run order, and labels an issue `ready` |
-| `pj3-running` | creates a project's base branch when it first starts on the project, then works down the run order one pull request at a time, running the `workflow` skill on each and merging it into the base branch before the next starts |
+| `pj3-running` | creates a project's base branch when it first starts on the project, then works down the run order one pull request at a time, running the `workflow` skill on each and merging it into the base branch before the next starts, and once every sub-issue is closed, opens the pull request from the base branch into the branch it was made from |
 
 **The user decides by ticking boxes on GitHub.** Every question a task raises is a decision in its sub-issue
 (`format.md`, **Decisions**). No skill asks a task's decision in the conversation. `pj2-doctor` talks with the user
@@ -55,8 +55,8 @@ names after `from` (`format.md`, **The parent issue body**), through the GitHub 
 
 A base branch cut later starts from a newer `<from>`, and conflicts less when it is merged back at the end.
 
-Merging the base branch into the branch it was made from is a human's job, done through a pull request. No skill
-does it.
+Once every sub-issue is closed, `pj3-running` opens the pull request from the base branch into the branch it was made
+from (see **Pull requests**). Merging it is a human's job. No skill merges it.
 
 **Closing a parent** as completed means its project is merged. When `pj3-running` reads an open parent that is
 `merged`, it closes it with a marked comment and `--reason completed`, both when it starts on that project and when
@@ -203,6 +203,17 @@ The head is the first line with any text on it. GitHub ignores closing keywords 
 into a branch other than the default branch, so the merge closes nothing. `pj3-running` closes the issue itself after
 the merge. An open issue whose `pr` is merged is a merge whose close never happened, and the next run of `pj3-running`
 closes it.
+
+### The project's pull request
+
+**One pull request per project**, from the base branch into `<from>`. `pj3-running` opens it once every sub-issue is
+closed, and never merges it.
+
+- Title: the parent's title.
+- Base: `<from>`. Head: the base branch.
+- The body's first line is `Part of #<P>`. Below it go the sub-issues closed as completed, each with its pull request.
+
+When it merges, the project is `merged` (`state.md`, **When a project is merged**).
 
 ## Writing to GitHub
 

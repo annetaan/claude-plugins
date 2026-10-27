@@ -270,7 +270,8 @@ These stay in English whatever language the repository uses, because the skills 
 - the kinds in the file list: `added`, `changed` and `deleted`
 - the markers (`between-skills.md`, **Comments**)
 - `Base:` and `from` in the parent body's first line, and the parent's `## Order`
-- in a pull request body, `Implements` and `Part of` (`between-skills.md`, **Pull requests**)
+- in a pull request body, `Implements` and `Part of` (`between-skills.md`, **Pull requests** and **The project's pull
+  request**)
 
 Everything else is prose in the repository's language.
 

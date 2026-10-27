@@ -87,8 +87,9 @@ Show:
   in that task. A task in another project is named by its `T<k>` as well
 - one line saying that each project's base branch `pj/<P>` is created by `pj3-running` on its first start on that
   project, from the tip of the branch picked below, and that a project that waits on others starts once they are all
-  merged into that branch. Every sub-issue's pull request merges into its project's base branch, and merging each base
-  branch back through a pull request is the user's job, outside the skills
+  merged into that branch. Every sub-issue's pull request merges into its project's base branch. Once every sub-issue
+  of a project is closed, `pj3-running` opens the pull request that takes its base branch back, and merging it is the
+  user's job
 - one line saying every task is cut to 8 files at most, tests included, and every project to 10 tasks at most, the
   size limits in `format.md`
 - the label this run will create from `between-skills.md`, `project`, or that the repository already has it and it
@@ -232,8 +233,8 @@ Then the next steps, in this order:
 Both skills ask which project to work on, and a number given to them becomes the recommended first option
 (`between-skills.md`, **Picking the project**). The user may reorder `## Order` by hand. `pj3-running` creates a
 project's base branch on its first start on that project, and a project that waits on others starts once they are
-merged into `<from>`. Once every sub-issue of a project is merged, the user merges `pj/<P>` into `<from>` through a
-pull request, and the next `pj3-running` closes the parent, or the user closes it.
+merged into `<from>`. Once every sub-issue of a project is merged, `pj3-running` opens the pull request from `pj/<P>`
+into `<from>`. The user merges it, and the next `pj3-running` closes the parent, or the user closes it.
 
 ## Rules
 

@@ -1,12 +1,13 @@
 ---
 name: pj3-running
-description: Asks which project to work on, with a number given as the recommended one. Creates the project's base branch on its first start, once every project it waits on is merged, and closes the parent of a merged project. Works down the run order in the parent's Order list one sub-issue at a time, and stops at the first issue that is not workable. Each one runs through the workflow skill as one task with review rounds, then pj3-running merges its pull request into the project's base branch and closes the issue itself before the next starts. Works in a git worktree of its own, so the main working tree stays free for the user. Files unplanned work as stub issues and stops on a blocker. The third of three skills, after pj1-plan and pj2-doctor. Use it only when the user names this skill or invokes /annetaan:pj3-running, because it creates branches, pushes, opens and merges pull requests, and edits issues and labels.
+description: Asks which project to work on, with a number given as the recommended one. Creates the project's base branch on its first start, once every project it waits on is merged, and closes the parent of a merged project. Works down the run order in the parent's Order list one sub-issue at a time, and stops at the first issue that is not workable. Each one runs through the workflow skill as one task with review rounds, then pj3-running merges its pull request into the project's base branch and closes the issue itself before the next starts. Once every sub-issue is closed, opens the pull request from the base branch into the branch it was made from, and leaves its merge to the user. Works in a git worktree of its own, so the main working tree stays free for the user. Files unplanned work as stub issues and stops on a blocker. The third of three skills, after pj1-plan and pj2-doctor. Use it only when the user names this skill or invokes /annetaan:pj3-running, because it creates branches, pushes, opens and merges pull requests, and edits issues and labels.
 ---
 
 # pj3-running
 
 The third of the three pj skills: it works down a project's run order, the parent's `## Order`, and merges one pull
-request per issue.
+request per issue. Once every sub-issue is closed, it opens the project's pull request, from the base branch into
+`<from>`, and the user merges it.
 
 You are the main session. **You do not write code.** workflow's sessions implement and review. You own the branch,
 the merge, the issues, the labels and the notices.
@@ -92,10 +93,7 @@ branch from the tip of `<from>` when the base branch is missing and every projec
     - `classic-code-owners`: classic branch protection wants a code owner's review, and a CODEOWNERS file exists.
 - **`empty`**: the project has no sub-issue at all. Say it has nothing to run, and end.
 - **`done`**: every sub-issue is closed. When `project.merged` is true, `close` held `<P>`. Report its close, and
-  end. Otherwise say that every sub-issue is closed, that `<base>` holds the whole project, that merging `<base>` into
-  `<from>` through a pull request is the user's job, and that the parent closes when a pj3-running run sees that
-  merge, or when the user closes it after merging. When `project.baseExists` is false, also say that the base branch
-  is gone from origin. End.
+  end. Otherwise open the project's pull request as **The project's pull request** says, report it, and end.
 - **`run`**: keep `main` as `<MAIN>`, `worktree` as `<WT>`, `project.base` as `<base>`, `project.from` as `<from>`,
   and keep `created` and `rules`. When `created` is not null, this run created the base branch. Print
   `<base> created from <from> at <short sha>`, and keep the SHA for phase 3.
@@ -288,8 +286,8 @@ Show the user:
 - how each issue runs: a branch, workflow's **From an issue** (one task with review rounds, with the review files
   in its work report), a draft pull request into the base branch, then a merge by pj3-running, which then closes the
   issue. GitHub does not close it on a merge into a branch other than the default branch.
-- that merging the base branch into `<from>` is the user's job, outside this skill, and that the parent `#<P>` closes
-  as completed once a run sees that merge
+- that once every sub-issue is closed, the run opens the project's pull request from the base branch into `<from>`,
+  that merging it is the user's job, and that the parent `#<P>` closes as completed once a run sees that merge
 - that the run stops on a blocker, a divergence, the round cap, a merge that does not go through, or the user saying
   stop
 
@@ -443,14 +441,38 @@ Every way the run ends comes here: the run order is done, the run stopped, or th
    ```
 
    A worktree entered by path is never deleted by `ExitWorktree`. Where that tool is not available, `cd "<MAIN>"`.
-2. `project.sh <P>`. **When every sub-issue is closed**, tell the user what **Before you start** says for `done`
-   when the project is not `merged`: `<base>` holds the whole project, merging it into `<from>` through a pull request
-   is theirs to do, and the parent closes as completed when a pj3-running run sees that merge, or when the user
-   closes it after merging. Ask nothing.
+2. `project.sh <P>`. **When every sub-issue is closed** and the project is not `merged`, open the project's pull
+   request as **The project's pull request** says. Ask nothing, because the approval in phase 3 covered it.
+
+## The project's pull request
+
+The project's pull request takes the whole project from `<base>` into `<from>`. pj3-running opens it, and never
+merges it. Merging it is the user's job.
+
+Write `$TMP/<P>-pr.md`. Its first line is `Part of #<P>`. Below it, in the repository's language, it says that the
+pull request brings project `#<P>` into `<from>`, lists each sub-issue closed as completed as `#<k> <title>` with its
+pull request `#<m>` from `project.sh <P>`, names the stubs and the issues closed as not planned, and says that the
+parent closes as completed when a pj3-running run sees the merge, or when the user closes it after merging.
+
+```bash
+$RUNNING/scripts/run.sh pr <P> --body "$TMP/<P>-pr.md"
+```
+
+`run.sh pr` opens it with the parent's title, from `<base>`, which is on origin already, so nothing is pushed. Act by
+`status`.
+
+- **`opened`**: keep `url` for the report.
+- **`exists`**: an open pull request from `<base>` into `<from>` is there already, from an earlier run or from the
+  user. Nothing was written. Keep `url`.
+- **`stop`** with `base-gone`: the base branch is gone from origin, so nothing can be opened. Say so.
+- **`stop`** with `create-failed`: quote `message`. A base branch with no commits beyond `<from>`, for example when
+  every sub-issue was closed as not planned, has nothing to bring in.
+- **`stop`** with `merged` or `not-due`: the project changed under the run. Quote `message`.
 
 ## Report to the user
 
 - the base branch `<base>`, and whether this run created it
+- the project's pull request with its URL, when there is one, and that merging it is the user's job
 - the parents closed in this run
 - the worktree `<WT>`. The next run reuses it. The work reports live only under its `work-reports/`, and
   `git -C "<MAIN>" worktree remove <WT>` deletes it with those reports when the project is done
@@ -462,8 +484,8 @@ Every way the run ends comes here: the run order is done, the run stopped, or th
 - the screenshots that could not be attached, with their paths and the URL of the pull request
 - what is workable now and what is waiting
 - the next step: `/annetaan:pj2-doctor` when a `blocker` or a stub exists, otherwise `/annetaan:pj3-running`.
-  When every sub-issue is closed, the user merges `<base>` into `<from>` through a pull request. The next run then
-  closes the parent, or the user closes it.
+  When every sub-issue is closed, the user merges the project's pull request. The next run then closes the parent, or
+  the user closes it.
 
 ## Rules
 
@@ -473,11 +495,13 @@ Every way the run ends comes here: the run order is done, the run stopped, or th
 - **One issue at a time.**
 - **Everything runs in `<WT>`.** Never switch, stash, commit or clean in `<MAIN>`. The user works there.
 - **Never `--admin`. Never create a label with `--force`. Always pass a body with `--body-file`.**
+- **Never merge the project's pull request.** It goes into `<from>`, and the user merges it.
 - **Never merge a pull request that `project.sh` does not report as the issue's `pr`.**
 - **Whenever you take `ready` off an issue, add `blocker`.**
 - **The next run never uses the work a stopped run left in `<WT>`.** The work is redone.
 - **Never push to the base branch, to `<from>` or to the default branch, and never rewrite their history.** The one
   branch this skill creates outside a pull request is the project's base branch, through the API, in `run.sh start`.
+  The project's pull request is opened from that branch as it stands on origin.
 - **Close an issue or a parent only through `run.sh close` or `run.sh merge`, which refuse one that is not due, and
   close as completed.**
 - After a context summary, rebuild the run from the progress lines and `project.sh <P>`.

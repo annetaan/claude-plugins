@@ -25,7 +25,7 @@ GitHub until the finish step opens a pull request or pushes.
 The pj skills are for work too large for one pull request, and they write no code themselves. `pj1-plan` splits the
 work into a parent issue and its sub-issues. You tick the decisions on GitHub. `pj2-doctor` makes the issues ready.
 `pj3-running` runs `workflow` once per sub-issue, merges each pull request into the project's branch and closes the
-issue. The three pass nothing to each other through the conversation. Each one reads the project from GitHub afresh.
+issue, and at the end opens the pull request that takes the project's branch back. The three pass nothing to each other through the conversation. Each one reads the project from GitHub afresh.
 
 Which skill to start with:
 
@@ -166,8 +166,8 @@ conversation.
 Each project's work lands on a branch of its own, `pj/` and the parent's number. `pj3-running` creates it on the
 project's first run, from a branch you pick when the projects are filed, the default branch unless you name another.
 A project that waits on another gets its branch only after the other one is merged into that branch. Every
-sub-issue's pull request merges into its project's branch. Merging that branch back into the branch it came from,
-through a pull request, is left to you. After that the parent is closed, by the next `pj3-running` run or by you, and
+sub-issue's pull request merges into its project's branch. Once every sub-issue is closed, `pj3-running` opens the
+pull request that takes that branch back into the branch it came from, and merging it is left to you. After that the parent is closed, by the next `pj3-running` run or by you, and
 a closed parent means its project is merged. [How the skills fit together](#how-the-skills-fit-together) says where
 the state lives. [format.md](skills/pj1-plan/format.md) describes the issues and their bodies,
 [state.md](skills/pj1-plan/state.md) how the state of a project is read, and
@@ -201,7 +201,8 @@ order, each issue goes through the same steps in turn, in a git worktree of the 
 [workflow](skills/workflow/README.md#driven-from-an-issue) runs it as one task, with review rounds. A draft pull
 request follows, with the work report as its body. Then the merge into the project's branch, by squash where the
 repository allows it. pj3-running then closes the issue itself, because GitHub closes nothing on a merge into a
-branch other than the default. Work nobody planned becomes a new issue. Work that has to
+branch other than the default. Once every sub-issue is closed, it opens the pull request from the project's branch
+into the branch it came from, for you to merge. Work nobody planned becomes a new issue. Work that has to
 come first stops the run and gets the `blocker` label. The next run picks up where this one stopped.
 
 ```
@@ -221,7 +222,8 @@ flowchart TD
     filed --> doctor["pj2-doctor<br/>reviewer reads the whole project,<br/>writers redraw what does not hold,<br/>run order rewritten, ready on what is clear"]
     doctor --> run["pj3-running, per project<br/>makes its branch on the first run,<br/>then down the run order: branch, workflow,<br/>draft pull request, merge<br/>into the project's branch"]
     run -->|"stub or blocker"| doctor
-    run -->|"all merged"| done(["you merge the project's branch<br/>into the branch it came from<br/>through a pull request,<br/>then its parent closes"])
+    run -->|"all merged"| pr["pj3-running opens the pull request<br/>from the project's branch<br/>into the branch it came from"]
+    pr --> done(["you merge it,<br/>then its parent closes"])
     done -.->|"a project that waits on it"| run
 
     you(["you, on GitHub"]) -.->|"tick a box,<br/>reorder the run order"| filed
