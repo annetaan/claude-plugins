@@ -93,8 +93,8 @@ one command, so write the path in full each time.
 
    Then one line for each parent with a finding, and the edges the reviewer would change.
 
-**When nothing has a finding and no open decision is left**, go to phase 4 with no writers. Only the labels and the
-run order may still change.
+**When nothing has a finding and no open decision is left**, go to phase 4 with no writers. Only the titles, the labels
+and the run order may still change.
 
 ## Phase 2: the questions
 
@@ -220,6 +220,8 @@ returns with the reviewer's strings. **No reviewer reads it again, and there is 
 - the new issues: the parts of a split and the stubs
 - the edges to add and remove
 - the blockers to close
+- the titles to change, as `#<n> <title> -> <wantedTitle>`. An issue rewritten or filed in this run has no
+  `wantedTitle` yet, so take its count from the decisions in its new body (`format.md`, **The title**)
 - `ready` to add, and `ready` to take off, each with why
 - the new `## Order`, one line per issue as it will read
 
@@ -256,10 +258,14 @@ the numbers.
    gh issue create --parent <P> --blocking <n> --title "<title>" --body-file "$TMP/stub.md"
    ```
 
-3. **Write the bodies**, with `--title` when the title changed.
+   Each is filed with the title its writer returned. Step 6 gives it its count.
+
+3. **Write the bodies**, with `--title` when the writer's title differs from the one on GitHub with its count
+   stripped. Step 6 then adds the count.
 
    ```bash
    gh issue edit <k> --body-file "$TMP/<k>.md"
+   gh issue edit <k> --title "<title>" --body-file "$TMP/<k>.md"
    ```
 
 4. **Change the edges**, one at a time, with the part numbers from step 2.
@@ -285,7 +291,16 @@ the numbers.
    gh issue close <b> --reason completed
    ```
 
-6. **The labels.** Make sure `ready` exists with the command in `between-skills.md` under "Labels". Check each issue
+6. **The titles.** Run the sync in `between-skills.md` under **Titles** for `<P>`, now that the bodies, the new
+   issues and the closed blockers are written. Every issue that gets `ready` in the next step then has a title with
+   no count.
+
+   ```bash
+   $DOCTOR/../pj1-plan/scripts/project.sh <P>
+   gh issue edit <k> --title "<wantedTitle>"
+   ```
+
+7. **The labels.** Make sure `ready` exists with the command in `between-skills.md` under "Labels". Check each issue
    again right before it gets `ready`, because the bodies and the edges just changed.
 
    ```bash
@@ -305,7 +320,7 @@ the numbers.
    gh issue comment <k> --body-file "$TMP/<k>-comment.md"
    ```
 
-7. **The run order.** Read it again, now that the edges and the issues have changed, and write `list` under the
+8. **The run order.** Read it again, now that the edges and the issues have changed, and write `list` under the
    parent's `## Order`, one line per number as `1. #<n>`. Keep the rest of the parent body as it is. Re-read the
    parent's `updatedAt` right before the edit, and work in a change a human made since.
 
@@ -324,7 +339,7 @@ the numbers.
   without `ready` by the second review gives its `design` findings as the reason
 - **the decisions left for the user**, one line each, as `#<n> D<k> <question>` with the issue URL. This is the
   user's next step: tick them on GitHub, then run `/annetaan:pj2-doctor` again
-- the issues filed, the edges changed, the blockers closed and the parents rewritten
+- the issues filed, the edges changed, the blockers closed, the parents rewritten and the titles changed
 - the `exact` fixes made after the second review, by issue
 - the `design` findings left, by issue
 - the next step: `/annetaan:pj2-doctor` again only when a decision or a `design` finding is left, never just to put
@@ -337,8 +352,8 @@ the numbers.
 
 - **You decide nothing.** The user decides, the reviewer finds, and the writer writes.
 - **Never ask a task decision in the conversation.** It goes into the issue as a box to tick.
-- **You never write a body yourself**, except the `## Order` list of the parent. The writer applies an `exact` fix,
-  and you only compare it.
+- **You never write a body yourself**, except the `## Order` list of the parent. Titles you write come from
+  `wantedTitle` or from a writer. The writer applies an `exact` fix, and you only compare it.
 - **Each writer writes its own issue only. Only you write to GitHub**, and only after the phase 4 approval. Every
   comment you post starts with `**[pj2-doctor]**`.
 - **Never put a relationship on a parent.**
