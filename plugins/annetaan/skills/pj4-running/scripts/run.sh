@@ -1,8 +1,9 @@
 #!/usr/bin/env bash
-# Runs the mechanical steps of pj3-running for one project and prints each result as one JSON object.
+# Runs the mechanical steps of pj4-running for one project and prints each result as one JSON object.
 # The judgment and the questions stay in the skill. --discard and --add carry the user's answers back.
 # Writes on GitHub: start creates the project's base branch through the API when it is due, and close comments on an
-# issue and closes it as completed. merge marks the pull request ready, merges it, comments on and closes the issue,
+# issue and closes it as completed, when it is due. For a parent it also lists the projects that can be split now
+# (startable). merge marks the pull request ready, merges it, comments on and closes the issue,
 # and deletes the head branch on origin. pr opens the pull request from the base branch into the branch it was made
 # from, once every sub-issue is closed. Writes in git: start and worktree fetch the base branch into origin/<base>,
 # worktree creates and moves the run's worktree, branch creates the issue's branch in <WT>, merge moves <WT> onto the
@@ -15,7 +16,7 @@ die() { echo "run: $*" >&2; exit 1; }
 usage() {
   cat >&2 <<'USAGE'
 usage: run.sh start <P>                       check the clone, gh and the repository, read the project, create its base branch when due, fetch it, read the merge rules
-       run.sh close <P> <n> --comment <file>  comment on and close #<n> as completed, when it is due
+       run.sh close <P> <n> --comment <file>  comment on and close #<n> as completed, when it is due. For a parent it also lists the projects that can be split now (startable)
        run.sh worktree <P> [--discard]        put the run's worktree on the tip of origin/<base>
        run.sh ignore <P> [--add]              whether .claude/worktrees/ and work-reports/ are ignored; --add writes them to info/exclude
        run.sh branch <P> <branch>             create <branch> in the run's worktree from the tip of origin/<base>
@@ -108,6 +109,11 @@ def project(p, **extra):
         stop("project", r.stderr.strip(), **extra)
     return json.loads(r.stdout)
 
+def read_project(p):
+    """project.sh <p>, parsed, or None when it fails."""
+    r = run(PROJECT_SH, str(p))
+    return json.loads(r.stdout) if r.returncode == 0 else None
+
 def repo_view():
     r = run("gh", "repo", "view", "--json", "nameWithOwner,hasIssuesEnabled,defaultBranchRef,viewerPermission,"
             "squashMergeAllowed,mergeCommitAllowed,rebaseMergeAllowed")
@@ -135,7 +141,7 @@ CLASSIC_QUERY = ("query($owner: String!, $name: String!, $q: String!) { reposito
                  "requiresCodeOwnerReviews requiresStatusChecks } } } }")
 
 def rules(repo, base, view, main):
-    """Whether pj3-running can merge its own pull requests into base, whether base requires status checks, and the
+    """Whether pj4-running can merge its own pull requests into base, whether base requires status checks, and the
     merge method to use."""
     owner, name = repo.split("/", 1)
     ruleset = api_json("repos/%s/rules/branches/%s" % (repo, base))
@@ -192,7 +198,7 @@ def due(proj, n):
     parent = proj["parent"]
     if n == parent["number"]:
         return "already" if parent["state"] == "CLOSED" else "due" if parent["merged"] else "not-due"
-    for d in parent["dependsOn"]:
+    for d in parent["waitsOn"]:
         if d["number"] == n:
             return "already" if d["state"] == "CLOSED" else "due" if d["merged"] else "not-due"
     for i in proj["issues"]:
@@ -211,6 +217,19 @@ def close_issue(n, comment_file):
     if r.returncode != 0:
         return {"step": "close", "message": r.stderr.strip()}
     return None
+
+def startable_after(n, proj):
+    """The projects that wait on #n and can be split now, as [{number, title}]: parent.startable from project.sh.
+    A project project.sh cannot read is skipped."""
+    source = proj if n == P else read_project(n)
+    if source is None:
+        return []
+    found = []
+    for m in source["parent"]["waitedOnBy"]:
+        q = read_project(m)
+        if q is not None and q["parent"]["startable"]:
+            found.append({"number": m, "title": q["parent"]["title"]})
+    return sorted(found, key=lambda e: e["number"])
 
 def worktrees(main):
     """The worktrees of the clone as [(path, prunable, branch)]. branch is None on a detached HEAD."""
@@ -317,7 +336,7 @@ def start():
             if parent["merged"] and parent["state"] == "OPEN" else []
         emit(status="done", close=close, **out)
     out["close"] = [{"number": d["number"], "title": d["title"], "base": d["base"], "self": False}
-                    for d in parent["dependsOn"] if d["state"] == "OPEN" and d["merged"]]
+                    for d in parent["waitsOn"] if d["state"] == "OPEN" and d["merged"]]
     if not issues:
         emit(status="empty", **out)
 
@@ -326,7 +345,7 @@ def start():
         if any(i["pr"] and i["pr"]["state"] == "MERGED" for i in issues):
             stop("base-gone", "%s is gone from origin, and a pull request into it has merged" % base, **out)
         waits = [{k: d[k] for k in ("number", "title", "state", "base")}
-                 for d in parent["dependsOn"] if not d["merged"]]
+                 for d in parent["waitsOn"] if not d["merged"]]
         if waits:
             stop("waits", "#%d waits on %s" % (P, ", ".join("#%d" % d["number"] for d in waits)), waits=waits, **out)
         ref = api_json("repos/%s/git/ref/heads/%s" % (repo, parent["from"]))
@@ -344,7 +363,7 @@ def start():
 
     found = rules(repo, base, view, main)
     if found["blockedBy"]:
-        stop("self-merge", "%s needs a review that pj3-running cannot give itself" % base,
+        stop("self-merge", "%s needs a review that pj4-running cannot give itself" % base,
              blockedBy=found["blockedBy"], **out)
     if found["mergeMethod"] is None:
         stop("no-merge-method", "the rules on %s leave no merge method that %s allows" % (base, repo), **out)
@@ -352,18 +371,20 @@ def start():
 
 def close():
     n, comment_file = int(ARGS[0]), ARGS[2]
-    state = due(project(P), n)
+    proj = project(P)
+    state = due(proj, n)
+    is_parent = n == P or any(d["number"] == n for d in proj["parent"]["waitsOn"])
     if state == "unknown":
         stop("unknown-issue", "#%d is neither #%d, a project it waits on, nor one of its sub-issues" % (n, P),
              number=n)
     if state == "not-due":
         stop("not-due", "#%d is not due to close" % n, number=n)
     if state == "already":
-        emit(status="closed", number=n, already=True)
+        emit(status="closed", number=n, already=True, startable=startable_after(n, proj) if is_parent else [])
     failed = close_issue(n, comment_file)
     if failed:
         die("cannot %s on #%d: %s" % (failed["step"], n, failed["message"]))
-    emit(status="closed", number=n, already=False)
+    emit(status="closed", number=n, already=False, startable=startable_after(n, proj) if is_parent else [])
 
 def worktree():
     main, wt = located()

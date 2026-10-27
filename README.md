@@ -28,11 +28,11 @@ Or let Claude Code do it. Open `/plugin`, go to Marketplaces, pick `annetaan` an
 
 | Plugin | Install | Skills |
 | --- | --- | --- |
-| [annetaan](plugins/annetaan) | `/plugin install annetaan@annetaan` | [8 skills](plugins/annetaan/README.md#skills) |
+| [annetaan](plugins/annetaan) | `/plugin install annetaan@annetaan` | [9 skills](plugins/annetaan/README.md#skills) |
 
 - [workflow](plugins/annetaan/skills/workflow) runs one implementation, from design to pull request.
-- [pj1-plan, pj2-doctor and pj3-running](plugins/annetaan/README.md#pj1-plan-pj2-doctor-pj3-running) run larger
-  work as projects on GitHub, each task implemented through workflow.
+- [pj1-plan, pj2-issues, pj3-doctor and pj4-running](plugins/annetaan/README.md#pj1-plan-pj2-issues-pj3-doctor-pj4-running)
+  run larger work as projects on GitHub, each task implemented through workflow.
 - [doc-write](plugins/annetaan/README.md#doc-write) and
   [doc-meta, doc-review and doc-revise](plugins/annetaan/README.md#doc-meta) write and revise documents.
 

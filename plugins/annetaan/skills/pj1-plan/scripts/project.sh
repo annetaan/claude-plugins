@@ -2,8 +2,10 @@
 # Reads one project (a parent issue and its sub-issues) from GitHub and prints it as JSON.
 # Read-only on GitHub. --check also fetches the branch the base was made from, and the base branch once it exists,
 # with `git fetch origin`, which moves local refs only.
-# It derives the projects a project waits on from the parents of its sub-issues' blockers (dependsOn), whether its
-# base branch exists on origin (baseExists), and whether a project is merged into the branch it was made from.
+# It reads the projects a project waits on from the parent's own blocked-by (waitsOn), and the projects that wait on
+# it from what the parent blocks (waitedOnBy). It derives whether its base branch exists on origin (baseExists),
+# whether a project is merged into the branch it was made from, and whether a project with no sub-issue can be split
+# into tasks now (startable).
 # The shape it reads is described in ../format.md.
 # This script is the only place that parses a sub-issue body (## Design, ## Acceptance criteria, ## Decisions),
 # the parent's Base: line (the base branch and the branch it was made from) and its ## Order list, and the Implements
@@ -379,43 +381,31 @@ def order_check():
     return {"ok": not unknown and not duplicate and not early, "unknown": unknown, "duplicate": duplicate,
             "early": early, "missing": [n for n in sorted(open_) if n not in position]}
 
-def waits_on_parents(number, subs):
-    """The projects project <number> waits on, as {parent number: parent}: the parents of the blockers of its open
-    sub-issues, other than itself, whose body has a Base: line. A blocker with no parent is ignored."""
+def waits_on_parents(number, blockers):
+    """The projects project <number> waits on, as {parent number: parent}: the issues its parent is blocked by, other
+    than itself. Each has to be a project, a parent whose body has a Base: line. Dies on one that is not."""
     out = {}
-    for s in subs:
-        if s["state"] != "OPEN":
+    for b in blockers:
+        if b["number"] == number:
             continue
-        for b in s["blockedBy"]["nodes"]:
-            par = b.get("parent")
-            if par and par["number"] != number and base_of(par["body"]):
-                out[par["number"]] = par
+        if base_of(b["body"]) is None:
+            die("#%d is blocked by #%d, which is no project" % (number, b["number"]))
+        out[b["number"]] = b
     return out
 
 project_bases = {parent["number"]: base}
-# The parent of every blocker of a sub-issue, open or closed, that has a Base: line, by the blocker's number.
-blocker_project = {}
-for s in parent["subIssues"]["nodes"]:
-    for b in s["blockedBy"]["nodes"]:
-        par = b.get("parent")
-        if par and base_of(par["body"]):
-            blocker_project[b["number"]] = par["number"]
-            project_bases[par["number"]] = base_of(par["body"])[0]
 deps_of = {parent["number"]: {}}
-for n, par in waits_on_parents(parent["number"], parent["subIssues"]["nodes"]).items():
+for n, par in waits_on_parents(parent["number"], parent["blockedBy"]["nodes"]).items():
     project_bases[n] = base_of(par["body"])[0]
     deps_of[parent["number"]][n] = par
 
 def project_deps(n):
     """The projects project n waits on, as {parent number: base}. One query per project, cached."""
     if n not in deps_of:
-        r = graphql("p: issue(number: $n) { subIssues(first: 100) { totalCount nodes { state "
-                    "blockedBy(first: 50) { nodes { parent { number body } } } } } }",
+        r = graphql("p: issue(number: $n) { blockedBy(first: 50) { nodes { number title state stateReason body } } }",
                     ints={"n": n}, what="read project #%d" % n)
-        subs = (r.get("p") or {}).get("subIssues") or {"totalCount": 0, "nodes": []}
-        if subs["totalCount"] > len(subs["nodes"]):
-            die("#%d has more than 100 sub-issues. this script reads the first 100 only" % n)
-        deps_of[n] = waits_on_parents(n, subs["nodes"])
+        blockers = ((r.get("p") or {}).get("blockedBy") or {}).get("nodes") or []
+        deps_of[n] = waits_on_parents(n, blockers)
         for m, par in deps_of[n].items():
             project_bases[m] = base_of(par["body"])[0]
     return {m: project_bases[m] for m in deps_of[n]}
@@ -478,10 +468,10 @@ if MODE in ("project", "check"):
     open_deps = [(d["number"],) + base_of(d["body"]) for d in dep_list if d["state"] == "OPEN"]
     own, dep_stand = branches((base, made_from), open_deps)
     base_exists = own["exists"]
-    depends_on = []
+    waits_on_entries = []
     for d in dep_list:
         st = dep_stand.get(d["number"], {"states": [], "reached": False})
-        depends_on.append({
+        waits_on_entries.append({
             "number": d["number"], "title": d["title"], "state": d["state"], "stateReason": d.get("stateReason"),
             "base": base_of(d["body"])[0], "merged": merged(d, st["states"], st["reached"]),
         })
@@ -492,7 +482,10 @@ if MODE == "project":
                        base=base, **{"from": made_from},
                        baseExists=base_exists,
                        merged=merged(parent, [i["state"] for i in issues], own["reached"]),
-                       dependsOn=depends_on,
+                       waitsOn=waits_on_entries,
+                       waitedOnBy=[b["number"] for b in parent["blocking"]["nodes"] if base_of(b["body"])],
+                       startable=(parent["state"] == "OPEN" and not issues
+                                  and all(d["merged"] for d in waits_on_entries)),
                        order=written,
                        orderCheck=order_check()),
         "issues": issues,
@@ -506,7 +499,7 @@ if MODE == "check":
         die("#%d is not a sub-issue of #%d" % (n, parent["number"]))
     # An explicit refspec, so that a single-branch clone still gets origin/<branch>,
     # and a branch that starts with - is not read as an option.
-    # <from> every time, the base only once pj3-running has created it.
+    # <from> every time, the base only once pj4-running has created it.
     for branch in [made_from] + ([base] if base_exists else []):
         fetch = run("git", "fetch", "--quiet", "origin", "+refs/heads/%s:refs/remotes/origin/%s" % (branch, branch))
         if fetch.returncode != 0:
@@ -518,7 +511,7 @@ if MODE == "check":
     # project this one waits on. Before that the blockers are still meant to change these files.
     failures = []
     evaluated = (all(b["state"] == "CLOSED" for b in issue["blockedBy"])
-                 and (base_exists or all(d["merged"] for d in depends_on)))
+                 and (base_exists or all(d["merged"] for d in waits_on_entries)))
     if evaluated:
         for f in issue["files"]:
             exists = run("git", "cat-file", "-e", "%s:%s" % (ref, f["path"])).returncode == 0
@@ -532,8 +525,8 @@ if MODE == "check":
                         failures.append({"path": f["path"], "symbol": sym, "why": "symbol not found"})
 
     # history: commits on the base branch that touched these files after ready went on, except the ones a blocker's
-    # pull request brought, the merge of a project this one waits on, or a pull request into that project's base
-    # branch, which reaches <from> when the base branch is fast-forwarded into it. No base, no history.
+    # pull request brought, the merge of a project this one waits on, directly or not, or a pull request into that
+    # project's base branch, which reaches <from> when the base branch is fast-forwarded into it. No base, no history.
     stale = []
     if base_exists and issue["readyAt"] and issue["designPaths"]:
         log = run("git", "log", "--first-parent", "--format=%H%x09%s", "--since=" + issue["readyAt"], ref,
@@ -541,8 +534,7 @@ if MODE == "check":
         if log.returncode != 0:
             die("git log failed: " + log.stderr.strip())
         commits = [l.split("\t", 1) for l in log.stdout.splitlines() if l]
-        # The transitive blockedBy: walk the project's issues, closed ones included.
-        # A blocker in another project counts by its number, and is not walked further.
+        # The transitive blockedBy: walk the project's issues, closed ones included. The walk stays inside the project.
         anticipated, todo = set(), [b["number"] for b in issue["blockedBy"]]
         while todo:
             m = todo.pop()
@@ -551,13 +543,8 @@ if MODE == "check":
             anticipated.add(m)
             if m in by_number:
                 todo.extend(b["number"] for b in by_number[m]["blockedBy"])
-        # The projects this issue's work was drawn against: the ones this project waits on, and the projects of the
-        # blockers in its transitive blockedBy, closed ones included, each with the projects it waits on in turn.
-        waited = set()
-        if commits:
-            waited = walk_projects(parent["number"])
-            for q in sorted({blocker_project.get(m) for m in anticipated} - {None, parent["number"]}):
-                waited |= {project_bases[q]} | walk_projects(q)
+        # The projects this issue's work was drawn against: the ones this project waits on, directly or not.
+        waited = walk_projects(parent["number"]) if commits else set()
         for start in range(0, len(commits), 100):
             chunk = commits[start:start + 100]
             fields = " ".join(
@@ -629,12 +616,14 @@ query($owner: String!, $name: String!, $n: Int!) {
   repository(owner: $owner, name: $name) {
     issue(number: $n) {
       number title state stateReason updatedAt body
+      blockedBy(first: 50) { nodes { number title state stateReason body } }
+      blocking(first: 50) { nodes { number body } }
       subIssues(first: 100) {
         totalCount
         nodes {
           number title state stateReason updatedAt body
           labels(first: 50) { nodes { name } }
-          blockedBy(first: 50) { nodes { number state parent { number title state stateReason body } } }
+          blockedBy(first: 50) { nodes { number state parent { number } } }
           blocking(first: 50) { nodes { number } }
           timelineItems(itemTypes: [LABELED_EVENT], last: 100) {
             nodes { ... on LabeledEvent { createdAt label { name } } }
