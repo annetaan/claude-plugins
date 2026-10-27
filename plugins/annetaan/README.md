@@ -157,7 +157,7 @@ up. The skill checks that git ignores that directory before it writes anything, 
 
 These four skills run a piece of work too large for one pull request as one or more projects on GitHub. A project is
 a parent issue labelled `project`, which holds that project's design and its run order, plus one sub-issue per task,
-at most ten tasks per project. A project that waits on another is blocked by it, parent to parent, through GitHub's
+at most ten tasks per project. A task touches eight files at most, tests included. A project that waits on another is blocked by it, parent to parent, through GitHub's
 own blocked-by relationship. Blocked-by between sub-issues stays inside one project. Projects that wait on nothing
 between them run in parallel, and `pj1-plan` shows them as stages. The run order is a numbered list in the parent,
 `1. #12`, `2. #13`, and GitHub shows each line with the issue's title and whether it is closed, so the list doubles as
@@ -192,7 +192,9 @@ questions. You approve the split, any change to the parent shown as a diff, and 
 one issue writer per task, in parallel, draws its task against the code and picks out what you have to decide. The
 design is written so that it holds whichever box you tick. The sub-issues, their blocked-by inside the project, the
 run order and the titles are filed. A project that waits on one not merged yet is refused. When a project it waits
-on was closed without a merge, it asks whether to drop that wait.
+on was closed without a merge, it asks whether to drop that wait. When the planner finds that the project needs
+another project that is not merged yet, `pj2-issues` asks whether to add that wait. On yes, it adds the blocked-by
+between the two parents and stops without filing anything else.
 
 `/annetaan:pj3-doctor` ([details](skills/pj3-doctor/SKILL.md)) asks which project to work on, every time, among
 the projects that have sub-issues. A
@@ -264,6 +266,11 @@ What they need:
 
 The `ready`, `blocker` and `project` labels are created when missing, and a label that already exists is reused as
 it is.
+
+`pj4-running` asks up to two more questions before its first issue. When git does not ignore `.claude/worktrees/`
+or `work-reports/`, it asks to add them to `.git/info/exclude`. That file stays in your clone, so nothing is
+committed, and `.gitignore` is never edited. When an earlier run stopped with uncommitted work in the worktree, it
+asks whether to discard that work. The next run redoes it either way.
 
 ### doc-write
 
