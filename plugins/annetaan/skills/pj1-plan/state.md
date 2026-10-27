@@ -50,8 +50,9 @@ project.sh --lint <file>     # the lint of one body, from a file, or from standa
 - `order` is the numbers under `## Order`, as written. `orderCheck.ok` is false when the list names a number that is
   no sub-issue (`unknown`), names one twice (`duplicate`), or puts an open issue before an open blocker of the same
   project (`early`). `missing` is the open sub-issues the list leaves out, and does not make it false.
-- `wantedTitle` is the title with the decision count from `format.md` **The title**. A skill edits the issue's title
-  when the two differ (`between-skills.md`, **Titles**).
+- `wantedTitle` is the title with the decision count from `format.md` **The title**. Every sub-issue carries it, closed
+  ones included. A skill edits an open issue's title when the two differ, and never retitles a closed one
+  (`between-skills.md`, **Titles**).
 - `parent` in `blockedBy` is the number of the blocker's parent issue, or null.
 - `readyAt` is the time of the last `ready` labelled event on the issue, or null.
 - `pr` is the issue's pull request, open or merged (see **The pull request of an issue** below), or null. Its `state`
