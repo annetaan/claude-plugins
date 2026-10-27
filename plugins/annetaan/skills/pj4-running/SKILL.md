@@ -347,7 +347,7 @@ Nothing runs in parallel. There is one worktree, `<WT>`. For each issue `<k>` in
        as its body makes the next run merge it. Deleting `<branch>` makes the next run redo the issue.
      - **`stop`** with `checked-out`: stop the run, and name the worktree in `worktree` that holds `<branch>`.
 4. **Run From an issue.** These are what it expects you to have settled, so say them in your context before you
-   start it: `n` (= `<k>`), `P`, the issue title, the projects `<P>` waits on (the `parent.dependsOn` numbers, or
+   start it: `n` (= `<k>`), `P`, the issue title, the projects `<P>` waits on (the `parent.waitsOn` numbers, or
    none), the base branch, the branch you just made, the handover notes, and the paths `<WT>` and `<MAIN>`.
 
 ### Unplanned work

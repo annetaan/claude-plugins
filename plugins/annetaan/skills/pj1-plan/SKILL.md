@@ -213,7 +213,7 @@ $PLAN/scripts/project.sh <P> --order
 
 The fields are in `$PLAN/state.md` under **Reading a project**. `parent.base` is `pj/<P>`, `parent.from` is
 `<from>`, `parent.baseExists` is false, and `parent.orderCheck.ok` is true with `missing` empty. The numbers in
-`parent.dependsOn` are the parents of the projects this one waits on in the plan. Every task of the project is there,
+`parent.waitsOn` are the parents of the projects this one waits on in the plan. Every task of the project is there,
 its `blockedBy` matches the split, across projects included, with the `parent` of each blocker matching the project
 of that task, the decision counts and the lint match the bodies, every sub-issue's `title` equals its
 `wantedTitle`, and `--order` finds no cycle of either kind. Report anything that does not match.

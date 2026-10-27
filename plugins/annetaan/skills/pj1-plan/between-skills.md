@@ -48,7 +48,7 @@ gh repo view --json nameWithOwner,hasIssuesEnabled,defaultBranchRef
 ## The base branch
 
 Only `pj4-running` creates `pj/<P>`. It does so when it starts on the project, the base branch does not exist yet,
-and every project in `dependsOn` is `merged` (`state.md`, **When a project is merged**), which always holds for a
+and every project in `waitsOn` is `merged` (`state.md`, **When a project is merged**), which always holds for a
 project that waits on none. It cuts the base branch from the tip of `<from>`, the branch the parent's `Base:` line
 names after `from` (`format.md`, **The parent issue body**), through the GitHub API, in `run.sh start`
 (`pj4-running/scripts/run.sh`).

@@ -192,7 +192,7 @@ def due(proj, n):
     parent = proj["parent"]
     if n == parent["number"]:
         return "already" if parent["state"] == "CLOSED" else "due" if parent["merged"] else "not-due"
-    for d in parent["dependsOn"]:
+    for d in parent["waitsOn"]:
         if d["number"] == n:
             return "already" if d["state"] == "CLOSED" else "due" if d["merged"] else "not-due"
     for i in proj["issues"]:
@@ -317,7 +317,7 @@ def start():
             if parent["merged"] and parent["state"] == "OPEN" else []
         emit(status="done", close=close, **out)
     out["close"] = [{"number": d["number"], "title": d["title"], "base": d["base"], "self": False}
-                    for d in parent["dependsOn"] if d["state"] == "OPEN" and d["merged"]]
+                    for d in parent["waitsOn"] if d["state"] == "OPEN" and d["merged"]]
     if not issues:
         emit(status="empty", **out)
 
@@ -326,7 +326,7 @@ def start():
         if any(i["pr"] and i["pr"]["state"] == "MERGED" for i in issues):
             stop("base-gone", "%s is gone from origin, and a pull request into it has merged" % base, **out)
         waits = [{k: d[k] for k in ("number", "title", "state", "base")}
-                 for d in parent["dependsOn"] if not d["merged"]]
+                 for d in parent["waitsOn"] if not d["merged"]]
         if waits:
             stop("waits", "#%d waits on %s" % (P, ", ".join("#%d" % d["number"] for d in waits)), waits=waits, **out)
         ref = api_json("repos/%s/git/ref/heads/%s" % (repo, parent["from"]))

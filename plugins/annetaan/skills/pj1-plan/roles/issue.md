@@ -94,7 +94,7 @@ gh issue view <P> --json title,body,labels,comments,updatedAt
 gh issue view <Q> --json title,body,labels,comments,updatedAt
 ```
 
-`<Q>` is each parent in `parent.dependsOn` of the `project.sh <P>` JSON. Their `## Design` holds the boundaries those
+`<Q>` is each parent in `parent.waitsOn` of the `project.sh <P>` JSON. Their `## Design` holds the boundaries those
 projects define, which this project matches (`format.md`, **The parent issue body**). Read the sibling issues the
 findings name the same way. A marked comment says why `ready` came off. **A comment with no marker is a human
 speaking.** An answer written there, or an option line a human added and ticked, is worked into the body.

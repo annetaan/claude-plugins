@@ -29,7 +29,7 @@ a project goes past ten, it stays one project, and nobody asks whether to split 
 
 **Project P waits on project Q** when an open sub-issue of P is blocked by a sub-issue of Q, open or closed. That
 edge is the only record of it. Parents get no relationships of their own, and no parent body names another project.
-`project.sh` derives the projects P waits on as `parent.dependsOn`. **No cycles between projects.**
+`project.sh` derives the projects P waits on as `parent.waitsOn`. **No cycles between projects.**
 
 **An edge across projects may be added only while the blocked project has no base branch.** The base branch is cut
 from `<from>` once, and has no way to take in another project's work later. Once it exists, work the project needs
@@ -86,7 +86,7 @@ holds, and it says the order, not what the tasks are.
 
 `## Design` holds only the boundaries this project defines. A boundary another project defines stays in that
 project's parent. Whoever reads the parent's `## Design`, the issue writer and the `workflow` skill alike, also reads
-the `## Design` of every parent in `dependsOn`.
+the `## Design` of every parent in `waitsOn`.
 
 ### The run order
 

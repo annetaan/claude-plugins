@@ -345,7 +345,7 @@ the numbers.
 - the next step: `/annetaan:pj3-doctor` again only when a decision or a `design` finding is left, never just to put
   `ready` on. `/annetaan:pj4-running` when the first open issue of the run order is `ready`. It works down the
   order and stops at the first issue that is not workable. When `parent.baseExists` is false and a project in
-  `parent.dependsOn` is not `merged`, add one sentence: `pj4-running` starts this project after each such `#<Q>` is
+  `parent.waitsOn` is not `merged`, add one sentence: `pj4-running` starts this project after each such `#<Q>` is
   merged into `<from>`.
 
 ## Rules

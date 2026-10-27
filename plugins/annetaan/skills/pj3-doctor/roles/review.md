@@ -25,7 +25,7 @@ gh issue view <P> --json title,body,labels,comments,updatedAt
 gh issue view <Q> --json title,body,labels,comments,updatedAt
 ```
 
-Read every open sub-issue of `P`, the parent `P`, and each parent `Q` in `parent.dependsOn`. A comment with no marker
+Read every open sub-issue of `P`, the parent `P`, and each parent `Q` in `parent.waitsOn`. A comment with no marker
 is a human speaking. Weigh it as one.
 
 **Read the code where `--check` read it**: at `origin/<base>` when `baseExists` is true, else at `origin/<from>`.
