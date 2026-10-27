@@ -22,10 +22,12 @@ GitHub until the finish step opens a pull request or pushes.
 
 ### The pj skills drive workflow
 
-The pj skills are for work too large for one pull request, and they write no code themselves. `pj1-plan` splits the
-work into a parent issue and its sub-issues. You tick the decisions on GitHub. `pj3-doctor` makes the issues ready.
-`pj4-running` runs `workflow` once per sub-issue, merges each pull request into the project's branch and closes the
-issue, and at the end opens the pull request that takes the project's branch back. The three pass nothing to each other through the conversation. Each one reads the project from GitHub afresh.
+The pj skills are for work too large for one pull request, and they write no code themselves. `pj1-plan` cuts the
+work into projects, each a parent issue. A parent is blocked by the parents of the projects it waits on. `pj2-issues`
+splits one project into sub-issues once every project it waits on is merged. You tick the decisions on GitHub.
+`pj3-doctor` makes the issues ready. `pj4-running` runs `workflow` once per sub-issue, merges each pull request into
+the project's branch and closes the issue, and at the end opens the pull request that takes the project's branch
+back. The four pass nothing to each other through the conversation. Each one reads the project from GitHub afresh.
 
 Which skill to start with:
 
@@ -43,7 +45,8 @@ In short, from [format.md](skills/pj1-plan/format.md)'s The parts:
 | a project | parent issue, label `project` |
 | a task | a sub-issue |
 | your decisions | ticked checkboxes |
-| an order between tasks | blocked-by |
+| an order between projects | blocked-by between the parents |
+| an order between tasks | blocked-by inside one project |
 | the run order | the parent's `## Order` |
 | can run | `ready` label |
 | stopped on | `blocker` label |
@@ -67,7 +70,7 @@ flowchart TB
     end
     subgraph pj["pj skills"]
         direction LR
-        plan["pj1-plan"] --> doctor["pj3-doctor"] --> running["pj4-running"]
+        plan["pj1-plan"] --> issues["pj2-issues"] --> doctor["pj3-doctor"] --> running["pj4-running"]
     end
     wf["workflow"]
     you -.->|"tick decisions"| gh
@@ -150,14 +153,15 @@ Every run leaves a work report behind, inside the repository under `work-reports
 up. The skill checks that git ignores that directory before it writes anything, and asks before touching
 `.gitignore`.
 
-### pj1-plan, pj3-doctor, pj4-running
+### pj1-plan, pj2-issues, pj3-doctor, pj4-running
 
-These three skills run a piece of work too large for one pull request as one or more projects on GitHub. A project is a
-parent issue labelled `project`, which holds that project's design and its run order, plus one sub-issue per task, at
-most ten tasks per project. The dependencies are GitHub's own blocked-by relationships, and one may run from a task
-in one project to a task in another. The run order is a numbered list in the parent, `1. #12`, `2. #13`, and GitHub
-shows each line with the issue's title and whether it is closed, so the list doubles as the progress. You may reorder
-it by hand.
+These four skills run a piece of work too large for one pull request as one or more projects on GitHub. A project is
+a parent issue labelled `project`, which holds that project's design and its run order, plus one sub-issue per task,
+at most ten tasks per project. A project that waits on another is blocked by it, parent to parent, through GitHub's
+own blocked-by relationship. Blocked-by between sub-issues stays inside one project. Projects that wait on nothing
+between them run in parallel, and `pj1-plan` shows them as stages. The run order is a numbered list in the parent,
+`1. #12`, `2. #13`, and GitHub shows each line with the issue's title and whether it is closed, so the list doubles as
+the progress. You may reorder it by hand.
 
 You decide by ticking boxes on GitHub. Every question a task raises is a decision in its sub-issue, a few options as
 checkboxes with one recommended, and each option says what it changes. No skill asks you a task's decision in the
@@ -166,22 +170,32 @@ count goes away once every one is. Ticking a box leaves the title as it is until
 
 Each project's work lands on a branch of its own, `pj/` and the parent's number. `pj4-running` creates it on the
 project's first run, from a branch you pick when the projects are filed, the default branch unless you name another.
-A project that waits on another gets its branch only after the other one is merged into that branch. Every
+A project that waits on another is split into issues, and gets its branch, only after the other one is merged into
+that branch. Every
 sub-issue's pull request merges into its project's branch. Once every sub-issue is closed, `pj4-running` opens the
 pull request that takes that branch back into the branch it came from, and merging it is left to you. After that the parent is closed, by the next `pj4-running` run or by you, and
 a closed parent means its project is merged. [How the skills fit together](#how-the-skills-fit-together) says where
 the state lives. [format.md](skills/pj1-plan/format.md) describes the issues and their bodies,
 [state.md](skills/pj1-plan/state.md) how the state of a project is read, and
-[between-skills.md](skills/pj1-plan/between-skills.md) how the three skills work together.
+[between-skills.md](skills/pj1-plan/between-skills.md) how the four skills work together.
 
 `/annetaan:pj1-plan` ([details](skills/pj1-plan/SKILL.md)) starts with a planner session. It draws the whole in
-broad strokes, splits it into tasks, and groups the tasks into projects of up to ten. You answer the plan-level
-questions, approve the split and pick the branch the projects start from. Nothing reaches GitHub before that. Then
-one issue writer per task, in parallel, draws its task against the code and picks out what you have to decide. The
-design is written so that it holds whichever box you tick. The parents, their run order and their sub-issues are
-filed. No branch is created yet, and no issue is `ready` yet.
+broad strokes and cuts it into projects of about 7 to 8 tasks, at most ten, with the dependencies between them. You
+answer the plan-level questions and see the projects in stages, with the reason for each wait. You approve them and
+pick the branch the projects start from. Nothing reaches GitHub before that. Then one parent issue per project is
+filed, blocked by the parents it waits on. No sub-issue and no branch is created yet, and no issue is `ready` yet.
 
-`/annetaan:pj3-doctor` ([details](skills/pj3-doctor/SKILL.md)) asks which project to work on, every time. A
+`/annetaan:pj2-issues` ([details](skills/pj2-issues/SKILL.md)) asks which project to split. It offers the projects
+with no sub-issue yet whose waited-on projects are all merged, and recommends the lowest-numbered one. A planner
+session splits the project against the code as it stands after those merges, and you answer the split-level
+questions. You approve the split, any change to the parent shown as a diff, and any change to its blocked-by. Then
+one issue writer per task, in parallel, draws its task against the code and picks out what you have to decide. The
+design is written so that it holds whichever box you tick. The sub-issues, their blocked-by inside the project, the
+run order and the titles are filed. A project that waits on one not merged yet is refused. When a project it waits
+on was closed without a merge, it asks whether to drop that wait.
+
+`/annetaan:pj3-doctor` ([details](skills/pj3-doctor/SKILL.md)) asks which project to work on, every time, among
+the projects that have sub-issues. A
 reviewer session reads the whole project against the boxes you ticked, the code, and each issue in it: a ticked
 option the design does not hold, two issues that disagree on a name, a missing blocked-by, a stub, a blocker. One
 issue writer per issue with a finding redraws it, and a question only you can answer becomes a new decision to tick.
@@ -189,7 +203,8 @@ The reviewer reads the rewrites once more. A finding it then tags as a pure text
 back to the writer and is checked against the reviewer's strings with no third review, so the issue can still be
 labelled `ready` in the same run. The doctor asks you only about a split, two boxes ticked in one decision, and the
 changes before it writes them. Then it rewrites the run order and labels `ready` every issue that came out
-clear. Run it once after `pj1-plan`, tick the boxes it lists, and run it again.
+clear. While the project's branch does not exist yet, it may also change which projects this one waits on, after
+you approve. Run it once after `pj2-issues`, tick the boxes it lists, and run it again.
 
 `/annetaan:pj4-running` ([details](skills/pj4-running/SKILL.md)) asks which project to work on, the same way. On the
 project's first run it creates the project's branch. When a project it waits on is not merged yet, it lists those
@@ -204,31 +219,36 @@ request follows, with the work report as its body. Then the merge into the proje
 repository allows it. pj4-running then closes the issue itself, because GitHub closes nothing on a merge into a
 branch other than the default. Once every sub-issue is closed, it opens the pull request from the project's branch
 into the branch it came from, for you to merge. Work nobody planned becomes a new issue. Work that has to
-come first stops the run and gets the `blocker` label. The next run picks up where this one stopped.
+come first stops the run and gets the `blocker` label. The next run picks up where this one stopped. When it finds
+a project merged and closes its parent, it names the projects that can now be split, as `/annetaan:pj2-issues` with
+their numbers.
 
 ```
 /annetaan:pj1-plan add CSV export to every report screen
+/annetaan:pj2-issues
 /annetaan:pj3-doctor
 /annetaan:pj3-doctor
 /annetaan:pj4-running
 ```
 
-Tick the open decisions on GitHub between the two `pj3-doctor` runs. The doctor and the runner always ask which
-project, and an issue number passed after either one puts its project first.
+Tick the open decisions on GitHub between the two `pj3-doctor` runs. `pj2-issues`, the doctor and the runner always
+ask which project, and an issue number passed after any of them puts its project first. Each later project starts
+again from `/annetaan:pj2-issues` once the projects it waits on are merged.
 
 ```mermaid
 flowchart TD
-    req(["your request"]) --> plan["pj1-plan<br/>planner splits the work into<br/>projects of up to ten tasks,<br/>issue writers draw each task"]
-    plan --> approve(["you approve the split"]) --> filed["a parent issue per project,<br/>labelled project, with its run order,<br/>and its sub-issues<br/>decisions as checkboxes,<br/>dependencies as blocked-by"]
-    filed --> doctor["pj3-doctor<br/>reviewer reads the whole project,<br/>writers redraw what does not hold,<br/>run order rewritten, ready on what is clear"]
+    req(["your request"]) --> plan["pj1-plan<br/>planner cuts the work into<br/>projects of up to ten tasks,<br/>with the waits between them"]
+    plan --> approve(["you approve the projects and their stages"]) --> filed["a parent issue per project,<br/>labelled project,<br/>blocked-by between parents"]
+    filed --> split["pj2-issues, per project<br/>once what it waits on is merged:<br/>planner splits it, issue writers draw each task,<br/>sub-issues, run order"]
+    split --> doctor["pj3-doctor<br/>reviewer reads the whole project,<br/>writers redraw what does not hold,<br/>run order rewritten, ready on what is clear"]
     doctor --> run["pj4-running, per project<br/>makes its branch on the first run,<br/>then down the run order: branch, workflow,<br/>draft pull request, merge<br/>into the project's branch"]
     run -->|"stub or blocker"| doctor
     run -->|"all merged"| pr["pj4-running opens the pull request<br/>from the project's branch<br/>into the branch it came from"]
     pr --> done(["you merge it,<br/>then its parent closes"])
-    done -.->|"a project that waits on it"| run
+    done -.->|"a project that waits on it"| split
 
-    you(["you, on GitHub"]) -.->|"tick a box,<br/>reorder the run order"| filed
-    filed -.->|"after ticking"| doctor
+    you(["you, on GitHub"]) -.->|"tick a box,<br/>reorder the run order"| split
+    split -.->|"after ticking"| doctor
 
     classDef human fill:#fff,stroke:#888,stroke-dasharray: 5 5
     class req,approve,you,done human
@@ -321,8 +341,8 @@ The model and the effort are pinned here, and a skill selects one by name alone.
 | `annetaan:workflow-design-review` | fable | medium | design review. once, before approval, where the repository accepts breaking changes |
 | `annetaan:workflow-worker` | opus | medium | implementation, for every task |
 | `annetaan:workflow-reviewer` | opus | medium | review, for every task, and the integration review when the plan has more than one task |
-| `annetaan:pj-planner` | opus | high | planning for `pj1-plan`. the projects, their designs, and the split into tasks |
-| `annetaan:pj-issue-writer` | opus | high | one sub-issue, drawn against the code. drafts it for `pj1-plan`, revises it for `pj3-doctor` |
+| `annetaan:pj-planner` | opus | high | planning for `pj1-plan` and `pj2-issues`. the projects, their designs and the waits between them, then one project's split into tasks |
+| `annetaan:pj-issue-writer` | opus | high | one sub-issue, drawn against the code. drafts it for `pj2-issues`, revises it for `pj3-doctor` |
 | `annetaan:pj-reviewer` | opus | high | project review for `pj3-doctor`. reads the whole project against the ticked boxes, the code and each issue |
 | `annetaan:doc-meta-overview` | opus | high | overview for `doc-meta`. finds what a per-sentence flag misses |
 
