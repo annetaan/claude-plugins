@@ -344,12 +344,12 @@ The model and the effort are pinned here, and a skill selects one by name alone.
 
 | Agent | Model | Effort | Role |
 | --- | --- | --- | --- |
-| `annetaan:workflow-design` | opus | high | design. returns the design and the plan |
+| `annetaan:workflow-design` | opus | medium | design. returns the design and the plan |
 | `annetaan:workflow-design-review` | fable | medium | design review. once, before approval, where the repository accepts breaking changes |
-| `annetaan:workflow-worker` | opus | medium | implementation, for every task |
+| `annetaan:workflow-worker` | sonnet | medium | implementation, for every task |
 | `annetaan:workflow-reviewer` | opus | medium | review, for every task, and the integration review when the plan has more than one task |
 | `annetaan:pj-planner` | opus | high | planning for `pj1-plan` and `pj2-issues`. the projects, their designs and the waits between them, then one project's split into tasks |
-| `annetaan:pj-issue-writer` | opus | high | one sub-issue, drawn against the code. drafts it for `pj2-issues`, revises it for `pj3-doctor` |
+| `annetaan:pj-issue-writer` | opus | medium | one sub-issue, drawn against the code. drafts it for `pj2-issues`, revises it for `pj3-doctor` |
 | `annetaan:pj-reviewer` | opus | high | project review for `pj3-doctor`. reads the whole project against the ticked boxes, the code and each issue |
 | `annetaan:doc-meta-overview` | opus | high | overview for `doc-meta`. finds what a per-sentence flag misses |
 

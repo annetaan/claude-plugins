@@ -68,8 +68,8 @@ produced. A plan that turns out to be wrong surfaces there, before anybody write
 **Five review rounds per task, fixed.** A task that does not settle in five comes back to you with the open points
 laid out, and its changes stay uncommitted in the working tree. Saying "stop" partway through the rounds works too.
 
-The implementation and review sessions **start fresh for every task**, and both run on opus at medium effort,
-whatever the task. A task boundary is a cheap place to
+The implementation and review sessions **start fresh for every task**, implementation on sonnet and review on opus,
+both at medium effort, whatever the task. A task boundary is a cheap place to
 start over. The code is in git, the plan is with the orchestrator, and every review finding is resolved. What is left
 is how this repository wants to be worked in, and that rides along as **handover notes**: five lines from each
 session, folded together, capped at fifteen.
@@ -158,6 +158,6 @@ screenshots it could not attach.
 | `review-files.md` | the shape of the review files, read by the review and implementation sessions |
 
 The design, implementation and review sessions run on agents that ship with the plugin (`../../agents/`). Design is
-`annetaan:workflow-design` (opus / high). The design review is `annetaan:workflow-design-review` (fable / medium),
-once before approval. Implementation is `annetaan:workflow-worker` and review is
-`annetaan:workflow-reviewer`, both opus / medium. The full list is in [the plugin README](../../README.md).
+`annetaan:workflow-design` (opus / medium). The design review is `annetaan:workflow-design-review` (fable / medium),
+once before approval. Implementation is `annetaan:workflow-worker` (sonnet / medium) and review is
+`annetaan:workflow-reviewer` (opus / medium). The full list is in [the plugin README](../../README.md).
