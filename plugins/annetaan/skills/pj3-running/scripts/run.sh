@@ -3,7 +3,8 @@
 # The judgment and the questions stay in the skill. --discard and --add carry the user's answers back.
 # Writes on GitHub: start creates the project's base branch through the API when it is due, and close comments on an
 # issue and closes it as completed. merge marks the pull request ready, merges it, comments on and closes the issue,
-# and deletes the head branch on origin. Writes in git: start and worktree fetch the base branch into origin/<base>,
+# and deletes the head branch on origin. pr opens the pull request from the base branch into the branch it was made
+# from, once every sub-issue is closed. Writes in git: start and worktree fetch the base branch into origin/<base>,
 # worktree creates and moves the run's worktree, branch creates the issue's branch in <WT>, merge moves <WT> onto the
 # merged base and deletes the local head branch, and ignore --add appends to the clone's info/exclude.
 # It reads the project with ../../pj1-plan/scripts/project.sh, and never parses an issue body itself.
@@ -20,6 +21,7 @@ usage: run.sh start <P>                       check the clone, gh and the reposi
        run.sh branch <P> <branch>             create <branch> in the run's worktree from the tip of origin/<base>
        run.sh merge <P> <k> <m> --comment <file> [--wait <seconds>]
                                               wait for the required checks, merge #<m> into the base branch, close #<k>, delete the head branch
+       run.sh pr <P> --body <file>            open the pull request from the base branch into <from>, once every sub-issue is closed
 Every subcommand prints one JSON object with "status" and exits 0. "stop" carries "reason" and "message".
 Exit 1 means a usage error or an unexpected failure.
 USAGE
@@ -46,6 +48,8 @@ case "$1" in
               [ "$7" = "--wait" ] || usage
               number "the wait in seconds" "$8"
             fi ;;
+  pr)       [ $# -eq 4 ] && [ "$3" = "--body" ] || usage
+            [ -f "$4" ] || die "no such file: $4" ;;
   *)        usage ;;
 esac
 
@@ -549,7 +553,35 @@ def merge():
          method=None if merged_earlier else found["mergeMethod"], mergedEarlier=merged_earlier, issue=closed,
          errors=errors)
 
-{"start": start, "close": close, "worktree": worktree, "ignore": ignore, "branch": branch, "merge": merge}[SUB]()
+def project_pr():
+    body = ARGS[1]
+    proj = project(P)
+    parent, issues = proj["parent"], proj["issues"]
+    base, frm = parent["base"], parent["from"]
+    out = {"base": base, "from": frm}
+    if parent["merged"]:
+        stop("merged", "#%d is merged into %s" % (P, frm), **out)
+    if not issues or any(i["state"] == "OPEN" for i in issues):
+        stop("not-due", "#%d has open sub-issues, or none at all" % P, **out)
+    if not parent["baseExists"]:
+        stop("base-gone", "%s is gone from origin" % base, **out)
+    r = run("gh", "pr", "list", "--head", base, "--base", frm, "--state", "open", "--json", "number,url")
+    if r.returncode != 0:
+        die("cannot list the pull requests from %s: %s" % (base, r.stderr.strip()))
+    found = sorted(json.loads(r.stdout), key=lambda p: p["number"])
+    if found:
+        emit(status="exists", pr=found[0]["number"], url=found[0]["url"], **out)
+    # --head names a branch that is on origin already, so gh pushes nothing.
+    r = run("gh", "pr", "create", "--base", frm, "--head", base, "--title", parent["title"], "--body-file", body)
+    if r.returncode != 0:
+        stop("create-failed", "cannot open the pull request from %s into %s: %s" % (base, frm, r.stderr.strip()),
+             **out)
+    url = r.stdout.strip().splitlines()[-1]
+    m = re.search(r"/pull/(\d+)$", url)
+    emit(status="opened", pr=int(m.group(1)) if m else None, url=url, **out)
+
+{"start": start, "close": close, "worktree": worktree, "ignore": ignore, "branch": branch, "merge": merge,
+ "pr": project_pr}[SUB]()
 PY
 
 exec python3 -c "$PY" "$PROJECT_SH" "$@"
