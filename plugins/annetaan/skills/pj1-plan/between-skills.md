@@ -1,22 +1,26 @@
 # How the pj skills work together
 
-This file holds what `pj1-plan`, `pj3-doctor` and `pj4-running` agree on between them: who creates the base
-branch, the labels, the comments, the pull requests and how they write to GitHub. All three skills read it first.
+This file holds what `pj1-plan`, `pj2-issues`, `pj3-doctor` and `pj4-running` agree on between them: who creates
+the base branch, the labels, the comments, the pull requests and how they write to GitHub. All four skills read it
+first.
 The project reviewer looks up **Blockers**, and the `workflow` skill's **From an issue** looks up **Pull requests**.
 The issues and their bodies are in `format.md`, and how `project.sh` judges a project is in `state.md`, both next to
 this file.
 
-## The three skills
+## The four skills
 
 | Skill | What it does |
 | --- | --- |
-| `pj1-plan` | designs the whole in broad strokes, splits it into tasks, groups the tasks into projects of up to ten, and files one parent issue per project with its run order and one sub-issue per task with the decisions it needs |
+| `pj1-plan` | designs the whole in broad strokes, cuts it into projects of up to ten tasks, and files one parent issue per project, with blocked-by relationships between the parents |
+| `pj2-issues` | splits one project into tasks once every project it waits on is merged, and files its sub-issues with the decisions they need, the blocked-by relationships inside the project, the run order and the titles |
 | `pj3-doctor` | reviews a whole project against the boxes the user ticked and the code, has the issue writers redraw what no longer holds, draws the stubs, resolves the blockers, rewrites the run order and the titles, and labels an issue `ready` |
 | `pj4-running` | creates a project's base branch when it first starts on the project, then works down the run order one pull request at a time, running the `workflow` skill on each and merging it into the base branch before the next starts, and once every sub-issue is closed, opens the pull request from the base branch into the branch it was made from |
 
 **The user decides by ticking boxes on GitHub.** Every question a task raises is a decision in its sub-issue
-(`format.md`, **Decisions**). No skill asks a task's decision in the conversation. `pj3-doctor` talks with the user
-about everything else: a split, two boxes ticked in one decision, and its changes before they are written.
+(`format.md`, **Decisions**). No skill asks a task's decision in the conversation. `pj1-plan` and `pj2-issues` ask
+only the questions that change the cut into projects, the split into tasks, or a parent's `## Design`. `pj3-doctor`
+talks with the user about everything else: a split, two boxes ticked in one decision, and its changes before they are
+written.
 
 ## Principle
 
@@ -100,27 +104,41 @@ first thing `pj3-doctor` takes up.
 
 ## Picking the project
 
-`pj3-doctor` and `pj4-running` always ask which project to work on, with `AskUserQuestion`, even when they were
-given a number. List the open parents, and read the number they were given, if any.
+`pj2-issues`, `pj3-doctor` and `pj4-running` always ask which project to work on, with `AskUserQuestion`, even when
+they were given a number. List the open parents, and read the number they were given, if any.
 
 ```bash
 gh issue list --label project --state open --limit 100 --json number,title,subIssuesSummary --jq 'sort_by(.number)'
 gh issue view <n> --json number,state,labels,parent
 ```
 
-- The recommended project is the parent of the number given when that is a sub-issue, or the number itself when it
-  carries `project`. When the recommended project is not in the list, say so in one line and ask without a
-  recommendation.
-- First print every project, one line each: `#<P> <title> (<completed> of <total> sub-issues closed)`.
-- The question has the header `Project` and at most 4 options: the recommended project first, marked
-  `(Recommended)`, then the rest by number. With one project only, the second option is `Stop`. The free-text answer
-  accepts any `#<P>` from the list.
-- When the list is empty, stop.
+The candidates differ by skill.
+
+- **`pj2-issues`**: the open parents whose `subIssuesSummary.total` is 0. Read `project.sh <P>` for each one. First
+  print every candidate, one line each, naming the entries of `parent.waitsOn` that are not `merged`:
+  - `#<P> <title> (startable)` when `parent.startable` is true
+  - `#<P> <title> (waits on #<Q>, closed without a merge)` when every such entry is `CLOSED`. That project is
+    pickable too. The check of `pj2-issues` asks to remove those relationships
+  - `#<P> <title> (waits on #<Q>, #<R>)` otherwise
+
+  Only the startable and the pickable candidates become options. The recommended project is the number given when it
+  is one of those, or else the lowest-numbered startable one, or else the lowest-numbered pickable one. The free-text
+  answer accepts any `#<P>` from the list. A candidate that is neither goes to the check of `pj2-issues` itself, which
+  refuses it. When no candidate is startable or pickable, print the list and stop without asking.
+- **`pj3-doctor` and `pj4-running`**: the open parents whose `subIssuesSummary.total` is 1 or more. The recommended
+  project is the parent of the number given when that is a sub-issue, or the number itself when it carries
+  `project`. When the recommended project is not in the list, say so in one line and ask without a recommendation.
+  First print every candidate, one line each: `#<P> <title> (<completed> of <total> sub-issues closed)`. The
+  free-text answer accepts any `#<P>` from the list.
+
+For every skill, the question has the header `Project` and at most 4 options: the recommended project first, marked
+`(Recommended)`, then the rest by number. With one option only, the second option is `Stop`. When the list of
+candidates is empty, stop.
 
 ## Titles
 
-The count in a sub-issue title (`format.md`, **The title**) is written only by `pj1-plan` and `pj3-doctor`, each with
-one title sync after its bodies are on GitHub. The sync is this block, run once per parent.
+The count in a sub-issue title (`format.md`, **The title**) is written only by `pj2-issues` and `pj3-doctor`, each
+with one title sync after its bodies are on GitHub. The sync is this block, run once per parent.
 
 ```bash
 project.sh <P>
@@ -189,8 +207,8 @@ Every comment a skill's main session posts starts with a bold marker, then the t
 
 **A comment with no marker is from a human.** A skill reads it as one.
 
-`pj1-plan` files issues and posts no comments. The review of a pull request lives in the review files of its work
-report (the `workflow` skill), so a pull request carries no review-thread markers.
+`pj1-plan` and `pj2-issues` file issues and post no comments. The review of a pull request lives in the review files
+of its work report (the `workflow` skill), so a pull request carries no review-thread markers.
 
 ## Pull requests
 

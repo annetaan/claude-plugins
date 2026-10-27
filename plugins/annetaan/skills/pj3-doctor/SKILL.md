@@ -30,7 +30,7 @@ This skill uses these files:
 
 - the script `$DOCTOR/../pj1-plan/scripts/project.sh`, written `project.sh` below
 - the reviewer's role file `$DOCTOR/roles/review.md`
-- the issue writer's role file `$DOCTOR/../pj1-plan/roles/issue.md`
+- the issue writer's role file `$DOCTOR/../pj2-issues/roles/issue.md`
 
 **Language**: talk to the user in the user's language. Write issue text in the repository's language, as `format.md`
 says.
@@ -120,7 +120,7 @@ An answer here is the user's decision, so the writer of that issue works it into
 
 ```
 Agent(subagent_type: "annetaan:pj-issue-writer", description: "revise #<n>", run_in_background: true,
-      prompt: "Read $DOCTOR/../pj1-plan/roles/issue.md first and follow the role it describes. The project format is in $DOCTOR/../pj1-plan/format.md. project.sh is $DOCTOR/../pj1-plan/scripts/project.sh.\n\nMode: revise\n\nParent: #<P>\nIssue: #<n>\n\nproject.sh <P>:\n<the JSON>\n\nproject.sh <P> --check <n>:\n<the JSON, or none for a parent>\n\nThe review's findings on #<n>:\n<the findings>\n\nThe user's answers:\n<the phase 2 answers on #<n>, or none>")
+      prompt: "Read $DOCTOR/../pj2-issues/roles/issue.md first and follow the role it describes. The project format is in $DOCTOR/../pj1-plan/format.md. project.sh is $DOCTOR/../pj1-plan/scripts/project.sh.\n\nMode: revise\n\nParent: #<P>\nIssue: #<n>\n\nproject.sh <P>:\n<the JSON>\n\nproject.sh <P> --check <n>:\n<the JSON, or none for a parent>\n\nThe review's findings on #<n>:\n<the findings>\n\nThe user's answers:\n<the phase 2 answers on #<n>, or none>")
 ```
 
 `annetaan:pj-issue-writer` ships with this plugin and is pinned to opus at high effort with code changes disabled.

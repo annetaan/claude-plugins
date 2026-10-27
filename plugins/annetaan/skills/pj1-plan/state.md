@@ -1,9 +1,9 @@
 # The state of a project
 
 This file holds how `project.sh` reads a project, and how it judges when a project is merged, when an issue is ready
-and when it is workable, and whether a body still holds against the code. `pj3-doctor`, its project reviewer and
-`pj4-running` read it first. The issues and their bodies are in `format.md`, and what the three skills agree on
-between them is in `between-skills.md`, both next to this file.
+and when it is workable, and whether a body still holds against the code. `pj2-issues`, `pj3-doctor`, its project
+reviewer and `pj4-running` read it first. The issues and their bodies are in `format.md`, and what the four skills
+agree on between them is in `between-skills.md`, both next to this file.
 
 ## Reading a project
 
