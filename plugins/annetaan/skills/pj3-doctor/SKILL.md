@@ -1,6 +1,6 @@
 ---
 name: pj3-doctor
-description: Asks which project to work on, among the projects that have sub-issues, with a number given as the recommended one, then reviews the whole project against the boxes the user ticked on GitHub, against the code and against each issue in it. Has one issue writer per issue redraw what no longer holds, draws the stubs, resolves the blockers, rewrites the run order in the parent's Order list, and labels the issues ready. Asks the user no task decision, because the user ticks those on GitHub. Asks only about a split, two boxes ticked in one decision, and its changes before they are written. Run it again after ticking. The third of four skills, after pj1-plan and pj2-issues and before pj4-running. Use it only when the user names this skill or invokes /annetaan:pj3-doctor, because it edits, files and closes issues and changes labels on GitHub.
+description: Takes the project from a number given, a sub-issue's number naming its parent, or the only project with sub-issues, and otherwise asks which project to work on, then reviews the whole project against the boxes the user ticked on GitHub, against the code and against each issue in it. Has one issue writer per issue redraw what no longer holds, draws the stubs, resolves the blockers, rewrites the run order in the parent's Order list, and labels the issues ready. Asks the user no task decision, because the user ticks those on GitHub. Asks only about a split, two boxes ticked in one decision, and its changes before they are written. Run it again after ticking. The third of four skills, after pj1-plan and pj2-issues and before pj4-running. Use it only when the user names this skill or invokes /annetaan:pj3-doctor, because it edits, files and closes issues and changes labels on GitHub.
 ---
 
 # pj3-doctor
@@ -19,6 +19,9 @@ carry their output to the user and onto GitHub.
 `$DOCTOR` is not a shell variable. Replace it with the real absolute path when you run bash and when you write a
 prompt for a sub-agent. Sub-agents have not read this instruction, so a relative path or a literal `$DOCTOR` finds
 them nothing.
+Collapse the `..` in a path to a sibling skill, so that the command text names `<skills>/pj1-plan/scripts/project.sh` and not
+`<skills>/pj3-doctor/../pj1-plan/scripts/project.sh`. A permission rule matches the text of the command, and the rules
+`pj-auto` shows name the collapsed path. This holds in the prompts for sub-agents too.
 
 **Read `$DOCTOR/../pj1-plan/format.md`, `$DOCTOR/../pj1-plan/state.md` and `$DOCTOR/../pj1-plan/between-skills.md`
 before anything else.** `format.md` is the only description of the parent issue, the run order, the sub-issue body,
@@ -51,8 +54,8 @@ gh repo view --json nameWithOwner,hasIssuesEnabled,defaultBranchRef
   issues turned off. Say which one and stop. The clone is needed because `project.sh --check` runs inside one.
 - A dirty working tree does not matter. This skill reads the code and changes nothing in it.
 
-**The project.** Pick it as `between-skills.md` says under **Picking the project**. The project picked is `<P>`. Print
-`project #<P>` once, so that a context summary can find it again.
+**The project.** Pick it as `between-skills.md` says under **Picking the project**. The project picked is `<P>`. In an unattended run, only rule 1 of **Picking the project** applies (`between-skills.md`, **Unattended runs**). Print
+`project #<P>` once, with ` unattended` after it in an unattended run, so that a context summary can find both again.
 
 Run `mktemp -d` once for the whole run. `$TMP` below is the directory it printed. A shell variable does not outlive
 one command, so write the path in full each time.
@@ -100,6 +103,8 @@ and the run order may still change.
 
 ## Phase 2: the questions
 
+An unattended run asks none of these. When any is due, it writes nothing and ends as needs-user, naming the questions.
+
 Ask the user only what is not a task decision. **Never ask a task decision in the conversation.** An open decision
 is ticked on GitHub, and a question the reviewer raised becomes a new decision in the issue (kind 10 in
 `roles/review.md`).
@@ -142,7 +147,7 @@ shape in `format.md` instead: its headings, no line numbers, its `Base:` line an
 body that fails back to its writer with `SendMessage` and say what to fix.
 
 **When a writer could not fix something** that needs the user, ask it as phase 2 says, and send the answer back to
-the writer.
+the writer. An unattended run ends as needs-user instead and writes nothing.
 
 **When every writer has returned**, send the reviewer the rewritten bodies with `SendMessage`. Its second return is
 the last word for this run. **There is no third round.** Every finding in it starts with `exact` or `design`
@@ -244,6 +249,8 @@ AskUserQuestion: Write these changes to GitHub?
   - Write them
   - Stop without writing
 ```
+
+An unattended run skips this question, prints the same summary, and writes as on Write them.
 
 The approval covers this run only (`between-skills.md`, **Principle**).
 
@@ -371,6 +378,15 @@ the numbers.
   `parent.waitsOn` is not `merged`, add one sentence: `pj4-running` starts this project after each such `#<Q>` is
   merged into `<from>`.
 
+## Ending an unattended run
+
+An unattended run prints its last line as `between-skills.md` says under **Unattended runs**. Only one ending is
+`unattended: done`: the run reached the Report to the user above, including when there was nothing to write.
+
+Every other ending is `unattended: needs-user <one line>`. That covers a **Before you start** failure, a `project.sh`
+failure, an `--order` cycle, the phase 2 and phase 3 endings, and a write that fails halfway. An ending not named here
+is needs-user too.
+
 ## Rules
 
 - **You decide nothing.** The user decides, the reviewer finds, and the writer writes.
@@ -384,5 +400,6 @@ the numbers.
 - **Always pass a body with `--body-file`.** Never create a label with `--force`.
 - **Re-read `updatedAt` before every edit. Never edit a closed issue.**
 - **A sub-issue body goes out only after its lint passes**, and a parent's only after you read it against its shape.
-- After a context summary, take `<P>` again from the `project #<P>` line, and rebuild where the run stood from the
+- An unattended run never calls `AskUserQuestion` and ends with one `unattended:` line.
+- After a context summary, take `<P>` and whether the run is unattended again from the `project #<P>` line, and rebuild where the run stood from the
   progress lines and `project.sh <P>`. A writer or a reviewer whose handle is gone is started again.

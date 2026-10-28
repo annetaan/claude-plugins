@@ -1,6 +1,6 @@
 ---
 name: pj2-issues
-description: Asks which project to split into issues, offering the projects with no sub-issue whose waited-on projects are all merged or closed without a merge, with the lowest-numbered one, or a number given, as the recommended one. Refuses a project that waits on one not yet merged. Has a planner split the project into tasks against the code as it stands after those merges, and asks the split-level questions. Shows the split, a diff of any change to the parent, and any change to its blocked-by relationships for approval. Has one issue writer per task draw that task in parallel, then files the sub-issues with the blocked-by relationships inside the project, the run order in the parent's Order list, and the titles. The second of four skills, after pj1-plan and before pj3-doctor and pj4-running. Use it only when the user names this skill or invokes /annetaan:pj2-issues, because it creates and edits issues and relationships on GitHub.
+description: Takes the project to split from a number given, or the only one it could split, and otherwise asks, offering the projects with no sub-issue whose waited-on projects are all merged or closed without a merge, with the lowest-numbered one as the recommended one. Refuses a project that waits on one not yet merged. Has a planner split the project into tasks against the code as it stands after those merges, and asks the split-level questions. Shows the split, a diff of any change to the parent, and any change to its blocked-by relationships for approval. Has one issue writer per task draw that task in parallel, then files the sub-issues with the blocked-by relationships inside the project, the run order in the parent's Order list, and the titles. The second of four skills, after pj1-plan and before pj3-doctor and pj4-running. Use it only when the user names this skill or invokes /annetaan:pj2-issues, because it creates and edits issues and relationships on GitHub.
 ---
 
 # pj2-issues
@@ -18,6 +18,9 @@ issue writer per task draws that task, and you carry their output to the user an
 `$ISSUES` is not a shell variable. Replace it with the real absolute path when you run bash and when you write a
 prompt for a sub-agent. Sub-agents have not read this instruction, so a relative path or a literal `$ISSUES` finds
 them nothing.
+Collapse the `..` in a path to a sibling skill, so that the command text names `<skills>/pj1-plan/scripts/project.sh` and not
+`<skills>/pj2-issues/../pj1-plan/scripts/project.sh`. A permission rule matches the text of the command, and the rules
+`pj-auto` shows name the collapsed path. This holds in the prompts for sub-agents too.
 
 **Read `$ISSUES/../pj1-plan/format.md`, `$ISSUES/../pj1-plan/state.md` and `$ISSUES/../pj1-plan/between-skills.md`
 before anything else.** `format.md` is the only description of the parent issue, the run order, the sub-issue body,

@@ -1,8 +1,8 @@
 # How the pj skills work together
 
 This file holds what `pj1-plan`, `pj2-issues`, `pj3-doctor` and `pj4-running` agree on between them: who creates
-the base branch, the labels, the comments, the pull requests and how they write to GitHub. All four skills read it
-first.
+the base branch, the labels, the comments, the pull requests and how they write to GitHub. The four skills and
+`pj-auto` read it first.
 The project reviewer looks up **Blockers**, and the `workflow` skill's **From an issue** looks up **Pull requests**.
 The issues and their bodies are in `format.md`, and how `project.sh` judges a project is in `state.md`, both next to
 this file.
@@ -22,6 +22,9 @@ only the questions that change the cut into projects, the split into tasks, or a
 talks with the user about everything else: a split, two boxes ticked in one decision, and its changes before they are
 written.
 
+`pj-auto` is no stage of its own. It drives `pj3-doctor` and `pj4-running` on one project as unattended runs, one
+fresh `claude -p` process per step, and lets `project.sh --next` (`state.md`, **What comes next**) pick every step.
+
 ## Principle
 
 **GitHub holds all the state.** The issues, their labels, their relationships, their comments and the pull requests
@@ -30,11 +33,14 @@ machine.
 
 Two things live outside GitHub, and only these two:
 
-- **the user's approval within a run.** An approval covers the run it was given in. The next run asks again.
+- **the user's approval within a run.** An approval covers the run it was given in. The next run asks again. A run started
+  with `unattended` asks for none, because starting it that way is the approval (see **Unattended runs**). A `pj-auto`
+  drive is approved once, at its start, and that approval covers every unattended run it starts.
 - **the uncommitted work a stopped run leaves in its worktree** `<MAIN>/.claude/worktrees/pj-<P>`, where `<MAIN>`
   is the main working tree. It is local. The next run never uses it. The work is redone as the issue's one task.
 
-The worktree itself is a place to work, not state. A run creates it when it is missing.
+The worktree itself is a place to work, not state. A run creates it when it is missing. A drive's log directory is the
+same: the next drive never reads it.
 
 ## Requirements
 
@@ -104,8 +110,8 @@ first thing `pj3-doctor` takes up.
 
 ## Picking the project
 
-`pj2-issues`, `pj3-doctor` and `pj4-running` always ask which project to work on, with `AskUserQuestion`, even when
-they were given a number. List the open parents, and read the number they were given, if any.
+`pj2-issues`, `pj3-doctor` and `pj4-running` first gather the candidates, then decide the project in this order.
+Read the number they were given, if any.
 
 ```bash
 gh issue list --label project --state open --limit 100 --json number,title,subIssuesSummary --jq 'sort_by(.number)'
@@ -114,28 +120,58 @@ gh issue view <n> --json number,state,labels,parent
 
 The candidates differ by skill.
 
-- **`pj2-issues`**: the open parents whose `subIssuesSummary.total` is 0. Read `project.sh <P>` for each one. First
-  print every candidate, one line each, naming the entries of `parent.waitsOn` that are not `merged`:
+- **`pj2-issues`**: the open parents whose `subIssuesSummary.total` is 0. Read `project.sh <P>` for each one. Give
+  each candidate one line, naming the entries of `parent.waitsOn` that are not `merged`:
   - `#<P> <title> (startable)` when `parent.startable` is true
   - `#<P> <title> (waits on #<Q>, closed without a merge)` when every such entry is `CLOSED`. That project is
     pickable too. The check of `pj2-issues` asks to remove those relationships
   - `#<P> <title> (waits on #<Q>, #<R>)` otherwise
   - `#<P> <title> (<the message>)` when `project.sh <P>` fails, quoting its message, for instance `has no Base: line`
 
-  Only the startable and the pickable candidates become options. The recommended project is the number given when it
-  is one of those, or else the lowest-numbered startable one, or else the lowest-numbered pickable one. The free-text
-  answer accepts any `#<P>` from the list. A candidate that is neither goes to the check of `pj2-issues` itself, which
-  refuses it. A candidate whose `project.sh` failed is never an option or the recommendation, and the others go on
-  as above. When no candidate is startable or pickable, print the list and stop without asking.
+  Only the startable and the pickable candidates become options. The recommended project is the lowest-numbered
+  startable one, or else the lowest-numbered pickable one. The free-text answer accepts any `#<P>` from the list. A
+  candidate that is neither goes to the check of `pj2-issues` itself, which refuses it. A candidate whose `project.sh` failed is never an option or the recommendation, and the others
+  go on as above. A number given that points at a candidate whose `project.sh` failed, or at no candidate, gets one
+  line saying so, and the question has no recommendation. When no candidate is startable or pickable, print the list
+  and stop without asking.
 - **`pj3-doctor` and `pj4-running`**: the open parents whose `subIssuesSummary.total` is 1 or more. The recommended
-  project is the parent of the number given when that is a sub-issue, or the number itself when it carries
-  `project`. When the recommended project is not in the list, say so in one line and ask without a recommendation.
-  First print every candidate, one line each: `#<P> <title> (<completed> of <total> sub-issues closed)`. The
-  free-text answer accepts any `#<P>` from the list.
+  project is the lowest-numbered candidate. A number given that points at no candidate (no sub-issue, closed, not a
+  project) gets one line saying so, and the question has no recommendation. The line of a
+  candidate is `#<P> <title> (<completed> of <total> sub-issues closed)`. The free-text answer accepts any `#<P>` from the
+  list.
 
-For every skill, the question has the header `Project` and at most 4 options: the recommended project first, marked
-`(Recommended)`, then the rest by number. With one option only, the second option is `Stop`. When the list of
-candidates is empty, stop.
+Then decide, the first rule that fits:
+
+1. **A number was given and it points at an option.** Take that project and ask nothing. For `pj3-doctor` and
+   `pj4-running`, a sub-issue's number points at its parent and a number labelled `project` at itself. For
+   `pj2-issues`, a number points at a startable or pickable candidate. A number that points at a candidate that is
+   neither is taken too, and the check of `pj2-issues` refuses it.
+2. **No number was given and there is exactly one option.** Take it and ask nothing.
+3. **Otherwise** print every candidate in its line form, then ask, as below.
+
+When a rule decides without asking, say why on the line of the project picked: `#<P> <title> (the number given)` or
+`#<P> <title> (the only candidate)`. Print no candidate list. Rely on no project picked earlier in the conversation.
+
+The question has the header `Project` and at most 4 options: the recommended project first, marked `(Recommended)`,
+then the rest by number. With one option only, the second option is `Stop`. When the list of candidates is empty, stop.
+
+## Unattended runs
+
+A `pj3-doctor` or `pj4-running` run is unattended when its args carry the word `unattended`, for instance
+`/annetaan:pj4-running 12 unattended`. The word alone decides the mode, and the run needs a project number as well.
+`pj-auto` starts its runs in this form.
+
+- **The project.** Only rule 1 of **Picking the project** applies. No number, or a number that points at no option,
+  ends the run as needs-user without asking. Rules 2 and 3 do not apply.
+- **Questions.** An unattended run never calls `AskUserQuestion`. The approval question (`pj3-doctor` phase 4,
+  `pj4-running` phase 3) is skipped, and the summary it would have shown is printed as usual. Any other question that
+  comes due ends the run without asking, the way choosing stop on that question would, as needs-user.
+- **The last line.** On ending, the run prints exactly one last line, one of:
+  - `unattended: done`, when it ended in one of the ways its skill lists under **Ending an unattended run**
+  - `unattended: needs-user <one line>`, for every other ending
+- **The direction of the list.** Each skill lists the endings that are done. Any ending not on the list is needs-user,
+  so a missed ending falls toward stopping, never toward silently moving on.
+- **Manual runs.** A run whose args do not carry `unattended` is untouched by this section.
 
 ## Titles
 

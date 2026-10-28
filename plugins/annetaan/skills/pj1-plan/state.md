@@ -21,6 +21,7 @@ an issue the parent is blocked by has no `Base:` line, for this parent and for e
 ```bash
 project.sh <P>               # the whole project, as JSON
 project.sh <P> --order       # the run order, and the ## Order list to write
+project.sh <P> --next        # what to run next on the project, and a fingerprint (see What comes next)
 project.sh <P> --check <n>   # whether sub-issue <n> can be implemented from its body now (see When an issue is ready)
 project.sh --lint <file>     # the lint of one body, from a file, or from standard input with -
 ```
@@ -29,7 +30,7 @@ project.sh --lint <file>     # the lint of one body, from a file, or from standa
 
 ```
 {"parent": {"number", "title", "state", "stateReason", "updatedAt", "body", "base", "from",
-            "baseExists", "merged", "waitedOnBy": [numbers], "startable",
+            "baseExists", "merged", "projectPr", "waitedOnBy": [numbers], "startable",
             "waitsOn": [{"number", "title", "state", "stateReason", "base", "merged"}],
             "order": [numbers],
             "orderCheck": {"ok", "unknown": [numbers], "duplicate": [numbers],
@@ -46,6 +47,8 @@ project.sh --lint <file>     # the lint of one body, from a file, or from standa
   (`format.md`, **The parent issue body**).
 - `baseExists` is true once the base branch is on origin, and `merged` is whether the project is merged (see
   **When a project is merged**).
+- `projectPr` is the url of the open pull request with the base branch as head and `<from>` as base, or null. It is
+  read for this project only, not for the projects in `waitsOn`.
 - `waitsOn` is the projects this one waits on: the issues this parent is blocked by, by number. Each is a project,
   a parent with a `Base:` line, and carries its own `base` and `merged`.
 - `waitedOnBy` is the numbers of the parents this one blocks whose body has a `Base:` line.
@@ -128,6 +131,42 @@ current?**).
 An issue is **workable** when it carries `ready`, every issue in its `blockedBy` is `CLOSED`, `--check` is clear, and
 its project has `baseExists`, or every project in `waitsOn` is `merged`. The last part is the same condition the
 premises wait for.
+
+## What comes next
+
+`project.sh <P> --next` prints one line, read from the same view as `project.sh <P>`, and writes nothing to GitHub:
+
+```
+{"next": "doctor" | "running" | "user" | "done", "why": "<code>", "issue": <n> or null, "url": <string> or null,
+ "fingerprint": "<sha256 hex>"}
+```
+
+The rules run top to bottom, and the first that matches decides. `issue` is filled where the table names it, and `url`
+only for `merge-project-pr`.
+
+| # | When | next / why | issue |
+|---|------|------------|-------|
+| 1 | the parent is `CLOSED` | `done` / `closed` | null |
+| 2 | the parent is `merged` and open | `running` / `merged-parent` | null |
+| 3 | the project has no sub-issue | `user` / `split` | null |
+| 4 | `baseExists` is false and a project in `waitsOn` is not `merged` | `user` / `waits` | null |
+| 5 | an open issue has a merged pull request | `running` / `close-merged` | the smallest such number |
+| 6 | every sub-issue is closed: `projectPr` is set / it is not | `user` / `merge-project-pr` (with `url`) / `running` / `project-pr` | null |
+| 7 | `orderCheck.ok` is false, or `order` names no open issue | `doctor` / `order` | null |
+| 8 | k is the first open issue in `order`, and k has the `blocker` label | `doctor` / `blocker` | k |
+| | k is a stub | `doctor` / `stub` | k |
+| | k has a contradictory decision | `user` / `contradictory` | k |
+| | k has an open decision | `user` / `decisions` | k |
+| | k does not carry `ready` | `doctor` / `not-ready` | k |
+| | k has an open issue in `blockedBy` | `doctor` / `blocked` | k |
+| | otherwise | `running` / `workable` | k |
+
+The rows under 8 run in the order shown. `--next` does not run `--check`. A `--check` failure that `pj4-running` finds
+gets the issue a `blocker` label, so the next `--next` sends the project to `doctor`.
+
+`fingerprint` is the sha256 of the parent's `updatedAt` and `state`, each issue's `number`, `state`, `updatedAt` and
+`labels`, each issue's pull request `number` and `state`, and `projectPr`. A step that changes the project changes it.
+Only `pj-auto` reads it, to tell that a step made no progress.
 
 ## Is the body still current?
 

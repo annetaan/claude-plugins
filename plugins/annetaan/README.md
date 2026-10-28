@@ -28,6 +28,7 @@ splits one project into sub-issues once every project it waits on is merged. You
 `pj3-doctor` makes the issues ready. `pj4-running` runs `workflow` once per sub-issue, merges each pull request into
 the project's branch and closes the issue, and at the end opens the pull request that takes the project's branch
 back. The four pass nothing to each other through the conversation. Each one reads the project from GitHub afresh.
+`pj-auto` drives the doctor and the runner and stops where you are needed.
 
 Which skill to start with:
 
@@ -55,8 +56,9 @@ In short, from [format.md](skills/pj1-plan/format.md)'s The parts:
 | what sessions learnt | the parent's handover comment |
 
 Only two pieces of a project's state live outside GitHub: your approval within one run, which the next run asks for
-again, and the uncommitted work a stopped run leaves in its worktree under `.claude/worktrees/`, which the next run
-never uses. Because of this, a project can stop anywhere and resume in another session or on another machine.
+again unless it starts `unattended` (every run of a `pj-auto` drive does, under the drive's one approval), and the
+uncommitted work a stopped run leaves in its worktree under `.claude/worktrees/`, which the next run never uses.
+Because of this, a project can stop anywhere and resume in another session or on another machine.
 
 The work report of each issue is a record, not state. It stays local and no later run reads it. Only its `log.md`
 reaches GitHub, as the pull request's body.
@@ -185,8 +187,8 @@ answer the plan-level questions and see the projects in stages, with the reason 
 pick the branch the projects start from. Nothing reaches GitHub before that. Then one parent issue per project is
 filed, blocked by the parents it waits on. No sub-issue and no branch is created yet, and no issue is `ready` yet.
 
-`/annetaan:pj2-issues` ([details](skills/pj2-issues/SKILL.md)) asks which project to split. It offers the projects
-with no sub-issue yet whose waited-on projects are all merged, and recommends the lowest-numbered one. A planner
+`/annetaan:pj2-issues` ([details](skills/pj2-issues/SKILL.md)) takes the project to split from a number given, or the only one it could split, and otherwise asks. It offers the
+projects with no sub-issue yet whose waited-on projects are all merged, and recommends the lowest-numbered one. A planner
 session splits the project against the code as it stands after those merges, and you answer the split-level
 questions. You approve the split, any change to the parent shown as a diff, and any change to its blocked-by. Then
 one issue writer per task, in parallel, draws its task against the code and picks out what you have to decide. The
@@ -196,8 +198,8 @@ on was closed without a merge, it asks whether to drop that wait. When the plann
 another project that is not merged yet, `pj2-issues` asks whether to add that wait. On yes, it adds the blocked-by
 between the two parents and stops without filing anything else.
 
-`/annetaan:pj3-doctor` ([details](skills/pj3-doctor/SKILL.md)) asks which project to work on, every time, among
-the projects that have sub-issues. A
+`/annetaan:pj3-doctor` ([details](skills/pj3-doctor/SKILL.md)) takes the project from a number given or the only
+project that has sub-issues, and otherwise asks which project to work on. A
 reviewer session reads the whole project against the boxes you ticked, the code, and each issue in it: a ticked
 option the design does not hold, two issues that disagree on a name, a missing blocked-by, a stub, a blocker. One
 issue writer per issue with a finding redraws it, and a question only you can answer becomes a new decision to tick.
@@ -208,7 +210,7 @@ changes before it writes them. Then it rewrites the run order and labels `ready`
 clear. While the project's branch does not exist yet, it may also change which projects this one waits on, after
 you approve. Run it once after `pj2-issues`, tick the boxes it lists, and run it again.
 
-`/annetaan:pj4-running` ([details](skills/pj4-running/SKILL.md)) asks which project to work on, the same way. On the
+`/annetaan:pj4-running` ([details](skills/pj4-running/SKILL.md)) takes the project the same way. On the
 project's first run it creates the project's branch. When a project it waits on is not merged yet, it lists those
 projects and stops instead. It closes the parent of any project it finds merged, its own or one it waits on. Then it
 checks that you can merge your own pull request into the project's branch without an approving review. It walks the
@@ -233,8 +235,8 @@ their numbers.
 /annetaan:pj4-running
 ```
 
-Tick the open decisions on GitHub between the two `pj3-doctor` runs. `pj2-issues`, the doctor and the runner always
-ask which project, and an issue number passed after any of them puts its project first. Each later project starts
+Tick the open decisions on GitHub between the two `pj3-doctor` runs. An issue number passed after `pj2-issues`, the
+doctor or the runner picks its project, and with one candidate they ask nothing. Each later project starts
 again from `/annetaan:pj2-issues` once the projects it waits on are merged.
 
 ```mermaid
@@ -271,6 +273,37 @@ it is.
 or `work-reports/`, it asks to add them to `.git/info/exclude`. That file stays in your clone, so nothing is
 committed, and `.gitignore` is never edited. When an earlier run stopped with uncommitted work in the worktree, it
 asks whether to discard that work. The next run redoes it either way.
+
+### pj-auto
+
+`/annetaan:pj-auto` ([details](skills/pj-auto/SKILL.md)) drives `pj3-doctor` and `pj4-running` on one project until the
+project needs you. It takes the project the same way they do. A script, `auto.sh`, asks `project.sh --next` what comes
+next and starts that step as a fresh `claude -p` run in unattended mode, one process per step. It never reads a run's
+report to decide, only the project on GitHub.
+
+It asks one approval question per drive, and only when a step would run (the question which project comes before it, when
+the project is not given or the only candidate): a summary of the project, what the steps do and the
+permissions they need, then start or not. That approval covers the whole drive, and the runs ask nothing. The merges
+into the project's branch happen. The project's own pull request is never merged.
+
+The drive stops when the project needs you (a split, a wait, a decision to tick, the project's pull request to merge),
+when it is done, when a run ends needing you, when a run changes nothing, when `pj3-doctor` has run twice on the same
+issue, when a run fails, or when you say stop in the conversation. It then names what you do next. Every step is one
+line in `drive.jsonl` in the log directory it prints, to follow with the `tail -f` command it shows. Each step is a
+whole session, so a long project costs many.
+
+```
+/annetaan:pj-auto
+```
+
+What it needs:
+
+- the `claude` CLI on the PATH
+- these permissions in your settings, because the runs cannot ask: `Bash(gh:*)`, `Bash(git:*)`, `Edit`, `Write`
+- two script rules, which pj-auto shows with the real paths before it starts, because the plugin's directory differs per
+  machine
+- anything else a run is missing, such as the repository's test commands, shows up by name in a needs-user reason.
+  Add it to your settings and run again, one at a time
 
 ### doc-write
 
@@ -354,6 +387,8 @@ The model and the effort are pinned here, and a skill selects one by name alone.
 | `annetaan:doc-meta-overview` | opus | high | overview for `doc-meta`. finds what a per-sentence flag misses |
 
 `pj4-running` has no agents of its own. It runs workflow's.
+
+`pj-auto` has no agents of its own. The runs it starts use theirs.
 
 The agent definitions are thin. The substance of each role lives in the skill's `roles/*.md`, and an agent reads
 that path out of the prompt the main session hands it.

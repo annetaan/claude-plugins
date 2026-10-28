@@ -1,6 +1,6 @@
 ---
 name: pj4-running
-description: Asks which project to work on, among the projects that have sub-issues, with a number given as the recommended one. Creates the project's base branch on its first start, once every project it waits on is merged, and closes the parent of a merged project and names the projects that can be split now, as /annetaan:pj2-issues <P>. Works down the run order in the parent's Order list one sub-issue at a time, and stops at the first issue that is not workable. Each one runs through the workflow skill as one task with review rounds, then pj4-running merges its pull request into the project's base branch and closes the issue itself before the next starts. Once every sub-issue is closed, opens the pull request from the base branch into the branch it was made from, and leaves its merge to the user. Works in a git worktree of its own, so the main working tree stays free for the user. Files unplanned work as stub issues and stops on a blocker. The fourth of four skills, after pj1-plan, pj2-issues and pj3-doctor. Use it only when the user names this skill or invokes /annetaan:pj4-running, because it creates branches, pushes, opens and merges pull requests, and edits issues and labels.
+description: Takes the project from a number given, a sub-issue's number naming its parent, or the only project with sub-issues, and otherwise asks which project to work on. Creates the project's base branch on its first start, once every project it waits on is merged, and closes the parent of a merged project and names the projects that can be split now, as /annetaan:pj2-issues <P>. Works down the run order in the parent's Order list one sub-issue at a time, and stops at the first issue that is not workable. Each one runs through the workflow skill as one task with review rounds, then pj4-running merges its pull request into the project's base branch and closes the issue itself before the next starts. Once every sub-issue is closed, opens the pull request from the base branch into the branch it was made from, and leaves its merge to the user. Works in a git worktree of its own, so the main working tree stays free for the user. Files unplanned work as stub issues and stops on a blocker. The fourth of four skills, after pj1-plan, pj2-issues and pj3-doctor. Use it only when the user names this skill or invokes /annetaan:pj4-running, because it creates branches, pushes, opens and merges pull requests, and edits issues and labels.
 ---
 
 # pj4-running
@@ -29,6 +29,9 @@ The user keeps working in `<MAIN>` while the run goes on. The run never switches
 `$RUNNING` is not a shell variable. Replace it with the real absolute path when you run bash and when you write a
 prompt for a sub-agent. Sub-agents have not read this instruction, so a relative path or a literal `$RUNNING` finds
 them nothing.
+Collapse the `..` in a path to a sibling skill, so that the command text names `<skills>/pj1-plan/scripts/project.sh` and not
+`<skills>/pj4-running/../pj1-plan/scripts/project.sh`. A permission rule matches the text of the command, and the rules
+`pj-auto` shows name the collapsed path. This holds in the prompts for sub-agents too.
 
 **Read `$RUNNING/../pj1-plan/between-skills.md` and `$RUNNING/../pj1-plan/state.md` before anything else.**
 `between-skills.md` holds the labels, the base branch, the handover comment, the blockers, the comments and the pull
@@ -53,9 +56,9 @@ language (`format.md`, **Writing bodies**). The tokens in (`format.md`, **Fixed 
 
 This skill creates branches, pushes, opens and merges pull requests, and edits issues and labels. **Start it only when the user names it or invokes `/annetaan:pj4-running`.**
 
-**The project.** Pick it as `between-skills.md` says under **Picking the project**. The project picked is `<P>`. Print
-`project #<P>` once, so that a context summary can find it again. A number given only decides which project is
-recommended, and the run still covers the whole order of the project picked.
+**The project.** Pick it as `between-skills.md` says under **Picking the project**. The project picked is `<P>`. In an unattended run, only rule 1 of **Picking the project** applies (`between-skills.md`, **Unattended runs**). Print
+`project #<P>` once, with ` unattended` after it in an unattended run, so that a context summary can find both again. A number given picks the project, a sub-issue's number its parent, and the run still covers
+the whole order of the project picked.
 
 Then run `mktemp -d` once for the whole run. `$TMP` below is the directory it printed. The start may already write
 comment files there. A shell variable does not outlive one command, so write the path in full each time.
@@ -109,7 +112,7 @@ AskUserQuestion: Can a pull request be merged here with no approving review?
   - Stop
 ```
 
-On Stop, stop the run.
+On Stop, stop the run. An unattended run does not ask: it treats this as Stop and ends as needs-user.
 
 `rules.requiredChecks` says whether the base branch requires status checks: `yes`, `no` or `unknown`. The merge in
 **When workflow returns** waits by it. With `unknown` the merge waits for a required check as with `yes`, and merges
@@ -165,7 +168,8 @@ one whose directory is gone. `action` says which. Act by `status`.
   ```
 
   On the first answer, run `$RUNNING/scripts/run.sh worktree <P> --discard`, and act on what it prints as here. On
-  the second, stop the run. Name `<WT>` and say that `git -C <WT> diff` shows the work.
+  the second, stop the run. Name `<WT>` and say that `git -C <WT> diff` shows the work. An unattended run does not
+  ask: it **discards nothing**, treats this as the second answer, and ends as needs-user.
 - **`stop`** with `foreign`: `<WT>` exists but is not a worktree of this repository, and nothing here may touch it.
   Stop. With `fetch-failed`, quote `message` and stop.
 - **`ready`**: enter it.
@@ -209,7 +213,8 @@ Act by `status`.
   ```
 
   On the first answer, run `$RUNNING/scripts/run.sh ignore <P> --add`. It appends each path to the exclude file git
-  resolves, which every worktree of the clone shares, and checks again. Act on what it prints as here.
+  resolves, which every worktree of the clone shares, and checks again. Act on what it prints as here. An unattended
+  run does not ask: it treats this as Stop and ends as needs-user.
 - **`stop`** with `still-not-ignored`: a `.gitignore` rule, such as `!work-reports/`, overrides the exclude file for
   the paths in `notIgnored`. Say so, and stop.
 
@@ -235,8 +240,9 @@ On a stop, leave `<WT>` as phase 6 step 1 says and end the run. `<WT>` stays in 
    the issues already taken counting as closed. Phase 2 runs the `--check` part of that. **Stop the walk at the first
    open issue that is not.** Nothing after it is taken, even when it is workable, because the order is the user's
    (`format.md`, **The run order**).
-   - **`parent.order` is empty, or `parent.orderCheck.ok` is false**: stop, show what `orderCheck` names, and give the
-     next step, `/annetaan:pj3-doctor`.
+   - **`parent.order` is empty, or `parent.orderCheck.ok` is false**: the run order is the merged-pull-request issues
+     alone, and the walk does not start. Show what `orderCheck` names, and give the next step, `/annetaan:pj3-doctor`.
+     With no such issue the run order is empty and phase 1 ends here (step 4).
 3. List the issue the walk stopped at, with why it is not workable, and the open issues after it as **waiting**. List
    the issues in `orderCheck.missing` too, as not in the order.
 4. **An empty run order** ends the skill here. Report the issue the walk stopped at and why, and the next step,
@@ -301,6 +307,8 @@ AskUserQuestion: Start the run?
   - Start the run
   - Do not start
 ```
+
+An unattended run skips this question, prints the same summary, and starts.
 
 The approval covers this run only (`between-skills.md`, **Principle**).
 
@@ -495,6 +503,26 @@ $RUNNING/scripts/run.sh pr <P> --body "$TMP/<P>-pr.md"
   the user closes it. When the list of projects that can be split now is not empty, `/annetaan:pj2-issues <R>` for
   each.
 
+## Ending an unattended run
+
+An unattended run prints its last line as `between-skills.md` says under **Unattended runs**. These endings are
+`unattended: done`:
+
+- `start` returned `empty`.
+- `start` returned `stop` with `waits`. The projects waited on are readable on GitHub.
+- `start` returned `done` with `project.merged` true, and `close` closed `<P>` or found it `already` closed.
+- `start` returned `done` and **The project's pull request** came to `opened` or `exists`.
+- Phase 1's run order was empty, including when `orderCheck` is not ok and no issue has a merged pull request.
+- Phase 2 marked the issue that failed `--check` and stopped.
+- Phase 5 step 1 stopped because a human had removed `ready`.
+- Phase 5 step 2 marked the issue that failed `--check` and stopped.
+- **When workflow returns** got `stopped` with the reason `blocking` or `diverged`.
+- The run order was worked to the end, and phase 6's project pull request came to `opened` or `exists`, or not every
+  sub-issue is closed yet.
+
+Every other ending is `unattended: needs-user <one line>`. An ending not on this list is needs-user, so a stop this
+section does not name never reads as done.
+
 ## Rules
 
 - **You never write code.** workflow's sessions do.
@@ -512,4 +540,5 @@ $RUNNING/scripts/run.sh pr <P> --body "$TMP/<P>-pr.md"
   The project's pull request is opened from that branch as it stands on origin.
 - **Close an issue or a parent only through `run.sh close` or `run.sh merge`, which refuse one that is not due, and
   close as completed.**
-- After a context summary, rebuild the run from the progress lines and `project.sh <P>`.
+- An unattended run never calls `AskUserQuestion` and ends with one `unattended:` line.
+- After a context summary, take whether the run is unattended from the `project #<P>` line, and rebuild the run from the progress lines and `project.sh <P>`.
