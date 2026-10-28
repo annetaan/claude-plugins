@@ -28,6 +28,7 @@ splits one project into sub-issues once every project it waits on is merged. You
 `pj3-doctor` makes the issues ready. `pj4-running` runs `workflow` once per sub-issue, merges each pull request into
 the project's branch and closes the issue, and at the end opens the pull request that takes the project's branch
 back. The four pass nothing to each other through the conversation. Each one reads the project from GitHub afresh.
+`pj-auto` drives the doctor and the runner and stops where you are needed.
 
 Which skill to start with:
 
@@ -272,6 +273,37 @@ or `work-reports/`, it asks to add them to `.git/info/exclude`. That file stays 
 committed, and `.gitignore` is never edited. When an earlier run stopped with uncommitted work in the worktree, it
 asks whether to discard that work. The next run redoes it either way.
 
+### pj-auto
+
+`/annetaan:pj-auto` ([details](skills/pj-auto/SKILL.md)) drives `pj3-doctor` and `pj4-running` on one project until the
+project needs you. It takes the project the same way they do. A script, `auto.sh`, asks `project.sh --next` what comes
+next and starts that step as a fresh `claude -p` run in unattended mode, one process per step. It never reads a run's
+report to decide, only the project on GitHub.
+
+It asks one approval question per drive, and only when a step would run (the question which project comes before it, when
+the project is not given or the only candidate): a summary of the project, what the steps do and the
+permissions they need, then start or not. That approval covers the whole drive, and the runs ask nothing. The merges
+into the project's branch happen. The project's own pull request is never merged.
+
+The drive stops when the project needs you (a split, a wait, a decision to tick, the project's pull request to merge),
+when it is done, when a run ends needing you, when a run changes nothing, when `pj3-doctor` has run twice on the same
+issue, when a run fails, or when you say stop in the conversation. It then names what you do next. Every step is one
+line in `drive.jsonl` in the log directory it prints, to follow with the `tail -f` command it shows. Each step is a
+whole session, so a long project costs many.
+
+```
+/annetaan:pj-auto
+```
+
+What it needs:
+
+- the `claude` CLI on the PATH
+- these permissions in your settings, because the runs cannot ask: `Bash(gh:*)`, `Bash(git:*)`, `Edit`, `Write`
+- two script rules, which pj-auto shows with the real paths before it starts, because the plugin's directory differs per
+  machine
+- anything else a run is missing, such as the repository's test commands, shows up by name in a needs-user reason.
+  Add it to your settings and run again, one at a time
+
 ### doc-write
 
 `/annetaan:doc-write <path>` ([details](skills/doc-write/SKILL.md))
@@ -354,6 +386,8 @@ The model and the effort are pinned here, and a skill selects one by name alone.
 | `annetaan:doc-meta-overview` | opus | high | overview for `doc-meta`. finds what a per-sentence flag misses |
 
 `pj4-running` has no agents of its own. It runs workflow's.
+
+`pj-auto` has no agents of its own. The runs it starts use theirs.
 
 The agent definitions are thin. The substance of each role lives in the skill's `roles/*.md`, and an agent reads
 that path out of the prompt the main session hands it.

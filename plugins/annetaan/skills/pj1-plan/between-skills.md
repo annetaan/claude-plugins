@@ -1,8 +1,8 @@
 # How the pj skills work together
 
 This file holds what `pj1-plan`, `pj2-issues`, `pj3-doctor` and `pj4-running` agree on between them: who creates
-the base branch, the labels, the comments, the pull requests and how they write to GitHub. All four skills read it
-first.
+the base branch, the labels, the comments, the pull requests and how they write to GitHub. The four skills and
+`pj-auto` read it first.
 The project reviewer looks up **Blockers**, and the `workflow` skill's **From an issue** looks up **Pull requests**.
 The issues and their bodies are in `format.md`, and how `project.sh` judges a project is in `state.md`, both next to
 this file.
@@ -22,6 +22,9 @@ only the questions that change the cut into projects, the split into tasks, or a
 talks with the user about everything else: a split, two boxes ticked in one decision, and its changes before they are
 written.
 
+`pj-auto` is no stage of its own. It drives `pj3-doctor` and `pj4-running` on one project as unattended runs, one
+fresh `claude -p` process per step, and lets `project.sh --next` (`state.md`, **What comes next**) pick every step.
+
 ## Principle
 
 **GitHub holds all the state.** The issues, their labels, their relationships, their comments and the pull requests
@@ -31,11 +34,13 @@ machine.
 Two things live outside GitHub, and only these two:
 
 - **the user's approval within a run.** An approval covers the run it was given in. The next run asks again. A run started
-  with `unattended` asks for none, because starting it that way is the approval (see **Unattended runs**).
+  with `unattended` asks for none, because starting it that way is the approval (see **Unattended runs**). A `pj-auto`
+  drive is approved once, at its start, and that approval covers every unattended run it starts.
 - **the uncommitted work a stopped run leaves in its worktree** `<MAIN>/.claude/worktrees/pj-<P>`, where `<MAIN>`
   is the main working tree. It is local. The next run never uses it. The work is redone as the issue's one task.
 
-The worktree itself is a place to work, not state. A run creates it when it is missing.
+The worktree itself is a place to work, not state. A run creates it when it is missing. A drive's log directory is the
+same: the next drive never reads it.
 
 ## Requirements
 
@@ -154,6 +159,7 @@ then the rest by number. With one option only, the second option is `Stop`. When
 
 A `pj3-doctor` or `pj4-running` run is unattended when its args carry the word `unattended`, for instance
 `/annetaan:pj4-running 12 unattended`. The word alone decides the mode, and the run needs a project number as well.
+`pj-auto` starts its runs in this form.
 
 - **The project.** Only rule 1 of **Picking the project** applies. No number, or a number that points at no option,
   ends the run as needs-user without asking. Rules 2 and 3 do not apply.
