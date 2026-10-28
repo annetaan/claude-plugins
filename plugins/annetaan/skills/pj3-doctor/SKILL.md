@@ -1,6 +1,6 @@
 ---
 name: pj3-doctor
-description: Asks which project to work on, among the projects that have sub-issues, with a number given as the recommended one, then reviews the whole project against the boxes the user ticked on GitHub, against the code and against each issue in it. Has one issue writer per issue redraw what no longer holds, draws the stubs, resolves the blockers, rewrites the run order in the parent's Order list, and labels the issues ready. Asks the user no task decision, because the user ticks those on GitHub. Asks only about a split, two boxes ticked in one decision, and its changes before they are written. Run it again after ticking. The third of four skills, after pj1-plan and pj2-issues and before pj4-running. Use it only when the user names this skill or invokes /annetaan:pj3-doctor, because it edits, files and closes issues and changes labels on GitHub.
+description: Asks which project to work on, among the projects that have sub-issues, with a number given as the recommended one, then reviews the whole project against the boxes the user ticked on GitHub, against the code and against each issue in it. Has one issue writer per issue redraw what no longer holds, draws the stubs, resolves the blockers, rewrites the run order in the parent's Order list, and labels the issues ready. Asks the user no task decision, because the user ticks those on GitHub. Asks only about a split, two boxes ticked in one decision, and its changes before they are written. On a project whose parent carries the auto label, skips the project question and the write approval, and loads pj4-running when the first issue is ready. Run it again after ticking. The third of four skills, after pj1-plan and pj2-issues and before pj4-running. Use it only when the user names this skill or invokes /annetaan:pj3-doctor, or when pj4-running loads it on a project labelled auto, because it edits, files and closes issues and changes labels on GitHub.
 ---
 
 # pj3-doctor
@@ -23,8 +23,8 @@ them nothing.
 **Read `$DOCTOR/../pj1-plan/format.md`, `$DOCTOR/../pj1-plan/state.md` and `$DOCTOR/../pj1-plan/between-skills.md`
 before anything else.** `format.md` is the only description of the parent issue, the run order, the sub-issue body,
 the decisions and the relationships. `state.md` is how `project.sh` reads a project and when an issue is ready.
-`between-skills.md` holds the labels, the blockers, the comments and picking the project. Everything below refers to
-them.
+`between-skills.md` holds the labels, the blockers, the comments, picking the project and running without asking.
+Everything below refers to them.
 
 This skill uses these files:
 
@@ -38,7 +38,7 @@ says.
 ## Before you start
 
 This skill edits, files and closes issues and changes labels on GitHub. **Start it only when the user names it or
-invokes `/annetaan:pj3-doctor`.**
+invokes `/annetaan:pj3-doctor`, or when `pj4-running` loads it on a project whose parent carries `auto`.**
 
 ```bash
 git rev-parse --show-toplevel
@@ -52,7 +52,8 @@ gh repo view --json nameWithOwner,hasIssuesEnabled,defaultBranchRef
 - A dirty working tree does not matter. This skill reads the code and changes nothing in it.
 
 **The project.** Pick it as `between-skills.md` says under **Picking the project**. The project picked is `<P>`. Print
-`project #<P>` once, so that a context summary can find it again.
+`project #<P>` once, so that a context summary can find it again. Keep whether the parent carries `auto`, and the
+args `pj4-running` passed when it loaded this skill (`between-skills.md`, **Running without asking**).
 
 Run `mktemp -d` once for the whole run. `$TMP` below is the directory it printed. A shell variable does not outlive
 one command, so write the path in full each time.
@@ -226,7 +227,7 @@ without a merge and never merges. Drop that edge too, and say so. Keep `parent.m
 $DOCTOR/../pj1-plan/scripts/project.sh <Q>
 ```
 
-**Show the user what will be written**, then ask once.
+**Show the user what will be written**, then ask once, unless the parent carries `auto`.
 
 - each body to rewrite, as `#<n>`, with what changed in one line, an `exact` fix included
 - the new issues: the parts of a split and the stubs
@@ -239,13 +240,26 @@ $DOCTOR/../pj1-plan/scripts/project.sh <Q>
 - `ready` to add, and `ready` to take off, each with why
 - the new `## Order`, one line per issue as it will read
 
+Read the parent's labels again first, so that `auto` removed during the run counts.
+
+```bash
+gh issue view <P> --json labels --jq '.labels[].name'
+```
+
+**With `auto` on the parent**, ask nothing. Print `auto: writing to GitHub without asking` and go on to step 1.
+
+**Without it**, ask.
+
 ```
 AskUserQuestion: Write these changes to GitHub?
-  - Write them
+  - Write them, and from now on run doctor and running on this project without asking until it closes (Recommended) - adds the auto label to #<P>
+  - Write them, this time only
   - Stop without writing
 ```
 
-The approval covers this run only (`between-skills.md`, **Principle**).
+On the first answer, make sure `auto` exists with the command in `between-skills.md` under "Labels", then
+`gh issue edit <P> --add-label auto`, before step 1. On the second, the approval covers this run only
+(`between-skills.md`, **Principle**).
 
 **`ready` goes on an issue** when it is open, `--check` passes with the lint clear and the premises clear or not
 evaluated yet, and no review finding is left on it: the reviewer's last return lists it as clear, or every finding it
@@ -371,16 +385,41 @@ the numbers.
   `parent.waitsOn` is not `merged`, add one sentence: `pj4-running` starts this project after each such `#<Q>` is
   merged into `<from>`.
 
+## The next run, with `auto`
+
+**With `auto` on the parent, load `pj4-running` instead of only naming it**, when this run got through phase 4 and
+all of these hold in `project.sh <P>`, read after the writes:
+
+- the first open issue of the run order is `ready`
+- no decision is open on it and no `design` finding is left on it
+- its body does not ask for the user's hands or material, such as a run on a device or a comment with results
+- the project can start: `parent.baseExists` is true, or every project in `parent.waitsOn` is `merged`
+
+A run that stopped before phase 4 or partway through it never chains.
+
+Print `auto: /annetaan:pj4-running <P> next, #<k> is ready`, then load it for the same project. Pass on where this
+run came from, when `pj4-running` loaded it (`between-skills.md`, **Running without asking**).
+
+```
+Skill(skill: "annetaan:pj4-running", args: "<P> auto: from pj3-doctor, after pj4-running stopped on <#k | the order>")
+Skill(skill: "annetaan:pj4-running", args: "<P> auto: from pj3-doctor")
+```
+
+When any of them fails, end here with the report. Its next step is what the user has to do.
+
 ## Rules
 
 - **You decide nothing.** The user decides, the reviewer finds, and the writer writes.
 - **Never ask a task decision in the conversation.** It goes into the issue as a box to tick.
 - **You never write a body yourself**, except the `## Order` list of the parent. Titles you write come from
   `wantedTitle` or from a writer. The writer applies an `exact` fix, and you only compare it.
-- **Each writer writes its own issue only. Only you write to GitHub**, and only after the phase 4 approval. Every
-  comment you post starts with `**[pj3-doctor]**`.
+- **Each writer writes its own issue only. Only you write to GitHub**, and only after the phase 4 approval, or after
+  printing what you will write when the parent carries `auto`. Every comment you post starts with `**[pj3-doctor]**`.
 - **Sub-issue edges stay inside the project.** A parent edge runs only between two parents, only while
-  `parent.baseExists` is false, and only after the phase 4 approval. Never an edge between a parent and a sub-issue.
+  `parent.baseExists` is false, and only after the phase 4 approval or its `auto` line. Never an edge between a
+  parent and a sub-issue.
+- **`auto` skips the project question and the phase 4 approval. Every other question is still asked**, phase 2's
+  included. You never take `auto` off.
 - **Always pass a body with `--body-file`.** Never create a label with `--force`.
 - **Re-read `updatedAt` before every edit. Never edit a closed issue.**
 - **A sub-issue body goes out only after its lint passes**, and a parent's only after you read it against its shape.

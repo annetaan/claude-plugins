@@ -1,6 +1,6 @@
 ---
 name: pj4-running
-description: Asks which project to work on, among the projects that have sub-issues, with a number given as the recommended one. Creates the project's base branch on its first start, once every project it waits on is merged, and closes the parent of a merged project and names the projects that can be split now, as /annetaan:pj2-issues <P>. Works down the run order in the parent's Order list one sub-issue at a time, and stops at the first issue that is not workable. Each one runs through the workflow skill as one task with review rounds, then pj4-running merges its pull request into the project's base branch and closes the issue itself before the next starts. Once every sub-issue is closed, opens the pull request from the base branch into the branch it was made from, and leaves its merge to the user. Works in a git worktree of its own, so the main working tree stays free for the user. Files unplanned work as stub issues and stops on a blocker. The fourth of four skills, after pj1-plan, pj2-issues and pj3-doctor. Use it only when the user names this skill or invokes /annetaan:pj4-running, because it creates branches, pushes, opens and merges pull requests, and edits issues and labels.
+description: Asks which project to work on, among the projects that have sub-issues, with a number given as the recommended one. Creates the project's base branch on its first start, once every project it waits on is merged, and closes the parent of a merged project and names the projects that can be split now, as /annetaan:pj2-issues <P>. Works down the run order in the parent's Order list one sub-issue at a time, and stops at the first issue that is not workable. Each one runs through the workflow skill as one task with review rounds, then pj4-running merges its pull request into the project's base branch and closes the issue itself before the next starts. Once every sub-issue is closed, opens the pull request from the base branch into the branch it was made from, and leaves its merge to the user. Works in a git worktree of its own, so the main working tree stays free for the user. Files unplanned work as stub issues and stops on a blocker. On a project whose parent carries the auto label, skips the project question and the start approval, and loads pj3-doctor where a doctor pass settles the stop. The fourth of four skills, after pj1-plan, pj2-issues and pj3-doctor. Use it only when the user names this skill or invokes /annetaan:pj4-running, or when pj3-doctor loads it on a project labelled auto, because it creates branches, pushes, opens and merges pull requests, and edits issues and labels.
 ---
 
 # pj4-running
@@ -31,9 +31,9 @@ prompt for a sub-agent. Sub-agents have not read this instruction, so a relative
 them nothing.
 
 **Read `$RUNNING/../pj1-plan/between-skills.md` and `$RUNNING/../pj1-plan/state.md` before anything else.**
-`between-skills.md` holds the labels, the base branch, the handover comment, the blockers, the comments and the pull
-requests. Its table of the four skills says where this one sits. `state.md` is how `project.sh` reads a project and
-when an issue is ready and workable. Everything below refers to them. `$RUNNING/../pj1-plan/format.md` describes the
+`between-skills.md` holds the labels, the base branch, the handover comment, the blockers, the comments, the pull
+requests and running without asking. Its table of the four skills says where this one sits. `state.md` is how
+`project.sh` reads a project and when an issue is ready and workable. Everything below refers to them. `$RUNNING/../pj1-plan/format.md` describes the
 issues and their bodies, and is read only at the sections this file names: **The run order**, **Stubs**, **Fixed
 tokens** and **Writing bodies**.
 
@@ -51,11 +51,12 @@ language (`format.md`, **Writing bodies**). The tokens in (`format.md`, **Fixed 
 
 ## Before you start
 
-This skill creates branches, pushes, opens and merges pull requests, and edits issues and labels. **Start it only when the user names it or invokes `/annetaan:pj4-running`.**
+This skill creates branches, pushes, opens and merges pull requests, and edits issues and labels. **Start it only when the user names it or invokes `/annetaan:pj4-running`, or when `pj3-doctor` loads it on a project whose parent carries `auto`.**
 
 **The project.** Pick it as `between-skills.md` says under **Picking the project**. The project picked is `<P>`. Print
 `project #<P>` once, so that a context summary can find it again. A number given only decides which project is
-recommended, and the run still covers the whole order of the project picked.
+recommended, and the run still covers the whole order of the project picked. Keep whether the parent carries `auto`,
+and the args `pj3-doctor` passed when it loaded this skill (`between-skills.md`, **Running without asking**).
 
 Then run `mktemp -d` once for the whole run. `$TMP` below is the directory it printed. The start may already write
 comment files there. A shell variable does not outlive one command, so write the path in full each time.
@@ -236,11 +237,16 @@ On a stop, leave `<WT>` as phase 6 step 1 says and end the run. `<WT>` stays in 
    open issue that is not.** Nothing after it is taken, even when it is workable, because the order is the user's
    (`format.md`, **The run order**).
    - **`parent.order` is empty, or `parent.orderCheck.ok` is false**: stop, show what `orderCheck` names, and give the
-     next step, `/annetaan:pj3-doctor`.
+     next step, `/annetaan:pj3-doctor`. With `auto`, the run goes through phase 6 on to **The next run, with `auto`**,
+     stopped on the order.
+   - **With `auto`, an issue whose body asks for the user's hands or material**, such as a run on a device or a comment
+     with results, is not workable for this run. Stop the walk there, and name what the user has to do.
 3. List the issue the walk stopped at, with why it is not workable, and the open issues after it as **waiting**. List
    the issues in `orderCheck.missing` too, as not in the order.
 4. **An empty run order** ends the skill here. Report the issue the walk stopped at and why, and the next step,
-   `/annetaan:pj3-doctor`. An issue with a merged pull request makes the run order non-empty.
+   `/annetaan:pj3-doctor`. An issue with a merged pull request makes the run order non-empty. With `auto`, the run
+   goes through phase 6 on to **The next run, with `auto`**, stopped on that issue, unless the walk stopped there for
+   the user's hands or material.
 5. Run `git branch -a` once. Pick a branch pattern in the repository's own naming that holds the issue number, such
    as `feat/<n>-<slug>`. Phase 3 shows it.
 
@@ -271,7 +277,8 @@ $RUNNING/../pj1-plan/scripts/project.sh <P> --check <k>
    ```
 
 **If any issue failed, do not start.** No issue in the order may need design when the run begins. Report which
-issues failed and why, and the next step, `/annetaan:pj3-doctor`.
+issues failed and why, and the next step, `/annetaan:pj3-doctor`. With `auto`, the run goes through phase 6 on to
+**The next run, with `auto`**, stopped on the first issue that failed.
 
 ## Phase 3: approval
 
@@ -296,13 +303,26 @@ Show the user:
 - that the run stops on a blocker, a divergence, the round cap, a merge that does not go through, or the user saying
   stop
 
+Read the parent's labels again first, so that `auto` removed during the run counts.
+
+```bash
+gh issue view <P> --json labels --jq '.labels[].name'
+```
+
+**With `auto` on the parent**, ask nothing. Print `auto: starting the run without asking` and go on to phase 4.
+
+**Without it**, ask.
+
 ```
 AskUserQuestion: Start the run?
-  - Start the run
+  - Start the run, and from now on run doctor and running on this project without asking until it closes (Recommended) - adds the auto label to #<P>
+  - Start the run, this time only
   - Do not start
 ```
 
-The approval covers this run only (`between-skills.md`, **Principle**).
+On the first answer, make sure `auto` exists with the command in `between-skills.md` under "Labels", then
+`gh issue edit <P> --add-label auto`. On the second, the approval covers this run only (`between-skills.md`,
+**Principle**).
 
 ## Phase 4: before the first issue
 
@@ -325,7 +345,7 @@ Nothing runs in parallel. There is one worktree, `<WT>`. For each issue `<k>` in
    - `ready` is gone, because a human took it off, and `pr` is not merged: the run stops here, as the walk in phase 1
      would have. Tell the user, and go to phase 6.
 2. **Check again** with `project.sh <P> --check <k>`, unless `pr` is merged. A failure gets the marks from phase 2,
-   and the run stops (phase 6).
+   and the run stops (phase 6). With `auto`, phase 6 then goes on to **The next run, with `auto`**, stopped on `#<k>`.
 3. **Take the path `pr` gives.**
    - **`pr.state` is `MERGED`** as `#<m>`: close the issue. Write `$TMP/<k>-closed.md`. It starts with
      `**[pj4-running]**`, says PR #<m> merged into `<base>`, and says pj4-running closed the issue because GitHub does
@@ -427,6 +447,9 @@ Act by the reason, then go to phase 6. Every comment below is written to a file 
 - **`finish`**: report the failed step of workflow's phase 6, its message, and the path of `log.md` when there is one.
   The next run stops on the task commit as `unpushed` in phase 5 step 3, which names the way out.
 
+With `auto`, a `blocking` or `diverged` stop goes on from phase 6 to **The next run, with `auto`**, stopped on
+`#<k>`. A `round cap`, `user`, `finish` or `work-reports` stop never does.
+
 ## Phase 6: end of the run
 
 Every way the run ends comes here: the run order is done, the run stopped, or the user said stop.
@@ -447,7 +470,26 @@ Every way the run ends comes here: the run order is done, the run stopped, or th
 
    A worktree entered by path is never deleted by `ExitWorktree`. Where that tool is not available, `cd "<MAIN>"`.
 2. `project.sh <P>`. **When every sub-issue is closed** and the project is not `merged`, open the project's pull
-   request as **The project's pull request** says. Ask nothing, because the approval in phase 3 covered it.
+   request as **The project's pull request** says. Ask nothing, because the approval in phase 3, or `auto`, covered
+   it.
+3. Give the report. With `auto`, and a stop this file sends to **The next run, with `auto`**, go there last.
+
+## The next run, with `auto`
+
+Only a parent carrying `auto` comes here. The issue is marked as the stop says, and `<WT>` is left as phase 6 step 1
+says. The places that send the run here are a failed `--check` in phase 2 or phase 5 step 2, a `diverged` or
+`blocking` stop, and the phase 1 stops on the order or on an issue a doctor pass may settle.
+
+1. **Guard against a loop.** When this run was loaded with args that say `after pj4-running stopped on`, and this run
+   has closed no issue, stop here. Report that the pj3-doctor pass did not make the stop go away, name the issue or
+   the order, and give `/annetaan:pj3-doctor` as the next step for the user. Every turn of the chain that goes on
+   closes at least one issue.
+2. **Load `pj3-doctor`** for the same project. Print `auto: /annetaan:pj3-doctor <P> next, stopped on <#k | the
+   order>` first.
+
+   ```
+   Skill(skill: "annetaan:pj3-doctor", args: "<P> auto: from pj4-running, stopped on <#k | the order>")
+   ```
 
 ## The project's pull request
 
@@ -493,7 +535,8 @@ $RUNNING/scripts/run.sh pr <P> --body "$TMP/<P>-pr.md"
 - the next step: `/annetaan:pj3-doctor` when a `blocker` or a stub exists, otherwise `/annetaan:pj4-running`.
   When every sub-issue is closed, the user merges the project's pull request. The next run then closes the parent, or
   the user closes it. When the list of projects that can be split now is not empty, `/annetaan:pj2-issues <R>` for
-  each.
+  each. When the run goes on to **The next run, with `auto`**, that section's `auto:` line takes the place of
+  `/annetaan:pj3-doctor`.
 
 ## Rules
 
@@ -503,7 +546,10 @@ $RUNNING/scripts/run.sh pr <P> --body "$TMP/<P>-pr.md"
 - **One issue at a time.**
 - **Everything runs in `<WT>`.** Never switch, stash, commit or clean in `<MAIN>`. The user works there.
 - **Never `--admin`. Never create a label with `--force`. Always pass a body with `--body-file`.**
-- **Never merge the project's pull request.** It goes into `<from>`, and the user merges it.
+- **Never merge the project's pull request.** It goes into `<from>`, and the user merges it. `auto` changes nothing
+  here.
+- **`auto` skips the project question and the phase 3 approval. Every other question is still asked**: a dirty
+  `<WT>`, rules that cannot be read, and paths to ignore. You never take `auto` off.
 - **Never merge a pull request that `project.sh` does not report as the issue's `pr`.**
 - **Whenever you take `ready` off an issue, add `blocker`.**
 - **The next run never uses the work a stopped run left in `<WT>`.** The work is redone.

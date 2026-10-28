@@ -17,6 +17,7 @@ in `state.md`, and what the skills agree on between them is in `between-skills.m
 | An order between projects | a native **blocked by** relationship between the two parents (see **Projects**). |
 | A task that can be implemented straight from its body | the **`ready`** label |
 | Something `pj4-running` stopped on | the **`blocker`** label |
+| The user's standing approval for `pj3-doctor` and `pj4-running` | the **`auto`** label on the parent (`between-skills.md`, **Running without asking**) |
 
 ### Projects
 

@@ -22,6 +22,9 @@ only the questions that change the cut into projects, the split into tasks, or a
 talks with the user about everything else: a split, two boxes ticked in one decision, and its changes before they are
 written.
 
+**`pj3-doctor` and `pj4-running` can go on without asking.** Once the user allows it, the parent carries `auto`, and
+the two skills run on that project and load each other until it closes (see **Running without asking**).
+
 ## Principle
 
 **GitHub holds all the state.** The issues, their labels, their relationships, their comments and the pull requests
@@ -30,7 +33,9 @@ machine.
 
 Two things live outside GitHub, and only these two:
 
-- **the user's approval within a run.** An approval covers the run it was given in. The next run asks again.
+- **the user's approval within a run.** An approval covers the run it was given in. The next run asks again,
+  unless the parent carries `auto`. That label is the one standing approval, and it lives on GitHub (see **Running
+  without asking**).
 - **the uncommitted work a stopped run leaves in its worktree** `<MAIN>/.claude/worktrees/pj-<P>`, where `<MAIN>`
   is the main working tree. It is local. The next run never uses it. The work is redone as the issue's one task.
 
@@ -74,6 +79,7 @@ not read as `merged`. A human may also close it after merging. The merge itself 
 | `ready` | `0E8A16` | Every decision is settled and the body can be implemented as it stands. pj4-running may work on it. |
 | `blocker` | `B60205` | pj4-running stopped on this. Settle it before anything else. |
 | `project` | `5319E7` | The parent issue of a pj project. Its sub-issues are the project's tasks. |
+| `auto` | `FBCA04` | pj3-doctor and pj4-running run on this project without asking, until it closes. Remove it to be asked again. |
 
 **Make sure a label exists right before a skill first adds it in a run.** Create it only when the repository does not
 have it. **Never pass `--force`.** It would overwrite the color and the description of a label the repository already
@@ -83,6 +89,7 @@ uses. An existing label is reused as it is.
 gh label list --limit 1000 --json name --jq '.[].name' | grep -qx ready || gh label create ready --color 0E8A16 --description "Every decision is settled and the body can be implemented as it stands. pj4-running may work on it."
 gh label list --limit 1000 --json name --jq '.[].name' | grep -qx blocker || gh label create blocker --color B60205 --description "pj4-running stopped on this. Settle it before anything else."
 gh label list --limit 1000 --json name --jq '.[].name' | grep -qx project || gh label create project --color 5319E7 --description "The parent issue of a pj project. Its sub-issues are the project's tasks."
+gh label list --limit 1000 --json name --jq '.[].name' | grep -qx auto || gh label create auto --color FBCA04 --description "pj3-doctor and pj4-running run on this project without asking, until it closes. Remove it to be asked again."
 ```
 
 Only `pj3-doctor` adds `ready`, after its project review, to an issue that meets the bar
@@ -102,15 +109,23 @@ command.
 **Whenever `pj4-running` takes `ready` off an issue, it adds `blocker`.** An issue it stopped on is then always the
 first thing `pj3-doctor` takes up.
 
+**`auto` goes only on a parent**, and only when the user picks it in an approval question (see **Running without
+asking**). No skill ever takes it off. The user removes it on GitHub.
+
 ## Picking the project
 
-`pj2-issues`, `pj3-doctor` and `pj4-running` always ask which project to work on, with `AskUserQuestion`, even when
-they were given a number. List the open parents, and read the number they were given, if any.
+`pj2-issues`, `pj3-doctor` and `pj4-running` ask which project to work on, with `AskUserQuestion`, even when they
+were given a number. List the open parents, and read the number they were given, if any.
 
 ```bash
-gh issue list --label project --state open --limit 100 --json number,title,subIssuesSummary --jq 'sort_by(.number)'
+gh issue list --label project --state open --limit 100 --json number,title,subIssuesSummary,labels --jq 'sort_by(.number)'
 gh issue view <n> --json number,state,labels,parent
 ```
+
+**`pj3-doctor` and `pj4-running` skip the question when the project is known and its parent carries `auto`.** The
+project is known when it is the recommended project below, when it was picked earlier in this conversation, or when
+it is the only candidate. Print `#<P> <title> (auto)` instead of the list, and go on with it. A known project without
+`auto` is asked as below. `pj2-issues` always asks.
 
 The candidates differ by skill.
 
@@ -136,6 +151,61 @@ The candidates differ by skill.
 For every skill, the question has the header `Project` and at most 4 options: the recommended project first, marked
 `(Recommended)`, then the rest by number. With one option only, the second option is `Stop`. When the list of
 candidates is empty, stop.
+
+## Running without asking
+
+The label `auto` on a parent is the user's standing approval for `pj3-doctor` and `pj4-running` on that project. It
+holds until the project closes, or until the user removes the label.
+
+**How it is given.** The approval question of a `pj3-doctor` run (phase 4) or a `pj4-running` run (phase 3) on a
+project without `auto` carries one more option, first and recommended: yes, and from now on run doctor and running
+on this project without asking until it closes. On that answer the skill makes sure `auto` exists (see **Labels**)
+and adds it to the parent. A plain yes covers this run only, as before.
+
+```bash
+gh issue edit <P> --add-label auto
+```
+
+**What `auto` skips.** Read the parent's labels at the start of every run. With `auto`:
+
+- the question of **Picking the project**, when the project is known
+- the write approval of `pj3-doctor`, phase 4. It still prints what it will write
+- the approval of `pj4-running`, phase 3. It still prints the run it will start
+
+Each skipped question becomes one printed line, `auto: <what goes on without asking>`.
+
+**What `auto` never skips.**
+
+- **A task decision.** The user still ticks it on GitHub.
+- **The questions of `pj3-doctor`, phase 2**: a split, two boxes ticked in one decision, and a ticked option the code
+  rules out.
+- **The questions of `pj4-running` before its first issue**: uncommitted work left in its worktree, rules on the base
+  branch it cannot read, and paths git does not ignore.
+- **Anything only the user can do.** A task that needs the user's hands or material, such as a run on a device or a
+  comment with results, stops the chain. The skill reports it and stops.
+- **Merging the project's pull request into `<from>`.** No skill merges it.
+
+**The chain.** With `auto`, each skill loads the other where it would otherwise end by naming it, for the same
+project, with the Skill tool.
+
+- `pj4-running` loads `pj3-doctor` where it stops on something a doctor pass settles. A `round cap`, `user`, `finish`
+  or `work-reports` stop never chains.
+- `pj3-doctor` loads `pj4-running` when nothing is left for the user and the first open issue of the run order is
+  `ready`.
+
+The args name the project and where the chain came from, so the next skill can tell:
+
+```
+Skill(skill: "annetaan:pj3-doctor", args: "<P> auto: from pj4-running, stopped on <#k | the order>")
+Skill(skill: "annetaan:pj4-running", args: "<P> auto: from pj3-doctor[, after pj4-running stopped on <#k | the order>]")
+```
+
+**The chain never loops.** When `pj4-running` was loaded by a `pj3-doctor` that came after a `pj4-running` stop, and
+it would stop and chain again before it has closed an issue, it stops and reports instead: the doctor pass did not
+make the issue workable. Every turn of the chain that goes on has closed at least one issue.
+
+Before it loads the other skill, a skill prints its report and one line,
+`auto: /annetaan:<skill> <P> next, <why>`, so that a context summary can find where the chain stood.
 
 ## Titles
 

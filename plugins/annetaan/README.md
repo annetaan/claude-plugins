@@ -27,7 +27,8 @@ work into projects, each a parent issue. A parent is blocked by the parents of t
 splits one project into sub-issues once every project it waits on is merged. You tick the decisions on GitHub.
 `pj3-doctor` makes the issues ready. `pj4-running` runs `workflow` once per sub-issue, merges each pull request into
 the project's branch and closes the issue, and at the end opens the pull request that takes the project's branch
-back. The four pass nothing to each other through the conversation. Each one reads the project from GitHub afresh.
+back. The four pass nothing to each other through the conversation. Each one reads the project from GitHub afresh,
+even when `pj3-doctor` and `pj4-running` load each other on a project labelled `auto`.
 
 Which skill to start with:
 
@@ -50,13 +51,14 @@ In short, from [format.md](skills/pj1-plan/format.md)'s The parts:
 | the run order | the parent's `## Order` |
 | can run | `ready` label |
 | stopped on | `blocker` label |
+| run without asking | `auto` label on the parent |
 | where the work lands | branch `pj/12` |
 | one task's change | one pull request |
 | what sessions learnt | the parent's handover comment |
 
 Only two pieces of a project's state live outside GitHub: your approval within one run, which the next run asks for
-again, and the uncommitted work a stopped run leaves in its worktree under `.claude/worktrees/`, which the next run
-never uses. Because of this, a project can stop anywhere and resume in another session or on another machine.
+again unless the parent carries `auto`, and the uncommitted work a stopped run leaves in its worktree under
+`.claude/worktrees/`, which the next run never uses. Because of this, a project can stop anywhere and resume in another session or on another machine.
 
 The work report of each issue is a record, not state. It stays local and no later run reads it. Only its `log.md`
 reaches GitHub, as the pull request's body.
@@ -196,8 +198,8 @@ on was closed without a merge, it asks whether to drop that wait. When the plann
 another project that is not merged yet, `pj2-issues` asks whether to add that wait. On yes, it adds the blocked-by
 between the two parents and stops without filing anything else.
 
-`/annetaan:pj3-doctor` ([details](skills/pj3-doctor/SKILL.md)) asks which project to work on, every time, among
-the projects that have sub-issues. A
+`/annetaan:pj3-doctor` ([details](skills/pj3-doctor/SKILL.md)) asks which project to work on, among the projects
+that have sub-issues, unless the project is known and labelled `auto`. A
 reviewer session reads the whole project against the boxes you ticked, the code, and each issue in it: a ticked
 option the design does not hold, two issues that disagree on a name, a missing blocked-by, a stub, a blocker. One
 issue writer per issue with a finding redraws it, and a question only you can answer becomes a new decision to tick.
@@ -214,8 +216,8 @@ projects and stops instead. It closes the parent of any project it finds merged,
 checks that you can merge your own pull request into the project's branch without an approving review. It walks the
 run order from the top and takes issues until the first one that is not workable, then checks every issue it took.
 Any issue that needs design again sends the run back to `pj3-doctor` before anything starts. After you approve the
-order, each issue goes through the same steps in turn, in a git worktree of the project's own under
-`.claude/worktrees/`, so you can keep working in your clone while the run goes on. It gets a branch.
+order, or right away on a project labelled `auto`, each issue goes through the same steps in turn, in a git worktree
+of the project's own under `.claude/worktrees/`, so you can keep working in your clone while the run goes on. It gets a branch.
 [workflow](skills/workflow/README.md#driven-from-an-issue) runs it as one task, with review rounds. A draft pull
 request follows, with the work report as its body. Then the merge into the project's branch, by squash where the
 repository allows it. pj4-running then closes the issue itself, because GitHub closes nothing on a merge into a
@@ -233,8 +235,8 @@ their numbers.
 /annetaan:pj4-running
 ```
 
-Tick the open decisions on GitHub between the two `pj3-doctor` runs. `pj2-issues`, the doctor and the runner always
-ask which project, and an issue number passed after any of them puts its project first. Each later project starts
+Tick the open decisions on GitHub between the two `pj3-doctor` runs. `pj2-issues`, the doctor and the runner ask
+which project, and an issue number passed after any of them puts its project first. Each later project starts
 again from `/annetaan:pj2-issues` once the projects it waits on are merged.
 
 ```mermaid
@@ -264,13 +266,32 @@ What they need:
 - For `pj4-running`: write access and a project branch that accepts a merge with no approving review. Your own
   working tree may be dirty, because the run works in a worktree of its own.
 
-The `ready`, `blocker` and `project` labels are created when missing, and a label that already exists is reused as
-it is.
+The `ready`, `blocker`, `project` and `auto` labels are created when missing, and a label that already exists is
+reused as it is.
 
 `pj4-running` asks up to two more questions before its first issue. When git does not ignore `.claude/worktrees/`
 or `work-reports/`, it asks to add them to `.git/info/exclude`. That file stays in your clone, so nothing is
 committed, and `.gitignore` is never edited. When an earlier run stopped with uncommitted work in the worktree, it
 asks whether to discard that work. The next run redoes it either way.
+
+#### Running without asking
+
+The doctor's write approval and the runner's start approval each offer one more option, recommended: yes, and from
+now on run doctor and running on this project without asking until it closes. It adds the `auto` label to the
+parent. From then on, on that project:
+
+- Neither skill asks which project when the project is known: a number you gave, the project picked earlier in the
+  conversation, or the only one there is.
+- The doctor prints what it will write and writes it. The runner prints the run and starts it.
+- When the runner stops on something a doctor pass settles, such as a body the code no longer matches, a divergence
+  or a stub that blocks the issue, it loads `pj3-doctor`. When the doctor leaves nothing for you and the first issue
+  of the run order is `ready`, it loads `pj4-running`. If a doctor pass did not get the runner past its stop, the
+  chain ends there and tells you.
+
+`auto` never skips a task decision, the doctor's questions about a split or two boxes ticked in one decision, the
+runner's questions about leftover work in its worktree, unreadable rules or paths to ignore, a task that needs your
+hands or material such as a run on a device, or the merge of the project's pull request. A round cap, a failed
+finish step or you saying stop ends the chain too. Remove the `auto` label from the parent to be asked again.
 
 ### doc-write
 
