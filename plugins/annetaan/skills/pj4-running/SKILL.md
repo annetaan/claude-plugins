@@ -1,6 +1,6 @@
 ---
 name: pj4-running
-description: Asks which project to work on, among the projects that have sub-issues, with a number given as the recommended one. Creates the project's base branch on its first start, once every project it waits on is merged, and closes the parent of a merged project and names the projects that can be split now, as /annetaan:pj2-issues <P>. Works down the run order in the parent's Order list one sub-issue at a time, and stops at the first issue that is not workable. Each one runs through the workflow skill as one task with review rounds, then pj4-running merges its pull request into the project's base branch and closes the issue itself before the next starts. Once every sub-issue is closed, opens the pull request from the base branch into the branch it was made from, and leaves its merge to the user. Works in a git worktree of its own, so the main working tree stays free for the user. Files unplanned work as stub issues and stops on a blocker. The fourth of four skills, after pj1-plan, pj2-issues and pj3-doctor. Use it only when the user names this skill or invokes /annetaan:pj4-running, because it creates branches, pushes, opens and merges pull requests, and edits issues and labels.
+description: Takes the project from a number given, a sub-issue's number naming its parent, or the only project with sub-issues, and otherwise asks which project to work on. Creates the project's base branch on its first start, once every project it waits on is merged, and closes the parent of a merged project and names the projects that can be split now, as /annetaan:pj2-issues <P>. Works down the run order in the parent's Order list one sub-issue at a time, and stops at the first issue that is not workable. Each one runs through the workflow skill as one task with review rounds, then pj4-running merges its pull request into the project's base branch and closes the issue itself before the next starts. Once every sub-issue is closed, opens the pull request from the base branch into the branch it was made from, and leaves its merge to the user. Works in a git worktree of its own, so the main working tree stays free for the user. Files unplanned work as stub issues and stops on a blocker. The fourth of four skills, after pj1-plan, pj2-issues and pj3-doctor. Use it only when the user names this skill or invokes /annetaan:pj4-running, because it creates branches, pushes, opens and merges pull requests, and edits issues and labels.
 ---
 
 # pj4-running
@@ -54,8 +54,8 @@ language (`format.md`, **Writing bodies**). The tokens in (`format.md`, **Fixed 
 This skill creates branches, pushes, opens and merges pull requests, and edits issues and labels. **Start it only when the user names it or invokes `/annetaan:pj4-running`.**
 
 **The project.** Pick it as `between-skills.md` says under **Picking the project**. The project picked is `<P>`. Print
-`project #<P>` once, so that a context summary can find it again. A number given only decides which project is
-recommended, and the run still covers the whole order of the project picked.
+`project #<P>` once, so that a context summary can find it again. A number given picks the project, a sub-issue's number its parent, and the run still covers
+the whole order of the project picked.
 
 Then run `mktemp -d` once for the whole run. `$TMP` below is the directory it printed. The start may already write
 comment files there. A shell variable does not outlive one command, so write the path in full each time.

@@ -185,8 +185,8 @@ answer the plan-level questions and see the projects in stages, with the reason 
 pick the branch the projects start from. Nothing reaches GitHub before that. Then one parent issue per project is
 filed, blocked by the parents it waits on. No sub-issue and no branch is created yet, and no issue is `ready` yet.
 
-`/annetaan:pj2-issues` ([details](skills/pj2-issues/SKILL.md)) asks which project to split. It offers the projects
-with no sub-issue yet whose waited-on projects are all merged, and recommends the lowest-numbered one. A planner
+`/annetaan:pj2-issues` ([details](skills/pj2-issues/SKILL.md)) takes the project to split from a number given, or the only one it could split, and otherwise asks. It offers the
+projects with no sub-issue yet whose waited-on projects are all merged, and recommends the lowest-numbered one. A planner
 session splits the project against the code as it stands after those merges, and you answer the split-level
 questions. You approve the split, any change to the parent shown as a diff, and any change to its blocked-by. Then
 one issue writer per task, in parallel, draws its task against the code and picks out what you have to decide. The
@@ -196,8 +196,8 @@ on was closed without a merge, it asks whether to drop that wait. When the plann
 another project that is not merged yet, `pj2-issues` asks whether to add that wait. On yes, it adds the blocked-by
 between the two parents and stops without filing anything else.
 
-`/annetaan:pj3-doctor` ([details](skills/pj3-doctor/SKILL.md)) asks which project to work on, every time, among
-the projects that have sub-issues. A
+`/annetaan:pj3-doctor` ([details](skills/pj3-doctor/SKILL.md)) takes the project from a number given or the only
+project that has sub-issues, and otherwise asks which project to work on. A
 reviewer session reads the whole project against the boxes you ticked, the code, and each issue in it: a ticked
 option the design does not hold, two issues that disagree on a name, a missing blocked-by, a stub, a blocker. One
 issue writer per issue with a finding redraws it, and a question only you can answer becomes a new decision to tick.
@@ -208,7 +208,7 @@ changes before it writes them. Then it rewrites the run order and labels `ready`
 clear. While the project's branch does not exist yet, it may also change which projects this one waits on, after
 you approve. Run it once after `pj2-issues`, tick the boxes it lists, and run it again.
 
-`/annetaan:pj4-running` ([details](skills/pj4-running/SKILL.md)) asks which project to work on, the same way. On the
+`/annetaan:pj4-running` ([details](skills/pj4-running/SKILL.md)) takes the project the same way. On the
 project's first run it creates the project's branch. When a project it waits on is not merged yet, it lists those
 projects and stops instead. It closes the parent of any project it finds merged, its own or one it waits on. Then it
 checks that you can merge your own pull request into the project's branch without an approving review. It walks the
@@ -233,8 +233,8 @@ their numbers.
 /annetaan:pj4-running
 ```
 
-Tick the open decisions on GitHub between the two `pj3-doctor` runs. `pj2-issues`, the doctor and the runner always
-ask which project, and an issue number passed after any of them puts its project first. Each later project starts
+Tick the open decisions on GitHub between the two `pj3-doctor` runs. An issue number passed after `pj2-issues`, the
+doctor or the runner picks its project, and with one candidate they ask nothing. Each later project starts
 again from `/annetaan:pj2-issues` once the projects it waits on are merged.
 
 ```mermaid
