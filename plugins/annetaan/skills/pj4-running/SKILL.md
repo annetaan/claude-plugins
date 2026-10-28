@@ -29,6 +29,9 @@ The user keeps working in `<MAIN>` while the run goes on. The run never switches
 `$RUNNING` is not a shell variable. Replace it with the real absolute path when you run bash and when you write a
 prompt for a sub-agent. Sub-agents have not read this instruction, so a relative path or a literal `$RUNNING` finds
 them nothing.
+Collapse the `..` in a path to a sibling skill, so that the command text names `<skills>/pj1-plan/scripts/project.sh` and not
+`<skills>/pj4-running/../pj1-plan/scripts/project.sh`. A permission rule matches the text of the command, and the rules
+`pj-auto` shows name the collapsed path. This holds in the prompts for sub-agents too.
 
 **Read `$RUNNING/../pj1-plan/between-skills.md` and `$RUNNING/../pj1-plan/state.md` before anything else.**
 `between-skills.md` holds the labels, the base branch, the handover comment, the blockers, the comments and the pull
@@ -237,8 +240,9 @@ On a stop, leave `<WT>` as phase 6 step 1 says and end the run. `<WT>` stays in 
    the issues already taken counting as closed. Phase 2 runs the `--check` part of that. **Stop the walk at the first
    open issue that is not.** Nothing after it is taken, even when it is workable, because the order is the user's
    (`format.md`, **The run order**).
-   - **`parent.order` is empty, or `parent.orderCheck.ok` is false**: stop, show what `orderCheck` names, and give the
-     next step, `/annetaan:pj3-doctor`.
+   - **`parent.order` is empty, or `parent.orderCheck.ok` is false**: the run order is the merged-pull-request issues
+     alone, and the walk does not start. Show what `orderCheck` names, and give the next step, `/annetaan:pj3-doctor`.
+     With no such issue the run order is empty and phase 1 ends here (step 4).
 3. List the issue the walk stopped at, with why it is not workable, and the open issues after it as **waiting**. List
    the issues in `orderCheck.missing` too, as not in the order.
 4. **An empty run order** ends the skill here. Report the issue the walk stopped at and why, and the next step,
@@ -508,7 +512,7 @@ An unattended run prints its last line as `between-skills.md` says under **Unatt
 - `start` returned `stop` with `waits`. The projects waited on are readable on GitHub.
 - `start` returned `done` with `project.merged` true, and `close` closed `<P>` or found it `already` closed.
 - `start` returned `done` and **The project's pull request** came to `opened` or `exists`.
-- Phase 1's run order was empty, including when `orderCheck` is not ok.
+- Phase 1's run order was empty, including when `orderCheck` is not ok and no issue has a merged pull request.
 - Phase 2 marked the issue that failed `--check` and stopped.
 - Phase 5 step 1 stopped because a human had removed `ready`.
 - Phase 5 step 2 marked the issue that failed `--check` and stopped.

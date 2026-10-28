@@ -19,6 +19,9 @@ carry their output to the user and onto GitHub.
 `$DOCTOR` is not a shell variable. Replace it with the real absolute path when you run bash and when you write a
 prompt for a sub-agent. Sub-agents have not read this instruction, so a relative path or a literal `$DOCTOR` finds
 them nothing.
+Collapse the `..` in a path to a sibling skill, so that the command text names `<skills>/pj1-plan/scripts/project.sh` and not
+`<skills>/pj3-doctor/../pj1-plan/scripts/project.sh`. A permission rule matches the text of the command, and the rules
+`pj-auto` shows name the collapsed path. This holds in the prompts for sub-agents too.
 
 **Read `$DOCTOR/../pj1-plan/format.md`, `$DOCTOR/../pj1-plan/state.md` and `$DOCTOR/../pj1-plan/between-skills.md`
 before anything else.** `format.md` is the only description of the parent issue, the run order, the sub-issue body,

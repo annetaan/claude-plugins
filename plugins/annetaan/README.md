@@ -56,8 +56,9 @@ In short, from [format.md](skills/pj1-plan/format.md)'s The parts:
 | what sessions learnt | the parent's handover comment |
 
 Only two pieces of a project's state live outside GitHub: your approval within one run, which the next run asks for
-again, and the uncommitted work a stopped run leaves in its worktree under `.claude/worktrees/`, which the next run
-never uses. Because of this, a project can stop anywhere and resume in another session or on another machine.
+again unless it starts `unattended` (every run of a `pj-auto` drive does, under the drive's one approval), and the
+uncommitted work a stopped run leaves in its worktree under `.claude/worktrees/`, which the next run never uses.
+Because of this, a project can stop anywhere and resume in another session or on another machine.
 
 The work report of each issue is a record, not state. It stays local and no later run reads it. Only its `log.md`
 reaches GitHub, as the pull request's body.
