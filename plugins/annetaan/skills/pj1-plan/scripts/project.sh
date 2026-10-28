@@ -10,6 +10,7 @@
 # This script is the only place that parses a sub-issue body (## Design, ## Acceptance criteria, ## Decisions),
 # the parent's Base: line (the base branch and the branch it was made from) and its ## Order list, and the Implements
 # head of a pull request.
+# --next reads only too: it names what to run next on the project, with a fingerprint of the state it was read from.
 # It also derives the title a sub-issue should carry, with its decision count (wantedTitle).
 set -euo pipefail
 
@@ -19,11 +20,13 @@ usage() {
   cat >&2 <<'USAGE'
 usage: project.sh [-R <owner/repo>] <parent>               the whole project, as JSON
        project.sh [-R <owner/repo>] <parent> --order       the run order, and the ## Order list to write, as JSON
+       project.sh [-R <owner/repo>] <parent> --next        what to run next on the project, as JSON
        project.sh [-R <owner/repo>] <parent> --check <n>   whether sub-issue <n> can be implemented from its body now
        project.sh --lint <file|->                          lint one sub-issue body, read from a file or standard input
   -R <owner/repo>   read another repository (default: the repository of the current directory)
 --order exits non-zero and names the cycle when the blocked-by relationships have one,
         or when the projects wait on each other.
+--next reads only. It prints what to run next (doctor, running, user or done), why, and a fingerprint of the state.
 --check runs inside a clone of the repository. It fetches the branch the base was made from,
         and the base branch once it exists.
 --lint touches neither GitHub nor git and always exits 0.
@@ -36,6 +39,7 @@ while [ $# -gt 0 ]; do
   case "$1" in
     -R|--repo) [ $# -ge 2 ] || usage; REPO="$2"; shift 2 ;;
     --order)   MODE="order"; shift ;;
+    --next)    MODE="next"; shift ;;
     --check)   [ $# -ge 2 ] || usage; MODE="check"; TARGET="$2"; shift 2 ;;
     --lint)    [ $# -ge 2 ] || usage; MODE="lint"; LINT_FILE="$2"; shift 2 ;;
     -h|--help) usage ;;
@@ -47,7 +51,7 @@ done
 command -v python3 >/dev/null 2>&1 || die "python3 is not installed"
 
 read -r -d '' PY <<'PY' || true
-import json, re, subprocess, sys
+import hashlib, json, re, subprocess, sys
 
 MODE = sys.argv[1]
 
@@ -432,12 +436,15 @@ def branches(own, deps):
     exists (the base is on origin) and reached (the base has reached its from: a merged pull request from the base
     into from, or from contains the base), and for a dep the states and the count of its sub-issues."""
     fields, strs, ints = [], {}, {}
-    def ref_fields(k, b, f):
+    def ref_fields(k, b, f, open_pr=False):
         strs.update({"q%s" % k: "refs/heads/" + b, "b%s" % k: b, "f%s" % k: f})
         fields.append("r%s: ref(qualifiedName: $q%s) { compare(headRef: $f%s) { status } }" % (k, k, k))
         fields.append("m%s: pullRequests(headRefName: $b%s, baseRefName: $f%s, states: [MERGED], first: 1) "
                       "{ totalCount }" % (k, k, k))
-    ref_fields("o", *own)
+        if open_pr:
+            fields.append("p%s: pullRequests(headRefName: $b%s, baseRefName: $f%s, states: [OPEN], first: 1) "
+                          "{ nodes { url } }" % (k, k, k))
+    ref_fields("o", *own, open_pr=True)
     for k, (n, b, f) in enumerate(deps):
         ints["n%d" % k] = n
         fields.append("d%d: issue(number: $n%d) { subIssues(first: 100) { totalCount nodes { state } } }" % (k, k))
@@ -454,7 +461,8 @@ def branches(own, deps):
         if subs["totalCount"] > len(subs["nodes"]):
             die("#%d has more than 100 sub-issues. this script reads the first 100 only" % n)
         out[n] = dict(stand(str(k)), states=[s["state"] for s in subs["nodes"]])
-    return stand("o"), out
+    open_prs = (r.get("po") or {}).get("nodes") or []
+    return dict(stand("o"), openPr=open_prs[0]["url"] if open_prs else None), out
 
 def merged(issue, states, reached):
     """A project is merged when its parent is closed as completed, or when it is open, every sub-issue is closed and
@@ -463,7 +471,7 @@ def merged(issue, states, reached):
         return issue.get("stateReason") == "COMPLETED"
     return bool(states) and all(s == "CLOSED" for s in states) and reached
 
-if MODE in ("project", "check"):
+if MODE in ("project", "check", "next"):
     dep_list = [deps_of[parent["number"]][n] for n in sorted(deps_of[parent["number"]])]
     open_deps = [(d["number"],) + base_of(d["body"]) for d in dep_list if d["state"] == "OPEN"]
     own, dep_stand = branches((base, made_from), open_deps)
@@ -476,12 +484,14 @@ if MODE in ("project", "check"):
             "base": base_of(d["body"])[0], "merged": merged(d, st["states"], st["reached"]),
         })
 
-if MODE == "project":
-    print(json.dumps({
+def project_view():
+    """The dict project mode prints."""
+    return {
         "parent": dict({k: parent.get(k) for k in ("number", "title", "state", "stateReason", "updatedAt", "body")},
                        base=base, **{"from": made_from},
                        baseExists=base_exists,
                        merged=merged(parent, [i["state"] for i in issues], own["reached"]),
+                       projectPr=own["openPr"],
                        waitsOn=waits_on_entries,
                        waitedOnBy=[b["number"] for b in parent["blocking"]["nodes"] if base_of(b["body"])],
                        startable=(parent["state"] == "OPEN" and not issues
@@ -489,7 +499,68 @@ if MODE == "project":
                        order=written,
                        orderCheck=order_check()),
         "issues": issues,
-    }, ensure_ascii=False))
+    }
+
+def fingerprint(view):
+    """The sha256 of the parts of the view a step can change: the parent, each issue and its pull request, and the
+    project's pull request."""
+    p = view["parent"]
+    state = {
+        "parent": {"updatedAt": p["updatedAt"], "state": p["state"]},
+        "issues": [{"number": i["number"], "state": i["state"], "updatedAt": i["updatedAt"], "labels": i["labels"],
+                    "pr": {"number": i["pr"]["number"], "state": i["pr"]["state"]} if i["pr"] else None}
+                   for i in view["issues"]],
+        "projectPr": p["projectPr"],
+    }
+    return hashlib.sha256(json.dumps(state, sort_keys=True).encode()).hexdigest()
+
+def next_step(view):
+    """What to run next, by the first rule that matches (state.md, What comes next)."""
+    p, subs = view["parent"], view["issues"]
+    def out(step, why, issue=None, url=None):
+        return {"next": step, "why": why, "issue": issue, "url": url, "fingerprint": fingerprint(view)}
+    if p["state"] == "CLOSED":
+        return out("done", "closed")
+    if p["merged"]:
+        return out("running", "merged-parent")
+    if not subs:
+        return out("user", "split")
+    if not p["baseExists"] and any(not d["merged"] for d in p["waitsOn"]):
+        return out("user", "waits")
+    open_subs = [i for i in subs if i["state"] == "OPEN"]
+    done_prs = [i["number"] for i in open_subs if (i["pr"] or {}).get("state") == "MERGED"]
+    if done_prs:
+        return out("running", "close-merged", min(done_prs))
+    if not open_subs:
+        if p["projectPr"]:
+            return out("user", "merge-project-pr", url=p["projectPr"])
+        return out("running", "project-pr")
+    by_number = {i["number"]: i for i in open_subs}
+    in_order = [by_number[n] for n in p["order"] if n in by_number]
+    if not p["orderCheck"]["ok"] or not in_order:
+        return out("doctor", "order")
+    k = in_order[0]
+    n = k["number"]
+    if "blocker" in k["labels"]:
+        return out("doctor", "blocker", n)
+    if k["stub"]:
+        return out("doctor", "stub", n)
+    if k["decisions"]["contradictory"] > 0:
+        return out("user", "contradictory", n)
+    if k["decisions"]["open"] > 0:
+        return out("user", "decisions", n)
+    if "ready" not in k["labels"]:
+        return out("doctor", "not-ready", n)
+    if any(b["state"] == "OPEN" for b in k["blockedBy"]):
+        return out("doctor", "blocked", n)
+    return out("running", "workable", n)
+
+if MODE == "project":
+    print(json.dumps(project_view(), ensure_ascii=False))
+    sys.exit(0)
+
+if MODE == "next":
+    print(json.dumps(next_step(project_view()), ensure_ascii=False))
     sys.exit(0)
 
 if MODE == "check":
