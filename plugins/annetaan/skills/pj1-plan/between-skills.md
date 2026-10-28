@@ -30,7 +30,8 @@ machine.
 
 Two things live outside GitHub, and only these two:
 
-- **the user's approval within a run.** An approval covers the run it was given in. The next run asks again.
+- **the user's approval within a run.** An approval covers the run it was given in. The next run asks again. A run started
+  with `unattended` asks for none, because starting it that way is the approval (see **Unattended runs**).
 - **the uncommitted work a stopped run leaves in its worktree** `<MAIN>/.claude/worktrees/pj-<P>`, where `<MAIN>`
   is the main working tree. It is local. The next run never uses it. The work is redone as the issue's one task.
 
@@ -148,6 +149,23 @@ When a rule decides without asking, say why on the line of the project picked: `
 
 The question has the header `Project` and at most 4 options: the recommended project first, marked `(Recommended)`,
 then the rest by number. With one option only, the second option is `Stop`. When the list of candidates is empty, stop.
+
+## Unattended runs
+
+A `pj3-doctor` or `pj4-running` run is unattended when its args carry the word `unattended`, for instance
+`/annetaan:pj4-running 12 unattended`. The word alone decides the mode, and the run needs a project number as well.
+
+- **The project.** Only rule 1 of **Picking the project** applies. No number, or a number that points at no option,
+  ends the run as needs-user without asking. Rules 2 and 3 do not apply.
+- **Questions.** An unattended run never calls `AskUserQuestion`. The approval question (`pj3-doctor` phase 4,
+  `pj4-running` phase 3) is skipped, and the summary it would have shown is printed as usual. Any other question that
+  comes due ends the run without asking, the way choosing stop on that question would, as needs-user.
+- **The last line.** On ending, the run prints exactly one last line, one of:
+  - `unattended: done`, when it ended in one of the ways its skill lists under **Ending an unattended run**
+  - `unattended: needs-user <one line>`, for every other ending
+- **The direction of the list.** Each skill lists the endings that are done. Any ending not on the list is needs-user,
+  so a missed ending falls toward stopping, never toward silently moving on.
+- **Manual runs.** A run whose args do not carry `unattended` is untouched by this section.
 
 ## Titles
 
