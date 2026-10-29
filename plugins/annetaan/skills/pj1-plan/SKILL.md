@@ -173,7 +173,7 @@ One block per project, in the file order:
 - the base branch `pj/<P>` and `<from>`, saying the branch is not created yet
 - the parents of the projects it waits on, as `#<Q>`
 
-Then the stages again, with issue numbers in place of the `PJ` ids.
+Then the stages again, with the parent issue URLs in place of the `PJ` ids.
 
 Then the next steps, in this order:
 
