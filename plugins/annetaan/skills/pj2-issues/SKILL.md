@@ -296,7 +296,7 @@ Every sub-issue's `title` equals its `wantedTitle`. `parent.orderCheck.ok` is tr
 ## Report to the user
 
 - the parent issue URL
-- one line per sub-issue: number, title, the issues it waits on as `#<n>`, and the open decisions by count
+- one line per sub-issue: its URL, title, the issues it waits on as `#<n>`, and the open decisions by count
 - the changes to the parent body and to its edges, or that there were none
 
 Then the next steps, in this order:

@@ -18,7 +18,8 @@ user.
 
 **Read these before anything else:**
 
-- `$AUTO/../pj1-plan/between-skills.md`: **Principle**, **Picking the project**, **Unattended runs**
+- `$AUTO/../pj1-plan/between-skills.md`: **Principle**, **Picking the project**, **Unattended runs**, **Issues in a
+  report**
 - `$AUTO/../pj1-plan/state.md`: **What comes next**
 
 This skill uses these files:
@@ -90,13 +91,13 @@ or the script.**
 
 ## Report to the user
 
-Read the `ended` line of `<LOG>/drive.jsonl`, then list the steps, one per line as `<i> <run> <why> #<issue>`, and the
-reason. Name the next action from the reason:
+Read the `ended` line of `<LOG>/drive.jsonl`, then list the steps, one per line as `<i> <run> <why> <issue URL>`, and
+the reason. Name the next action from the reason:
 
 - `user`, or a first `--next` of `user`: split by `why`.
   - `split`: `/annetaan:pj2-issues <P>`
   - `waits`: merge the projects it waits on
-  - `decisions`: tick the decisions of #k on GitHub, then `/annetaan:pj-auto <P>`
+  - `decisions`: tick the decisions of `<issue URL>` on GitHub, then `/annetaan:pj-auto <P>`
   - `contradictory`: run `/annetaan:pj3-doctor <P>` by hand
   - `merge-project-pr`: merge the pull request at `url`
 - `done`: the project is closed.

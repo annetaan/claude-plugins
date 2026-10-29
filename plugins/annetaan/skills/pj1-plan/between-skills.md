@@ -1,7 +1,8 @@
 # How the pj skills work together
 
 This file holds what `pj1-plan`, `pj2-issues`, `pj3-doctor` and `pj4-running` agree on between them: who creates
-the base branch, the labels, the comments, the pull requests and how they write to GitHub. The four skills and
+the base branch, the labels, the comments, the pull requests, how they name an issue to the user and how they
+write to GitHub. The four skills and
 `pj-auto` read it first.
 The project reviewer looks up **Blockers**, and the `workflow` skill's **From an issue** looks up **Pull requests**.
 The issues and their bodies are in `format.md`, and how `project.sh` judges a project is in `state.md`, both next to
@@ -286,6 +287,20 @@ closed, and never merges it.
 - The body's first line is `Part of #<P>`. Below it go the sub-issues closed as completed, each with its pull request.
 
 When it merges, the project is `merged` (`state.md`, **When a project is merged**).
+
+## Issues in a report
+
+Every report to the user names an issue or a pull request by its full URL, such as
+`https://github.com/<owner>/<repo>/issues/<n>`, never by a bare `#<n>`. The terminal turns a URL into a link, so the
+user reaches a decision to tick in one click. A report format in a skill that writes `#<n>` means that URL. A
+decision is `<issue URL> D<n> <question>`.
+
+```bash
+gh repo view --json url --jq .url    # once per run; append /issues/<n> or /pull/<n>
+```
+
+The progress lines a run prints for a context summary, such as `project #<P>` or `#<k> rewritten`, the headers of
+`AskUserQuestion` and everything written to GitHub keep `#<n>`. GitHub draws a link from `#<n>` on its own pages.
 
 ## Writing to GitHub
 

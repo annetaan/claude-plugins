@@ -365,7 +365,7 @@ the numbers.
 
 - every open sub-issue, one line each, in the new run order: `ready` or not, and when not, why. An issue left
   without `ready` by the second review gives its `design` findings as the reason
-- **the decisions left for the user**, one line each, as `#<n> D<k> <question>` with the issue URL. This is the
+- **the decisions left for the user**, one line each, as `<issue URL> D<k> <question>`. This is the
   user's next step: tick them on GitHub, then run `/annetaan:pj3-doctor` again
 - the issues filed, the sub-issue and parent edges changed, the blockers closed, the parents rewritten and the
   titles changed
