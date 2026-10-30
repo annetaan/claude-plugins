@@ -99,8 +99,9 @@ the reason. Name the next action from the reason:
   - `waits`: merge the projects it waits on
   - `decisions`: tick the decisions of `<issue URL>` on GitHub, then `/annetaan:pj-auto <P>`
   - `contradictory`: run `/annetaan:pj3-doctor <P>` by hand
-  - `merge-project-pr`: merge the pull request at `url`
-- `done`: the project is closed.
+  - `merge-project-pr`: merge the pull request at `url`, then `/annetaan:pj-cleanup <P>`
+- `done`: the project is closed. `/annetaan:pj-cleanup <P>` removes its worktree and base branch and brings the local
+  `<from>` up to date.
 - `needs-user`: quote the last run's reason, and run the matching skill by hand, `/annetaan:pj3-doctor <P>` or
   `/annetaan:pj4-running <P>`. When the reason is a missing permission, name it.
 - `no-progress` and `doctor-cap`: run `/annetaan:pj3-doctor <P>` by hand.

@@ -2,8 +2,8 @@
 
 This file holds what `pj1-plan`, `pj2-issues`, `pj3-doctor` and `pj4-running` agree on between them: who creates
 the base branch, the labels, the comments, the pull requests, how they name an issue to the user and how they
-write to GitHub. The four skills and
-`pj-auto` read it first.
+write to GitHub. The four skills,
+`pj-auto` and `pj-cleanup` read it first.
 The project reviewer looks up **Blockers**, and the `workflow` skill's **From an issue** looks up **Pull requests**.
 The issues and their bodies are in `format.md`, and how `project.sh` judges a project is in `state.md`, both next to
 this file.
@@ -25,6 +25,10 @@ written.
 
 `pj-auto` is no stage of its own. It drives `pj3-doctor` and `pj4-running` on one project as unattended runs, one
 fresh `claude -p` process per step, and lets `project.sh --next` (`state.md`, **What comes next**) pick every step.
+
+`pj-cleanup` is no stage either. It runs once the user has merged a project's pull request: it closes the parent,
+removes the project's worktree after moving its work reports into the main working tree, deletes the base branch on
+origin and locally, and fast-forwards the local `<from>`.
 
 ## Principle
 
@@ -71,8 +75,9 @@ from (see **Pull requests**). Merging it is a human's job. No skill merges it.
 
 **Closing a parent** as completed means its project is merged. When `pj4-running` reads an open parent that is
 `merged`, it closes it with a marked comment and `--reason completed`, both when it starts on that project and when
-it starts on a project that waits on it. It closes it through `run.sh close`, which refuses a parent `project.sh` does
-not read as `merged`. A human may also close it after merging. The merge itself is the human's job.
+it starts on a project that waits on it. `pj-cleanup` closes it the same way. Both close it through `run.sh close`,
+which refuses a parent `project.sh` does not read as `merged`. A human may also close it after merging. The merge
+itself is the human's job.
 
 ## Labels
 
@@ -243,6 +248,7 @@ Every comment a skill's main session posts starts with a bold marker, then the t
 | --- | --- |
 | `**[pj3-doctor]**` | `pj3-doctor` |
 | `**[pj4-running]**` | `pj4-running` |
+| `**[pj-cleanup]**` | `pj-cleanup` |
 
 **A comment with no marker is from a human.** A skill reads it as one.
 
