@@ -28,7 +28,8 @@ splits one project into sub-issues once every project it waits on is merged. You
 `pj3-doctor` makes the issues ready. `pj4-running` runs `workflow` once per sub-issue, merges each pull request into
 the project's branch and closes the issue, and at the end opens the pull request that takes the project's branch
 back. The four pass nothing to each other through the conversation. Each one reads the project from GitHub afresh.
-`pj-auto` drives the doctor and the runner and stops where you are needed.
+`pj-auto` drives the doctor and the runner and stops where you are needed. `pj-cleanup` tidies up once you have merged
+a project.
 
 Which skill to start with:
 
@@ -175,7 +176,7 @@ project's first run, from a branch you pick when the projects are filed, the def
 A project that waits on another is split into issues, and gets its branch, only after the other one is merged into
 that branch. Every
 sub-issue's pull request merges into its project's branch. Once every sub-issue is closed, `pj4-running` opens the
-pull request that takes that branch back into the branch it came from, and merging it is left to you. After that the parent is closed, by the next `pj4-running` run or by you, and
+pull request that takes that branch back into the branch it came from, and merging it is left to you. After that the parent is closed, by `pj-cleanup`, the next `pj4-running` run or you, and
 a closed parent means its project is merged. [How the skills fit together](#how-the-skills-fit-together) says where
 the state lives. [format.md](skills/pj1-plan/format.md) describes the issues and their bodies,
 [state.md](skills/pj1-plan/state.md) how the state of a project is read, and
@@ -248,8 +249,8 @@ flowchart TD
     doctor --> run["pj4-running, per project<br/>makes its branch on the first run,<br/>then down the run order: branch, workflow,<br/>draft pull request, merge<br/>into the project's branch"]
     run -->|"stub or blocker"| doctor
     run -->|"all merged"| pr["pj4-running opens the pull request<br/>from the project's branch<br/>into the branch it came from"]
-    pr --> done(["you merge it,<br/>then its parent closes"])
-    done -.->|"a project that waits on it"| split
+    pr --> done(["you merge it"]) --> cleanup["pj-cleanup<br/>closes the parent,<br/>removes the worktree and the project's branch,<br/>brings your branch up to date"]
+    cleanup -.->|"a project that waits on it"| split
 
     you(["you, on GitHub"]) -.->|"tick a box,<br/>reorder the run order"| split
     split -.->|"after ticking"| doctor
@@ -257,6 +258,8 @@ flowchart TD
     classDef human fill:#fff,stroke:#888,stroke-dasharray: 5 5
     class req,approve,you,done human
 ```
+
+After you merge a project's pull request, `/annetaan:pj-cleanup` tidies up.
 
 What they need:
 
@@ -304,6 +307,24 @@ What it needs:
   machine
 - anything else a run is missing, such as the repository's test commands, shows up by name in a needs-user reason.
   Add it to your settings and run again, one at a time
+
+### pj-cleanup
+
+`/annetaan:pj-cleanup` ([details](skills/pj-cleanup/SKILL.md)) cleans up after you merge a project's pull request.
+Without a number, it takes the merged project whose worktree is in your clone, and asks when there are several. It
+shows what it will do and asks once. Then it closes the parent when it is still open, moves the work reports out of
+the project's worktree into `work-reports/` in your clone, removes the worktree, deletes the project's branch on
+origin and locally, and fast-forwards your local copy of the branch the project merged into, usually `main`.
+
+It never switches your branch, stashes or resets. When the branch is checked out in your clone, it moves with
+`git merge --ff-only`, which refuses rather than overwrite a local change. A local branch with commits origin does not
+have is left alone and named in the report, and so is a local project branch with commits nowhere on origin. A
+worktree with uncommitted work is removed only when you choose to discard that work. It names the projects that can
+be split now that this one is merged.
+
+```
+/annetaan:pj-cleanup 12
+```
 
 ### doc-write
 
@@ -388,7 +409,7 @@ The model and the effort are pinned here, and a skill selects one by name alone.
 
 `pj4-running` has no agents of its own. It runs workflow's.
 
-`pj-auto` has no agents of its own. The runs it starts use theirs.
+`pj-auto` has no agents of its own. The runs it starts use theirs. `pj-cleanup` has none either.
 
 The agent definitions are thin. The substance of each role lives in the skill's `roles/*.md`, and an agent reads
 that path out of the prompt the main session hands it.

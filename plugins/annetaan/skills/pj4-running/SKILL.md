@@ -489,8 +489,8 @@ $RUNNING/scripts/run.sh pr <P> --body "$TMP/<P>-pr.md"
 - the parents closed in this run
 - the projects that can be split now, collected from the `startable` of each close, one line each as
   `/annetaan:pj2-issues <R>` with its title
-- the worktree `<WT>`. The next run reuses it. The work reports live only under its `work-reports/`, and
-  `git -C "<MAIN>" worktree remove <WT>` deletes it with those reports when the project is done
+- the worktree `<WT>`. The next run reuses it. The work reports live only under its `work-reports/`.
+  `/annetaan:pj-cleanup <P>` moves them into `<MAIN>` and removes `<WT>` once the project is merged
 - each merged issue with the URL of its pull request
 - the stubs filed, the `later` ones and the `blocker` ones
 - where the run stopped and why, or that the run order is done
@@ -499,8 +499,8 @@ $RUNNING/scripts/run.sh pr <P> --body "$TMP/<P>-pr.md"
 - the screenshots that could not be attached, with their paths and the URL of the pull request
 - what is workable now and what is waiting
 - the next step: `/annetaan:pj3-doctor` when a `blocker` or a stub exists, otherwise `/annetaan:pj4-running`.
-  When every sub-issue is closed, the user merges the project's pull request. The next run then closes the parent, or
-  the user closes it. When the list of projects that can be split now is not empty, `/annetaan:pj2-issues <R>` for
+  When every sub-issue is closed, the user merges the project's pull request, then runs `/annetaan:pj-cleanup <P>`,
+  which closes the parent, removes `<WT>` and the base branch, and brings the local `<from>` up to date. When the list of projects that can be split now is not empty, `/annetaan:pj2-issues <R>` for
   each.
 
 ## Ending an unattended run
