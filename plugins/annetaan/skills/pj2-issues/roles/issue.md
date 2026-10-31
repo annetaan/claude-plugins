@@ -138,22 +138,12 @@ first character after `old: ` or `new: ` to the end of the line, exactly.
 
 - **The starting body** is the one you last returned. A writer that returned none starts from GitHub, read with
   `gh issue view <n> --json title,body,labels,comments,updatedAt` as above.
-- **Before applying, count each `old` string** in that body. Every count must be 1. Pass both through quoted
-  heredocs, as drafting step 5 does, so that no backtick or `$` in them runs in the shell.
-
-  ```bash
-  IFS= read -r old <<'OLD'
-  <old>
-  OLD
-  grep -oF -- "$old" <<'BODY' | wc -l
-  <the body>
-  BODY
-  ```
 - **Apply** each finding by replacing that one occurrence of `old` with `new`. Every other character stays as it is,
   wording you would choose differently included.
 - **Return** the whole body, the `updatedAt` you read and your one line. Lint it as drafting step 5 says.
-- **When you cannot apply them**, because a count is not 1 or a replacement would make the body wrong, apply none of
-  them. Say why under "What you could not fix", and return the body you started from unchanged.
+- **When you cannot apply them**, because an `old` string does not occur exactly once in the starting body as you read
+  it, or a replacement would make the body wrong, apply none of them. Say why under "What you could not fix", and
+  return the body you started from unchanged. The main session checks every applied finding with `project.sh --exact`.
 - **Nothing else changes in this pass.** Anything else you notice goes in your one line.
 
 ### What to return

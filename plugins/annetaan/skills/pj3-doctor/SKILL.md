@@ -70,6 +70,8 @@ not outlive one command, so write the path in full each time.
    $DOCTOR/../pj1-plan/scripts/project.sh <P> --order
    ```
 
+   Read `project.sh`'s output whole, as `between-skills.md` says under **Commands**.
+
    When `project.sh` fails, for instance with `has no Base: line` or `is blocked by #<X>, which is no project`, quote
    its message and stop. On `is blocked by #<X>, which is no project`, a human has to remove that relationship on
    GitHub. **When `--order`
@@ -168,56 +170,32 @@ returns with the reviewer's strings. **No reviewer reads it again, and there is 
    the `old:` and `new:` lines exactly as the reviewer wrote them. Do this on an issue that also has a `design`
    finding too. When the issue has no writer yet, start one as above, `Mode: revise`, with these findings as "The
    review's findings".
-2. **Keep the body the reviewer read**, CR stripped. For an issue rewritten in this run:
+2. **Keep the body the reviewer read.** For an issue rewritten in this run, that body is `$TMP/<n>.md` as it stands,
+   and nothing is run. For any other issue:
 
    ```bash
-   tr -d '\r' < "$TMP/<n>.md" > "$TMP/<n>.before.md"
+   gh issue view <n> --json body --jq .body > "$TMP/<n>.before.md"
    ```
 
-   For any other issue:
+   `--exact` removes the CR itself.
+3. **Check the returned body.** Write the returned body to `$TMP/<n>.exact.md`. Write the reviewer's `old:` and `new:`
+   lines for that issue, as written, to `$TMP/<n>.findings.md`. Then run the check, with `<before>` the
+   `$TMP/<n>.md` or `$TMP/<n>.before.md` of step 2.
 
    ```bash
-   gh issue view <n> --json body --jq .body | tr -d '\r' > "$TMP/<n>.before.md"
+   $DOCTOR/../pj1-plan/scripts/project.sh --exact <before> "$TMP/<n>.exact.md" "$TMP/<n>.findings.md"
    ```
 
-3. **Check the returned body.** Write it to `$TMP/<n>.exact.md`. List the findings in the heredoc, the `old` string
-   on one line and its `new` string on the next, exactly as the reviewer wrote them.
-
-   ```bash
-   bash <<'CHECK'
-   B="$TMP/<n>.before.md" A="$TMP/<n>.exact.md" fail=0 want=
-   while IFS= read -r old && IFS= read -r new; do
-     [ "$(grep -oF -- "$old" "$B" | wc -l)" -eq 1 ] || { echo "not once in before: $old"; fail=1; }
-     [ "$(grep -oF -- "$old" "$A" | wc -l)" -eq 0 ] || { echo "still in after: $old"; fail=1; }
-     L=$(grep -F -- "$old" "$B")
-     E=${L/"$old"/"$new"}
-     grep -qxF -- "$E" "$A" || { echo "expected line missing: $E"; fail=1; }
-     want+="< $L"$'\n'"> $E"$'\n'
-   done <<'FINDINGS'
-   <old of finding 1>
-   <new of finding 1>
-   FINDINGS
-   got=$(diff <(printf '%s\n' "$(cat "$B")") <(printf '%s\n' "$(cat "$A")") | grep '^[<>] ' | sort)
-   [ "$got" = "$(printf '%s' "$want" | sort)" ] || { echo "the diff holds other changes"; fail=1; }
-   echo "fail=$fail"
-   CHECK
-   $DOCTOR/../pj1-plan/scripts/project.sh --lint "$TMP/<n>.exact.md"
-   ```
-
-   Per finding, `old` occurs once in the body the reviewer read and nowhere in the returned one, and the expected
-   line, the line that held `old` with `old` replaced by `new`, is a whole line of the returned body. With `old` and
-   `new` both quoted, `${L/"$old"/"$new"}` replaces them literally. Keep the assignment to `E` unquoted, because the
-   bash 3.2 of macOS keeps the inner quotes when the whole expansion is quoted. Then `diff` has exactly one `<` line
-   and one `>` line per finding: the lines that held `old`, and the expected lines. A difference in the final
-   newline alone does not count. **The check passes** when it prints `fail=0` and the lint is clear or reports only
-   `decisions-open`. Read a parent against the parent shape instead of the lint, as above.
+   `state.md` says what `--exact` checks. **The check passes** when `ok` is true and `lint` is clear or reports only
+   `decisions-open`. For a parent, ignore `lint` and read the body against the parent shape, as in phase 3.
 4. **On a pass**, make the returned body the one phase 4 writes, and print `#<n> exact fixed`.
 
    ```bash
    cp "$TMP/<n>.exact.md" "$TMP/<n>.md"
    ```
 
-5. **On a failure**, or when the writer applied none of them, every `exact` finding on that issue counts as `design`.
+5. **On a failure**, an `--exact` that exits 1 (a malformed findings file) included, or when the writer applied none
+   of them, every `exact` finding on that issue counts as `design`.
    `$TMP/<n>.md` stays as it was, or absent. Send nothing back to the writer.
 
 ## Phase 4: approval and writing
@@ -350,16 +328,17 @@ the numbers.
    ```
 
 8. **The run order.** Read it again, now that the edges and the issues have changed, and write `list` under the
-   parent's `## Order`, one line per number as `1. #<n>`. Keep the rest of the parent body as it is. Re-read the
-   parent's `updatedAt` right before the edit, and work in a change a human made since.
+   parent's `## Order`, one line per number as `1. #<n>`, with `--order-body`. Its own read of the parent is the
+   re-read **Writing to GitHub** asks for, and `state.md` says what it keeps.
 
    ```bash
    $DOCTOR/../pj1-plan/scripts/project.sh <P> --order
-   gh issue view <P> --json updatedAt,body
+   $DOCTOR/../pj1-plan/scripts/project.sh <P> --order-body > "$TMP/<P>-order.md"
    gh issue edit <P> --body-file "$TMP/<P>-order.md"
    ```
 
-   Skip the edit when the list reads the same. Then run `project.sh <P>` and confirm that `parent.orderCheck.ok` is
+   Skip the edit when the list reads the same: compare `--order`'s `list` with `parent.order`, and skip the last two
+   commands when they match. Then run `project.sh <P>` and confirm that `parent.orderCheck.ok` is
    true and `missing` is empty.
 
 ## Report to the user

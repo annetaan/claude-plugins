@@ -233,6 +233,8 @@ On a stop, leave `<WT>` as phase 6 step 1 says and end the run. `<WT>` stays in 
    $RUNNING/../pj1-plan/scripts/project.sh <P> --order
    ```
 
+   Read `project.sh`'s output whole, as `between-skills.md` says under **Commands**.
+
    **When `--order` fails on a cycle**, within the project or between projects, show the user the cycle it names
    and stop.
 2. **Build the run order.** First put every open issue whose `pr.state` is `MERGED` at the front, whatever its labels
