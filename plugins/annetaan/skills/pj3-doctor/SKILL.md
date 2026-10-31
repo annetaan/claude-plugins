@@ -57,8 +57,9 @@ gh repo view --json nameWithOwner,hasIssuesEnabled,defaultBranchRef
 **The project.** Pick it as `between-skills.md` says under **Picking the project**. The project picked is `<P>`. In an unattended run, only rule 1 of **Picking the project** applies (`between-skills.md`, **Unattended runs**). Print
 `project #<P>` once, with ` unattended` after it in an unattended run, so that a context summary can find both again.
 
-Run `mktemp -d` once for the whole run. `$TMP` below is the directory it printed. A shell variable does not outlive
-one command, so write the path in full each time.
+When the args carry `tmp=<dir>`, `$TMP` below is that directory. Otherwise run `mktemp -d` once and use the
+directory it printed. Print `tmp <dir>` once, so that a context summary can find it again. A shell variable does
+not outlive one command, so write the path in full each time.
 
 ## Phase 1: the diagnosis
 
@@ -401,5 +402,5 @@ is needs-user too.
 - **Re-read `updatedAt` before every edit. Never edit a closed issue.**
 - **A sub-issue body goes out only after its lint passes**, and a parent's only after you read it against its shape.
 - An unattended run never calls `AskUserQuestion` and ends with one `unattended:` line.
-- After a context summary, take `<P>` and whether the run is unattended again from the `project #<P>` line, and rebuild where the run stood from the
+- After a context summary, take `<P>` and whether the run is unattended again from the `project #<P>` line, and `$TMP` from the `tmp` line, and rebuild where the run stood from the
   progress lines and `project.sh <P>`. A writer or a reviewer whose handle is gone is started again.

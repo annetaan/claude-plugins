@@ -60,8 +60,9 @@ This skill creates branches, pushes, opens and merges pull requests, and edits i
 `project #<P>` once, with ` unattended` after it in an unattended run, so that a context summary can find both again. A number given picks the project, a sub-issue's number its parent, and the run still covers
 the whole order of the project picked.
 
-Then run `mktemp -d` once for the whole run. `$TMP` below is the directory it printed. The start may already write
-comment files there. A shell variable does not outlive one command, so write the path in full each time.
+When the args carry `tmp=<dir>`, `$TMP` below is that directory. Otherwise run `mktemp -d` once and use the
+directory it printed. Print `tmp <dir>` once, so that a context summary can find it again. The start may already
+write comment files there. A shell variable does not outlive one command, so write the path in full each time.
 
 Then check everything the run needs.
 
@@ -391,10 +392,13 @@ phase 6. The pull request stays a draft, and the next run merges it.
 1. Write `$TMP/<k>-closed.md` worded as in the `merged` case of phase 5 step 3, naming `#<m>`. The merge into the base
    branch closes nothing, so `run.sh merge` closes the issue with it.
 2. Merge the pull request, close `#<k>`, move `<WT>` onto the merged base and delete the head branch. Run this as a
-   background command and wait for it to exit, because waiting on the checks can outlast a foreground command.
+   background command and wait for it to exit, because waiting on the checks can outlast a foreground command. The
+   output goes to files, because the background task's own output file lies outside the run's working directories and
+   an unattended run cannot read it. Then read `$TMP/<k>-merge.json` with Read and act on that JSON. On a non-zero exit, read `$TMP/<k>-merge.err` with
+   Read, quote it and stop the run, as the `run.sh` rule says.
 
    ```bash
-   $RUNNING/scripts/run.sh merge <P> <k> <m> --comment "$TMP/<k>-closed.md"
+   $RUNNING/scripts/run.sh merge <P> <k> <m> --comment "$TMP/<k>-closed.md" > "$TMP/<k>-merge.json" 2> "$TMP/<k>-merge.err"
    ```
 
    - **`stop`** with `review`, `conflict`, `merge-failed` or `not-the-pr`: say so, quote `message`, and go to phase 6.
@@ -541,4 +545,4 @@ section does not name never reads as done.
 - **Close an issue or a parent only through `run.sh close` or `run.sh merge`, which refuse one that is not due, and
   close as completed.**
 - An unattended run never calls `AskUserQuestion` and ends with one `unattended:` line.
-- After a context summary, take whether the run is unattended from the `project #<P>` line, and rebuild the run from the progress lines and `project.sh <P>`.
+- After a context summary, take whether the run is unattended from the `project #<P>` line, `$TMP` from the `tmp` line, and rebuild the run from the progress lines and `project.sh <P>`.

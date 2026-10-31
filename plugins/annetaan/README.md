@@ -286,13 +286,15 @@ report to decide, only the project on GitHub.
 
 It asks one approval question per drive, and only when a step would run (the question which project comes before it, when
 the project is not given or the only candidate): a summary of the project, what the steps do and the
-permissions they need, then start or not. That approval covers the whole drive, and the runs ask nothing. The merges
+permissions they need, then start or not. That approval covers the whole drive, and the runs ask nothing. Each run starts in Claude Code's acceptEdits mode,
+so it edits and writes files inside your clone, the project's worktree and a directory of its own without asking. The merges
 into the project's branch happen. The project's own pull request is never merged.
 
 The drive stops when the project needs you (a split, a wait, a decision to tick, the project's pull request to merge),
 when it is done, when a run ends needing you, when a run changes nothing, when `pj3-doctor` has run twice on the same
-issue, when a run fails, or when you say stop in the conversation. It then names what you do next. Every step is one
-line in `drive.jsonl` in the log directory it prints, to follow with the `tail -f` command it shows. Each step is a
+issue, when a run fails, or when you say stop in the conversation. It then names what you do next. Every step writes a
+line in `drive.jsonl` in the log directory it prints when it starts, with the time and the files it writes, and another
+when it ends, so the `tail -f` command it shows tells what is running and since when. Each step is a
 whole session, so a long project costs many.
 
 ```

@@ -164,9 +164,15 @@ then the rest by number. With one option only, the second option is `Stop`. When
 ## Unattended runs
 
 A `pj3-doctor` or `pj4-running` run is unattended when its args carry the word `unattended`, for instance
-`/annetaan:pj4-running 12 unattended`. The word alone decides the mode, and the run needs a project number as well.
+`/annetaan:pj4-running 12 unattended tmp=<dir>`. The word alone decides the mode, and the run needs a project number as well.
 `pj-auto` starts its runs in this form.
 
+- **Its directory.** `tmp=<dir>` in the args names an existing directory, and the run keeps its files there as `$TMP`.
+  `pj-auto` passes one per run, at `<LOG>/<i>-<run>`. Without `tmp=`, `$TMP` comes from `mktemp -d`, as in a manual run.
+- **The mode.** `pj-auto` starts every run with `--permission-mode acceptEdits`, and adds the run's directory with
+  `--add-dir`. File edits and file-writing shell commands then run without asking inside the main working tree, the
+  project's worktree and that directory. Outside them, a shell write is refused, so a run writes its files to `$TMP`
+  or the worktree, never under `.git/` or a system temp directory.
 - **The project.** Only rule 1 of **Picking the project** applies. No number, or a number that points at no option,
   ends the run as needs-user without asking. Rules 2 and 3 do not apply.
 - **Questions.** An unattended run never calls `AskUserQuestion`. The approval question (`pj3-doctor` phase 4,

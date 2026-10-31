@@ -59,6 +59,9 @@ Otherwise a step would run. Show a summary first:
 - the project, and the current `next`, `why` and `issue`
 - that each step runs `pj3-doctor` or `pj4-running` whole, in a fresh `claude -p` run, and each one costs a session
 - that the runs ask no approval
+- that each run starts in Claude Code's acceptEdits mode, a grant made outside the user's settings: file edits and
+  file-writing shell commands, `rm` included, go through without asking inside `<MAIN>`, the project's worktree
+  `<MAIN>/.claude/worktrees/pj-<P>`, and a directory of the run's own in the drive's log directory
 - when the drive stops: the project needs the user (`user`), the project is done (`done`), a run ends as needs-user,
   the state does not change after a run (`no-progress`), `pj3-doctor` has run twice on the same key (`doctor-cap`), a
   run fails (`child-failed`), or the stop file appears
@@ -83,16 +86,20 @@ script with Bash `run_in_background`:
 $AUTO/scripts/auto.sh <P> --log <LOG>
 ```
 
-Print `tail -f <LOG>/drive.jsonl` with the real path, for the user to follow the steps. Then wait for the script to
-finish. Do not poll.
+Print `tail -f <LOG>/drive.jsonl` with the real path, for the user to follow the steps. Each step writes a `begin` line
+when it starts and a `step` line when it ends. The `begin` line names the run, why, the issue, `at`, its output files
+and its directory `<LOG>/<i>-<run>/`. The last `begin` with no `step` after it is the step running now, and its `at`
+says since when. Then wait for the script to finish. Do not poll.
 
 When the user asks to stop, run `touch <LOG>/stop` and say the drive stops after the current step. **Never kill a run
 or the script.**
 
 ## Report to the user
 
-Read the `ended` line of `<LOG>/drive.jsonl`, then list the steps, one per line as `<i> <run> <why> <issue URL>`, and
-the reason. Name the next action from the reason:
+Read the `ended` line of `<LOG>/drive.jsonl`, then list the steps from the `step` lines, one per line as
+`<i> <run> <why> <issue URL>`, and the reason. When `ended.i` is not null, the drive ended on that step: add it as one
+more line from its `begin` line, with the reason. For `child-failed`, give the `out` and `err` paths from that `begin`
+line. Name the next action from the reason:
 
 - `user`, or a first `--next` of `user`: split by `why`.
   - `split`: `/annetaan:pj2-issues <P>`
@@ -105,7 +112,7 @@ the reason. Name the next action from the reason:
 - `needs-user`: quote the last run's reason, and run the matching skill by hand, `/annetaan:pj3-doctor <P>` or
   `/annetaan:pj4-running <P>`. When the reason is a missing permission, name it.
 - `no-progress` and `doctor-cap`: run `/annetaan:pj3-doctor <P>` by hand.
-- `child-failed`: give the paths of `<i>-<run>.err` and `<i>-<run>.json` in `<LOG>`.
+- `child-failed`: give the `out` and `err` paths from the `begin` line of step `ended.i`.
 - `stop-requested`: the drive stopped at the user's word.
 - `project`, `not-a-repo`, `no-claude`: quote the message.
 
