@@ -12,6 +12,8 @@
 # head of a pull request.
 # --next reads only too: it names what to run next on the project, with a fingerprint of the state it was read from.
 # It also derives the title a sub-issue should carry, with its decision count (wantedTitle).
+# --order-body prints the parent's body as GitHub has it, with its ## Order list replaced by the one --order writes.
+# --exact compares two bodies against a reviewer's old:/new: findings, and touches neither GitHub nor git.
 set -euo pipefail
 
 die() { echo "project: $*" >&2; exit 1; }
@@ -22,26 +24,35 @@ usage: project.sh [-R <owner/repo>] <parent>               the whole project, as
        project.sh [-R <owner/repo>] <parent> --order       the run order, and the ## Order list to write, as JSON
        project.sh [-R <owner/repo>] <parent> --next        what to run next on the project, as JSON
        project.sh [-R <owner/repo>] <parent> --check <n>   whether sub-issue <n> can be implemented from its body now
+       project.sh [-R <owner/repo>] <parent> --order-body  the parent body with its ## Order list replaced, as text
        project.sh --lint <file|->                          lint one sub-issue body, read from a file or standard input
+       project.sh --exact <before> <after> <findings>      whether <after> is <before> with exactly the findings applied
   -R <owner/repo>   read another repository (default: the repository of the current directory)
 --order exits non-zero and names the cycle when the blocked-by relationships have one,
         or when the projects wait on each other.
 --next reads only. It prints what to run next (doctor, running, user or done), why, and a fingerprint of the state.
 --check runs inside a clone of the repository. It fetches the branch the base was made from,
         and the base branch once it exists.
+--order-body prints the parent body as GitHub has it now, with the lines under ## Order replaced by the list --order
+        writes. It fails like --order when the blocked-by relationships have a cycle.
 --lint touches neither GitHub nor git and always exits 0.
+--exact touches neither GitHub nor git and always exits 0 on a readable input, printing {"ok", "failures", "lint"}.
+        It exits 1 on a usage error, a missing file or a malformed findings file.
 USAGE
   exit 1
 }
 
 REPO=""; MODE="project"; PARENT=""; TARGET=""; LINT_FILE=""
+EXACT_BEFORE=""; EXACT_AFTER=""; EXACT_FINDINGS=""
 while [ $# -gt 0 ]; do
   case "$1" in
     -R|--repo) [ $# -ge 2 ] || usage; REPO="$2"; shift 2 ;;
     --order)   MODE="order"; shift ;;
+    --order-body) MODE="order-body"; shift ;;
     --next)    MODE="next"; shift ;;
     --check)   [ $# -ge 2 ] || usage; MODE="check"; TARGET="$2"; shift 2 ;;
     --lint)    [ $# -ge 2 ] || usage; MODE="lint"; LINT_FILE="$2"; shift 2 ;;
+    --exact)   [ $# -ge 4 ] || usage; MODE="exact"; EXACT_BEFORE="$2"; EXACT_AFTER="$3"; EXACT_FINDINGS="$4"; shift 4 ;;
     -h|--help) usage ;;
     -?*)       die "unknown option: $1" ;;
     *)         [ -z "$PARENT" ] || die "one parent issue at a time"; PARENT="$1"; shift ;;
@@ -106,6 +117,74 @@ def implements(body):
             m = IMPLEMENTS_RE.match(line)
             return int(m.group(1)) if m else None
     return None
+
+def shown(issue):
+    """An issue as it is printed: without its file list, which --check reads from the full object."""
+    return {k: v for k, v in issue.items() if k != "files"}
+
+def with_order(body, numbers):
+    """body with CR removed and its ## Order section replaced by the numbered list of numbers, framed by blank lines.
+    Without an ## Order heading outside a code fence, the section goes before the first ## heading outside one, or at
+    the end. Ends in exactly one newline."""
+    lines = (body or "").replace("\r", "").split("\n")
+    fence, heads = False, []
+    for k, line in enumerate(lines):
+        if line.lstrip().startswith("```"):
+            fence = not fence
+        elif not fence and not line.startswith("###") and re.match(r"^##\s+(.+?)\s*$", line):
+            heads.append(k)
+    block = ["## Order", ""] + (["%d. #%d" % (k + 1, n) for k, n in enumerate(numbers)] + [""] if numbers else [])
+    start = next((k for k in heads if re.match(r"^##\s+(.+?)\s*$", lines[k]).group(1) == "Order"), None)
+    if start is not None:
+        end = next((k for k in heads if k > start), len(lines))
+        out = lines[:start] + block + lines[end:]
+    elif heads:
+        out = lines[:heads[0]] + block + lines[heads[0]:]
+    else:
+        text = "\n".join(lines).rstrip("\n")
+        out = ([text, ""] if text else []) + block
+    return "\n".join(out).rstrip("\n") + "\n"
+
+def exact(before_file, after_file, findings_file):
+    """Whether the after body is the before body with exactly the reviewer's old:/new: findings applied."""
+    def read(path):
+        try:
+            return open(path).read().replace("\r", "")
+        except OSError as e:
+            die("cannot read %s: %s" % (path, e))
+    def split(text):
+        lines = text.split("\n")
+        if lines and lines[-1] == "":
+            lines.pop()
+        return lines
+    before_lines, after_lines = split(read(before_file)), split(read(after_file))
+    wanted = [l.lstrip() for l in split(read(findings_file)) if l.strip()]
+    if len(wanted) % 2:
+        die("the findings file is malformed: an old: line without its new: line")
+    pairs = []
+    for k in range(0, len(wanted), 2):
+        if not wanted[k].startswith("old: ") or not wanted[k + 1].startswith("new: "):
+            die("the findings file is malformed: expected old: and new: lines in pairs")
+        pairs.append((wanted[k][5:], wanted[k + 1][5:]))
+    before, after = "\n".join(before_lines), "\n".join(after_lines)
+    expected, failures, touched = list(before_lines), [], []
+    for old, new in pairs:
+        if old == "" or before.count(old) != 1:
+            failures.append({"old": old, "why": "not once in before"})
+        elif after.count(old) != 0:
+            failures.append({"old": old, "why": "still in after"})
+        else:
+            idx = next(k for k, l in enumerate(before_lines) if old in l)
+            line = before_lines[idx].replace(old, new, 1)
+            expected[idx] = line
+            touched.append((old, line))
+    if not failures:
+        for old, line in touched:
+            if line not in after_lines:
+                failures.append({"old": old, "why": "expected line missing"})
+    if not failures and expected != after_lines:
+        failures.append({"why": "the body holds other changes"})
+    return {"ok": not failures, "failures": failures, "lint": lint(parse("\n".join(after_lines)))}
 
 def run(*cmd):
     return subprocess.run(cmd, capture_output=True, text=True)
@@ -248,6 +327,10 @@ if MODE == "lint":
     src = sys.argv[2]
     body = sys.stdin.read() if src == "-" else open(src).read()
     print(json.dumps(lint(parse(body)), ensure_ascii=False))
+    sys.exit(0)
+
+if MODE == "exact":
+    print(json.dumps(exact(sys.argv[2], sys.argv[3], sys.argv[4]), ensure_ascii=False))
     sys.exit(0)
 
 issues_file, repo = sys.argv[2], sys.argv[3]
@@ -487,7 +570,7 @@ if MODE in ("project", "check", "next"):
 def project_view():
     """The dict project mode prints."""
     return {
-        "parent": dict({k: parent.get(k) for k in ("number", "title", "state", "stateReason", "updatedAt", "body")},
+        "parent": dict({k: parent.get(k) for k in ("number", "title", "state", "stateReason", "updatedAt")},
                        base=base, **{"from": made_from},
                        baseExists=base_exists,
                        merged=merged(parent, [i["state"] for i in issues], own["reached"]),
@@ -498,7 +581,7 @@ def project_view():
                                   and all(d["merged"] for d in waits_on_entries)),
                        order=written,
                        orderCheck=order_check()),
-        "issues": issues,
+        "issues": [shown(i) for i in issues],
     }
 
 def fingerprint(view):
@@ -643,7 +726,7 @@ if MODE == "check":
     }, ensure_ascii=False))
     sys.exit(0)
 
-# --order: the run order and the ## Order list (see run_order).
+# --order and --order-body: the run order and the ## Order list (see run_order).
 result, cycle = run_order()
 if cycle:
     die("the blocked-by relationships have a cycle: " + " blocked by ".join("#%d" % n for n in cycle))
@@ -651,20 +734,35 @@ if cycle:
 # The projects this one waits on, directly or not, must not wait on it in turn.
 walk_projects(parent["number"])
 
-# The ## Order list: the issues closed as completed first, where the list has them and then by number, then the
-# run order. An issue closed as not planned is no work and leaves the list.
-done = []
-for n in written + [i["number"] for i in issues]:
-    i = by_number.get(n)
-    if i and i["state"] == "CLOSED" and i["stateReason"] == "COMPLETED" and n not in done:
-        done.append(n)
-print(json.dumps({"order": [open_[n] for n in result], "list": done + result}, ensure_ascii=False))
+def order_list():
+    """The ## Order list: the issues closed as completed first, where the list has them and then by number, then the
+    run order. An issue closed as not planned is no work and leaves the list."""
+    done = []
+    for n in written + [i["number"] for i in issues]:
+        i = by_number.get(n)
+        if i and i["state"] == "CLOSED" and i["stateReason"] == "COMPLETED" and n not in done:
+            done.append(n)
+    return done + result
+
+if MODE == "order-body":
+    sys.stdout.write(with_order(parent["body"], order_list()))
+    sys.exit(0)
+
+print(json.dumps({"order": [shown(open_[n]) for n in result], "list": order_list()}, ensure_ascii=False))
 PY
 
 if [ "$MODE" = "lint" ]; then
   [ -z "$PARENT" ] || die "--lint takes no parent"
   [ "$LINT_FILE" = "-" ] || [ -f "$LINT_FILE" ] || die "no such file: $LINT_FILE"
   exec python3 -c "$PY" lint "$LINT_FILE"
+fi
+
+if [ "$MODE" = "exact" ]; then
+  [ -z "$PARENT" ] || die "--exact takes no parent"
+  for f in "$EXACT_BEFORE" "$EXACT_AFTER" "$EXACT_FINDINGS"; do
+    [ -f "$f" ] || die "no such file: $f"
+  done
+  exec python3 -c "$PY" exact "$EXACT_BEFORE" "$EXACT_AFTER" "$EXACT_FINDINGS"
 fi
 
 [ -n "$PARENT" ] || usage

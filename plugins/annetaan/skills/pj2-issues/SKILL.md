@@ -259,12 +259,13 @@ The sub-issue bodies sit in `$TMP` from phase 3, and the parent body in `$TMP/<P
    gh issue create --parent <P> --blocked-by <n>,<m> --title "<title>" --body-file "$TMP/T<k>.md"
    ```
 
-5. **The run order.** Write `list` under `## Order`, one line `1. #<n>` per number, between the `Base:` line and
-   `## Goal` (`format.md`, **The run order**). Re-read the parent's `updatedAt` right before the edit.
+5. **The run order.** Write `list` under `## Order`, one line `1. #<n>` per number, with `--order-body`. Its own read of the
+   parent is the re-read **Writing to GitHub** asks for. When there is no `## Order` yet, it puts the list between the
+   `Base:` line and `## Goal` (`format.md`, **The run order**).
 
    ```bash
    $ISSUES/../pj1-plan/scripts/project.sh <P> --order
-   gh issue view <P> --json updatedAt,body
+   $ISSUES/../pj1-plan/scripts/project.sh <P> --order-body > "$TMP/<P>-order.md"
    gh issue edit <P> --body-file "$TMP/<P>-order.md"
    ```
 

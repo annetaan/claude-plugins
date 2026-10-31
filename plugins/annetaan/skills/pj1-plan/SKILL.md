@@ -136,10 +136,11 @@ file the parents in the file order from phase 2.
 # 2. each parent, in file order, with the planner's body for it.
 #    --blocked-by names the parents of the projects it waits on. Leave it out when it waits on nothing
 gh issue create --label project --blocked-by <Q>,<R> --title "<project title>" --body-file "$TMP/PJ<j>.md"
-# 3. the Base: line on top of that parent's body
-{ printf 'Base: `pj/%s` from `%s`\n\n' <P> <from>; cat "$TMP/PJ<j>.md"; } > "$TMP/PJ<j>-base.md"
+# 3. the Base: line on top of that parent's body, written to $TMP/PJ<j>-base.md with Write
 gh issue edit <P> --body-file "$TMP/PJ<j>-base.md"
 ```
+
+`$TMP/PJ<j>-base.md` is the line ``Base: `pj/<P>` from `<from>` ``, a blank line, then `$TMP/PJ<j>.md` unchanged.
 
 Steps 2 and 3 run as a pair for each parent, because the branch name carries the parent's number (`format.md`, **The
 parent issue body**). **Every parent a project waits on is filed, with its `Base:` line, before that project.**

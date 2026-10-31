@@ -16,20 +16,22 @@ a parent's `Base:` line and of a pull request's head.** Every skill and the issu
 Every mode that reads a parent fails with `project: #<P> has no Base: line` when the parent body has none, or has
 one that does not name both branches. It also fails with `project: #<P> is blocked by #<X>, which is no project` when
 an issue the parent is blocked by has no `Base:` line, for this parent and for every project a walk of `--order` or
-`--check` follows. `--lint` reads no parent.
+`--check` follows. `--lint` and `--exact` read no parent.
 
 ```bash
 project.sh <P>               # the whole project, as JSON
 project.sh <P> --order       # the run order, and the ## Order list to write
+project.sh <P> --order-body  # the parent body with its ## Order list replaced, as text
 project.sh <P> --next        # what to run next on the project, and a fingerprint (see What comes next)
 project.sh <P> --check <n>   # whether sub-issue <n> can be implemented from its body now (see When an issue is ready)
 project.sh --lint <file>     # the lint of one body, from a file, or from standard input with -
+project.sh --exact <before> <after> <findings>   # whether <after> is <before> with the findings applied, and nothing else
 ```
 
 `project.sh <P>` prints:
 
 ```
-{"parent": {"number", "title", "state", "stateReason", "updatedAt", "body", "base", "from",
+{"parent": {"number", "title", "state", "stateReason", "updatedAt", "base", "from",
             "baseExists", "merged", "projectPr", "waitedOnBy": [numbers], "startable",
             "waitsOn": [{"number", "title", "state", "stateReason", "base", "merged"}],
             "order": [numbers],
@@ -38,7 +40,7 @@ project.sh --lint <file>     # the lint of one body, from a file, or from standa
  "issues": [{"number", "title", "wantedTitle", "state", "stateReason", "updatedAt", "readyAt", "labels": [names],
              "blockedBy": [{"number", "state", "parent"}], "blocking": [numbers],
              "pr": {"number", "state", "isDraft", "url"} or null, "stub",
-             "files": [{"path", "kind", "symbols": [names]}], "designPaths": [paths],
+             "designPaths": [paths],
              "decisions": {"total", "settled", "open", "contradictory"},
              "lint": {"ok", "reasons": [codes]}}]}
 ```
@@ -64,7 +66,7 @@ project.sh --lint <file>     # the lint of one body, from a file, or from standa
 - `pr` is the issue's pull request, open or merged (see **The pull request of an issue** below), or null. Its `state`
   is `OPEN` or `MERGED`.
 - `stub` is true when `## Design` reads `To be drawn.`.
-- `files` is the file list that opens `## Design` (`format.md`, **The file list**), and `designPaths` is its paths.
+- `designPaths` is the paths of the file list that opens `## Design` (`format.md`, **The file list**).
 - `decisions` counts the `### D<n>.` entries by how many boxes each has checked (`format.md`, **Decisions**).
 - `lint` is what `--lint` prints for the body (`format.md`, **What the lint checks**).
 
@@ -99,6 +101,27 @@ next, the one written earlier under `## Order` goes first, then the one more ope
 then the lower number. `list` is what to write under `## Order`: the sub-issues closed as completed, where the list
 has them and then by number, followed by `order`. `--order` also follows `waitsOn` from project to project, and
 fails when the projects wait on each other: `project: the projects have a cycle: #12 waits on #15 waits on #12`.
+
+`--order-body` prints the parent's body as GitHub has it now, with the CR removed and the lines under `## Order`
+replaced by `list`: one `1. #<n>` per line, framed by blank lines. A body with no `## Order` heading gets the heading
+and the list before its first `## ` heading outside a code fence, or at the end. It fails like `--order` on a cycle.
+Its own read of the body is the re-read that **Writing to GitHub** (`between-skills.md`) asks for.
+
+`--exact <before> <after> <findings>` touches neither GitHub nor git, and exits 0 whatever the result. `findings` holds
+a reviewer's `old: ` and `new: ` lines in pairs, as written, and ignores leading whitespace and blank lines. Anything
+else in it is malformed, and so is a missing file or a wrong usage: those exit 1. It removes every CR from both bodies,
+ignores a difference in the final newline only, and prints:
+
+```
+{"ok": true | false,
+ "failures": [{"old" (absent for the whole-body failure), "why": "not once in before" | "still in after" |
+               "expected line missing" | "the body holds other changes"}],
+ "lint": {"ok", "reasons": [codes]}}
+```
+
+`ok` is true when every `old` is in `before` exactly once and in `after` not at all, the line of `before` that held it
+with `new` put in its place is a line of `after`, and `after` is `before` with those replacements and nothing else.
+`lint` is the lint of `after`, which a caller reading a parent body ignores.
 
 ## When a project is merged
 

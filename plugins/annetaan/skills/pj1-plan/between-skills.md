@@ -1,8 +1,8 @@
 # How the pj skills work together
 
 This file holds what `pj1-plan`, `pj2-issues`, `pj3-doctor` and `pj4-running` agree on between them: who creates
-the base branch, the labels, the comments, the pull requests, how they name an issue to the user and how they
-write to GitHub. The four skills,
+the base branch, the labels, the comments, the pull requests, how they name an issue to the user, the commands
+and how they write to GitHub. The four skills,
 `pj-auto` and `pj-cleanup` read it first.
 The project reviewer looks up **Blockers**, and the `workflow` skill's **From an issue** looks up **Pull requests**.
 The issues and their bodies are in `format.md`, and how `project.sh` judges a project is in `state.md`, both next to
@@ -87,14 +87,14 @@ itself is the human's job.
 | `blocker` | `B60205` | pj4-running stopped on this. Settle it before anything else. |
 | `project` | `5319E7` | The parent issue of a pj project. Its sub-issues are the project's tasks. |
 
-**Make sure a label exists right before a skill first adds it in a run.** Create it only when the repository does not
-have it. **Never pass `--force`.** It would overwrite the color and the description of a label the repository already
-uses. An existing label is reused as it is.
+**Make sure a label exists right before a skill first adds it in a run.** Run the label's command. An error saying the
+label already exists means the repository has it, and it is reused as it is. **Never pass `--force`.** It would
+overwrite the color and the description of a label the repository already uses.
 
 ```bash
-gh label list --limit 1000 --json name --jq '.[].name' | grep -qx ready || gh label create ready --color 0E8A16 --description "Every decision is settled and the body can be implemented as it stands. pj4-running may work on it."
-gh label list --limit 1000 --json name --jq '.[].name' | grep -qx blocker || gh label create blocker --color B60205 --description "pj4-running stopped on this. Settle it before anything else."
-gh label list --limit 1000 --json name --jq '.[].name' | grep -qx project || gh label create project --color 5319E7 --description "The parent issue of a pj project. Its sub-issues are the project's tasks."
+gh label create ready --color 0E8A16 --description "Every decision is settled and the body can be implemented as it stands. pj4-running may work on it."
+gh label create blocker --color B60205 --description "pj4-running stopped on this. Settle it before anything else."
+gh label create project --color 5319E7 --description "The parent issue of a pj project. Its sub-issues are the project's tasks."
 ```
 
 Only `pj3-doctor` adds `ready`, after its project review, to an issue that meets the bar
@@ -164,9 +164,15 @@ then the rest by number. With one option only, the second option is `Stop`. When
 ## Unattended runs
 
 A `pj3-doctor` or `pj4-running` run is unattended when its args carry the word `unattended`, for instance
-`/annetaan:pj4-running 12 unattended`. The word alone decides the mode, and the run needs a project number as well.
+`/annetaan:pj4-running 12 unattended tmp=<dir>`. The word alone decides the mode, and the run needs a project number as well.
 `pj-auto` starts its runs in this form.
 
+- **Its directory.** `tmp=<dir>` in the args names an existing directory, and the run keeps its files there as `$TMP`.
+  `pj-auto` passes one per run, at `<LOG>/<i>-<run>`. Without `tmp=`, `$TMP` comes from `mktemp -d`, as in a manual run.
+- **The mode.** `pj-auto` starts every run with `--permission-mode acceptEdits`, and adds the run's directory with
+  `--add-dir`. File edits and file-writing shell commands then run without asking inside the main working tree, the
+  project's worktree and that directory. Outside them, a shell write is refused, so a run writes its files to `$TMP`
+  or the worktree, never under `.git/` or a system temp directory.
 - **The project.** Only rule 1 of **Picking the project** applies. No number, or a number that points at no option,
   ends the run as needs-user without asking. Rules 2 and 3 do not apply.
 - **Questions.** An unattended run never calls `AskUserQuestion`. The approval question (`pj3-doctor` phase 4,
@@ -307,6 +313,22 @@ gh repo view --json url --jq .url    # once per run; append /issues/<n> or /pull
 
 The progress lines a run prints for a context summary, such as `project #<P>` or `#<k> rewritten`, the headers of
 `AskUserQuestion` and everything written to GitHub keep `#<n>`. GitHub draws a link from `#<n>` on its own pages.
+
+## Commands
+
+Claude Code asks before it runs a command it cannot check, and a run started `unattended` cannot answer, so the run
+stalls. The skills therefore keep to single commands.
+
+- **One command per Bash call.** Each Bash call runs one command as the skill shows it, with every path and value
+  written out in full.
+- **What a call never holds.** Shell variables, `$(...)` or `<(...)`; loops or heredoc scripts; chaining with `;`,
+  `&&`, `||` or `|`. The exception is an allowlisted script reading a quoted heredoc, such as
+  `project.sh --lint - <<'EOF'`. A `|` inside the quoted `--jq` expression of a `gh` command is part of that one
+  command.
+- **Reading output.** Read a command's output whole. Never filter it with `jq`, `awk`, `sed`, `grep` or `python`.
+  When the output is too long and saved to a file, read that file with Read.
+- **Writing files.** With Write, or with one command's own redirect (`> "$TMP/<name>"`).
+- **Reading plugin files.** With Read, not `cat`.
 
 ## Writing to GitHub
 
