@@ -33,7 +33,7 @@ Run these checks and keep every answer. Phase 1 needs all of them.
 git rev-parse --show-toplevel            # inside a git repository
 git status --porcelain                   # must be empty
 git branch --show-current                # where commits land if the user keeps this branch
-git symbolic-ref --quiet refs/remotes/origin/HEAD | sed 's|refs/remotes/origin/||'   # the default branch
+git symbolic-ref --quiet --short refs/remotes/origin/HEAD   # origin/<default branch>
 git remote get-url origin                # is there a remote at all
 gh auth status                           # informational, see below
 gh --version                             # --attach needs 2.99.0 or later
@@ -42,7 +42,7 @@ gh --version                             # --attach needs 2.99.0 or later
 - **A dirty working tree or a missing git repository stops the flow.** Tell the user and wait.
 - **`gh` failing does not stop the flow.** It removes the pull request option in phase 1. Say nothing about it yet.
 - **A `gh` older than 2.99.0 does not stop the flow either.** `gh pr create --attach` landed in 2.99.0. Phase 6 needs it only when the change is visible on screen. Say nothing about it yet.
-- If `git symbolic-ref` prints nothing, fall back to `main` and treat the default branch as unknown.
+- The default branch is the part of the answer after `origin/`. If `git symbolic-ref` prints nothing, fall back to `main` and treat the default branch as unknown.
 
 ### Does this repository accept breaking changes?
 
@@ -205,16 +205,18 @@ The name is the one you put in the approval message. When the user chose the cur
 Screenshots, the review files and the work report go to **`work-reports/` inside the repository**. Outside the repository they grow on disk where nobody sees them. Inside the repository, **check first that git is not tracking it.**
 
 ```bash
-ROOT=$(git rev-parse --show-toplevel)
-git -C "$ROOT" check-ignore -q work-reports/ && echo IGNORED || echo NOT_IGNORED
+git rev-parse --show-toplevel                 # <ROOT>
+git -C <ROOT> check-ignore -q work-reports/   # exit 0: ignored
 ```
 
+`ROOT`, `START` and `WORKDIR` are values you keep and write out in full, the way `$FLOW` is. Write `<ROOT>`, `<START>` and `<WORKDIR>` below, and put the value in each command.
+
 **Check `work-reports/`, with the slash.** A pattern with a trailing slash matches only a directory, and
-before the first run there is no directory, so `check-ignore work-reports` answers `NOT_IGNORED` even when
+before the first run there is no directory, so `check-ignore work-reports` answers exit 1 even when
 `.gitignore` already has `work-reports/`. With the slash, git takes the path as a directory whether it exists or not.
 
-- **`IGNORED`**: use it. Ask nothing.
-- **`NOT_IGNORED`**: **ask the user before you touch `.gitignore`.** Never add it on your own.
+- **Exit 0**: use it. Ask nothing.
+- **Exit 1**: **ask the user before you touch `.gitignore`.** Never add it on your own.
 
 ```
 AskUserQuestion: I want to use work-reports/ for the work report and the screenshots,
@@ -225,10 +227,18 @@ and .gitignore does not cover it. May I add it?
 
 When the user says yes, make it **a commit of its own**. A `.gitignore` change mixed into the implementation diff blurs what the review is looking at.
 
-```bash
-printf 'work-reports/\n' >> "$ROOT/.gitignore"
-git -C "$ROOT" add .gitignore && git -C "$ROOT" commit -m "chore: ignore work-reports/"
-```
+1. Append `work-reports/` to `<ROOT>/.gitignore` with Edit, or with Write when the file does not exist.
+2. Stage it.
+
+   ```bash
+   git -C <ROOT> add .gitignore
+   ```
+
+3. Commit it.
+
+   ```bash
+   git -C <ROOT> commit -m "chore: ignore work-reports/"
+   ```
 
 Match the repository's commit message style. When (a) created a branch, this commit sits on that branch and shows
 up in the pull request. That is fine, because `START` comes after it and the review never sees it.
@@ -240,22 +250,21 @@ When the user says no, stop and ask what to do. Files under a directory git stil
 **Do this after (b).** Taken before the `.gitignore` commit, `START` would drag that commit into the review.
 
 ```bash
-START=$(git rev-parse HEAD)
+git rev-parse HEAD
 ```
 
-**This value runs through the whole flow.** The integration review when the plan has more than one task, the report and the final message all start from `START`.
+Keep the answer as `<START>`. **This value runs through the whole flow.** The integration review when the plan has more than one task, the report and the final message all start from `<START>`.
 
 ### (d) Create the work directory
 
 ```bash
-WORKDIR="$ROOT/work-reports/$(date +%Y-%m-%d-%H%M)-${START:0:7}"
-mkdir -p "$WORKDIR/review"
-echo "$START" "$WORKDIR"
+date +%Y-%m-%d-%H%M                                              # <stamp>
+mkdir -p <ROOT>/work-reports/<stamp>-<first 7 of START>/review   # <WORKDIR> is this path without /review
 ```
 
 The timestamp is local time. Directories sort by time, so the newest report is the last one in the list.
 
-**Tell the user `START` and `$WORKDIR` right away, in one short line.** Your context gets summarised on a long flow, and that message is the copy that survives.
+**Tell the user `<START>` and `<WORKDIR>` right away, in one short line.** Your context gets summarised on a long flow, and that message is the copy that survives.
 
 ## Phase 3: the implementation prompt
 
@@ -269,7 +278,7 @@ Agent(subagent_type: "annetaan:workflow-worker", description: "implementation, t
 
 ### Screenshots
 
-**When the change shows on screen, add this paragraph to the implementation prompt.** Phase 6 uses the files. They go into the `$WORKDIR` you made in phase 2.
+**When the change shows on screen, add this paragraph to the implementation prompt.** Phase 6 uses the files. They go into the `<WORKDIR>` you made in phase 2.
 
 > If this change shows on screen, take screenshots. When an existing screen changes how it looks or behaves, **take the current state (before) first, before you touch anything**, then implement, then take the after shot. When you only add a new screen or component, the after shot alone is enough. Save them in `<absolute path of WORKDIR>`. **Do not create files anywhere else** (`work-reports/` is ignored, and anything outside it ends up in a commit). Report the path of each file and what it shows.
 
@@ -331,7 +340,7 @@ Go back to (b). Count one round.
 
 > Task k, "<task name>", passed review. Turn its changes into **one commit**. Match the commit message style this repository already uses and make the task recognisable. Check that `git status --porcelain` is empty afterwards and report back. End the report with **notes for the next session, five lines at most**: the commands that run the tests and the type checks, the conventions you kept and the traps you hit, and anything that bears on the tasks still to come. No explanation of the code.
 
-Check it yourself with `git log -1 --oneline`, `git status --porcelain`, and `git branch --show-current` to confirm the branch has not moved. Anything left in the working tree needs an explanation from the implementation session. Screenshots inside `$WORKDIR` are ignored by git and can stay.
+Check it yourself with `git log -1 --oneline`, `git status --porcelain`, and `git branch --show-current` to confirm the branch has not moved. Anything left in the working tree needs an explanation from the implementation session. Screenshots inside `<WORKDIR>` are ignored by git and can stay.
 
 **Add those notes to the handover notes you keep.** Fold the duplicates together. Once the whole thing runs past
 fifteen lines, drop the oldest. The next task's implementation prompt carries this, and it is the only thing that
@@ -417,7 +426,7 @@ context and nowhere else.
 Drop the diff next to it, so the report and the review files can be read against it.
 
 ```bash
-git diff <START>..HEAD > "$WORKDIR/changes.diff"
+git diff --output=<WORKDIR>/changes.diff <START>..HEAD
 ```
 
 When phase 1 found commits from before this flow, have the report say so: this report covers `<START>..HEAD`, and the pull request also carries N commits from before it.
@@ -439,20 +448,23 @@ git push -u origin <branch>
 Use the shots the implementation sessions took while they worked the tasks. If they are missing, `SendMessage` the session that wrote the report and have it take them before the pull request goes up. **Do not start the app and take them yourself.**
 
 ```bash
-cd "$WORKDIR"
+cd <WORKDIR>
+```
+
+```bash
 gh pr create --base <default branch> --title "..." --body-file log.md \
   --attach './before.png#Before: the list has no filter bar' \
   --attach './after.png#After: a filter bar sits above the list'
 ```
 
 - **`--attach` needs gh 2.99.0 or later**, and it works on GitHub.com and GitHub Enterprise Cloud. See below for older versions.
-- **Run it from `$WORKDIR` and pass the same relative paths the report uses.** gh replaces a path the body already references with the uploaded URL, and appends the attachment when it finds no reference. `./before.png` in the body and an absolute path on the flag do not match, so the images land at the bottom in the wrong order.
+- **Run it from `<WORKDIR>` and pass the same relative paths the report uses.** gh replaces a path the body already references with the uploaded URL, and appends the attachment when it finds no reference. `./before.png` in the body and an absolute path on the flag do not match, so the images land at the bottom in the wrong order.
 - Alt text follows the path after `#`. Left out, the filename becomes the alt text. Write what the picture shows.
 - Videos attach the same way and render as a player, without alt text. Use one to show a sequence of interactions.
 - Fifty files per command. A failed upload still creates the pull request and only sets a non-zero exit code. **Check the exit code and read the body back.** Reattach what fell out with `gh pr edit <number> --attach`.
 
 **When gh is older than 2.99.0 and there are screenshots**, create the pull request without `--attach`
-(`gh pr create --base <default branch> --title "..." --body-file "$WORKDIR/log.md"`, with no `cd` needed),
+(`gh pr create --base <default branch> --title "..." --body-file <WORKDIR>/log.md`, with no `cd` needed),
 then tell the user in the final message:
 
 > `before.png` and `after.png` could not be attached automatically. `--attach` needs gh 2.99.0 and this machine has `<version>`. Drag both files onto the pull request body for now. `brew upgrade gh` and the next run attaches them by itself.
@@ -501,7 +513,7 @@ These values are already in your context. Nothing arrives as an argument.
   checked out there
 
 pj4-running has already run its checks (`gh`) on `<WT>` and confirmed that `work-reports/` is ignored there.
-Every command below runs in `<WT>`, so `ROOT` and `WORKDIR` come from there. Never touch
+Every command below runs in `<WT>`, so `<ROOT>` and `<WORKDIR>` come from there. Never touch
 `<MAIN>`. The user works in it during the run.
 
 ### What it skips
@@ -509,15 +521,15 @@ Every command below runs in `<WT>`, so `ROOT` and `WORKDIR` come from there. Nev
 - **Does this repository accept breaking changes?** Ask nothing and write nothing to memory.
 - All of phase 1: the design session, the design review, the open questions, the approval dialog, and the check for
   commits that came before this flow.
-- Phase 2 (a) and (b). pj4-running owns the branch. Keep the first two lines of (b) as a guard, because (d) needs
-  `ROOT` from the first one.
+- Phase 2 (a) and (b). pj4-running owns the branch. Keep the two commands of (b) as a guard, because (d) needs
+  `<ROOT>` from the first one.
 
   ```bash
-  ROOT=$(git rev-parse --show-toplevel)
-  git -C "$ROOT" check-ignore -q work-reports/ && echo IGNORED || echo NOT_IGNORED
+  git rev-parse --show-toplevel
+  git -C <ROOT> check-ignore -q work-reports/
   ```
 
-  On `NOT_IGNORED`, take the stop procedure with the reason `work-reports`. Never ask about `.gitignore` here.
+  On exit 1, take the stop procedure with the reason `work-reports`. Never ask about `.gitignore` here.
 - Endings 6b and 6c, and **Report to the user**. What goes back to pj4-running replaces the report.
 
 ### The design, the plan and the detail
@@ -540,7 +552,7 @@ gh issue view <Q> --json body   # each Q
 
 ### Start point and work directory
 
-Phase 2 (c) takes `START=$(git rev-parse HEAD)`, right after pj4-running made the branch. Phase 2 (d) runs as
+Phase 2 (c) takes `<START>` from `git rev-parse HEAD`, right after pj4-running made the branch. Phase 2 (d) runs as
 written.
 
 ### Phases 3 and 4
@@ -585,7 +597,10 @@ Keep the handover lines from phase 4 (d) for pj4-running.
 
    ```bash
    git push -u origin <branch>
-   cd "$WORKDIR"
+   cd <WORKDIR>
+   ```
+
+   ```bash
    gh pr create --draft --base <base branch> --title "<issue title>" --body-file log.md
    ```
 
@@ -623,14 +638,15 @@ The task commit decides the case, whatever the phase. Look for it in `git log --
 - **You do not write code.** The implementation session implements and the review session reviews. Code you write yourself never passes through a review.
 - **The review session never changes code.** It writes findings. The implementation session fixes them.
 - **The design review session never changes code and sends one report.** It runs once, before approval, never on task detailing or a plan redraw, and the flow goes on without it when it cannot start.
-- **The review files are written once.** Each round and each reply is a new file under `$WORKDIR/review/`, in the shape `$FLOW/review-files.md` gives. Nobody edits one after it is written.
+- **The review files are written once.** Each round and each reply is a new file under `<WORKDIR>/review/`, in the shape `$FLOW/review-files.md` gives. Nobody edits one after it is written.
 - **The design session lives for the whole flow. An implementation session and a review session live for one task.** Inside a task they continue through `SendMessage`, because throwing the context away between rounds repeats arguments that were already settled. At the commit they are finished, and the next task starts a new pair. The implementation session of a one-task plan also writes the work report.
 - **Keep the reports from the sub-agents short.** The role instructions cap them. A report that pastes a diff or a log fills the one context that holds the whole plan, which is yours. When a long one arrives, say so, and ask for the gist next time.
 - **One task is one commit, and a commit happens only after approval.** A commit mid-round drops the diff out of the working-tree view the review reads.
 - **No branches, no history rewriting from the sub-sessions.** The main session owns `git checkout -b`. `git rebase`, `git reset --hard` and `--amend` break the `START` comparison. The role instructions say the same.
+- **Each Bash call runs one command with its values written out.** No shell variables, no `$(...)`, no chaining. Read the output whole. pj4-running drives this flow in runs that cannot answer a permission question, and a command Claude Code cannot check stalls them.
 - **Do not lose `START`.** The phase 2 message to the user and the per-task progress lines in phase 4 are the copies that survive a summarised context.
 - **Never write into `work-reports/` without checking it is ignored.** Unchecked, the report and the screenshots ride into the next commit. Ask the user before adding it to `.gitignore`.
-- **Do not move anything under `$WORKDIR` into version control.** The report, the screenshots and the diff are worth more untracked. Move them only when the user asks.
+- **Do not move anything under `<WORKDIR>` into version control.** The report, the screenshots and the diff are worth more untracked. Move them only when the user asks.
 - Report a failure when it happens: a failing test, a design that falls apart. **Approved commits are already on the branch and the task in flight is uncommitted in the working tree.** Say both.
 - From an issue, the main session also pushes and opens the draft pull request. Nothing is merged here. pj4-running
   merges.
