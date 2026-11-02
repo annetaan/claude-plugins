@@ -1,13 +1,13 @@
 ---
 name: pj4-running
-description: Takes the project from a number given, a sub-issue's number naming its parent, or the only project with sub-issues, and otherwise asks which project to work on. Creates the project's base branch on its first start, once every project it waits on is merged, and closes the parent of a merged project and names the projects that can be split now, as /annetaan:pj2-issues <P>. Works down the run order in the parent's Order list one sub-issue at a time, and stops at the first issue that is not workable. Each one runs through the workflow skill as one task with review rounds, then pj4-running merges its pull request into the project's base branch and closes the issue itself before the next starts. Once every sub-issue is closed, opens the pull request from the base branch into the branch it was made from, and leaves its merge to the user. Works in a git worktree of its own, so the main working tree stays free for the user. Files unplanned work as stub issues and stops on a blocker. The fourth of four skills, after pj1-plan, pj2-issues and pj3-doctor. Use it only when the user names this skill or invokes /annetaan:pj4-running, because it creates branches, pushes, opens and merges pull requests, and edits issues and labels.
+description: Takes the project from a number given, a sub-issue's number naming its parent, or the only project with sub-issues, and otherwise asks which project to work on. Creates the project's base branch on its first start, once every project it waits on is merged, and closes the parent of a merged project and names the projects that can be split now, as /annetaan:pj2-issues <P>. Works down the run order in the parent's Order list one sub-issue at a time, and stops at the first issue that is not workable. Each one runs through the workflow skill as one task with review rounds, then pj4-running merges its pull request into the project's base branch and closes the issue itself before the next starts. Once every sub-issue is closed, merges the branch the base branch was made from into it, with the workflow skill resolving any conflict, then opens the pull request from the base branch into that branch, and leaves its merge to the user. Works in a git worktree of its own, so the main working tree stays free for the user. Files unplanned work as stub issues and stops on a blocker. The fourth of four skills, after pj1-plan, pj2-issues and pj3-doctor. Use it only when the user names this skill or invokes /annetaan:pj4-running, because it creates branches, pushes, opens and merges pull requests, and edits issues and labels.
 ---
 
 # pj4-running
 
 The fourth of the four pj skills: it works down a project's run order, the parent's `## Order`, and merges one pull
-request per issue. Once every sub-issue is closed, it opens the project's pull request, from the base branch into
-`<from>`, and the user merges it.
+request per issue. Once every sub-issue is closed, it merges `<from>` into the base branch and opens the project's
+pull request, from the base branch into `<from>`, and the user merges it.
 
 You are the main session. **You do not write code.** workflow's sessions implement and review. You own the branch,
 the merge, the issues, the labels and the notices.
@@ -99,7 +99,8 @@ branch from the tip of `<from>` when the base branch is missing and every projec
 - **`empty`**: the project has no sub-issue yet. It has not been split. Give the next step,
   `/annetaan:pj2-issues <P>`, and end.
 - **`done`**: every sub-issue is closed. When `project.merged` is true, `close` held `<P>`. Report its close, and
-  end. Otherwise open the project's pull request as **The project's pull request** says, report it, and end.
+  end. Otherwise keep the values as for `run`, take **The worktree** and **Paths this clone must ignore**, and go
+  straight to phase 6, which brings `<from>` in and opens the project's pull request.
 - **`run`**: keep `main` as `<MAIN>`, `worktree` as `<WT>`, `project.base` as `<base>`, `project.from` as `<from>`,
   and keep `created` and `rules`. When `created` is not null, this run created the base branch. Print
   `<base> created from <from> at <short sha>`, and keep the SHA for phase 3.
@@ -186,7 +187,7 @@ to enter `<WT>` themselves, because their directory resets on every bash call.
 
 **Every command from here to the end of the run runs in `<WT>`.** After a context summary, run
 `git rev-parse --show-toplevel`, and enter `<WT>` again when it prints anything else. Between issues `<WT>` holds a
-detached HEAD. A stop from here on, even one before the approval, leaves `<WT>` as phase 6 step 1 says.
+detached HEAD. A stop from here on, even one before the approval, leaves `<WT>` as phase 6 step 2 says.
 
 `<WT>` has none of `<MAIN>`'s ignored files, such as installed dependencies or a `.env`. The first worker prepares
 what the tests need and leaves the steps in the handover notes, so later issues find them there.
@@ -221,7 +222,7 @@ Act by `status`.
 
 **Never edit `.gitignore` here.** That commit would land on the base branch with no pull request.
 
-On a stop, leave `<WT>` as phase 6 step 1 says and end the run. `<WT>` stays in place, and the report says that
+On a stop, leave `<WT>` as phase 6 step 2 says and end the run. `<WT>` stays in place, and the report says that
 `git -C "<MAIN>" worktree remove <WT>` removes it.
 
 ## Phase 1: the order
@@ -300,10 +301,12 @@ Show the user:
 - how each issue runs: a branch, workflow's **From an issue** (one task with review rounds, with the review files
   in its work report), a draft pull request into the base branch, then a merge by pj4-running, which then closes the
   issue. GitHub does not close it on a merge into a branch other than the default branch.
-- that once every sub-issue is closed, the run opens the project's pull request from the base branch into `<from>`,
-  that merging it is the user's job, and that the parent `#<P>` closes as completed once a run sees that merge
-- that the run stops on a blocker, a divergence, the round cap, a merge that does not go through, or the user saying
-  stop
+- that once every sub-issue is closed, the run merges `<from>` into the base branch and pushes the merge there, with
+  workflow's **From a sync** resolving any conflict under review, then opens the project's pull request from the base
+  branch into `<from>`, that merging it is the user's job, and that the parent `#<P>` closes as completed once a run
+  sees that merge
+- that the run stops on a blocker, a divergence, the round cap, a merge or a push that does not go through, or the
+  user saying stop
 
 ```
 AskUserQuestion: Start the run?
@@ -445,7 +448,11 @@ Act by the reason, then go to phase 6. Every comment below is written to a file 
 
 Every way the run ends comes here: the run order is done, the run stopped, or the user said stop.
 
-1. Leave `<WT>`, only when this session entered it in **The worktree**. A stop before that point, such as a base
+1. `project.sh <P>`. **When every sub-issue is closed** and the project is not `merged`, bring `<from>` in and open
+   the project's pull request as **The project's pull request** says. Ask nothing, because the approval in phase 3,
+   or for `start`'s `done` the invocation itself, covered it. Skip this step when the run stopped before
+   **The worktree** was entered.
+2. Leave `<WT>`, only when this session entered it in **The worktree**. A stop before that point, such as a base
    branch gone from origin, a base branch that cannot be created, or a dirty `<WT>` the user wants to look at, skips
    this step. `<WT>` stays for the next
    run. The detach frees the branch for `<MAIN>`, and it works on a dirty tree too. Keep the `-C`, so the command
@@ -455,18 +462,61 @@ Every way the run ends comes here: the run order is done, the run stopped, or th
    git -C "<WT>" switch --detach
    ```
 
+   Skip that command when a stopped **Bringing `<from>` in** left a merge in progress: git refuses to switch then, and
+   the HEAD is detached already.
+
    ```
    ExitWorktree(action: "keep")
    ```
 
    A worktree entered by path is never deleted by `ExitWorktree`. Where that tool is not available, `cd "<MAIN>"`.
-2. `project.sh <P>`. **When every sub-issue is closed** and the project is not `merged`, open the project's pull
-   request as **The project's pull request** says. Ask nothing, because the approval in phase 3 covered it.
 
 ## The project's pull request
 
 The project's pull request takes the whole project from `<base>` into `<from>`. pj4-running opens it, and never
 merges it. Merging it is the user's job.
+
+Before it opens it, pj4-running merges `origin/<from>` into `<base>`, so that the pull request shows the project as it
+lands on `<from>` today, and a conflict with what `<from>` gained since `<base>` was cut is settled here, under review,
+instead of in the user's merge. Both steps run in `<WT>`.
+
+### Bringing `<from>` in
+
+```bash
+$RUNNING/scripts/run.sh sync <P>
+```
+
+`sync` fetches `<base>` and `<from>`, and merges `origin/<from>` into the tip of `origin/<base>` in `<WT>`. Act by
+`status`.
+
+- **`current`**: `<base>` contains `<from>` already. Go on to the pull request.
+- **`merged`**: the merge went through with no conflict, and `sync` pushed the merge commit `sha` to `<base>`. Print
+  `<from> merged into <base> as <short sha>` and go on to the pull request.
+- **`conflict`**: the merge stopped on conflicts in `files`, and stays in progress in `<WT>`, on top of `start`.
+  Print `<from> conflicts with <base> in <n> file(s)`, then run workflow's **From a sync**. These are what it expects
+  you to have settled, so say them in your context before you start it: `P`, `<base>`, `<from>`, `files`, `start` as
+  `<START>`, the handover notes, and the paths `<WT>` and `<MAIN>`. workflow hands **Unplanned work** a `later`
+  report as it does for an issue, worded "found while merging `<from>` into `<base>`". It comes back here.
+  - **`finished`** with the SHA of the merge commit, even with `stop requested: yes`, because the merge is reviewed
+    and the next run would redo it otherwise: fold the handover lines as **When workflow returns** step 3 says, then
+    push it.
+
+    ```bash
+    $RUNNING/scripts/run.sh sync <P> --push
+    ```
+
+    `merged`: print `<from> merged into <base> as <short sha>`. Go on to the pull request, unless the user said stop:
+    then go to phase 6 step 2. A `stop` is handled as below.
+  - **`stopped`**: report the reason and the text of the `Unplanned:` or `Diverged:` report, and say whether
+    uncommitted work stays in `<WT>`. There is no issue to comment on, so nothing goes to GitHub. The next run asks
+    about the dirty `<WT>` and redoes the merge. Go to phase 6 step 2.
+- **`stop`** with `push-rejected`: quote `message`. A rule on `<base>` refuses a direct push, or `<base>` moved since
+  the fetch. The merge commit stays at `<WT>`'s HEAD, and the next run redoes the merge. Go to phase 6 step 2.
+- **`stop`** with `dirty`, `unfinished` or `not-the-merge`: `<WT>` is not as `sync` expects. Quote `message` and go
+  to phase 6 step 2.
+- **`stop`** with `base-gone`, `merged`, `not-due` or `fetch-failed`: as for the pull request below.
+
+### Opening it
 
 Write `$TMP/<P>-pr.md`. Its first line is `Part of #<P>`. Below it, in the repository's language, it says that the
 pull request brings project `#<P>` into `<from>`, lists each sub-issue closed as completed as `#<k> <title>` with its
@@ -487,10 +537,14 @@ $RUNNING/scripts/run.sh pr <P> --body "$TMP/<P>-pr.md"
 - **`stop`** with `create-failed`: quote `message`. A base branch with no commits beyond `<from>`, for example when
   every sub-issue was closed as not planned, has nothing to bring in.
 - **`stop`** with `merged` or `not-due`: the project changed under the run. Quote `message`.
+- **`stop`** with `behind` or `fetch-failed`: `<from>` moved after **Bringing `<from>` in**, or origin could not be
+  read. Quote `message`. The next run brings `<from>` in again.
 
 ## Report to the user
 
 - the base branch `<base>`, and whether this run created it
+- how `<from>` came into `<base>`: already in, merged as `<sha>`, or merged as `<sha>` after workflow resolved the
+  conflicts in the files it names, or why it did not
 - the project's pull request with its URL, when there is one, and that merging it is the user's job
 - the parents closed in this run
 - the projects that can be split now, collected from the `startable` of each close, one line each as
@@ -541,9 +595,11 @@ section does not name never reads as done.
 - **Never merge a pull request that `project.sh` does not report as the issue's `pr`.**
 - **Whenever you take `ready` off an issue, add `blocker`.**
 - **The next run never uses the work a stopped run left in `<WT>`.** The work is redone.
-- **Never push to the base branch, to `<from>` or to the default branch, and never rewrite their history.** The one
-  branch this skill creates outside a pull request is the project's base branch, through the API, in `run.sh start`.
-  The project's pull request is opened from that branch as it stands on origin.
+- **Never push to `<from>` or to the default branch, push to the base branch only through `run.sh sync`, and never
+  rewrite their history.** The one branch this skill creates outside a pull request is the project's base branch,
+  through the API, in `run.sh start`. The one commit that reaches it outside a pull request is the merge of `<from>`,
+  pushed as a fast-forward by `run.sh sync`. The project's pull request is opened from that branch as it stands on
+  origin.
 - **Close an issue or a parent only through `run.sh close` or `run.sh merge`, which refuse one that is not due, and
   close as completed.**
 - An unattended run never calls `AskUserQuestion` and ends with one `unattended:` line.
