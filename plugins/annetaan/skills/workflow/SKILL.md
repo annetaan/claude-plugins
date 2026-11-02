@@ -1,11 +1,11 @@
 ---
 name: workflow
-description: Runs one implementation as design, a design review where the repository accepts breaking changes, approval, then per task (implement, review rounds, one commit), then an integration review when the plan has more than one task, then a finish step that opens a pull request, pushes, or stops locally. The review rounds run through Markdown files in the run's work report directory. Use it only when the user names this skill or invokes /annetaan:workflow, or when pj4-running loads it to run one issue or to resolve a merge of the project's source branch, because it spawns four sub-sessions and adds commits. Do not use it for a one-off implementation request or for an ordinary code review request.
+description: Runs one implementation as design, a design review where the repository accepts breaking changes, approval, then per task (implement, review rounds, one commit), then an integration review when the plan has more than one task, then a finish step that pushes and opens a pull request. The standalone run works in a git worktree of its own, `.claude/worktrees/wf-<stamp>`, and leaves the main working tree alone. The review rounds run through Markdown files in the run's work report directory. Use it only when the user names this skill or invokes /annetaan:workflow, or when pj4-running loads it to run one issue or to resolve a merge of the project's source branch, because it spawns four sub-sessions and adds commits. Do not use it for a one-off implementation request or for an ordinary code review request.
 ---
 
 # workflow
 
-One implementation, run as **design, a design review where the repository accepts breaking changes, approval, then per task (implement, review rounds, one commit), then an integration review when the plan has more than one task, then a finish step**, with each role in its own session.
+One implementation, run as **design, a design review where the repository accepts breaking changes, approval, then per task (implement, review rounds, one commit), then an integration review when the plan has more than one task, then a finish step that pushes and opens a pull request**, with each role in its own session.
 The review rounds run through Markdown files under the run's work report directory, described in
 `$FLOW/review-files.md`.
 
@@ -23,31 +23,34 @@ which it changes. Everything it does not mention runs as written.
 
 `$FLOW` is not a shell variable. Replace it with the real absolute path when you run bash and when you write a prompt for a sub-agent. Sub-agents have not read this instruction, so a relative path or a literal `$FLOW` finds them nothing.
 
+The standalone flow also uses the script `$FLOW/scripts/worktree.sh`, written `worktree.sh` below. Every subcommand
+prints one JSON object with a `status`. A non-zero exit is a usage error or an unexpected failure: quote its message
+and stop. Only the standalone flow calls it. From an issue and From a sync never do.
+
 ## Before you start
 
 This skill spawns sub-sessions and adds commits. **Start it only when the user names it or invokes
 `/annetaan:workflow`, or pj4-running loads it for an issue or a sync.**
 
-Run these checks and keep every answer. Phase 1 needs all of them.
+Run one command and keep every answer. Phase 1 needs them.
 
 ```bash
-git rev-parse --show-toplevel            # inside a git repository
-git status --porcelain                   # must be empty
-git branch --show-current                # where commits land if the user keeps this branch
-git symbolic-ref --quiet --short refs/remotes/origin/HEAD   # origin/<default branch>
-git remote get-url origin                # is there a remote at all
-gh auth status                           # informational, see below
-gh --version                             # --attach needs 2.99.0 or later
+$FLOW/scripts/worktree.sh start
 ```
 
-- **A dirty working tree or a missing git repository stops the flow.** Tell the user and wait.
-- **`gh` failing does not stop the flow.** It removes the pull request option in phase 1. Say nothing about it yet.
-- **A `gh` older than 2.99.0 does not stop the flow either.** `gh pr create --attach` landed in 2.99.0. Phase 6 needs it only when the change is visible on screen. Say nothing about it yet.
-- The default branch is the part of the answer after `origin/`. If `git symbolic-ref` prints nothing, fall back to `main` and treat the default branch as unknown.
+It prints `status: ok` with `main`, `mainBranch`, `defaultBranch`, `gh` and `attach`.
+
+- `main` is `<MAIN>`, the main working tree. The flow never works in it.
+- `mainBranch` is the branch `<MAIN>` has checked out, or null on a detached HEAD.
+- `defaultBranch` is the branch origin's HEAD names, or null.
+- `attach` says whether `gh` is new enough for `gh pr create --attach` (2.99.0 or later). Phase 6 reads it, and `gh` holds the version.
+- **A `stop` ends the flow before design.** Its `reason` is `not-a-repo`, `no-origin`, `gh`, `gh-auth` or `repo`. Name the check and quote `message`. For `no-origin`, `gh` and `gh-auth`, add that this flow ends in a pull request and one cannot be opened here.
+- **A null `defaultBranch` stops the flow too**, unless the request names the branch to start from. Say that the default branch cannot be read.
+- **A dirty `<MAIN>` does not stop the flow**, because the flow never works in it.
 
 ### Does this repository accept breaking changes?
 
-Decide this after the checks above and before phase 1. It decides whether the design review runs. The review pushes
+Decide this after `worktree.sh start` and before **The worktree**. It decides whether the design review runs. The review pushes
 the design toward the shape it would have from a blank slate, and that shape often moves existing code, so it runs
 only where the repository accepts breaking changes. **The answer is a sentence you keep**, not a shell variable. The
 approval message needs it.
@@ -75,13 +78,74 @@ AskUserQuestion: Do you want broader design improvements (accepting breaking cha
 run, or will not run, because `<file>` says … / memory from <date> says …. That line is where the user stops a
 stale memory.
 
+## The worktree
+
+The standalone flow works in a git worktree of its own, `.claude/worktrees/wf-<stamp>` inside `<MAIN>`, detached at the tip of the base branch on origin. `<MAIN>` stays as the user left it. Run these steps after **Does this repository accept breaking changes?** and before phase 1, so that design reads the code in `<WT>`. The memory lookup above ran in the session's own project, before the worktree.
+
+1. **The base.** The branch the request names, otherwise `defaultBranch`.
+2. **The base question.** Only when the project's instructions in context (`CLAUDE.md`) ask for the base branch to be confirmed on every run. They are free-form, so you judge whether they do. Ask one `AskUserQuestion` with these options in this order, leaving out any that repeat an earlier one: the branch the request names `(Recommended)`; `defaultBranch` (`(Recommended)` when it comes first); `mainBranch` when it is set and differs from the default branch. The tool adds Other on its own. The answer is the base. **When fewer than two options remain**, ask a two-option confirm question instead: `Use <base> (Recommended)` and `Another branch - type its name under Other`, where `<base>` is the one candidate. An answer under Other is the base.
+3. **Create it.**
+
+   ```bash
+   $FLOW/scripts/worktree.sh create <base>
+   ```
+
+   - `ready`: keep `worktree` as `<WT>`, `name` as `<name>` and `base` as `<base>`.
+   - `stop` with `base-missing`: say that origin has no branch `<base>`, and stop the flow.
+   - `stop` with `fetch-failed`: quote `message` and stop the flow.
+
+   Both stops come before a worktree exists, so there is nothing to remove.
+4. **Ignore rules.** Two paths must stay out of git: `.claude/worktrees/` in `<MAIN>` and `work-reports/` in `<WT>`.
+
+   ```bash
+   $FLOW/scripts/worktree.sh ignore <name>
+   ```
+
+   `ok`: go on. `ask`: ask once, naming `notIgnored`.
+
+   ```
+   AskUserQuestion: These paths are not ignored in this repository: <paths>. workflow works in .claude/worktrees/ and writes its reports to work-reports/.
+     - Ignore them in this clone (Recommended) - adds them to .git/info/exclude and commits nothing
+     - Stop
+   ```
+
+   On the first answer, run `$FLOW/scripts/worktree.sh ignore <name> --add` and act on what it prints as here. On
+   `stop` with `still-not-ignored`, a `.gitignore` rule overrides the exclude file: say so and take **Ending before
+   approval**. On Stop, take **Ending before approval**. **Never edit `.gitignore`.**
+5. **Enter it, once.**
+
+   ```
+   EnterWorktree(path: "<WT>")
+   ```
+
+   Where that tool is not available, `cd <WT>`. Print `worktree <WT> base <base>` once. **Every command from here to
+   the end of the run runs in `<WT>`.** After a context summary, run `git rev-parse --show-toplevel`, and enter
+   `<WT>` again when it prints anything else.
+6. **The worktree line.** A sub-session does not start in `<WT>` by itself. **Every sub-agent prompt from here on
+   ends with this line**: the design, the design review, the implementation, the review, the integration review and
+   the report session.
+
+   > Your working directory must be the worktree `<WT>`. Run `git rev-parse --show-toplevel` first. When it prints anything else, call `EnterWorktree(path: "<WT>")` before anything else, or, when that tool is not available, start every command with `cd <WT>` and keep Edit and Write paths under `<WT>`. Never touch `<MAIN>`.
+
+   Write the real path for `<WT>` and `<MAIN>` when you send it.
+7. `<WT>` has none of `<MAIN>`'s ignored files, such as installed dependencies or a `.env`. The first worker prepares what the tests need and leaves the steps in the handover notes, so later tasks find them there.
+
+### Ending before approval
+
+When the run ends before approval, leave the worktree and remove it.
+
+1. When you have entered `<WT>` (**The worktree** step 5), `ExitWorktree(action: "keep")`, or `cd <MAIN>` where that tool is not available. A stop at step 4 comes before that: skip this step.
+2. `git -C <MAIN> worktree remove <WT>`
+
+The reasons: the Stop answer at the ignore question, a feasibility of "no" or "conditional" the user does not pursue, any answer at approval that ends the flow, and the user saying stop. Design sessions never change code, so there is no `--force`. When git refuses, something wrote into `<WT>`: quote the refusal, name `<WT>`, and point to `/annetaan:workflow-cleanup`.
+
 ## Phase 1: design
 
-Hand the user's request to the design session as it was written.
+Hand the user's request to the design session as it was written, with the worktree line (see **The worktree**).
 
 ```
 Agent(subagent_type: "annetaan:workflow-design", description: "design",
-      prompt: "Read $FLOW/roles/design.md first and follow the role it describes.\n\nThe request:\n<the user's request, verbatim>")
+      prompt: "Read $FLOW/roles/design.md first and follow the role it describes.\n\nThe request:\n<the user's request, verbatim>\n\n<the worktree line>")
 ```
 
 `annetaan:workflow-design` ships with this plugin and is pinned to opus at medium effort with code changes disabled.
@@ -104,7 +168,7 @@ written and the design report in full.
 
 ```
 Agent(subagent_type: "annetaan:workflow-design-review", description: "design review",
-      prompt: "Read $FLOW/roles/design-review.md first and follow the role it describes.\n\nThe request:\n<the user's request, verbatim>\n\nThe design:\n<the full design report>")
+      prompt: "Read $FLOW/roles/design-review.md first and follow the role it describes.\n\nThe request:\n<the user's request, verbatim>\n\nThe design:\n<the full design report>\n\n<the worktree line>")
 ```
 
 `annetaan:workflow-design-review` ships with this plugin and is pinned to Fable at medium effort with code changes
@@ -120,7 +184,7 @@ When the report comes back, `SendMessage` it to the design session.
 > Follow **Answering the design review** in your role instruction. Return the whole revised report.
 
 The revised report replaces the design and the plan you kept. **The revised design does not go back to the
-reviewer**, and neither does a rework the user asks for at approval. The design review session ends with its one
+reviewer**, and neither does a rework the user asks for at approval, a corrected base included. The design review session ends with its one
 report. Never `SendMessage` it. The points the design session did not take in reach the user as open questions (see
 **The approval dialog**).
 
@@ -131,45 +195,34 @@ design review ran, the points the design session did not take from it, marked `(
 user with `AskUserQuestion`. **One call holds four questions at most**, so ask in as many calls as it takes: the
 design's own first, then the review's, in the order the reviewer ranked them. Send the answers back with
 `SendMessage` so the design session can settle them.
-The approval question is fixed at three questions, so this is where the review's leftovers get decided.
+The approval is one question, so this is where the review's leftovers get decided.
 
-This is the only approval point in the flow. Present the design summary and the plan, then ask **one `AskUserQuestion` with three questions**.
+This is the only approval point in the flow. Present the design summary and the plan, then ask **one `AskUserQuestion`**.
 
-1. **Proceed with this design and plan?** (approve / change something first)
-2. **Where do the commits go?** (a new branch `<name>` / the current branch `<name>`)
-3. **How does the flow finish?** (open a pull request / push only / stop locally)
+**Proceed with this design and plan?** (approve / change something first)
 
-Say in the same message that everything after this runs on its own: per-task implementation and review rounds, the integration review when the plan has more than one task, and the finish step.
+The approval message states:
 
-**Derive the recommended answers and the available options from what you collected before you started.**
+- the name of the new branch, and `base: <base>`
+- the worktree `<WT>`, and that `<MAIN>` is not touched
+- that `<WT>` lacks `<MAIN>`'s ignored files (dependencies, `.env`), so the first worker prepares what the tests need and records the steps in the handover notes
+- that everything after this runs on its own: per-task implementation and review rounds, the integration review when the plan has more than one task, the push and the pull request
 
-| What you found | Recommend for question 2 | Options for question 3 |
-| --- | --- | --- |
-| The current branch is the default branch | **a new branch** | pull request / push only / stop locally |
-| The current branch is not the default branch | **the current branch** | pull request / push only / stop locally |
-| `gh auth status` failed | unchanged | **drop the pull request option** |
-| There is no `origin` remote | unchanged | **drop the pull request and push options** |
-| Question 2 answered "the current branch" and that branch is the default branch | unchanged | **drop the pull request option and ask question 3 again** |
-
-**You pick the branch name yourself.** Match the naming the repository already uses (`git branch -a`) and write your choice into the approval message, so the user can correct it there. Do not spend a question on it.
-
-**When the commits land on the default branch, say so in the approval message.** One line: commits go straight onto `<branch>` during this flow.
+**You pick the branch name yourself.** Match the naming the repository already uses (`git branch -a`), choose one that `git branch -a` does not list yet, and write it into the approval message, so the user can correct it there. Do not spend a question on it.
 
 **Say what happened to the design review, in one line of the approval message.** When it ran: N findings taken in,
 M decided by you in the open questions above. When it did not run, the reason: Fable could not start, the repository
 does not accept breaking changes, or the request asks for a minimal change.
 
-**If the user already stated the mode when they invoked the skill** ("branch it and open a PR", "commit straight to main"), skip that question and write what you understood into the approval message instead, so a wrong reading is visible and correctable.
+**When the user corrects the base at approval**, the design was written against the wrong code:
 
-**Check for commits that came before this flow.**
+1. Leave and remove the worktree as **Ending before approval** says.
+2. Run steps 3 to 6 of **The worktree** with the new base.
+3. Start a new design session from the design call.
+4. Run no second design review, as for any rework at approval.
+5. Ask the open questions again, then ask for approval again.
 
-```bash
-git rev-list --count <default branch>..HEAD
-```
-
-Skip this when the default branch could not be resolved.
-
-If this is not zero, the pull request will show those commits too, and they never went through this review. Say so in the approval message: this pull request will also carry N commits from before this flow, and the review covers only what happens from here. Carry the same sentence into the work report in phase 6.
+A corrected branch name just replaces the name.
 
 ### Agents
 
@@ -187,26 +240,24 @@ Both ship with this plugin, and the model and effort are pinned in `agents/*.md`
 
 **The design review runs on `annetaan:workflow-design-review`**, fable / medium, once before approval.
 
-## Phase 2: branch, ignore rule, start point
+## Phase 2: branch, guard, start point
 
 After approval, do these four things **in this order, before you wake the implementation session**. The order matters.
 
 ### (a) Create the branch
 
-Only when the user chose a new branch.
-
 ```bash
-git checkout -b <branch name>
+git -C <WT> checkout -b <branch name>
 ```
 
-The name is the one you put in the approval message. When the user chose the current branch, run nothing here.
+The name is the one you put in the approval message. When git refuses because the name exists, pick another and say so in one line.
 
-### (b) Make sure `work-reports/` is ignored
+### (b) Check that `work-reports/` is ignored
 
-Screenshots, the review files and the work report go to **`work-reports/` inside the repository**. Outside the repository they grow on disk where nobody sees them. Inside the repository, **check first that git is not tracking it.**
+Screenshots, the review files and the work report go to **`work-reports/` inside the worktree**. Outside the repository they grow on disk where nobody sees them. Inside it, **check that git is not tracking it.**
 
 ```bash
-git rev-parse --show-toplevel                 # <ROOT>
+git rev-parse --show-toplevel                 # <ROOT>, the same as <WT>
 git -C <ROOT> check-ignore -q work-reports/   # exit 0: ignored
 ```
 
@@ -216,45 +267,15 @@ git -C <ROOT> check-ignore -q work-reports/   # exit 0: ignored
 before the first run there is no directory, so `check-ignore work-reports` answers exit 1 even when
 `.gitignore` already has `work-reports/`. With the slash, git takes the path as a directory whether it exists or not.
 
-- **Exit 0**: use it. Ask nothing.
-- **Exit 1**: **ask the user before you touch `.gitignore`.** Never add it on your own.
-
-```
-AskUserQuestion: I want to use work-reports/ for the work report and the screenshots,
-and .gitignore does not cover it. May I add it?
-  - Add it (recommended) - appends work-reports/ to .gitignore as a commit of its own
-  - Do not add it        - you decide where the files go
-```
-
-When the user says yes, make it **a commit of its own**. A `.gitignore` change mixed into the implementation diff blurs what the review is looking at.
-
-1. Append `work-reports/` to `<ROOT>/.gitignore` with Edit, or with Write when the file does not exist.
-2. Stage it.
-
-   ```bash
-   git -C <ROOT> add .gitignore
-   ```
-
-3. Commit it.
-
-   ```bash
-   git -C <ROOT> commit -m "chore: ignore work-reports/"
-   ```
-
-Match the repository's commit message style. When (a) created a branch, this commit sits on that branch and shows
-up in the pull request. That is fine, because `START` comes after it and the review never sees it.
-
-When the user says no, stop and ask what to do. Files under a directory git still tracks get swept into a commit.
+Exit 0: go on. Exit 1: stop and report, because **The worktree** step 4 should have settled it. Never add the path to `.gitignore`.
 
 ### (c) Record the start point
-
-**Do this after (b).** Taken before the `.gitignore` commit, `START` would drag that commit into the review.
 
 ```bash
 git rev-parse HEAD
 ```
 
-Keep the answer as `<START>`. **This value runs through the whole flow.** The integration review when the plan has more than one task, the report and the final message all start from `<START>`.
+Run it right after (a). Keep the answer as `<START>`. **This value runs through the whole flow.** The integration review when the plan has more than one task, the report and the final message all start from `<START>`.
 
 ### (d) Create the work directory
 
@@ -274,7 +295,7 @@ where you make it.
 
 ```
 Agent(subagent_type: "annetaan:workflow-worker", description: "implementation, task k",
-      prompt: "Read $FLOW/roles/work.md first and follow the role it describes.\n\nApproved design:\n<the full design>\n\nPlan:\n<the full plan>\n\nDetail design for this task:\n<what the design session returned for task k. For task 1, the part of the approved design that covers it>\n\nStart point START: <the SHA>\nBranch: <branch name>\nReview files: <absolute path of WORKDIR>/review\n\nProgress:\n<the tasks already done and the commit that closed each, as the matching `git log --oneline` lines. \"none\" for task 1>\n\nHandover notes from the earlier sessions:\n<the notes you have been accumulating. \"none\" for task 1>\n\nImplement task k, \"<task name>\", of the plan. **Do not commit yet.** Report back once the tests pass.")
+      prompt: "Read $FLOW/roles/work.md first and follow the role it describes.\n\nApproved design:\n<the full design>\n\nPlan:\n<the full plan>\n\nDetail design for this task:\n<what the design session returned for task k. For task 1, the part of the approved design that covers it>\n\nStart point START: <the SHA>\nBranch: <branch name>\nReview files: <absolute path of WORKDIR>/review\n\nProgress:\n<the tasks already done and the commit that closed each, as the matching `git log --oneline` lines. \"none\" for task 1>\n\nHandover notes from the earlier sessions:\n<the notes you have been accumulating. \"none\" for task 1>\n\nImplement task k, \"<task name>\", of the plan. **Do not commit yet.** Report back once the tests pass.\n\n<the worktree line>")
 ```
 
 ### Screenshots
@@ -318,7 +339,7 @@ Check that the tests pass before you send anything to review. `git status --porc
 
 ```
 Agent(subagent_type: "annetaan:workflow-reviewer", description: "review, task k",
-      prompt: "Read $FLOW/roles/review.md first and follow the role it describes.\n\nApproved design and acceptance criteria:\n<the full design>\n\nPlan:\n<the full plan>\n\nDetail design for this task:\n<the same one the implementation session got>\n\nProgress:\n<the tasks already done and the commit that closed each. \"none\" for task 1>\n\nReview files: <absolute path of WORKDIR>/review\n\nUnder review: task k, \"<task name>\". The diff sits between the working tree and HEAD (`git diff HEAD` plus untracked files). Write round 1 as `task-<k>-round-1.md`.")
+      prompt: "Read $FLOW/roles/review.md first and follow the role it describes.\n\nApproved design and acceptance criteria:\n<the full design>\n\nPlan:\n<the full plan>\n\nDetail design for this task:\n<the same one the implementation session got>\n\nProgress:\n<the tasks already done and the commit that closed each. \"none\" for task 1>\n\nReview files: <absolute path of WORKDIR>/review\n\nUnder review: task k, \"<task name>\". The diff sits between the working tree and HEAD (`git diff HEAD` plus untracked files). Write round 1 as `task-<k>-round-1.md`.\n\n<the worktree line>")
 ```
 
 Every round after that goes to the same session with `SendMessage`, as "the diff has been updated, and the reply is
@@ -363,7 +384,7 @@ When the detail pass in (a) says the boundary no longer holds, or the implementa
 **Five rounds per task. Fixed.** It does not move at approval.
 Each (b) counts as one round, and the count resets when the task changes.
 
-If round five does not come back `approve`, stop and report to the user. Lay out what is still open and what each side said, and ask for a decision. **That task's changes are sitting uncommitted in the working tree.** Say that, and say that `git stash` or `git checkout -- .` can park or drop them. Do not keep the rounds going forever.
+If round five does not come back `approve`, stop and report to the user. Lay out what is still open and what each side said, and ask for a decision. **That task's changes are sitting uncommitted in `<WT>`.** Say that, say that the worktree stays as it is, and say that `/annetaan:workflow-cleanup` removes it, discarding the work, once the user decides. Do not keep the rounds going forever.
 
 **If the user says stop at any point, stop and report.** If the user says keep going after the cap, keep going. The cap is a brake, and it is not a promise.
 
@@ -389,7 +410,7 @@ working tree, so later rounds see them in the same diff.
 
 ```
 Agent(subagent_type: "annetaan:workflow-reviewer", description: "integration review",
-      prompt: "Read $FLOW/roles/review.md first and follow the role it describes.\n\nApproved design and acceptance criteria:\n<the full design>\n\nPlan, with the commit that closed each task:\n<the plan plus the matching `git log --oneline` lines>\n\nReview files: <absolute path of WORKDIR>/review\n\n<the request below>")
+      prompt: "Read $FLOW/roles/review.md first and follow the role it describes.\n\nApproved design and acceptance criteria:\n<the full design>\n\nPlan, with the commit that closed each task:\n<the plan plus the matching `git log --oneline` lines>\n\nReview files: <absolute path of WORKDIR>/review\n\n<the request below>\n\n<the worktree line>")
 ```
 
 > Every task is committed. This is the integration review. The target is `git diff <START>` plus untracked files. Write round 1 as `integration-round-1.md`. The tasks were reviewed one at a time, so look at **the boundaries**: types and contracts between functions that call each other across tasks, names that do not match, duplicated implementations, and acceptance criteria for the whole design that are still unmet.
@@ -416,6 +437,8 @@ The request:
 
 > Write a work report at `<WORKDIR>/log.md`. If this repository has `.github/PULL_REQUEST_TEMPLATE.md`, use it as the skeleton. Otherwise read a few recent merged pull requests (`gh pr list --state merged --limit 5`) and follow how they are written. With nothing to go on, choose a structure yourself. Whatever structure you choose, a reader has to come away with: what changed, how it was verified (the commands that were run and what they printed), what the review changed, read from the files under `./review/`, the screenshots if the change shows on screen, and which commit answers which task in the plan. Screenshots sit in the same directory, so link them relatively, as `![before](./before.png)`. Write it in the language this repository uses. **Do not create files outside this directory.**
 
+<the worktree line>
+
 **Keep the file name `log.md`.** Claude Code refuses a Write from a sub-agent when the name of the `.md` file
 starts with `report`, `summary`, `findings` or `analysis`, in any case ("Subagents should return findings as text,
 not write report files."). Nothing in settings, the environment, CLAUDE.md or agent frontmatter turns that off.
@@ -430,11 +453,9 @@ Drop the diff next to it, so the report and the review files can be read against
 git diff --output=<WORKDIR>/changes.diff <START>..HEAD
 ```
 
-When phase 1 found commits from before this flow, have the report say so: this report covers `<START>..HEAD`, and the pull request also carries N commits from before it.
+Then open the pull request.
 
-Then take one of the three endings below, whichever the user picked at approval.
-
-### 6a. Open a pull request
+### The pull request
 
 ```bash
 git push -u origin <branch>
@@ -453,7 +474,7 @@ cd <WORKDIR>
 ```
 
 ```bash
-gh pr create --base <default branch> --title "..." --body-file log.md \
+gh pr create --base <base> --title "..." --body-file log.md \
   --attach './before.png#Before: the list has no filter bar' \
   --attach './after.png#After: a filter bar sits above the list'
 ```
@@ -464,36 +485,30 @@ gh pr create --base <default branch> --title "..." --body-file log.md \
 - Videos attach the same way and render as a player, without alt text. Use one to show a sequence of interactions.
 - Fifty files per command. A failed upload still creates the pull request and only sets a non-zero exit code. **Check the exit code and read the body back.** Reattach what fell out with `gh pr edit <number> --attach`.
 
-**When gh is older than 2.99.0 and there are screenshots**, create the pull request without `--attach`
-(`gh pr create --base <default branch> --title "..." --body-file <WORKDIR>/log.md`, with no `cd` needed),
-then tell the user in the final message:
+**When `attach` is false and there are screenshots**, create the pull request without `--attach`
+(`gh pr create --base <base> --title "..." --body-file <WORKDIR>/log.md`, with no `cd` needed),
+then tell the user in the final message, with `<version>` from `gh` in `worktree.sh start`'s output:
 
 > `before.png` and `after.png` could not be attached automatically. `--attach` needs gh 2.99.0 and this machine has `<version>`. Drag both files onto the pull request body for now. `brew upgrade gh` and the next run attaches them by itself.
 
 List the file paths and the pull request URL alongside. **Say nothing about the gh version when the change produced no screenshots.**
 
-Carry the pull request URL into the closing report below.
-
-### 6b. Push only
-
-```bash
-git push -u origin <branch>
-```
-
-Tell the user the branch is pushed and no pull request was opened, and give the path of `log.md`.
-
-### 6c. Stop locally
-
-Nothing is pushed. Tell the user so plainly, and add how to undo the commits (`git revert <START>..HEAD`) so the decision is theirs to make.
+When the push fails, quote the error and go to **Report to the user**. The branch and its commits stay in `<WT>`. When `gh pr create` exits non-zero, run `gh pr view <branch> --json url` first. If a pull request exists (a failed upload still creates one), carry on with its URL and the reattach step above. If none exists, quote the error and go to **Report to the user**. Otherwise carry the pull request URL into the closing report below.
 
 ### Report to the user
 
-Whichever ending ran, close with: `START`, the commits stacked on it matched against the tasks in the plan, the design summary, and what the review changed. Then:
+**First leave the worktree**: `ExitWorktree(action: "keep")`, or `cd <MAIN>` where that tool is not available.
 
+Every standalone run that got past approval ends here, finished or stopped (round cap, user stop, a failed finish). Close with: `START`, the commits stacked on it matched against the tasks in the plan, the design summary, and what the review changed. Then:
+
+- **the pull request URL**, when one was opened
+- **the worktree `<WT>`**, and that the work report lives under it until cleanup
 - **the path of the work report** (`<WORKDIR>/log.md`), which opens in an editor with the screenshots inline
 - the review files, under `<WORKDIR>/review/`
 - the screenshot paths, when the change shows on screen
 - when phase 5 was skipped, one line saying the integration review did not run because the plan had one task
+- **the cleanup**: once the pull request is merged or closed, `/annetaan:workflow-cleanup <PR number>` moves the work report into `<MAIN>/work-reports/`, removes `<WT>` and the branch, and fast-forwards the local `<base>` after a merge. A run that stopped with no pull request is cleaned up with `/annetaan:workflow-cleanup` and no number
+- for a stopped run, what is still uncommitted in `<WT>`
 
 ## From an issue
 
@@ -519,9 +534,11 @@ Every command below runs in `<WT>`, so `<ROOT>` and `<WORKDIR>` come from there.
 
 ### What it skips
 
+- **Before you start**'s `worktree.sh start`. pj4-running's `run.sh start` has run its checks, and its `attach` says
+  whether `--attach` works.
 - **Does this repository accept breaking changes?** Ask nothing and write nothing to memory.
-- All of phase 1: the design session, the design review, the open questions, the approval dialog, and the check for
-  commits that came before this flow.
+- **The worktree**. pj4-running made `<WT>` and checked what it must ignore.
+- All of phase 1: the design session, the design review, the open questions and the approval dialog.
 - Phase 2 (a) and (b). pj4-running owns the branch. Keep the two commands of (b) as a guard, because (d) needs
   `<ROOT>` from the first one.
 
@@ -531,7 +548,7 @@ Every command below runs in `<WT>`, so `<ROOT>` and `<WORKDIR>` come from there.
   ```
 
   On exit 1, take the stop procedure with the reason `work-reports`. Never ask about `.gitignore` here.
-- Endings 6b and 6c, and **Report to the user**. What goes back to pj4-running replaces the report.
+- **Report to the user**. What goes back to pj4-running replaces the report.
 
 ### The design, the plan and the detail
 
@@ -563,10 +580,7 @@ a line each.
 
 - The phase 3 prompt: "This run comes from issue #<n>. Follow **Work outside the task** in your role instruction."
 - The review prompt: "The design is issue #<n>. Its checked decisions bind."
-- Every prompt, implementation and review alike: "Your working directory must be the worktree `<WT>`. Run
-  `git rev-parse --show-toplevel` first. When it prints anything else, call `EnterWorktree(path: "<WT>")` before
-  anything else, or, when that tool is not available, start every command with `cd <WT>` and keep Edit and Write
-  paths under `<WT>`. Never touch `<MAIN>`." A sub-session does not start in `<WT>` by itself.
+- Every prompt, implementation and review alike, carries **the worktree line** (in **The worktree**).
 - Every review request, the round 1 prompt and each "review it again" `SendMessage`, also carries the adaptations
   the implementation session has listed so far, under "Adaptations", or "none".
 
@@ -605,7 +619,7 @@ Keep the handover lines from phase 4 (d) for pj4-running.
    gh pr create --draft --base <base branch> --title "<issue title>" --body-file log.md
    ```
 
-   The `--attach` rules apply as in 6a. When gh is older than 2.99.0 and there are screenshots, open the pull
+   The `--attach` rules apply as in **The pull request**. When `attach` is false and there are screenshots, open the pull
    request with the `gh pr create` line above, without `--attach`, so it keeps `--draft --base <base branch>`. The
    file paths go into what you hand back. Nothing waits on the user.
 4. Return `finished`.
@@ -720,11 +734,13 @@ As **From an issue** says. A `blocking` or `Diverged:` report goes back to pj4-r
 - **The design session lives for the whole flow. An implementation session and a review session live for one task.** Inside a task they continue through `SendMessage`, because throwing the context away between rounds repeats arguments that were already settled. At the commit they are finished, and the next task starts a new pair. The implementation session of a one-task plan also writes the work report.
 - **Keep the reports from the sub-agents short.** The role instructions cap them. A report that pastes a diff or a log fills the one context that holds the whole plan, which is yours. When a long one arrives, say so, and ask for the gist next time.
 - **One task is one commit, and a commit happens only after approval.** A commit mid-round drops the diff out of the working-tree view the review reads.
-- **No branches, no history rewriting from the sub-sessions.** The main session owns `git checkout -b`. `git rebase`, `git reset --hard` and `--amend` break the `START` comparison. The role instructions say the same.
+- **No branches, no history rewriting from the sub-sessions.** The main session owns `git checkout -b`, run in `<WT>`. `git rebase`, `git reset --hard` and `--amend` break the `START` comparison. The role instructions say the same.
 - **Each Bash call runs one command with its values written out.** No shell variables, no `$(...)`, no chaining. Read the output whole. pj4-running drives this flow in runs that cannot answer a permission question, and a command Claude Code cannot check stalls them.
 - **Do not lose `START`.** The phase 2 message to the user and the per-task progress lines in phase 4 are the copies that survive a summarised context.
-- **Never write into `work-reports/` without checking it is ignored.** Unchecked, the report and the screenshots ride into the next commit. Ask the user before adding it to `.gitignore`.
+- **Never write into `work-reports/` without checking it is ignored.** Unchecked, the report and the screenshots ride into the next commit. Check first that git ignores `work-reports/`, ask before adding it to `.git/info/exclude`, and never edit `.gitignore`.
+- **The standalone flow never touches `<MAIN>`.** Never switch, stash, commit or clean there. Everything runs in `<WT>`.
+- **`worktree.sh` is for the standalone flow only.** From an issue and From a sync never call it.
 - **Do not move anything under `<WORKDIR>` into version control.** The report, the screenshots and the diff are worth more untracked. Move them only when the user asks.
 - Report a failure when it happens: a failing test, a design that falls apart. **Approved commits are already on the branch and the task in flight is uncommitted in the working tree.** Say both.
-- From an issue, the main session also pushes and opens the draft pull request. Nothing is merged here. pj4-running
+- Standalone, the main session pushes and opens the pull request. From an issue, the main session also pushes and opens the draft pull request. Nothing is merged here. pj4-running
   merges. From a sync, nothing is pushed. pj4-running pushes the merge commit.
