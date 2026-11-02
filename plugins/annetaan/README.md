@@ -16,9 +16,9 @@ marketplace in `/plugin`.
 ### workflow is the core
 
 `workflow` runs one implementation for one request: a design, your approval, then each task implemented, reviewed
-and committed, and at the end an optional pull request. Everything in this plugin that writes code goes through it.
+and committed, and at the end a pull request. Everything in this plugin that writes code goes through it.
 While it runs, its state lives in the session and in its work report under `work-reports/` on disk. Nothing reaches
-GitHub until the finish step opens a pull request or pushes.
+GitHub until the finish step pushes and opens a pull request. It works in a worktree of its own.
 
 ### The pj skills drive workflow
 
@@ -29,7 +29,7 @@ splits one project into sub-issues once every project it waits on is merged. You
 the project's branch and closes the issue, and at the end opens the pull request that takes the project's branch
 back. The four pass nothing to each other through the conversation. Each one reads the project from GitHub afresh.
 `pj-auto` drives the doctor and the runner and stops where you are needed. `pj-cleanup` tidies up once you have merged
-a project.
+a project. `workflow-cleanup` does the same for a workflow run.
 
 Which skill to start with:
 
@@ -89,7 +89,8 @@ your decisions there too.
 ## Skills
 
 A skill whose `description` matches a request normally starts without being named. The ones here do not. `workflow`
-spawns several sessions and adds commits on its own. The pj skills create, edit and close
+spawns several sessions, adds commits, creates a worktree and pushes a branch on its own. `workflow-cleanup` deletes
+branches and removes a worktree. The pj skills create, edit and close
 issues and labels on GitHub, and `pj4-running` also creates each project's branch, pushes, opens and merges pull
 requests. The doc skills make a file next to your document, rewrite the document itself, and can add one commit of
 their own to `.gitignore` after asking. Any of these is enough reason to wait, so each skill here starts only when you
@@ -103,7 +104,7 @@ Runs one implementation through sessions with different jobs. A design session w
 task as its turn comes. In a repository that accepts breaking changes, a design review session pushes the design
 toward its ideal shape once, before approval. An implementation session writes the code for one task. A review
 session reads it and writes its findings to a file. Those last two are new for every task. You approve once, near the start, and
-answer two questions about where the commits go and how the run should end.
+the approval message names the branch and the base. The run happens in `.claude/worktrees/wf-<stamp>`.
 
 The review rounds run through Markdown files in the run's work report directory. The review session writes one file
 per round, and the implementation session answers each finding in a reply file next to it. Nobody edits a file once
@@ -111,10 +112,10 @@ it is written, so the directory reads back as the whole review, in order.
 
 ```mermaid
 flowchart TD
-    req(["your request"]) --> design["design session<br/>boundaries, acceptance criteria,<br/>plan of small tasks"]
-    design --> dreview["design review session<br/>once, where breaking<br/>changes are welcome"] --> ask["one approval<br/>1. proceed with this plan?<br/>2. new branch, or the branch you are on?<br/>3. pull request, push, or nothing?"]
+    req(["your request"]) --> wt["worktree on the tip of the base<br/>work-reports/ and .claude/worktrees/ ignored?"] --> design["design session<br/>boundaries, acceptance criteria,<br/>plan of small tasks"]
+    design --> dreview["design review session<br/>once, where breaking<br/>changes are welcome"] --> ask["one approval<br/>proceed with this plan?<br/>branch and base named"]
     ask -->|rework| redo["design session<br/>revises, no second review"] --> ask
-    ask -->|approved| setup["branch if asked<br/>work-reports/ ignored?<br/>record START"]
+    ask -->|approved| setup["branch in the worktree<br/>record START"]
     setup --> detail
 
     subgraph task["per task"]
@@ -136,25 +137,25 @@ flowchart TD
     integ -->|changes requested| integfix["fix, then one more commit"]
     integfix --> integ
     integ -->|approve| report["work report<br/>work-reports/2026-09-19-1346-a1b2c3d/"]
-    report --> pr["pull request<br/>log.md becomes the body"]
-    report --> push["push only"]
-    report --> local["nothing pushed"]
+    report --> pr["push, then pull request<br/>log.md becomes the body"]
+    pr --> clean(["you merge it, then<br/>workflow-cleanup"])
 
     classDef human fill:#fff,stroke:#888,stroke-dasharray: 5 5
-    class req human
+    class req,clean human
 ```
 
 The "per task" block repeats for every task in the plan, and nothing inside it runs in parallel, because there is one
-working tree. Everything after the approval runs on its own. A task that passes review becomes one commit, so the
+worktree. Everything after the approval runs on its own. A task that passes review becomes one commit, so the
 commit list reads back as the plan. A task that does not settle in five rounds comes back to you with the open
-points laid out, and its changes stay uncommitted in the working tree.
+points laid out, and its changes stay uncommitted in the run's worktree.
 
 `pj4-running` runs this flow once per issue ([Driven from an issue](skills/workflow/README.md#driven-from-an-issue),
 [How the skills fit together](#how-the-skills-fit-together)).
 
 Every run leaves a work report behind, inside the repository under `work-reports/` so that you notice them piling
-up. The skill checks that git ignores that directory before it writes anything, and asks before touching
-`.gitignore`.
+up. The skill checks that git ignores `.claude/worktrees/` and `work-reports/` before it writes anything, and asks
+before adding them to `.git/info/exclude`. That file stays in your clone, so nothing is committed and `.gitignore` is
+never edited. `/annetaan:workflow-cleanup` moves the report into your clone's `work-reports/` once the run is over.
 
 ### pj1-plan, pj2-issues, pj3-doctor, pj4-running
 
@@ -333,6 +334,22 @@ be split now that this one is merged.
 /annetaan:pj-cleanup 12
 ```
 
+### workflow-cleanup
+
+`/annetaan:workflow-cleanup` ([details](skills/workflow-cleanup/SKILL.md)) cleans up after a workflow run. Without a
+number, it lists the `wf-*` worktrees whose pull request is merged or closed, and those of runs that stopped without
+one. It takes the only candidate, or asks which. It shows what it will do and asks once. Then it moves the work
+reports into `work-reports/` in your clone, removes the worktree, deletes the branch locally and on origin, and
+fast-forwards your local base after a merge.
+
+It never switches your branch, stashes or resets. Work that nothing else holds is removed only when you choose to
+discard it. That means uncommitted changes, commits that are on no other branch on origin, and the branch of a closed
+pull request. An open pull request is never touched.
+
+```
+/annetaan:workflow-cleanup 57
+```
+
 ### doc-write
 
 `/annetaan:doc-write <path>` ([details](skills/doc-write/SKILL.md))
@@ -416,7 +433,7 @@ The model and the effort are pinned here, and a skill selects one by name alone.
 
 `pj4-running` has no agents of its own. It runs workflow's.
 
-`pj-auto` has no agents of its own. The runs it starts use theirs. `pj-cleanup` has none either.
+`pj-auto` has no agents of its own. The runs it starts use theirs. `pj-cleanup` and `workflow-cleanup` have none either.
 
 The agent definitions are thin. The substance of each role lives in the skill's `roles/*.md`, and an agent reads
 that path out of the prompt the main session hands it.

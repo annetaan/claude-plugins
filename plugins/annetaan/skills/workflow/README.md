@@ -4,7 +4,8 @@ This skill runs one implementation as **design, a design review where the reposi
 approval, then per task (implement, review rounds, one commit), then an integration review when the plan has more than
 one task, then a finish step**, with each role in a session of its own. The review rounds run through Markdown files
 in the run's work report directory, one per round and one reply to each, so the whole review stays readable after the
-run.
+run. A standalone run works in a worktree of its own under `.claude/worktrees/`, so your own working tree stays free
+and may be dirty. It always ends in a pull request.
 
 workflow is the plugin's core skill for one implementation. You run it yourself for a change that fits one pull
 request. For larger work, pj4-running runs it once per issue (see [Driven from an issue](#driven-from-an-issue) and
@@ -42,22 +43,26 @@ nothing to memory. When Fable cannot start, because of the weekly limit for exam
 approval message says so.
 
 There is one approval point. You get the design summary and the **plan**, an ordered list of small tasks, and one
-dialog with three questions. The open questions come first, on every run: the design's own, and the design review's
-points the design session did not take in, marked `(from the design review)`.
+question: proceed with this design and plan? The open questions come first, on every run: the design's own, and the
+design review's points the design session did not take in, marked `(from the design review)`.
 
-1. Proceed with this design and plan?
-2. Where do the commits go? A new branch, or the branch you are on.
-3. How does the flow finish? A pull request, a push, or nothing pushed at all.
+The approval message names the new branch and `base: <branch>`. Correct either one there. A base corrected at approval
+recreates the worktree on the new base and runs the design again. The design review does not run a second time.
 
-The options adjust to what the repository can do. No `gh` login and the pull request option disappears. No `origin`
-and pushing disappears too. Choose to commit straight onto the default branch and the pull request
-option disappears, and the third question is asked again. If you already said what you wanted when you invoked the skill ("branch it and open a
-PR"), that question is skipped and the answer shows up in the approval message so you can correct it.
+The base is the branch your request names, otherwise the repository's default branch. A base that is missing on origin
+stops the run. If you want to be asked every time, put a line like this in `CLAUDE.md`:
+
+```
+Confirm the base branch with me before every workflow run.
+```
+
+With that line, the run asks you to confirm the base every time. It offers the branch named in the request, the
+default branch and the branch checked out in your clone.
 
 After the approval it runs by itself. Each task goes through implementation and review rounds, and a task that
 passes review becomes one commit. When the plan has two or more tasks, one integration review over the whole diff
-comes after the last task. A plan of one task skips it, because its task review already read the whole diff. Then
-comes the ending you picked.
+comes after the last task. A plan of one task skips it, because its task review already read the whole diff. Then it
+pushes the branch and opens a pull request into the base.
 
 **The approval settles the boundaries. The tasks get detailed one at a time.** What you approve up front is what
 crosses from one task into the next: the contracts, the types, the names, and the order things have to land in. The
@@ -66,7 +71,7 @@ after that is detailed by the same design session right before it starts, agains
 produced. A plan that turns out to be wrong surfaces there, before anybody writes code against it.
 
 **Five review rounds per task, fixed.** A task that does not settle in five comes back to you with the open points
-laid out, and its changes stay uncommitted in the working tree. Saying "stop" partway through the rounds works too.
+laid out, and its changes stay uncommitted in the run's worktree. Saying "stop" partway through the rounds works too.
 
 The implementation and review sessions **start fresh for every task**, implementation on sonnet and review on opus,
 both at medium effort, whatever the task. A task boundary is a cheap place to
@@ -97,9 +102,24 @@ branch before it opens the project's pull request. When that merge stops on conf
 once more, as one task that resolves them with its review rounds. Its commit is the merge commit, and pj4-running
 pushes it. A stop before that commit leaves the merge in progress in the worktree, and the next run redoes it.
 
+## The worktree and cleaning up
+
+The run creates `.claude/worktrees/wf-<stamp>` on the tip of the base before the design starts, and never touches your
+clone. The worktree has none of your clone's ignored files, such as dependencies and `.env`. The first worker prepares
+them. A run that ends before approval removes its worktree. Every other run leaves it, whether it opened a pull request
+or stopped midway.
+
+After you merge or close the pull request, `/annetaan:workflow-cleanup` moves the work report into `work-reports/` in
+your clone, removes the worktree and the branch, and fast-forwards your local base after a merge. Details are in
+[workflow-cleanup](../workflow-cleanup/SKILL.md).
+
+```
+/annetaan:workflow-cleanup 57
+```
+
 ## What it leaves behind
 
-Every run writes a work report.
+Every run writes a work report. It lives under the worktree's `work-reports/` until the cleanup.
 
 ```
 work-reports/2026-09-19-1346-a1b2c3d/
@@ -117,16 +137,16 @@ The directory name is the local time the run started, plus the short SHA of the 
 run sorts last, so there is never a question about which report is the current one.
 
 **These live inside the repository so that you notice them piling up.** In a temp directory somewhere else they eat
-disk where nobody looks. In exchange, the skill checks that `work-reports/` is ignored by git before it writes
-anything, and **asks you before it touches `.gitignore`**.
+disk where nobody looks. In exchange, the skill checks that `.claude/worktrees/` and `work-reports/` are
+ignored by git before it writes anything, and asks before adding them to `.git/info/exclude`. That file stays in your
+clone, so nothing is committed and `.gitignore` is never edited.
 
 `log.md` has no fixed headings. If the repository has `.github/PULL_REQUEST_TEMPLATE.md`, the report follows it.
 Otherwise it follows how recent merged pull requests are written. With nothing to go on, the implementation session
 picks a structure. Whatever it picks, the report has to answer what changed, how it was verified with the commands
 that were actually run, what the review changed, and which commit answers which task in the plan.
 
-When the ending was a pull request, `log.md` becomes the pull request body. When it was not, `log.md` is what
-you read instead. Open it in an editor and the screenshots come with it. `review/` holds how each finding was
+`log.md` becomes the pull request body. `review/` holds how each finding was
 raised and answered.
 
 ## Screenshots
@@ -142,9 +162,9 @@ before it touches anything**.
 
 ## What you need
 
-- to be inside a `git` repository
-- a clean working tree
-- `gh`, for the pull request ending only
+- to be inside a `git` repository with an `origin` remote on GitHub
+- `gh`, logged in, because every run ends in a pull request
+- your working tree may be dirty
 
 `gh pr create --attach` uploads the screenshots into the pull request body. That flag landed in **gh 2.99.0**, on
 2026-09-01. An older `gh` still opens the pull request, and the run then hands you the file paths and the pull
@@ -160,6 +180,7 @@ screenshots it could not attach.
 | `roles/design-review.md` | the role for the design review session, which pushes the design toward its ideal shape once, before approval |
 | `roles/work.md` | the role for the implementation session |
 | `roles/review.md` | the role for the review session |
+| `scripts/worktree.sh` | creates the run's worktree and checks its ignore rules. `workflow-cleanup` uses it to clean up |
 | `review-files.md` | the shape of the review files, read by the review and implementation sessions |
 
 The design, implementation and review sessions run on agents that ship with the plugin (`../../agents/`). Design is
