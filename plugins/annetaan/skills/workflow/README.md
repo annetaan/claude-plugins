@@ -92,6 +92,11 @@ finish step, so the run finishes it: the report, the push and the draft pull req
 a task commit that passed review. The shape of the issues is in [format.md](../pj1-plan/format.md), and the shape
 of the pull requests in [between-skills.md](../pj1-plan/between-skills.md).
 
+Once every issue of a project is closed, pj4-running merges the branch the project came from into the project's
+branch before it opens the project's pull request. When that merge stops on conflicts, pj4-running runs this skill
+once more, as one task that resolves them with its review rounds. Its commit is the merge commit, and pj4-running
+pushes it. A stop before that commit leaves the merge in progress in the worktree, and the next run redoes it.
+
 ## What it leaves behind
 
 Every run writes a work report.

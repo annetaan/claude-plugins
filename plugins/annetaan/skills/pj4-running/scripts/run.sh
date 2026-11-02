@@ -4,10 +4,12 @@
 # Writes on GitHub: start creates the project's base branch through the API when it is due, and close comments on an
 # issue and closes it as completed, when it is due. For a parent it also lists the projects that can be split now
 # (startable). merge marks the pull request ready, merges it, comments on and closes the issue,
-# and deletes the head branch on origin. pr opens the pull request from the base branch into the branch it was made
-# from, once every sub-issue is closed. Writes in git: start and worktree fetch the base branch into origin/<base>,
-# worktree creates and moves the run's worktree, branch creates the issue's branch in <WT>, merge moves <WT> onto the
-# merged base and deletes the local head branch, and ignore --add appends to the clone's info/exclude.
+# and deletes the head branch on origin. sync pushes the merge of <from> into the base branch, the one push to the base
+# branch outside a pull request. pr opens the pull request from the base branch into the branch it was made from, once
+# every sub-issue is closed and the base branch contains it. Writes in git: start and worktree fetch the base branch
+# into origin/<base>, worktree creates and moves the run's worktree, branch creates the issue's branch in <WT>, merge
+# moves <WT> onto the merged base and deletes the local head branch, sync merges origin/<from> into the base in <WT>,
+# and ignore --add appends to the clone's info/exclude.
 # It reads the project with ../../pj1-plan/scripts/project.sh, and never parses an issue body itself.
 set -euo pipefail
 
@@ -22,7 +24,8 @@ usage: run.sh start <P>                       check the clone, gh and the reposi
        run.sh branch <P> <branch>             create <branch> in the run's worktree from the tip of origin/<base>
        run.sh merge <P> <k> <m> --comment <file> [--wait <seconds>]
                                               wait for the required checks, merge #<m> into the base branch, close #<k>, delete the head branch
-       run.sh pr <P> --body <file>            open the pull request from the base branch into <from>, once every sub-issue is closed
+       run.sh sync <P> [--push]               merge origin/<from> into the base branch in the run's worktree and push it; --push pushes a merge committed after a conflict
+       run.sh pr <P> --body <file>            open the pull request from the base branch into <from>, once every sub-issue is closed and the base contains <from>
 Every subcommand prints one JSON object with "status" and exits 0. "stop" carries "reason" and "message".
 Exit 1 means a usage error or an unexpected failure.
 USAGE
@@ -49,6 +52,7 @@ case "$1" in
               [ "$7" = "--wait" ] || usage
               number "the wait in seconds" "$8"
             fi ;;
+  sync)     [ $# -eq 2 ] || { [ $# -eq 3 ] && [ "$3" = "--push" ]; } || usage ;;
   pr)       [ $# -eq 4 ] && [ "$3" = "--body" ] || usage
             [ -f "$4" ] || die "no such file: $4" ;;
   *)        usage ;;
@@ -574,8 +578,14 @@ def merge():
          method=None if merged_earlier else found["mergeMethod"], mergedEarlier=merged_earlier, issue=closed,
          errors=errors)
 
-def project_pr():
-    body = ARGS[1]
+def contains(where, ref, other):
+    """Whether ref contains other."""
+    return run("git", "-C", where, "merge-base", "--is-ancestor", other, ref).returncode == 0
+
+def sync():
+    main, wt = located()
+    if listed(main, wt) is not False:
+        die("%s is no worktree of this clone. run.sh worktree %d first" % (wt, P))
     proj = project(P)
     parent, issues = proj["parent"], proj["issues"]
     base, frm = parent["base"], parent["from"]
@@ -586,6 +596,54 @@ def project_pr():
         stop("not-due", "#%d has open sub-issues, or none at all" % P, **out)
     if not parent["baseExists"]:
         stop("base-gone", "%s is gone from origin" % base, **out)
+    if not fetch(main, base) or not fetch(main, frm):
+        stop("fetch-failed", "cannot fetch %s and %s from origin" % (base, frm), **out)
+    tip = git(wt, "rev-parse", "origin/" + base).strip()
+    if "--push" in ARGS:
+        if run("git", "-C", wt, "rev-parse", "--verify", "--quiet", "MERGE_HEAD").returncode == 0 \
+                or git(wt, "status", "--porcelain").strip():
+            stop("unfinished", "%s still holds an unfinished merge or uncommitted changes" % wt, **out)
+        parents = git(wt, "rev-list", "--parents", "-n", "1", "HEAD").split()[1:]
+        if len(parents) != 2 or parents[0] != tip or not contains(wt, "origin/" + frm, parents[1]):
+            stop("not-the-merge", "HEAD is not a merge of origin/%s on the tip of origin/%s" % (frm, base), **out)
+    else:
+        if contains(wt, "origin/" + base, "origin/" + frm):
+            emit(status="current", sha=tip, **out)
+        if git(wt, "status", "--porcelain").strip():
+            stop("dirty", "%s has uncommitted changes" % wt, worktree=wt, **out)
+        git(wt, "switch", "--detach", "origin/" + base)
+        r = run("git", "-C", wt, "merge", "--no-ff", "-m", "Merge %s into %s" % (frm, base), "origin/" + frm)
+        if r.returncode != 0:
+            files = git(wt, "diff", "--name-only", "--diff-filter=U").splitlines()
+            if not files:
+                run("git", "-C", wt, "merge", "--abort")
+                die("git merge origin/%s failed: %s" % (frm, (r.stderr or r.stdout).strip()))
+            emit(status="conflict", start=tip, files=files, **out)
+    sha = git(wt, "rev-parse", "HEAD").strip()
+    # A plain push: it goes through only as a fast-forward of the base on origin, so it never rewrites its history.
+    r = run("git", "-C", wt, "push", "--quiet", "origin", "HEAD:refs/heads/" + base)
+    if r.returncode != 0:
+        stop("push-rejected", "cannot push the merge to %s: %s" % (base, r.stderr.strip()), sha=sha, **out)
+    fetch(main, base)
+    emit(status="merged", sha=sha, **out)
+
+def project_pr():
+    body = ARGS[1]
+    main, _ = located()
+    proj = project(P)
+    parent, issues = proj["parent"], proj["issues"]
+    base, frm = parent["base"], parent["from"]
+    out = {"base": base, "from": frm}
+    if parent["merged"]:
+        stop("merged", "#%d is merged into %s" % (P, frm), **out)
+    if not issues or any(i["state"] == "OPEN" for i in issues):
+        stop("not-due", "#%d has open sub-issues, or none at all" % P, **out)
+    if not parent["baseExists"]:
+        stop("base-gone", "%s is gone from origin" % base, **out)
+    if not fetch(main, base) or not fetch(main, frm):
+        stop("fetch-failed", "cannot fetch %s and %s from origin" % (base, frm), **out)
+    if not contains(main, "origin/" + base, "origin/" + frm):
+        stop("behind", "%s does not contain origin/%s. run.sh sync %d first" % (base, frm, P), **out)
     r = run("gh", "pr", "list", "--head", base, "--base", frm, "--state", "open", "--json", "number,url")
     if r.returncode != 0:
         die("cannot list the pull requests from %s: %s" % (base, r.stderr.strip()))
@@ -602,7 +660,7 @@ def project_pr():
     emit(status="opened", pr=int(m.group(1)) if m else None, url=url, **out)
 
 {"start": start, "close": close, "worktree": worktree, "ignore": ignore, "branch": branch, "merge": merge,
- "pr": project_pr}[SUB]()
+ "sync": sync, "pr": project_pr}[SUB]()
 PY
 
 exec python3 -c "$PY" "$PROJECT_SH" "$@"

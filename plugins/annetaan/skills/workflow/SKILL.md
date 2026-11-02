@@ -1,6 +1,6 @@
 ---
 name: workflow
-description: Runs one implementation as design, a design review where the repository accepts breaking changes, approval, then per task (implement, review rounds, one commit), then an integration review when the plan has more than one task, then a finish step that opens a pull request, pushes, or stops locally. The review rounds run through Markdown files in the run's work report directory. Use it only when the user names this skill or invokes /annetaan:workflow, or when pj4-running loads it to run one issue, because it spawns four sub-sessions and adds commits. Do not use it for a one-off implementation request or for an ordinary code review request.
+description: Runs one implementation as design, a design review where the repository accepts breaking changes, approval, then per task (implement, review rounds, one commit), then an integration review when the plan has more than one task, then a finish step that opens a pull request, pushes, or stops locally. The review rounds run through Markdown files in the run's work report directory. Use it only when the user names this skill or invokes /annetaan:workflow, or when pj4-running loads it to run one issue or to resolve a merge of the project's source branch, because it spawns four sub-sessions and adds commits. Do not use it for a one-off implementation request or for an ordinary code review request.
 ---
 
 # workflow
@@ -13,8 +13,9 @@ The design session returns a **plan**: an ordered list of small tasks. Implement
 
 You are the main session, and you are the **orchestrator. You do not write code.** Sub-agents design, implement and review. You pass work between them and you are the only window onto the human.
 
-**When pj4-running loads this skill for an issue, follow From an issue.** It says which parts below it skips and which
-it changes. Everything it does not mention runs as written.
+**When pj4-running loads this skill for an issue, follow From an issue. When it loads it for a merge of `<from>` into
+a project's base branch that stopped on conflicts, follow From a sync.** Each says which parts below it skips and
+which it changes. Everything it does not mention runs as written.
 
 ## Paths: `$FLOW`
 
@@ -25,7 +26,7 @@ it changes. Everything it does not mention runs as written.
 ## Before you start
 
 This skill spawns sub-sessions and adds commits. **Start it only when the user names it or invokes
-`/annetaan:workflow`, or pj4-running loads it for an issue.**
+`/annetaan:workflow`, or pj4-running loads it for an issue or a sync.**
 
 Run these checks and keep every answer. Phase 1 needs all of them.
 
@@ -633,6 +634,83 @@ The task commit decides the case, whatever the phase. Look for it in `git log --
   uncommitted work stays in `<WT>` (yes or no), and the text of the `Unplanned:` or `Diverged:` report, or for
   `finish` the step that failed, its message and the path of `log.md` when there is one. A run that returns `stopped` has opened no pull request.
 
+## From a sync
+
+pj4-running loads this skill once every sub-issue of project `P` is closed, before it opens the project's pull
+request, when merging `origin/<from>` into the project's base branch stopped on conflicts. The merge is in progress in
+`<WT>`: HEAD is the tip of the base branch, `MERGE_HEAD` the tip of `origin/<from>`, and the conflicted files hold
+conflict markers. One task resolves them with review rounds, and its commit is the merge commit. There is no design
+session, no approval, no question, no integration review, no push and no pull request. pj4-running pushes the merge.
+
+### What pj4-running has settled
+
+These values are already in your context. Nothing arrives as an argument.
+
+- the parent `P`, the base branch `<base>`, and `<from>`
+- the conflicted files
+- `<START>`: the tip of the base branch the merge started from
+- the handover notes, seeded from the parent's handover comment
+- the run's worktree `<WT>`, and `<MAIN>`, the main working tree. The session is in `<WT>`, on a detached HEAD
+
+pj4-running has already confirmed that `work-reports/` is ignored in `<WT>`. Every command below runs in `<WT>`.
+Never touch `<MAIN>`.
+
+### What it skips
+
+- Everything **From an issue** skips, and phase 2 (c): `<START>` is settled.
+- Phase 6 and **Report to the user**. What goes back to pj4-running replaces them.
+
+### The design, the plan and the detail
+
+Read the parent and the two sides of the merge.
+
+```bash
+gh issue view <P> --json body
+git log --oneline <START>..MERGE_HEAD
+git diff --name-only --diff-filter=U
+```
+
+- **The approved design**, for every prompt in phases 3 and 4: "Merge `origin/<from>` into `<base>`. Resolve every
+  conflict so that both sides hold: what `<from>` brings, as it is, and project #<P>'s changes on top of it, as the
+  parent's `## Design` describes. Change nothing beyond the resolution and what the build and the tests need on the
+  merged code." Then the parent's `## Design`, and as acceptance criteria: no conflict marker is left,
+  `git diff --name-only --diff-filter=U` prints nothing, and the tests and the type checks pass.
+- **The plan**: one task, "1. Merge `<from>` into `<base>`", so phase 5 does not run.
+- **The detail design for task 1**: the conflicted files, and the commits from `<from>` that the `git log` above
+  lists.
+
+### Phases 3 and 4
+
+They run as **From an issue** says, with the same line about `<WT>` in every prompt, except for these.
+
+- The phase 3 prompt: "This is a merge in progress, not an issue. Resolve the conflicts, and `git add` each file you
+  resolve. Never run `git merge --abort`, `git reset` or `git commit`: the merge state is the task. Follow **Work
+  outside the task** in your role instruction."
+- The review prompt: "This is a merge. `git diff HEAD` also shows everything `<from>` brings. Review the resolution:
+  each conflicted file against both sides, with `git diff HEAD -- <file>` and `git diff MERGE_HEAD -- <file>`, and any
+  change outside those files."
+- **The commit**, in phase 4 (d): "Task 1 passed review. Run `git add -A`, then `git commit --no-edit`, which records
+  the merge with both parents and the message git prepared. Check that `git status --porcelain` prints nothing and
+  that `git rev-parse --verify --quiet MERGE_HEAD` fails, and report back", with the notes for the next session as
+  written.
+
+### Reports from the implementation session
+
+As **From an issue** says. A `blocking` or `Diverged:` report goes back to pj4-running's **Bringing `<from>` in**.
+
+### The stop procedure from a sync
+
+- **No merge commit yet**, while `git rev-parse --verify --quiet MERGE_HEAD` still succeeds: leave the working tree
+  as it is, push nothing, send nothing more to the sessions in flight, and return `stopped`. Say plainly that the
+  merge left in `<WT>` is local, that the next run never uses it, and that the merge gets redone.
+- **The merge commit exists**: return `finished`, with `stop requested: yes` when the user said stop.
+
+### What it hands back to pj4-running
+
+- **`finished`**: the SHA of the merge commit, the handover lines, and `stop requested` (yes or no).
+- **`stopped`**: the reason (`round cap`, `blocking`, `diverged`, `user` or `work-reports`), whether uncommitted work
+  stays in `<WT>` (yes or no), and the text of the `Unplanned:` or `Diverged:` report.
+
 ## Rules for the whole flow
 
 - **You do not write code.** The implementation session implements and the review session reviews. Code you write yourself never passes through a review.
@@ -649,4 +727,4 @@ The task commit decides the case, whatever the phase. Look for it in `git log --
 - **Do not move anything under `<WORKDIR>` into version control.** The report, the screenshots and the diff are worth more untracked. Move them only when the user asks.
 - Report a failure when it happens: a failing test, a design that falls apart. **Approved commits are already on the branch and the task in flight is uncommitted in the working tree.** Say both.
 - From an issue, the main session also pushes and opens the draft pull request. Nothing is merged here. pj4-running
-  merges.
+  merges. From a sync, nothing is pushed. pj4-running pushes the merge commit.

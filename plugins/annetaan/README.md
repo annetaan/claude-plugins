@@ -175,8 +175,9 @@ Each project's work lands on a branch of its own, `pj/` and the parent's number.
 project's first run, from a branch you pick when the projects are filed, the default branch unless you name another.
 A project that waits on another is split into issues, and gets its branch, only after the other one is merged into
 that branch. Every
-sub-issue's pull request merges into its project's branch. Once every sub-issue is closed, `pj4-running` opens the
-pull request that takes that branch back into the branch it came from, and merging it is left to you. After that the parent is closed, by `pj-cleanup`, the next `pj4-running` run or you, and
+sub-issue's pull request merges into its project's branch. Once every sub-issue is closed, `pj4-running` merges the
+branch it came from into it, with `workflow` resolving any conflict under review, then opens the pull request that
+takes that branch back into the branch it came from, and merging it is left to you. After that the parent is closed, by `pj-cleanup`, the next `pj4-running` run or you, and
 a closed parent means its project is merged. [How the skills fit together](#how-the-skills-fit-together) says where
 the state lives. [format.md](skills/pj1-plan/format.md) describes the issues and their bodies,
 [state.md](skills/pj1-plan/state.md) how the state of a project is read, and
@@ -248,7 +249,7 @@ flowchart TD
     split --> doctor["pj3-doctor<br/>reviewer reads the whole project,<br/>writers redraw what does not hold,<br/>run order rewritten, ready on what is clear"]
     doctor --> run["pj4-running, per project<br/>makes its branch on the first run,<br/>then down the run order: branch, workflow,<br/>draft pull request, merge<br/>into the project's branch"]
     run -->|"stub or blocker"| doctor
-    run -->|"all merged"| pr["pj4-running opens the pull request<br/>from the project's branch<br/>into the branch it came from"]
+    run -->|"all merged"| pr["pj4-running merges the branch it came from<br/>into the project's branch, then opens<br/>the pull request back into it"]
     pr --> done(["you merge it"]) --> cleanup["pj-cleanup<br/>closes the parent,<br/>removes the worktree and the project's branch,<br/>brings your branch up to date"]
     cleanup -.->|"a project that waits on it"| split
 
