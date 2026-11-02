@@ -337,8 +337,8 @@ be split now that this one is merged.
 ### workflow-cleanup
 
 `/annetaan:workflow-cleanup` ([details](skills/workflow-cleanup/SKILL.md)) cleans up after a workflow run. Without a
-number, it lists the `wf-*` worktrees whose pull request is merged or closed, and those of runs that stopped without
-one. It takes the only candidate, or asks which. It shows what it will do and asks once. Then it moves the work
+number, it lists the `wf-*` worktrees whose pull request is merged or closed, and those that have none, which is a run that
+stopped or one still going in another session. It takes the only candidate, or asks which. It shows what it will do and asks once. Then it moves the work
 reports into `work-reports/` in your clone, removes the worktree, deletes the branch locally and on origin, and
 fast-forwards your local base after a merge.
 

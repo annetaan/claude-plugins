@@ -3,7 +3,8 @@
 # prints each result as one JSON object. The judgment and the questions stay in the skills. --add and --discard carry
 # the user's answers back.
 # Writes on GitHub: cleanup deletes the run's branch on origin. Writes in git: create fetches the base branch into
-# origin/<base>, check and cleanup fetch the base of a merged pull request, create adds the detached worktree, ignore --add appends to the clone's info/exclude, and cleanup
+# origin/<base>, check and cleanup fetch the base of a merged pull request and, when the clone lacks it, the pull
+# request's head (refs/pull/<n>/head, object only, no ref), create adds the detached worktree, ignore --add appends to the clone's info/exclude, and cleanup
 # moves the work reports into <MAIN>/work-reports/, removes the worktree, deletes the run's branch locally and on
 # origin, and fast-forwards the local base branch when the pull request merged. It never switches a branch, stashes,
 # commits or resets in the main working tree. Nothing is recorded in git config or in files.
@@ -125,6 +126,16 @@ def sha(main, ref):
 def contains(main, ancestor, ref):
     """Whether ref contains ancestor."""
     return run("git", "-C", main, "merge-base", "--is-ancestor", ancestor, ref).returncode == 0
+
+def head_contains(main, tip, pr):
+    """Whether the pull request's head contains tip. The head can have moved on GitHub after the run pushed, so
+    the clone may lack it: fetch the object GitHub keeps for every pull request, and stop when that fails."""
+    head = pr["headSha"]
+    if run("git", "-C", main, "cat-file", "-e", head + "^{commit}").returncode != 0:
+        r = run("git", "-C", main, "fetch", "--quiet", "origin", "refs/pull/%d/head" % pr["number"])
+        if r.returncode != 0:
+            stop("fetch-failed", "cannot fetch the head of pull request #%d from origin" % pr["number"])
+    return contains(main, tip, head)
 
 def on_origin(main, branch):
     """Whether origin has branch, or None when origin cannot be read."""
@@ -310,7 +321,7 @@ def plan(name):
         tip = sha(main, "refs/heads/" + branch) if has_branch(main, branch) else None
         if holder:
             local.update(local="keep", why="checked-out", worktree=holder[0])
-        elif state == "merged" and tip and not contains(main, tip, pr["headSha"]):
+        elif state == "merged" and tip and not head_contains(main, tip, pr):
             local.update(local="keep", why="unpushed")
         br = local
         if state == "closed":

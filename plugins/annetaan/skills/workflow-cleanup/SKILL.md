@@ -55,7 +55,8 @@ message.
 **Otherwise** the candidates are the entries that are `merged`, `closed` or `no-pr`. An `open` entry is printed and
 never offered.
 
-- **One candidate**: take it and ask nothing. Say `<name> (the only candidate)`.
+- **One candidate**: take it and ask nothing. Say `<name> (the only candidate)`. When its `state` is `no-pr`, say
+  in one line that it may be a run still going in another session, with the time its stamp gives.
 - **Several**: print every entry in one line, with its name, branch, state and pull request number and title, then ask
   with the header `Run`, at most 4 options, ordered `merged`, then `closed`, then `no-pr`, the oldest first within
   each, and the first marked `(Recommended)`.
@@ -80,7 +81,9 @@ $CLEANUP/../workflow/scripts/worktree.sh check <name>
 
 Show what the cleanup does, one line per item, from the `check` output.
 
-- the pull request: `#<n> <title>` with its URL and `state`, or that the run opened none
+- the pull request: `#<n> <title>` with its URL and `state`, or that the run opened none. A `no-pr` run that is
+  still going in another session looks the same as one that stopped, so name the time the stamp of `<name>` gives
+  and say that `Do not clean up` is the answer for a run still in progress
   - `closed`: "PR #<n> was closed without a merge. Its work is lost with the branch; GitHub keeps only the commits on
     the closed pull request."
 - the worktree, by `worktree.state`:
