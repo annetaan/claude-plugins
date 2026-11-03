@@ -7,7 +7,8 @@
 # request's head (refs/pull/<n>/head, object only, no ref), create adds the detached worktree, ignore --add appends to the clone's info/exclude, and cleanup
 # moves the work reports into <MAIN>/work-reports/, removes the worktree, deletes the run's branch locally and on
 # origin, and fast-forwards the local base branch when the pull request merged. It never switches a branch, stashes,
-# commits or resets in the main working tree. Nothing is recorded in git config or in files.
+# commits or resets in the main working tree. sync fetches origin/<base> and, on a conflict, starts a merge in the
+# worktree and leaves it in progress. Nothing is recorded in git config or in files.
 set -euo pipefail
 
 die() { echo "worktree: $*" >&2; exit 1; }
@@ -17,6 +18,8 @@ usage() {
 usage: worktree.sh start                          check the clone, gh and the repository
        worktree.sh create <base>                  fetch origin/<base> and add a detached worktree wf-<stamp> on its tip
        worktree.sh ignore <name> [--add]          whether .claude/worktrees/ and work-reports/ are ignored; --add writes them to info/exclude
+       worktree.sh sync <name> <base>             whether HEAD of the worktree <name> conflicts with origin/<base>; on a conflict, start the merge
+       worktree.sh pr [<number>]                  the open pull request <number>, or the open pull requests of the user that conflict
        worktree.sh list                           the wf-* worktrees of this clone with the state of their pull request
        worktree.sh check <name>                   what cleanup would do for the worktree <name>
        worktree.sh cleanup <name> [--discard]     move the work reports out, remove the worktree, delete the branch, fast-forward the base.
@@ -33,6 +36,8 @@ case "$1" in
   create)     [ $# -eq 2 ] || usage ;;
   check)      [ $# -eq 2 ] || usage ;;
   ignore)     [ $# -eq 2 ] || { [ $# -eq 3 ] && [ "$3" = "--add" ]; } || usage ;;
+  sync)       [ $# -eq 3 ] || usage ;;
+  pr)         [ $# -le 2 ] || usage ;;
   cleanup)    [ $# -eq 2 ] || { [ $# -eq 3 ] && [ "$3" = "--discard" ]; } || usage ;;
   *)          usage ;;
 esac
@@ -426,7 +431,71 @@ def cleanup():
 
     emit(status="done", errors=errors, **out)
 
-{"start": start, "create": create, "ignore": ignore, "list": list_runs, "check": check, "cleanup": cleanup}[SUB]()
+def sync():
+    main = located()
+    wt, base = resolve(main, ARGS[0]), ARGS[1]
+    out = {"base": base}
+    if run("git", "-C", wt, "rev-parse", "--verify", "--quiet", "MERGE_HEAD").returncode == 0:
+        stop("unfinished", "%s holds an unfinished merge" % wt, **out)
+    if git(wt, "status", "--porcelain").strip():
+        stop("dirty", "%s has uncommitted changes" % wt, **out)
+    if not fetch(main, base):
+        stop("fetch-failed", "cannot fetch %s from origin" % base, **out)
+    head = git(wt, "rev-parse", "HEAD").strip()
+    incoming = "refs/remotes/origin/" + base
+    if contains(wt, incoming, "HEAD"):
+        emit(status="current", sha=head, **out)
+    # merge-tree merges in memory and touches neither the index nor the working tree: exit 0 is clean, 1 conflicts.
+    r = run("git", "-C", wt, "merge-tree", "--write-tree", "--name-only", "HEAD", incoming)
+    if r.returncode not in (0, 1):
+        die("git merge-tree failed: %s" % r.stderr.strip())
+    behind = int(git(wt, "rev-list", "--count", "HEAD.." + incoming).strip())
+    if r.returncode == 0:
+        # A clean merge is left to GitHub. The branch gets no merge commit it does not need.
+        emit(status="clean", sha=head, behind=behind, **out)
+    r = run("git", "-C", wt, "merge", "--no-ff", "origin/" + base)
+    files = git(wt, "diff", "--name-only", "--diff-filter=U").splitlines()
+    if r.returncode == 0 or not files:
+        run("git", "-C", wt, "merge", "--abort")
+        die("git merge origin/%s did not stop on the conflicts merge-tree found: %s"
+            % (base, (r.stderr or r.stdout).strip()))
+    emit(status="conflict", start=head, files=files, behind=behind, **out)
+
+def pr_info(main, number):
+    r = run("gh", "pr", "view", str(number), "--json",
+            "number,state,url,title,headRefName,baseRefName,isCrossRepository", cwd=main)
+    if r.returncode != 0:
+        stop("unknown", "cannot read pull request #%s: %s" % (number, r.stderr.strip()))
+    p = json.loads(r.stdout)
+    info = {"number": p["number"], "url": p["url"], "title": p["title"], "head": p["headRefName"],
+            "base": p["baseRefName"], "project": None}
+    if p["state"] != "OPEN":
+        stop("not-open", "pull request #%d is %s" % (p["number"], p["state"].lower()), pr=info)
+    if p["isCrossRepository"]:
+        stop("fork", "pull request #%d comes from a fork, and its branch cannot be pushed from here" % p["number"],
+             pr=info)
+    m = re.fullmatch(r"pj/(\d+)", p["headRefName"])
+    if m:
+        r = run("gh", "issue", "view", m.group(1), "--json", "labels", cwd=main)
+        if r.returncode == 0 and any(l["name"] == "project" for l in json.loads(r.stdout)["labels"]):
+            info["project"] = int(m.group(1))
+    return info
+
+def pr():
+    main = located()
+    if ARGS:
+        if not re.fullmatch(r"\d+", ARGS[0]):
+            die("not a pull request number: " + ARGS[0])
+        emit(status="ok", pr=pr_info(main, int(ARGS[0])))
+    r = run("gh", "pr", "list", "--author", "@me", "--state", "open", "--limit", "100", "--json",
+            "number,title,url,headRefName,baseRefName,mergeable", cwd=main)
+    if r.returncode != 0:
+        stop("gh", "cannot list the open pull requests: %s" % r.stderr.strip())
+    found = [{"number": p["number"], "title": p["title"], "url": p["url"], "head": p["headRefName"],
+              "base": p["baseRefName"]} for p in json.loads(r.stdout) if p["mergeable"] == "CONFLICTING"]
+    emit(status="pick", candidates=sorted(found, key=lambda p: p["number"]))
+
+{"start": start, "create": create, "ignore": ignore, "sync": sync, "pr": pr, "list": list_runs, "check": check, "cleanup": cleanup}[SUB]()
 PY
 
 exec python3 -c "$PY" "$@"

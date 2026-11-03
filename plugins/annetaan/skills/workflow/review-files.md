@@ -12,6 +12,8 @@ conversation of the review, in order, and it stays next to the work report.
 | `task-<k>-round-<r>-reply.md` | the implementation session, its answer to that round |
 | `integration-round-<r>.md` | the review session, round `r` of the integration review |
 | `integration-round-<r>-reply.md` | the implementation session, its answer to that round |
+| `merge-round-<r>.md` | the review session, round `r` of a merge that resolves conflicts |
+| `merge-round-<r>-reply.md` | the implementation session, its answer to that round |
 
 Keep these names. Claude Code refuses a Write from a sub-agent when the name of the `.md` file starts with `report`,
 `summary`, `findings` or `analysis`.

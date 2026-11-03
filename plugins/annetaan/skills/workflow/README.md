@@ -20,8 +20,9 @@ request. For larger work, pj4-running runs it once per issue (see [Driven from a
 
 ## Use it
 
-Name the skill, or invoke `/annetaan:workflow`. It never starts on its own. You name it, or pj4-running runs it for
-one issue, because it spawns several sessions and adds commits.
+Name the skill, or invoke `/annetaan:workflow`. It never starts on its own. You name it, pj4-running runs it for
+one issue, or you ask it to resolve the conflicts of a pull request (see [Conflicts](#conflicts)), because it spawns
+several sessions and adds commits.
 
 ```
 /annetaan:workflow add filter conditions to the search form
@@ -101,6 +102,21 @@ Once every issue of a project is closed, pj4-running merges the branch the proje
 branch before it opens the project's pull request. When that merge stops on conflicts, pj4-running runs this skill
 once more, as one task that resolves them with its review rounds. Its commit is the merge commit, and pj4-running
 pushes it. A stop before that commit leaves the merge in progress in the worktree, and the next run redoes it.
+
+## Conflicts
+
+**When the pull request would conflict from the start**, the finish step settles it before the push. The base may have
+moved while the tasks ran. When the branch merges into it cleanly, nothing happens and GitHub merges it later. When it
+conflicts, the run merges the base into the branch and resolves the conflicts as one more task, with a new
+implementation session and a new review session and the same five-round cap, and its commit is the merge commit. The
+review rounds are `merge-round-<r>.md` in the work report.
+
+**When an open pull request conflicts later**, ask for it in plain words, such as "resolve the conflicts on #12" or
+"コンフリクト解消して". That request starts this skill, and it asks no approval. A new worktree takes the pull request's
+branch, the same merge task resolves the conflicts under review, the merge commit is pushed to the branch as a
+fast-forward, and the worktree is removed, with its review files moved into your clone's `work-reports/`. With no
+number named, it takes the one conflicting pull request of yours that GitHub reports, or asks which. A project's pull
+request from `pj/<n>` goes to `pj4-running`, which brings the source branch into the project's branch again.
 
 ## The worktree and cleaning up
 
