@@ -1,6 +1,6 @@
 ---
 name: workflow
-description: Runs one implementation as design, a design review where the repository accepts breaking changes, approval, then per task (implement, review rounds, one commit), then an integration review when the plan has more than one task, then a finish step that pushes and opens a pull request. The standalone run works in a git worktree of its own, `.claude/worktrees/wf-<stamp>`, and leaves the main working tree alone. The review rounds run through Markdown files in the run's work report directory. Use it only when the user names this skill or invokes /annetaan:workflow, or when pj4-running loads it to run one issue or to resolve a merge of the project's source branch, because it spawns four sub-sessions and adds commits. Do not use it for a one-off implementation request or for an ordinary code review request.
+description: Runs one implementation as design, a design review where the repository accepts breaking changes, approval, then per task (implement, review rounds, one commit), then an integration review when the plan has more than one task, then a finish step that merges the base in and resolves the conflicts under review when the branch conflicts with it, pushes and opens a pull request. Also resolves the conflicts of a pull request that is already open, with the same review rounds, and pushes the merge to its branch. A conflict in a project's pull request from `pj/<n>` goes to pj4-running. The standalone run works in a git worktree of its own, `.claude/worktrees/wf-<stamp>`, and leaves the main working tree alone. The review rounds run through Markdown files in the run's work report directory. Use it only when the user names this skill or invokes /annetaan:workflow, when the user asks to resolve the conflicts of a pull request ("resolve the conflicts on #12", "コンフリクト解消して"), or when pj4-running loads it to run one issue or to resolve a merge of the project's source branch, because it spawns four sub-sessions and adds commits. Do not use it for a one-off implementation request or for an ordinary code review request.
 ---
 
 # workflow
@@ -13,9 +13,11 @@ The design session returns a **plan**: an ordered list of small tasks. Implement
 
 You are the main session, and you are the **orchestrator. You do not write code.** Sub-agents design, implement and review. You pass work between them and you are the only window onto the human.
 
-**When pj4-running loads this skill for an issue, follow From an issue. When it loads it for a merge of `<from>` into
-a project's base branch that stopped on conflicts, follow From a sync.** Each says which parts below it skips and
-which it changes. Everything it does not mention runs as written.
+**When the user asks to resolve the conflicts of a pull request, follow From a pull request. When pj4-running loads
+this skill for an issue, follow From an issue. When it loads it for a merge of `<from>` into a project's base branch
+that stopped on conflicts, follow From a sync.** Each says which parts below it skips and which it changes.
+Everything it does not mention runs as written. A request to resolve a conflict is a request to do it: never answer
+it with a refusal or a suggestion to run something else, unless **From a pull request** says to stop.
 
 ## Paths: `$FLOW`
 
@@ -25,12 +27,13 @@ which it changes. Everything it does not mention runs as written.
 
 The standalone flow also uses the script `$FLOW/scripts/worktree.sh`, written `worktree.sh` below. Every subcommand
 prints one JSON object with a `status`. A non-zero exit is a usage error or an unexpected failure: quote its message
-and stop. Only the standalone flow calls it. From an issue and From a sync never do.
+and stop. The standalone flow and From a pull request call it. From an issue and From a sync never do.
 
 ## Before you start
 
 This skill spawns sub-sessions and adds commits. **Start it only when the user names it or invokes
-`/annetaan:workflow`, or pj4-running loads it for an issue or a sync.**
+`/annetaan:workflow`, asks to resolve the conflicts of a pull request, or pj4-running loads it for an issue or a
+sync.**
 
 Run one command and keep every answer. Phase 1 needs them.
 
@@ -425,10 +428,35 @@ Review says `approve`, every finding is resolved, tests pass. Phase 6 starts whe
 
 ## Phase 6: finish
 
+### Bringing the base in
+
+The base may have moved while the tasks ran. A pull request that would conflict from the start is settled here,
+under review, before anything is pushed.
+
+```bash
+$FLOW/scripts/worktree.sh sync <name> <base>
+```
+
+- **`current`**: the branch contains `origin/<base>`. Go on.
+- **`clean`**: `origin/<base>` gained `behind` commits, and they merge without a conflict. Nothing was changed. The
+  branch gets no merge commit it does not need. Go on.
+- **`conflict`**: the merge of `origin/<base>` stopped on conflicts in `files`, and stays in progress in `<WT>`.
+  Print `<base> conflicts with <branch> in <n> file(s)`, then run **The merge task** with `<incoming>` as
+  `origin/<base>`, `<into>` as `<branch>`, `<M>` as `start`, and as `<intent>`: "the approved design, as the commits
+  since `<START>` implement it", followed by the approved design.
+  - **`finished`**: go on. That implementation session is alive, and it writes the work report. Keep the `later`
+    reports for **Report to the user**.
+  - **`stopped`**: push nothing. Go to **Report to the user**, and say that the task commits are on the branch and
+    that the merge stays in progress in `<WT>`.
+- **`stop`** with `fetch-failed`, `dirty` or `unfinished`: quote `message` and go to **Report to the user**. The
+  task commits are on the branch, and nothing was pushed.
+
 ### The work report
 
 **A session that worked on the code writes the work report, in every mode. Do not write it yourself.**
 
+- When **Bringing the base in** ran the merge task, that implementation session is alive. `SendMessage` it. This
+  comes before the cases below.
 - When phase 5 was skipped, the last task's implementation session is still alive (phase 4 (d)). `SendMessage` it.
 - When the integration review asked for fixes, that implementation session is still alive. `SendMessage` it.
 - When the integration review approved with nothing to fix, no session is left. Start one with the phase 3 prompt, carrying the progress and the handover notes, and ask it for the report and nothing else.
@@ -444,13 +472,15 @@ starts with `report`, `summary`, `findings` or `analysis`, in any case ("Subagen
 not write report files."). Nothing in settings, the environment, CLAUDE.md or agent frontmatter turns that off.
 
 **Hand it what only you still have.** One line per task on what the review changed, and the test and type check
-results the earlier sessions reported. Those sessions are gone, and that part of the history now lives in your
+results the earlier sessions reported, and, when the merge task ran, the files it resolved. Those sessions are gone, and that part of the history now lives in your
 context and nowhere else.
 
-Drop the diff next to it, so the report and the review files can be read against it.
+Drop the diff next to it, so the report and the review files can be read against it. The three dots take the diff
+from where the branch meets `origin/<base>`, which is what the pull request shows, with or without a merge of the
+base.
 
 ```bash
-git diff --output=<WORKDIR>/changes.diff <START>..HEAD
+git diff --output=<WORKDIR>/changes.diff origin/<base>...HEAD
 ```
 
 Then open the pull request.
@@ -501,6 +531,8 @@ When the push fails, quote the error and go to **Report to the user**. The branc
 
 Every standalone run that got past approval ends here, finished or stopped (round cap, user stop, a failed finish). Close with: `START`, the commits stacked on it matched against the tasks in the plan, the design summary, and what the review changed. Then:
 
+- **how the base came in**: already in, merging cleanly, or merged after the merge task resolved the files it names, or why it did not
+
 - **the pull request URL**, when one was opened
 - **the worktree `<WT>`**, and that the work report lives under it until cleanup
 - **the path of the work report** (`<WORKDIR>/log.md`), which opens in an editor with the screenshots inline
@@ -509,6 +541,162 @@ Every standalone run that got past approval ends here, finished or stopped (roun
 - when phase 5 was skipped, one line saying the integration review did not run because the plan had one task
 - **the cleanup**: once the pull request is merged or closed, `/annetaan:workflow-cleanup <PR number>` moves the work report into `<MAIN>/work-reports/`, removes `<WT>` and the branch, and fast-forwards the local `<base>` after a merge. A run that stopped with no pull request is cleaned up with `/annetaan:workflow-cleanup` and no number
 - for a stopped run, what is still uncommitted in `<WT>`
+
+## The merge task
+
+A merge that stopped on conflicts runs as one task with review rounds, and its commit is the merge commit. Three
+places start it: **Bringing the base in** in phase 6, **From a pull request**, and **From a sync**. There is no
+design session, no approval, no question and no integration review.
+
+### What the caller has settled
+
+- `<WT>`, where the merge is in progress: HEAD is `<M>`, the commit the merge started from, `MERGE_HEAD` is the tip
+  of `<incoming>`, and the conflicted files hold conflict markers
+- `<incoming>`, the ref coming in, such as `origin/main`, and `<into>`, the branch it comes into
+- the conflicted files
+- `<intent>`: what the `<into>` side is for, in words the sessions can check a resolution against
+- `<WORKDIR>`, and the handover notes, or none
+
+### The design, the plan and the detail
+
+```bash
+git log --oneline <M>..MERGE_HEAD
+git diff --name-only --diff-filter=U
+```
+
+- **The approved design**, for every prompt below: "Merge `<incoming>` into `<into>`. Resolve every conflict so that
+  both sides hold: what `<incoming>` brings, as it is, and `<intent>` on top of it. Change nothing beyond the
+  resolution and what the build and the tests need on the merged code." As acceptance criteria: no conflict marker is
+  left, `git diff --name-only --diff-filter=U` prints nothing, and the tests and the type checks pass.
+- **The plan**: one task, "1. Merge `<incoming>` into `<into>`".
+- **The detail design for task 1**: the conflicted files, and the commits the `git log` above lists.
+
+### The rounds
+
+Phases 3 and 4 run as written for task 1, with a new implementation session and a new review session, five rounds,
+and the worktree line in every prompt, except for these.
+
+- The phase 3 prompt: "Start point START: `<M>`. Branch: `<into>`. This is a merge in progress. Resolve the
+  conflicts, and `git add` each file you resolve. Never run `git merge --abort`, `git reset` or `git commit`: the
+  merge state is the task. Follow **Work outside the task** in your role instruction."
+- The review prompt: "This is a merge. `git diff HEAD` also shows everything `<incoming>` brings. Review the
+  resolution: each conflicted file against both sides, with `git diff HEAD -- <file>` and
+  `git diff MERGE_HEAD -- <file>`, and any change outside those files. Write round 1 as `merge-round-1.md`." Later
+  rounds are `merge-round-<r>.md`, and the replies `merge-round-<r>-reply.md`.
+- **The commit**, in phase 4 (d): "The merge passed review. Run `git add -A`, then `git commit --no-edit`, which
+  records the merge with both parents and the message git prepared. Check that `git status --porcelain` prints
+  nothing and that `git rev-parse --verify --quiet MERGE_HEAD` fails, and report back", with the notes for the next
+  session as written.
+
+Check it yourself with `git log -1 --oneline` and `git rev-parse --verify --quiet MERGE_HEAD`. Print
+`merge done: <short SHA>`.
+
+### Reports from the implementation session
+
+- **`Unplanned:` with `later`**: keep it for the caller. The task goes on.
+- **`Unplanned:` with `blocking`**, and **`Diverged:`**: stop as below.
+
+### Stopping
+
+The round cap, a `blocking` or `Diverged:` report, or the user saying stop.
+
+- **No merge commit yet**, while `git rev-parse --verify --quiet MERGE_HEAD` still succeeds: leave the working tree
+  as it is, push nothing, send nothing more to the sessions in flight, and return `stopped`.
+- **The merge commit exists**: return `finished`, with `stop requested: yes` when the user said stop.
+
+### What it hands back
+
+- **`finished`**: the SHA of the merge commit, the handover lines, the `later` reports, and `stop requested`.
+- **`stopped`**: the reason (`round cap`, `blocking`, `diverged` or `user`), the points still open or the text of the
+  report, and that the merge stays in progress in `<WT>`.
+
+## From a pull request
+
+The user asks to resolve the conflicts of a pull request that is already open, often one this skill or pj4-running
+opened, long after the run that opened it. The request covers the whole of it: **ask no approval**. A new worktree
+takes the branch, the merge task resolves the conflicts under review, the merge is pushed to the branch, and the
+worktree is cleaned up.
+
+### What it skips
+
+- **Does this repository accept breaking changes?**, and phases 1, 2 (a) and 5. Ask nothing and write nothing to
+  memory.
+- Phase 6 apart from the push below, and **Report to the user**, which the report below replaces.
+
+### Which pull request
+
+Run `worktree.sh start` as **Before you start** says. Then take the number the request names, as `#12` or a URL.
+When it names none and the conversation is about one pull request, take that one. Otherwise:
+
+```bash
+$FLOW/scripts/worktree.sh pr
+```
+
+`pick` lists in `candidates` the open pull requests of the user that GitHub reports as conflicting. One: take it.
+Several: ask one `AskUserQuestion` with each as `#<number> <title>`, at most four, the newest first. None: ask for
+the number, saying that GitHub reports none of the user's open pull requests as conflicting.
+
+```bash
+$FLOW/scripts/worktree.sh pr <number>
+```
+
+- **`ok`**: keep `pr.head` as `<head>`, `pr.base` as `<base>`, and the number as `<n>`.
+  - **`pr.project` is set**: this is project #`pr.project`'s pull request, from its base branch, which only
+    pj4-running pushes to. Say so in one line, then load `Skill(skill: "annetaan:pj4-running", args: "<pr.project>")`
+    and follow it. Every sub-issue of the project is closed, so it brings `<base>` in under review and finds the pull
+    request there. The user's request covers its run.
+- **`stop`** with `not-open`, `fork` or `unknown`: quote `message` and stop. Nothing was changed.
+
+### The worktree
+
+Run steps 3 to 6 of **The worktree** with `<head>` in place of the base: `worktree.sh create <head>` puts the new
+worktree on the tip of `origin/<head>`, detached, so a worktree that already has `<head>` checked out, such as the
+one the run that opened the pull request left, is not in the way. A stop there ends this entry, as it would a
+standalone run. Then make the work directory as phase 2 (d) says, from `git rev-parse HEAD`.
+
+### The merge
+
+```bash
+$FLOW/scripts/worktree.sh sync <name> <base>
+```
+
+- **`current`** or **`clean`**: `<head>` does not conflict with `origin/<base>`, so nothing is resolved. Say so, and
+  that GitHub may take a moment to see it. Clean up as below.
+- **`conflict`**: print `<base> conflicts with <head> in <k> file(s)`. Read the pull request,
+  `gh pr view <n> --json title,body`. When its body begins `Implements #<i>`, read that issue's `## Design` too. Run
+  **The merge task** with `<incoming>` as `origin/<base>`, `<into>` as `<head>`, `<M>` as `start`, and as `<intent>`:
+  "the change pull request #<n> makes, as its title and body describe it", followed by the title, the body and the
+  issue's design when there is one.
+- **`stop`**: quote `message`, and leave the worktree as **Ending before approval** says.
+
+### The push
+
+On `finished`:
+
+```bash
+git -C <WT> push origin HEAD:refs/heads/<head>
+```
+
+A plain push goes through only as a fast-forward, so it never rewrites the branch. When git refuses it because
+`<head>` moved on origin, say so: someone pushed to it during the run. Leave `<WT>` with its merge commit, say that
+`/annetaan:workflow-cleanup`, picking `<name>`, removes it, and stop. Ask the user whether to run the merge again on the new tip.
+
+### Cleaning up and the report
+
+After a push, or when nothing needed resolving, leave the worktree (`ExitWorktree(action: "keep")`, or `cd <MAIN>`)
+and remove it.
+
+```bash
+$FLOW/scripts/worktree.sh cleanup <name>
+```
+
+The worktree holds a detached HEAD whose commit is on origin, so nothing is lost: the work reports move into
+`<MAIN>/work-reports/`, and the worktree is removed. On `stopped` from the merge task, leave `<WT>` as it is instead,
+and say that `/annetaan:workflow-cleanup`, picking `<name>`, removes it.
+
+Tell the user: the pull request URL, the files resolved and how each was settled, in a line each, the merge commit,
+what the review rounds changed, the `later` reports, and where the review files now are. For a pull request
+pj4-running opened for a sub-issue, add that the next `/annetaan:pj4-running` merges it.
 
 ## From an issue
 
@@ -652,9 +840,7 @@ The task commit decides the case, whatever the phase. Look for it in `git log --
 
 pj4-running loads this skill once every sub-issue of project `P` is closed, before it opens the project's pull
 request, when merging `origin/<from>` into the project's base branch stopped on conflicts. The merge is in progress in
-`<WT>`: HEAD is the tip of the base branch, `MERGE_HEAD` the tip of `origin/<from>`, and the conflicted files hold
-conflict markers. One task resolves them with review rounds, and its commit is the merge commit. There is no design
-session, no approval, no question, no integration review, no push and no pull request. pj4-running pushes the merge.
+`<WT>`. It runs **The merge task**, and pushes nothing. pj4-running pushes the merge.
 
 ### What pj4-running has settled
 
@@ -671,59 +857,19 @@ Never touch `<MAIN>`.
 
 ### What it skips
 
-- Everything **From an issue** skips, and phase 2 (c): `<START>` is settled.
-- Phase 6 and **Report to the user**. What goes back to pj4-running replaces them.
+Everything **From an issue** skips, phase 2 (c) and phase 6. Phase 2 (d) runs as written, with `<START>`.
 
-### The design, the plan and the detail
+### The merge task
 
-Read the parent and the two sides of the merge.
-
-```bash
-gh issue view <P> --json body
-git log --oneline <START>..MERGE_HEAD
-git diff --name-only --diff-filter=U
-```
-
-- **The approved design**, for every prompt in phases 3 and 4: "Merge `origin/<from>` into `<base>`. Resolve every
-  conflict so that both sides hold: what `<from>` brings, as it is, and project #<P>'s changes on top of it, as the
-  parent's `## Design` describes. Change nothing beyond the resolution and what the build and the tests need on the
-  merged code." Then the parent's `## Design`, and as acceptance criteria: no conflict marker is left,
-  `git diff --name-only --diff-filter=U` prints nothing, and the tests and the type checks pass.
-- **The plan**: one task, "1. Merge `<from>` into `<base>`", so phase 5 does not run.
-- **The detail design for task 1**: the conflicted files, and the commits from `<from>` that the `git log` above
-  lists.
-
-### Phases 3 and 4
-
-They run as **From an issue** says, with the same line about `<WT>` in every prompt, except for these.
-
-- The phase 3 prompt: "This is a merge in progress, not an issue. Resolve the conflicts, and `git add` each file you
-  resolve. Never run `git merge --abort`, `git reset` or `git commit`: the merge state is the task. Follow **Work
-  outside the task** in your role instruction."
-- The review prompt: "This is a merge. `git diff HEAD` also shows everything `<from>` brings. Review the resolution:
-  each conflicted file against both sides, with `git diff HEAD -- <file>` and `git diff MERGE_HEAD -- <file>`, and any
-  change outside those files."
-- **The commit**, in phase 4 (d): "Task 1 passed review. Run `git add -A`, then `git commit --no-edit`, which records
-  the merge with both parents and the message git prepared. Check that `git status --porcelain` prints nothing and
-  that `git rev-parse --verify --quiet MERGE_HEAD` fails, and report back", with the notes for the next session as
-  written.
-
-### Reports from the implementation session
-
-As **From an issue** says. A `blocking` or `Diverged:` report goes back to pj4-running's **Bringing `<from>` in**.
-
-### The stop procedure from a sync
-
-- **No merge commit yet**, while `git rev-parse --verify --quiet MERGE_HEAD` still succeeds: leave the working tree
-  as it is, push nothing, send nothing more to the sessions in flight, and return `stopped`. Say plainly that the
-  merge left in `<WT>` is local, that the next run never uses it, and that the merge gets redone.
-- **The merge commit exists**: return `finished`, with `stop requested: yes` when the user said stop.
+Read the parent, `gh issue view <P> --json body`. Run **The merge task** with `<incoming>` as `origin/<from>`,
+`<into>` as `<base>`, `<M>` as `<START>`, and as `<intent>`: "project #<P>'s changes, as the parent's `## Design`
+describes them", followed by that design. A `later` report goes to pj4-running's **Unplanned work** as it arrives,
+worded "found while merging `<from>` into `<base>`". The merge task says that a stop leaves the merge in progress in
+`<WT>`. Say plainly that it is local, that the next run never uses it, and that the merge gets redone.
 
 ### What it hands back to pj4-running
 
-- **`finished`**: the SHA of the merge commit, the handover lines, and `stop requested` (yes or no).
-- **`stopped`**: the reason (`round cap`, `blocking`, `diverged`, `user` or `work-reports`), whether uncommitted work
-  stays in `<WT>` (yes or no), and the text of the `Unplanned:` or `Diverged:` report.
+What **The merge task** hands back, to pj4-running's **Bringing `<from>` in**.
 
 ## Rules for the whole flow
 
@@ -739,8 +885,11 @@ As **From an issue** says. A `blocking` or `Diverged:` report goes back to pj4-r
 - **Do not lose `START`.** The phase 2 message to the user and the per-task progress lines in phase 4 are the copies that survive a summarised context.
 - **Never write into `work-reports/` without checking it is ignored.** Unchecked, the report and the screenshots ride into the next commit. Check first that git ignores `work-reports/`, ask before adding it to `.git/info/exclude`, and never edit `.gitignore`.
 - **The standalone flow never touches `<MAIN>`.** Never switch, stash, commit or clean there. Everything runs in `<WT>`.
-- **`worktree.sh` is for the standalone flow only.** From an issue and From a sync never call it.
+- **`worktree.sh` is for the standalone flow and From a pull request.** From an issue and From a sync never call it.
 - **Do not move anything under `<WORKDIR>` into version control.** The report, the screenshots and the diff are worth more untracked. Move them only when the user asks.
 - Report a failure when it happens: a failing test, a design that falls apart. **Approved commits are already on the branch and the task in flight is uncommitted in the working tree.** Say both.
 - Standalone, the main session pushes and opens the pull request. From an issue, the main session also pushes and opens the draft pull request. Nothing is merged here. pj4-running
-  merges. From a sync, nothing is pushed. pj4-running pushes the merge commit.
+  merges. From a pull request, the main session pushes the merge commit to the pull request's branch, as a
+  fast-forward. From a sync, nothing is pushed. pj4-running pushes the merge commit.
+- **A merge of another branch into the run's branch happens only in The merge task**, and only after `worktree.sh
+  sync` or pj4-running's `run.sh sync` found a conflict. A clean merge is left to GitHub.

@@ -94,7 +94,9 @@ branches and removes a worktree. The pj skills create, edit and close
 issues and labels on GitHub, and `pj4-running` also creates each project's branch, pushes, opens and merges pull
 requests. The doc skills make a file next to your document, rewrite the document itself, and can add one commit of
 their own to `.gitignore` after asking. Any of these is enough reason to wait, so each skill here starts only when you
-name it or invoke its slash form.
+name it or invoke its slash form. One request is the exception: asking to resolve the conflicts of a pull request, in
+any words, starts `workflow`, or `pj4-running` for a project's pull request, because the request itself says what to
+do.
 
 ### workflow
 
@@ -133,10 +135,11 @@ flowchart TD
     end
 
     commit -->|"last task, two or more"| integ["integration review<br/>working tree vs START"]
-    commit -->|"last task, plan of one"| report
+    commit -->|"last task, plan of one"| sync
     integ -->|changes requested| integfix["fix, then one more commit"]
     integfix --> integ
-    integ -->|approve| report["work report<br/>work-reports/2026-09-19-1346-a1b2c3d/"]
+    integ -->|approve| sync["base merged in, only on a conflict<br/>resolved as one more reviewed task"]
+    sync --> report["work report<br/>work-reports/2026-09-19-1346-a1b2c3d/"]
     report --> pr["push, then pull request<br/>log.md becomes the body"]
     pr --> clean(["you merge it, then<br/>workflow-cleanup"])
 
@@ -147,7 +150,10 @@ flowchart TD
 The "per task" block repeats for every task in the plan, and nothing inside it runs in parallel, because there is one
 worktree. Everything after the approval runs on its own. A task that passes review becomes one commit, so the
 commit list reads back as the plan. A task that does not settle in five rounds comes back to you with the open
-points laid out, and its changes stay uncommitted in the run's worktree.
+points laid out, and its changes stay uncommitted in the run's worktree. When the base moved during the run and the
+branch now conflicts with it, the finish step merges the base in and resolves the conflicts as one more reviewed task
+before it pushes. A pull request that conflicts later is resolved the same way when you ask for it in plain words,
+such as "コンフリクト解消して", with no skill named ([Conflicts](skills/workflow/README.md#conflicts)).
 
 `pj4-running` runs this flow once per issue ([Driven from an issue](skills/workflow/README.md#driven-from-an-issue),
 [How the skills fit together](#how-the-skills-fit-together)).

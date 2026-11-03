@@ -43,8 +43,9 @@ When the plan has more than one task, the integration review after the last task
 
 ## Work outside the task
 
-This section applies when your prompt says the run comes from an issue. The issue's body is the approved design, and
-its checked decisions bind. There is no design session to go back to, so three things replace it.
+This section applies when your prompt says the run comes from an issue, or that it is a merge in progress. The
+issue's body, or for a merge the merge's design in your prompt, is the approved design, and an issue's checked
+decisions bind. There is no design session to go back to, so three things replace it.
 
 - **Small adaptations.** A renamed symbol or a moved file is yours to absorb when it changes no name, contract or
   file that another issue, the parent's design or an acceptance criterion relies on, and needs no human choice. List
