@@ -19,7 +19,7 @@ Never touch `<MAIN>`.
 
 ## What it skips
 
-Everything **From an issue** in `from-issue.md` skips, phase 2 (c) and phase 6. Phase 2 (d) runs as written, with `<START>`.
+Read **What it skips** in `from-issue.md`. Everything **From an issue** skips there, phase 2 (c) and phase 6. Phase 2 (d) runs as written, with `<START>`.
 
 ## The merge task
 

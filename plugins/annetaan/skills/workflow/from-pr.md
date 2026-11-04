@@ -9,13 +9,13 @@ worktree is cleaned up.
 
 ## What it skips
 
-- **Does this repository accept breaking changes?** in SKILL.md, and phases 1, 2 (a) and 5. Ask nothing and write nothing to
+- **Does this repository accept breaking changes?** in `standalone.md`, and phases 1, 2 (a) and 5. Ask nothing and write nothing to
   memory.
-- Phase 6 apart from the push below, and **Report to the user** in SKILL.md, which the report below replaces.
+- Phase 6 apart from the push below, and **Report to the user** in `standalone.md`, which the report below replaces.
 
 ## Which pull request
 
-Run `worktree.sh start` as **The start check** in `worktree.md` says. Then take the number the request names, as `#12` or a URL.
+Read `worktree.md`, and run `worktree.sh start` as **The start check** there says. Then take the number the request names, as `#12` or a URL.
 When it names none and the conversation is about one pull request, take that one. Otherwise:
 
 ```bash

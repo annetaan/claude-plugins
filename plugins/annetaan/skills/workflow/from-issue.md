@@ -26,7 +26,7 @@ Every command below runs in `<WT>`, so `<ROOT>` and `<WORKDIR>` come from there.
 
 - **The start check**'s `worktree.sh start`, in `worktree.md`. pj4-running's `run.sh start` has run its checks, and its `attach` says
   whether `--attach` works.
-- **Does this repository accept breaking changes?** in SKILL.md. Ask nothing and write nothing to memory.
+- **Does this repository accept breaking changes?** in `standalone.md`. Ask nothing and write nothing to memory.
 - **The worktree** in `worktree.md`. pj4-running made `<WT>` and checked what it must ignore.
 - All of phase 1: the design session, the design review, the open questions and the approval dialog.
 - Phase 2 (a) and (b). pj4-running owns the branch. Keep the two commands of (b) as a guard, because (d) needs
@@ -38,7 +38,7 @@ Every command below runs in `<WT>`, so `<ROOT>` and `<WORKDIR>` come from there.
   ```
 
   On exit 1, take the stop procedure with the reason `work-reports`. Never ask about `.gitignore` here.
-- **Report to the user** in SKILL.md. What goes back to pj4-running replaces the report.
+- **Report to the user** in `standalone.md`. What goes back to pj4-running replaces the report.
 
 ## The design, the plan and the detail
 

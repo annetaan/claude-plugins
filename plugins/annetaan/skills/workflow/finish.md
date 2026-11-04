@@ -4,7 +4,7 @@
 
 **A session that worked on the code writes the work report, in every mode. Do not write it yourself.**
 
-- When **Bringing the base in** in SKILL.md ran the merge task, that implementation session is alive. `SendMessage` it. This
+- When **Bringing the base in** in `standalone.md` ran the merge task, that implementation session is alive. `SendMessage` it. This
   comes before the cases below.
 - When phase 5 was skipped, the last task's implementation session is still alive (phase 4 (d)). `SendMessage` it.
 - When the integration review asked for fixes, that implementation session is still alive. `SendMessage` it.
@@ -72,4 +72,4 @@ then tell the user in the final message, with `<version>` from `gh` in `worktree
 
 List the file paths and the pull request URL alongside. **Say nothing about the gh version when the change produced no screenshots.**
 
-When the push fails, quote the error and go to **Report to the user** in SKILL.md. The branch and its commits stay in `<WT>`. When `gh pr create` exits non-zero, run `gh pr view <branch> --json url` first. If a pull request exists (a failed upload still creates one), carry on with its URL and the reattach step above. If none exists, quote the error and go to **Report to the user** in SKILL.md. Otherwise carry the pull request URL into **Report to the user** in SKILL.md.
+When the push fails, quote the error and go to **Report to the user** in `standalone.md`. The branch and its commits stay in `<WT>`. When `gh pr create` exits non-zero, run `gh pr view <branch> --json url` first. If a pull request exists (a failed upload still creates one), carry on with its URL and the reattach step above. If none exists, quote the error and go to **Report to the user** in `standalone.md`. Otherwise carry the pull request URL into **Report to the user** in `standalone.md`.
