@@ -1,7 +1,7 @@
 # The merge task
 
 A merge that stopped on conflicts runs as one task with review rounds, and its commit is the merge commit. Three
-places start it: **Bringing the base in** in phase 6 and **From a pull request**, both in SKILL.md, and **From a sync** in `from-sync.md`. There is no
+places start it: **Bringing the base in** in phase 6, in SKILL.md, **From a pull request** in `from-pr.md`, and **From a sync** in `from-sync.md`. There is no
 design session, no approval, no question and no integration review.
 
 ## What the caller has settled
