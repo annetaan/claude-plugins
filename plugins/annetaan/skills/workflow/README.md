@@ -92,8 +92,8 @@ request as a draft against the project's base branch. pj4-running merges it.
 
 All of it happens in the worktree pj4-running made for the project, so your own working tree is left alone.
 
-A stop before the task is committed leaves the work uncommitted in that worktree and pushes nothing. That work is
-the one thing outside GitHub, and the next run redoes it. A stop once the task commit exists can only come during the
+A stop before the task is committed pushes nothing. pj4-running saves the work to `stopped.diff` in the run's work
+report and cleans the worktree. The next run redoes it. A stop once the task commit exists can only come during the
 finish step, so the run finishes it: the report, the push and the draft pull request. A pull request exists only for
 a task commit that passed review. The shape of the issues is in [format.md](../pj1-plan/format.md), and the shape
 of the pull requests in [between-skills.md](../pj1-plan/between-skills.md).

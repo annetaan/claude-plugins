@@ -165,7 +165,8 @@ $RUNNING/scripts/run.sh worktree <P>
 It fetches the base branch again. It creates `<WT>`, moves a clean one onto `origin/<base>`, or prunes and recreates
 one whose directory is gone. `action` says which. Act by `status`.
 
-- **`dirty`**: an earlier run stopped with work in flight, and nothing was changed. `changes` lists it as
+- **`dirty`**: an earlier run left work in `<WT>`, and nothing was changed. That is a run that ended without saving
+  it (a process killed mid-run), work a save left behind (`left`) or could not save, or a stopped merge of `<from>`. `changes` lists it as
   `git status --porcelain` prints it. Ask once.
 
   ```
@@ -427,10 +428,30 @@ phase 6. The pull request stays a draft, and the next run merges it.
 
 Then take the next issue.
 
-**`stopped`** carries the reason, whether uncommitted work stays in `<WT>` (yes or no), and the text of the
+**`stopped`** carries the reason, `<WORKDIR>` (the absolute path, or none), and the text of the
 `Unplanned:` or `Diverged:` report, or for `finish` the failed step. A stopped run has opened no pull request.
-Act by the reason, then go to phase 6. Every comment below is written to a file under `$TMP` and starts with
-`**[pj4-running]**`.
+
+When `<WORKDIR>` is set, save the work first, before any comment, so that `<WT>` is clean when the run goes on.
+
+```bash
+$RUNNING/scripts/run.sh save <P> --to <WORKDIR>/stopped.diff
+```
+
+Act by what it prints.
+
+- **`clean`**: no work was left. Name no file.
+- **`saved`**: keep `file`, `head`, `left` and `errors`. The diff in `file` applies to `head`, and `<WT>` is clean
+  apart from what `left` lists. A path in `left` stays in `<WT>` and may not be in `file`, as with a nested git
+  repository. A step in `errors` is a reset or a clean that failed.
+- **`stop`** with `merging`, or a non-zero exit: an exception to the `run.sh` rule in **Paths: `$RUNNING`**, because
+  the stop is already under way. Quote the message, say the work stays uncommitted in `<WT>`, and carry on with the
+  reason's steps, so the blocker stub is still filed.
+
+Then act by the reason, and go to phase 6. Every comment below is written to a file under `$TMP` and starts with
+`**[pj4-running]**`. When `save` printed `saved`, each comment of `blocking`, `diverged` and `round cap` says that
+the work so far is saved on the machine that ran this, at `file`, that the next run redoes the issue, and which
+paths of `left` stay in `<WT>` when there are any. After a `save` that failed or stopped, it says that the work
+stays uncommitted in `<WT>`.
 
 - **`blocking`**: make sure `blocker` exists. File the stub in the shape of `format.md` **Stubs**, from the
   `Unplanned:` text, blocking `#<k>`.
@@ -559,8 +580,12 @@ $RUNNING/scripts/run.sh pr <P> --body "$TMP/<P>-pr.md"
 - each merged issue with the URL of its pull request
 - the stubs filed, the `later` ones and the `blocker` ones
 - where the run stopped and why, or that the run order is done
-- **the uncommitted work left in `<WT>`, when there is some.** `git -C <WT> diff` shows it. Say plainly that the next
-  run asks whether to discard it, and that the next run never uses it because the work gets redone
+- **the saved work, when `save` printed `saved`.** Give the path of `file`. `git -C <WT> apply <file>` brings it back
+  on `<head>`. Say plainly that the next run never uses it because the work gets redone. Add `left` and `errors`
+  when they are not empty
+- **the uncommitted work still in `<WT>`, when there is some** (a non-empty `left`, a `save` that failed, a stopped
+  merge of `<from>`). `git -C <WT> diff` shows it. Say plainly that the next run asks whether to discard it, and that
+  the next run never uses it because the work gets redone
 - the screenshots that could not be attached, with their paths and the URL of the pull request
 - what is workable now and what is waiting
 - the next step: `/annetaan:pj3-doctor` when a `blocker` or a stub exists, otherwise `/annetaan:pj4-running`.
@@ -581,7 +606,9 @@ An unattended run prints its last line as `between-skills.md` says under **Unatt
 - Phase 2 marked the issue that failed `--check` and stopped.
 - Phase 5 step 1 stopped because a human had removed `ready`.
 - Phase 5 step 2 marked the issue that failed `--check` and stopped.
-- **When workflow returns** got `stopped` with the reason `blocking` or `diverged`.
+- **When workflow returns** got `stopped` with the reason `blocking` or `diverged`, and either no `<WORKDIR>` was
+  set, or `save` printed `clean`, or it printed `saved` with an empty `left` and an empty `errors`. With any other
+  `save` output, the next step would stop on `dirty`, so it is needs-user below.
 - The run order was worked to the end, and phase 6's project pull request came to `opened` or `exists`, or not every
   sub-issue is closed yet.
 
@@ -599,7 +626,7 @@ section does not name never reads as done.
 - **Never merge the project's pull request.** It goes into `<from>`, and the user merges it.
 - **Never merge a pull request that `project.sh` does not report as the issue's `pr`.**
 - **Whenever you take `ready` off an issue, add `blocker`.**
-- **The next run never uses the work a stopped run left in `<WT>`.** The work is redone.
+- **The next run never uses the work a stopped run left in `<WT>` or saved to `stopped.diff`.** The work is redone.
 - **Never push to `<from>` or to the default branch, push to the base branch only through `run.sh sync`, and never
   rewrite their history.** The one branch this skill creates outside a pull request is the project's base branch,
   through the API, in `run.sh start`. The one commit that reaches it outside a pull request is the merge of `<from>`,
