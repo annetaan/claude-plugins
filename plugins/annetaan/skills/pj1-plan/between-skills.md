@@ -41,8 +41,12 @@ Two things live outside GitHub, and only these two:
 - **the user's approval within a run.** An approval covers the run it was given in. The next run asks again. A run started
   with `unattended` asks for none, because starting it that way is the approval (see **Unattended runs**). A `pj-auto`
   drive is approved once, at its start, and that approval covers every unattended run it starts.
-- **the uncommitted work a stopped run leaves in its worktree** `<MAIN>/.claude/worktrees/pj-<P>`, where `<MAIN>`
-  is the main working tree. It is local. The next run never uses it. The work is redone as the issue's one task.
+- **the uncommitted work a run leaves in its worktree** `<MAIN>/.claude/worktrees/pj-<P>` when it ends without saving
+  it, where `<MAIN>` is the main working tree. That is a process killed mid-run, a save that could not clean everything,
+  or a stopped merge of `<from>`. It is local. The next run never uses it. The work is redone as the issue's one task.
+
+The work of a stopped issue is saved to `stopped.diff` in its work report. Like the work report, it is a record, not
+state.
 
 The worktree itself is a place to work, not state. A run creates it when it is missing. A drive's log directory is the
 same: the next drive never reads it.

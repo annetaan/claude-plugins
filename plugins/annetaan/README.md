@@ -58,11 +58,12 @@ In short, from [format.md](skills/pj1-plan/format.md)'s The parts:
 
 Only two pieces of a project's state live outside GitHub: your approval within one run, which the next run asks for
 again unless it starts `unattended` (every run of a `pj-auto` drive does, under the drive's one approval), and the
-uncommitted work a stopped run leaves in its worktree under `.claude/worktrees/`, which the next run never uses.
+uncommitted work a run leaves in its worktree under `.claude/worktrees/` when it ends without saving it, which the
+next run never uses.
 Because of this, a project can stop anywhere and resume in another session or on another machine.
 
-The work report of each issue is a record, not state. It stays local and no later run reads it. Only its `log.md`
-reaches GitHub, as the pull request's body.
+The work report of each issue is a record, not state. It stays local and no later run reads it. A stopped issue's
+work is saved there too, as `stopped.diff`. Only its `log.md` reaches GitHub, as the pull request's body.
 
 ```mermaid
 flowchart TB
@@ -282,7 +283,7 @@ it is.
 
 `pj4-running` asks up to two more questions before its first issue. When git does not ignore `.claude/worktrees/`
 or `work-reports/`, it asks to add them to `.git/info/exclude`. That file stays in your clone, so nothing is
-committed, and `.gitignore` is never edited. When an earlier run stopped with uncommitted work in the worktree, it
+committed, and `.gitignore` is never edited. When an earlier run ended without saving its work in the worktree, for example a process that was killed, it
 asks whether to discard that work. The next run redoes it either way.
 
 ### pj-auto

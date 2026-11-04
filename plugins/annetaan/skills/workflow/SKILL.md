@@ -820,8 +820,8 @@ saying stop.
 The task commit decides the case, whatever the phase. Look for it in `git log --oneline <START>..HEAD`.
 
 - **No task commit yet.** Leave the working tree as it is. Push nothing. Send nothing more to the sessions in flight.
-  Return `stopped`. **Say plainly that the work left in `<WT>` is the one piece of state outside GitHub.** It is
-  local, the next run never uses it, and the work gets redone.
+  Return `stopped`. pj4-running saves the work to `<WORKDIR>/stopped.diff` with `run.sh save` and cleans `<WT>`
+  when it gets the hand-back. The next run never uses the saved work, and the work gets redone.
 - **The task commit exists.** The stop came during phase 6, and the working tree is clean. Run steps 1 to 3 of
   **Phase 6 from an issue** to the end: the report, the push and the draft pull request. Then return `finished`, with
   `stop requested: yes` when the user said stop.
@@ -832,8 +832,8 @@ The task commit decides the case, whatever the phase. Look for it in `git log --
 
 - **`finished`**: the pull request number `m`, the SHA of the task commit, the handover lines, the paths of any
   screenshots that could not be attached, and `stop requested` (yes or no).
-- **`stopped`**: the reason (`round cap`, `blocking`, `diverged`, `user`, `work-reports` or `finish`), whether
-  uncommitted work stays in `<WT>` (yes or no), and the text of the `Unplanned:` or `Diverged:` report, or for
+- **`stopped`**: the reason (`round cap`, `blocking`, `diverged`, `user`, `work-reports` or `finish`), `<WORKDIR>`
+  (the absolute path, when phase 2 (d) made it, otherwise none), and the text of the `Unplanned:` or `Diverged:` report, or for
   `finish` the step that failed, its message and the path of `log.md` when there is one. A run that returns `stopped` has opened no pull request.
 
 ## From a sync
