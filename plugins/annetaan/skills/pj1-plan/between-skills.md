@@ -103,6 +103,10 @@ Only `pj3-doctor` adds `ready`, after its project review, to an issue that meets
 for it (`state.md`, **When an issue is ready**). Ticking boxes on GitHub settles decisions and leaves the label
 alone, so the user runs `pj3-doctor` after ticking.
 
+`pj3-doctor` also takes `ready` off and puts it on again when its review cleared the stale commits `--check`
+reported, so that `readyAt` moves past them. Whenever it moves `readyAt` past stale commits, with a first `ready` or
+with that renewal, it leaves a marked comment naming each cleared commit and the reviewer's reason.
+
 The parent never gets `ready` and is never worked on.
 
 **A stub never carries `ready`.** `pj3-doctor` has the writer draw it into a full body first.
