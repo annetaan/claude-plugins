@@ -43,7 +43,8 @@ Two things live outside GitHub, and only these two:
   drive is approved once, at its start, and that approval covers every unattended run it starts.
 - **the uncommitted work a run leaves in its worktree** `<MAIN>/.claude/worktrees/pj-<P>` when it ends without saving
   it, where `<MAIN>` is the main working tree. That is a process killed mid-run, a save that could not clean everything,
-  or a stopped merge of `<from>`. It is local. The next run never uses it. The work is redone as the issue's one task.
+  or a stopped merge of `<from>`. It is local. The next run saves it to `work-reports/<stamp>-discarded/stopped.diff`
+  in the worktree and discards it, without asking, and never uses it. The work is redone as the issue's one task.
 
 The work of a stopped issue is saved to `stopped.diff` in its work report. Like the work report, it is a record, not
 state.

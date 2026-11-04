@@ -106,6 +106,8 @@ Otherwise a step would run. Show a summary first:
   the state does not change after a run (`no-progress`), `pj3-doctor` has run twice on the same key (`doctor-cap`), a
   run fails (`child-failed`), or the stop file appears
 - that merges into the project's base branch happen, and the project's own pull request is never merged
+- that no other session may run on the same project while the drive runs: a dirty worktree is taken for a dead run's
+  and discarded
 - the permissions: every rule from **The permissions**, one line each, as `covered (<file>)`, `missing`, or
   `blocked (<rule> in <file>)`. For each repository command, where it was found. Each issue under `.claude/` as
   `<issue URL>: writes <path>`, with the note that the drive stops there and that `/annetaan:pj4-running <P>` run by
