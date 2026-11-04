@@ -9,7 +9,8 @@
 # every sub-issue is closed and the base branch contains it. Writes in git: start and worktree fetch the base branch
 # into origin/<base>, worktree creates and moves the run's worktree, branch creates the issue's branch in <WT>, merge
 # moves <WT> onto the merged base and deletes the local head branch, sync merges origin/<from> into the base in <WT>,
-# and ignore --add appends to the clone's info/exclude.
+# ignore --add appends to the clone's info/exclude, and save writes the uncommitted work in <WT> to a file, then resets
+# and cleans <WT>.
 # It reads the project with ../../pj1-plan/scripts/project.sh, and never parses an issue body itself.
 set -euo pipefail
 
@@ -26,6 +27,7 @@ usage: run.sh start <P>                       check the clone, gh and the reposi
                                               wait for the required checks, merge #<m> into the base branch, close #<k>, delete the head branch
        run.sh sync <P> [--push]               merge origin/<from> into the base branch in the run's worktree and push it; --push pushes a merge committed after a conflict
        run.sh pr <P> --body <file>            open the pull request from the base branch into <from>, once every sub-issue is closed and the base contains <from>
+       run.sh save <P> --to <file>            save the uncommitted work in the run's worktree to <file> as one binary diff (tracked changes plus untracked files), then reset and clean the worktree, keeping ignored files
 Every subcommand prints one JSON object with "status" and exits 0. "stop" carries "reason" and "message".
 Exit 1 means a usage error or an unexpected failure.
 USAGE
@@ -55,6 +57,7 @@ case "$1" in
   sync)     [ $# -eq 2 ] || { [ $# -eq 3 ] && [ "$3" = "--push" ]; } || usage ;;
   pr)       [ $# -eq 4 ] && [ "$3" = "--body" ] || usage
             [ -f "$4" ] || die "no such file: $4" ;;
+  save)     [ $# -eq 4 ] && [ "$3" = "--to" ] || usage ;;
   *)        usage ;;
 esac
 
@@ -390,6 +393,16 @@ def close():
         die("cannot %s on #%d: %s" % (failed["step"], n, failed["message"]))
     emit(status="closed", number=n, already=False, startable=startable_after(n, proj) if is_parent else [])
 
+def discard(wt):
+    """Reset the tracked files of wt and remove its untracked files, keeping the ignored ones. The failed steps as
+    [{"step", "message"}], empty when both worked."""
+    errors = []
+    for step, args in (("reset", ("reset", "--hard")), ("clean", ("clean", "-fd"))):
+        r = run("git", "-C", wt, *args)
+        if r.returncode != 0:
+            errors.append({"step": step, "message": r.stderr.strip()})
+    return errors
+
 def worktree():
     main, wt = located()
     base = project(P)["parent"]["base"]
@@ -408,8 +421,9 @@ def worktree():
         elif "--discard" not in ARGS:
             emit(status="dirty", worktree=wt, changes=changes[:20])
         else:
-            git(wt, "reset", "--hard")
-            git(wt, "clean", "-fd")
+            errors = discard(wt)
+            if errors:
+                die("git %s failed: %s" % (errors[0]["step"], errors[0]["message"]))
             action = "discarded"
         git(wt, "switch", "--detach", tip)
     elif os.path.lexists(wt):
@@ -475,6 +489,53 @@ def branch():
         git(wt, "branch", "-D", b)
     git(wt, "switch", "--no-track", "-c", b, "origin/" + base)
     emit(status="ok", branch=b, start=git(wt, "rev-parse", "HEAD").strip())
+
+def save():
+    main, wt = located()
+    if listed(main, wt) is not False:
+        die("%s is no worktree of this clone. run.sh worktree %d first" % (wt, P))
+    target = os.path.abspath(ARGS[1])
+    if not os.path.isdir(os.path.dirname(target)):
+        die("no such directory: " + os.path.dirname(target))
+    if os.path.lexists(target):
+        die("%s already exists" % target)
+    # realpath on both sides: /tmp is /private/tmp on macOS.
+    real = os.path.join(os.path.realpath(os.path.dirname(target)), os.path.basename(target))
+    if real.startswith(os.path.realpath(wt) + os.sep) \
+            and run("git", "-C", wt, "check-ignore", "-q", real).returncode != 0:
+        die("%s is inside %s and git does not ignore it there, so saving it would change the work it saves"
+            % (target, wt))
+    # --untracked-files=normal: the user's status.showUntrackedFiles must not hide what add -A stages and clean -fd removes.
+    status = ("status", "--porcelain", "--untracked-files=normal")
+    before = git(wt, *status).splitlines()
+    if not before:
+        emit(status="clean", worktree=wt)
+    if run("git", "-C", wt, "rev-parse", "--verify", "--quiet", "MERGE_HEAD").returncode == 0:
+        stop("merging", "%s holds an unfinished merge, which one diff cannot save" % wt, worktree=wt)
+    head = git(wt, "rev-parse", "HEAD").strip()
+    # A nested repository in an untracked directory cannot be staged (one without a commit makes add fail, one with a
+    # commit becomes a gitlink). Keep it out of the add; clean -fd leaves it in place, so it shows up in left.
+    nested = []
+    # NUL-separated, because porcelain status quotes a name with a space or a non-ASCII byte.
+    for entry in git(wt, "ls-files", "-z", "--others", "--exclude-standard", "--directory").split("\0"):
+        if entry.endswith("/"):
+            for root, dirs, _ in os.walk(os.path.join(wt, entry)):
+                if ".git" in dirs or os.path.exists(os.path.join(root, ".git")):
+                    nested.append(os.path.relpath(root, wt))
+                    dirs[:] = []
+                dirs[:] = [d for d in dirs if d != ".git"]
+    excludes = [":(exclude,literal)" + d for d in nested]
+    # git writes the file itself, so a binary diff never passes through a text decoder. diff-index is plumbing: it
+    # ignores the user's colour, prefix, external diff and textconv settings, which would make the file unappliable.
+    for args in (("add", "-A", "--", ".", *excludes),
+                 ("diff-index", "--cached", "--binary", "-p", "HEAD", "--output=" + target)):
+        r = run("git", "-C", wt, *args)
+        if r.returncode != 0:
+            run("git", "-C", wt, "reset")
+            die("git %s failed: %s" % (" ".join(args[:2]), r.stderr.strip()))
+    errors = discard(wt)
+    left = git(wt, *status).splitlines()
+    emit(status="saved", worktree=wt, file=target, head=head, changes=before[:20], left=left[:20], errors=errors)
 
 def merge():
     k, m, comment = int(ARGS[0]), int(ARGS[1]), ARGS[3]
@@ -660,7 +721,7 @@ def project_pr():
     emit(status="opened", pr=int(m.group(1)) if m else None, url=url, **out)
 
 {"start": start, "close": close, "worktree": worktree, "ignore": ignore, "branch": branch, "merge": merge,
- "sync": sync, "pr": project_pr}[SUB]()
+ "sync": sync, "pr": project_pr, "save": save}[SUB]()
 PY
 
 exec python3 -c "$PY" "$PROJECT_SH" "$@"
