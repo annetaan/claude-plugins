@@ -17,20 +17,18 @@ These values are already in your context. Nothing arrives as an argument.
 - the handover notes, seeded from the parent's handover comment
 - the run's worktree `<WT>`, and `<MAIN>`, the main working tree. The session is in `<WT>`, and the branch is
   checked out there
+- `attach` from pj4-running's `run.sh start`, which has run its checks: whether `--attach` works
 
 pj4-running has already run its checks (`gh`) on `<WT>` and confirmed that `work-reports/` is ignored there.
 Every command below runs in `<WT>`, so `<ROOT>` and `<WORKDIR>` come from there. Never touch
 `<MAIN>`. The user works in it during the run.
 
-## What it skips
+## What it runs of phases 2 to 4
 
-- **The start check**'s `worktree.sh start`, in `worktree.md`. pj4-running's `run.sh start` has run its checks, and its `attach` says
-  whether `--attach` works.
-- **Does this repository accept breaking changes?** in `standalone.md`. Ask nothing and write nothing to memory.
-- **The worktree** in `worktree.md`. pj4-running made `<WT>` and checked what it must ignore.
-- All of phase 1: the design session, the design review, the open questions and the approval dialog.
-- Phase 2 (a) and (b). pj4-running owns the branch. Keep the two commands of (b) as a guard, because (d) needs
-  `<ROOT>` from the first one.
+This entry asks nothing and writes nothing to memory. Its ending is **What it hands back to pj4-running** below, which replaces any report to the user.
+
+- **Phase 2 (a)** does not run. pj4-running owns the branch.
+- **Phase 2 (b)** runs as a guard only, because (d) needs `<ROOT>` from the first command.
 
   ```bash
   git rev-parse --show-toplevel
@@ -38,7 +36,9 @@ Every command below runs in `<WT>`, so `<ROOT>` and `<WORKDIR>` come from there.
   ```
 
   On exit 1, take the stop procedure with the reason `work-reports`. Never ask about `.gitignore` here.
-- **Report to the user** in `standalone.md`. What goes back to pj4-running replaces the report.
+- **Phase 2 (c) and (d)** and **phases 3 and 4** run as **Start point and work directory** and **Phases 3 and 4** below say.
+- **After the commit in phase 4 (d)**, keep the implementation session alive. It writes the work report in **Phase 6 from an issue**. Its review session ends as usual.
+- **The round cap**, and the user saying stop, end in **The stop procedure**, with no question to the user.
 
 ## The design, the plan and the detail
 

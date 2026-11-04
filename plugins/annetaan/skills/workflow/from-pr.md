@@ -7,11 +7,13 @@ opened, long after the run that opened it. The request covers the whole of it: *
 takes the branch, the merge task resolves the conflicts under review, the merge is pushed to the branch, and the
 worktree is cleaned up.
 
-## What it skips
+## What it runs of phases 2 to 4
 
-- **Does this repository accept breaking changes?** in `standalone.md`, and phases 1, 2 (a) and 5. Ask nothing and write nothing to
-  memory.
-- Phase 6 apart from the push below, and **Report to the user** in `standalone.md`, which the report below replaces.
+It asks nothing beyond the questions below, and writes nothing to memory.
+
+- **Phase 2 (a)** does not run. The branch is `<head>`.
+- **Phase 2 (b), (c) and (d)** run as written, at the end of **The worktree** below. Exit 1 in (b): stop and report, because **The worktree** step 4 in `worktree.md` should have settled it.
+- **Phases 3 and 4** run as **The merge task** in `merge-task.md` says. **The push** and **Cleaning up and the report** below are its ending. No other part of the finish runs, and the report below replaces any other report to the user.
 
 ## Which pull request
 

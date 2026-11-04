@@ -47,6 +47,8 @@ and the worktree line in every prompt, except for these.
 Check it yourself with `git log -1 --oneline` and `git rev-parse --verify --quiet MERGE_HEAD`. Print
 `merge done: <short SHA>`.
 
+After the commit, the implementation session stays alive for the caller, and the review session ends. The round cap and the user saying stop end in **Stopping** below.
+
 ## Reports from the implementation session
 
 - **`Unplanned:` with `later`**: keep it for the caller. The task goes on.

@@ -17,9 +17,21 @@ These values are already in your context. Nothing arrives as an argument.
 pj4-running has already confirmed that `work-reports/` is ignored in `<WT>`. Every command below runs in `<WT>`.
 Never touch `<MAIN>`.
 
-## What it skips
+## What it runs of phases 2 to 4
 
-Read **What it skips** in `from-issue.md`. Everything **From an issue** skips there, phase 2 (c) and phase 6. Phase 2 (d) runs as written, with `<START>`.
+This entry asks nothing and writes nothing to memory. Its ending is **What it hands back to pj4-running** below, which replaces any report to the user and any part of the finish.
+
+- **Phase 2 (a) and (c)** do not run. pj4-running settled `<WT>` and `<START>`.
+- **Phase 2 (b)** runs as a guard only, because (d) needs `<ROOT>` from the first command.
+
+  ```bash
+  git rev-parse --show-toplevel
+  git -C <ROOT> check-ignore -q work-reports/
+  ```
+
+  On exit 1, leave the working tree as it is, push nothing, and return `stopped` with the reason `work-reports`. Never ask about `.gitignore` here.
+- **Phase 2 (d)** runs as written, with `<START>`.
+- **Phases 3 and 4** run as **The merge task** in `merge-task.md` says, below.
 
 ## The merge task
 

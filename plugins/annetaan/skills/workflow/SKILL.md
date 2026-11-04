@@ -22,7 +22,7 @@ You are the main session, and you are the **orchestrator. You do not write code.
 | From an issue | pj4-running loads this skill for an issue | `$FLOW/from-issue.md` |
 | From a sync | pj4-running loads it for a merge of `<from>` into a project's base branch that stopped on conflicts | `$FLOW/from-sync.md` |
 
-Phases 1, 5 and 6 belong to the standalone flow and are in `standalone.md`. Phases 2 to 4 are below, and each entry's file says which parts of them it skips and which it changes. Everything it does not mention runs as written. A request to resolve a conflict is a request to do it: never answer it with a refusal or a suggestion to run something else, unless **From a pull request** in `from-pr.md` says to stop.
+Phases 1, 5 and 6 belong to the standalone flow and are in `standalone.md`. Phases 2 to 4 are below, and each entry's file says how it runs them and what comes after them. Everything it does not mention runs as written. A request to resolve a conflict is a request to do it: never answer it with a refusal or a suggestion to run something else, unless **From a pull request** in `from-pr.md` says to stop.
 
 ## Paths: `$FLOW`
 
@@ -68,7 +68,7 @@ Both ship with this plugin, and the model and effort are pinned in `agents/*.md`
 
 ## Phase 2: branch, guard, start point
 
-After approval, do these four things **in this order, before you wake the implementation session**. The order matters.
+Run the steps of this phase that the entry's file names, **in this order, before you wake the implementation session**. The order matters.
 
 ### (a) Create the branch
 
@@ -93,7 +93,7 @@ git -C <ROOT> check-ignore -q work-reports/   # exit 0: ignored
 before the first run there is no directory, so `check-ignore work-reports` answers exit 1 even when
 `.gitignore` already has `work-reports/`. With the slash, git takes the path as a directory whether it exists or not.
 
-Exit 0: go on. Exit 1: stop and report, because **The worktree** step 4 in `worktree.md` should have settled it. Never add the path to `.gitignore`.
+Exit 0: go on. Exit 1: stop as the entry's file says. Never add the path to `.gitignore`.
 
 ### (c) Record the start point
 
@@ -126,7 +126,7 @@ Agent(subagent_type: "annetaan:workflow-worker", description: "implementation, t
 
 ### Screenshots
 
-**When the change shows on screen, add this paragraph to the implementation prompt.** Phase 6 uses the files. They go into the `<WORKDIR>` you made in phase 2.
+**When the change shows on screen, add this paragraph to the implementation prompt.** **The work report** in `finish.md` uses the files. They go into the `<WORKDIR>` you made in phase 2.
 
 > If this change shows on screen, take screenshots. When an existing screen changes how it looks or behaves, **take the current state (before) first, before you touch anything**, then implement, then take the after shot. When you only add a new screen or component, the after shot alone is enough. Save them in `<absolute path of WORKDIR>`. **Do not create files anywhere else** (`work-reports/` is ignored, and anything outside it ends up in a commit). Report the path of each file and what it shows.
 
@@ -136,7 +136,7 @@ Agent(subagent_type: "annetaan:workflow-worker", description: "implementation, t
 
 **One implementation session covers one task.** Every review round for that task continues through `SendMessage` to
 the same agent, because answering a finding on your own code needs the context that wrote it. The commit in phase 4
-(d) ends it. You never message it again, and the next task starts a new one.
+(d) ends it. You never message it again, unless the entry's file keeps the last task's session alive, and the next task starts a new one.
 
 ## Phase 4: the task loop
 
@@ -197,9 +197,7 @@ outlives a session.
 **Give the user a one-line progress report**: `task k/N done: <short SHA> <commit subject> (commit k since START <short SHA>)`. A long context can be summarised away, and the plan, `START` and the progress all rebuild from that line.
 
 **This task's implementation and review sessions are finished here.** Do not send them anything after this. The next
-task starts a new pair. One exception: when the last task is committed and phase 5 does not run (see **Phase 5** in `standalone.md`),
-keep that task's implementation session alive, because it writes the work report in phase 6. Its review session ends
-here as usual. After the last task, go to phase 5, or to phase 6 when the plan has one task (see **Phase 5** in `standalone.md`).
+task starts a new pair. After the last task's commit, the entry's file says what comes next, and whether that task's implementation session stays alive. Its review session ends here either way.
 
 ### When the plan breaks
 
@@ -210,11 +208,9 @@ When the detail pass in (a) says the boundary no longer holds, or the implementa
 **Five rounds per task. Fixed.** It does not move at approval.
 Each (b) counts as one round, and the count resets when the task changes.
 
-If round five does not come back `approve`, stop and report to the user. Lay out what is still open and what each side said, and ask for a decision. **That task's changes are sitting uncommitted in `<WT>`.** Say that, say that the worktree stays as it is, and say that `/annetaan:workflow-cleanup` removes it, discarding the work, once the user decides. Do not keep the rounds going forever.
+If round five does not come back `approve`, stop as the entry's file says. Do not keep the rounds going forever.
 
-**If the user says stop at any point, stop and report.** If the user says keep going after the cap, keep going. The cap is a brake, and it is not a promise.
-
-From an issue, the cap ends in the stop procedure in `from-issue.md`, with no question to the user.
+**If the user says stop at any point, stop** as the entry's file says. The cap is a brake, and it is not a promise.
 
 ## Rules for the whole flow
 

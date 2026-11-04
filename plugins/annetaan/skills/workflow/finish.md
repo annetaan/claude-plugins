@@ -6,7 +6,7 @@
 
 - When **Bringing the base in** in `standalone.md` ran the merge task, that implementation session is alive. `SendMessage` it. This
   comes before the cases below.
-- When phase 5 was skipped, the last task's implementation session is still alive (phase 4 (d)). `SendMessage` it.
+- When phase 5 was skipped, the last task's implementation session is still alive (the entry keeps it after phase 4 (d)). `SendMessage` it.
 - When the integration review asked for fixes, that implementation session is still alive. `SendMessage` it.
 - When the integration review approved with nothing to fix, no session is left. Start one with the phase 3 prompt, carrying the progress and the handover notes, and ask it for the report and nothing else.
 
@@ -72,4 +72,4 @@ then tell the user in the final message, with `<version>` from `gh` in `worktree
 
 List the file paths and the pull request URL alongside. **Say nothing about the gh version when the change produced no screenshots.**
 
-When the push fails, quote the error and go to **Report to the user** in `standalone.md`. The branch and its commits stay in `<WT>`. When `gh pr create` exits non-zero, run `gh pr view <branch> --json url` first. If a pull request exists (a failed upload still creates one), carry on with its URL and the reattach step above. If none exists, quote the error and go to **Report to the user** in `standalone.md`. Otherwise carry the pull request URL into **Report to the user** in `standalone.md`.
+When the push fails, quote the error and go to the entry's ending: **Report to the user** in `standalone.md`, or **The stop procedure** in `from-issue.md`. The branch and its commits stay in `<WT>`. When `gh pr create` exits non-zero, run `gh pr view <branch> --json url` first. If a pull request exists (a failed upload still creates one), carry on with its URL and the reattach step above. If none exists, quote the error and go to the entry's ending, as for a failed push. Otherwise carry the pull request URL into the entry's ending.
