@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Runs the mechanical steps of pj4-running for one project and prints each result as one JSON object.
-# The judgment and the questions stay in the skill. --discard and --add carry the user's answers back.
+# The judgment and the questions stay in the skill. --add carries the user's answer back.
 # Writes on GitHub: start creates the project's base branch through the API when it is due, and close comments on an
 # issue and closes it as completed, when it is due. For a parent it also lists the projects that can be split now
 # (startable). merge marks the pull request ready, merges it, comments on and closes the issue,
@@ -9,8 +9,9 @@
 # every sub-issue is closed and the base branch contains it. Writes in git: start and worktree fetch the base branch
 # into origin/<base>, worktree creates and moves the run's worktree, branch creates the issue's branch in <WT>, merge
 # moves <WT> onto the merged base and deletes the local head branch, sync merges origin/<from> into the base in <WT>,
-# ignore --add appends to the clone's info/exclude, and save writes the uncommitted work in <WT> to a file, then resets
-# and cleans <WT>.
+# ignore --add appends to the clone's info/exclude, and save writes the uncommitted work in <WT> to a file, also during a
+# merge, then resets and cleans <WT>. worktree does the same on its own when <WT> is dirty: it saves the work to
+# <WT>/work-reports/<stamp>-discarded/stopped.diff and discards it, without asking.
 # It reads the project with ../../pj1-plan/scripts/project.sh, and never parses an issue body itself.
 set -euo pipefail
 
@@ -20,14 +21,14 @@ usage() {
   cat >&2 <<'USAGE'
 usage: run.sh start <P>                       check the clone, gh and the repository, read the project, create its base branch when due, fetch it, read the merge rules
        run.sh close <P> <n> --comment <file>  comment on and close #<n> as completed, when it is due. For a parent it also lists the projects that can be split now (startable)
-       run.sh worktree <P> [--discard]        put the run's worktree on the tip of origin/<base>
+       run.sh worktree <P>                    put the run's worktree on the tip of origin/<base>; a dirty one is saved to work-reports/<stamp>-discarded/stopped.diff and discarded
        run.sh ignore <P> [--add]              whether .claude/worktrees/ and work-reports/ are ignored; --add writes them to info/exclude
        run.sh branch <P> <branch>             create <branch> in the run's worktree from the tip of origin/<base>
        run.sh merge <P> <k> <m> --comment <file> [--wait <seconds>]
                                               wait for the required checks, merge #<m> into the base branch, close #<k>, delete the head branch
        run.sh sync <P> [--push]               merge origin/<from> into the base branch in the run's worktree and push it; --push pushes a merge committed after a conflict
        run.sh pr <P> --body <file>            open the pull request from the base branch into <from>, once every sub-issue is closed and the base contains <from>
-       run.sh save <P> --to <file>            save the uncommitted work in the run's worktree to <file> as one binary diff (tracked changes plus untracked files), then reset and clean the worktree, keeping ignored files
+       run.sh save <P> --to <file>            save the uncommitted work in the run's worktree, also a merge in progress, to <file> as one binary diff (tracked changes plus untracked files), then reset and clean the worktree, keeping ignored files
 Every subcommand prints one JSON object with "status" and exits 0. "stop" carries "reason" and "message".
 Exit 1 means a usage error or an unexpected failure.
 USAGE
@@ -43,7 +44,7 @@ case "$1" in
   close)    [ $# -eq 5 ] && [ "$4" = "--comment" ] || usage
             number "the issue" "$3"
             [ -f "$5" ] || die "no such file: $5" ;;
-  worktree) [ $# -eq 2 ] || { [ $# -eq 3 ] && [ "$3" = "--discard" ]; } || usage ;;
+  worktree) [ $# -eq 2 ] || usage ;;
   ignore)   [ $# -eq 2 ] || { [ $# -eq 3 ] && [ "$3" = "--add" ]; } || usage ;;
   branch)   [ $# -eq 3 ] || usage ;;
   merge)    { [ $# -eq 6 ] || [ $# -eq 8 ]; } && [ "$5" = "--comment" ] || usage
@@ -410,20 +411,36 @@ def worktree():
         stop("fetch-failed", "cannot fetch %s from origin" % base, worktree=wt)
     tip = "origin/" + base
     prunable = listed(main, wt)
+    saved = None
     if prunable:
         git(main, "worktree", "prune")
         git(main, "worktree", "add", "--detach", wt, tip)
         action = "recreated"
     elif prunable is False:
-        changes = git(wt, "status", "--porcelain").splitlines()
+        changes = git(wt, *STATUS).splitlines()
         if not changes:
             action = "moved"
-        elif "--discard" not in ARGS:
-            emit(status="dirty", worktree=wt, changes=changes[:20])
         else:
-            errors = discard(wt)
-            if errors:
-                die("git %s failed: %s" % (errors[0]["step"], errors[0]["message"]))
+            # work-reports/ must be ignored in wt before the save directory is made in it: the directory is part of
+            # the tree the save reads.
+            if run("git", "-C", wt, "check-ignore", "-q", "work-reports/").returncode != 0:
+                stop("not-ignored", "work-reports/ is not ignored in %s, and %s has uncommitted changes"
+                     % (wt, wt), worktree=wt, changes=changes[:20])
+            stamp = time.strftime("%Y-%m-%d-%H%M")
+            os.makedirs(os.path.join(wt, "work-reports"), exist_ok=True)
+            n, name = 1, "%s-discarded" % stamp
+            while True:
+                try:
+                    os.mkdir(os.path.join(wt, "work-reports", name))
+                    break
+                except FileExistsError:
+                    n += 1
+                    name = "%s-discarded-%d" % (stamp, n)
+            done = save_work(wt, os.path.join(wt, "work-reports", name, "stopped.diff"))
+            saved = {k: done[k] for k in ("file", "head", "changes", "merge")}
+            if done["left"] or done["errors"]:
+                stop("not-clean", "%s is not clean after the save and the discard" % wt, worktree=wt, saved=saved,
+                     left=done["left"], errors=done["errors"])
             action = "discarded"
         git(wt, "switch", "--detach", tip)
     elif os.path.lexists(wt):
@@ -431,7 +448,7 @@ def worktree():
     else:
         git(main, "worktree", "add", "--detach", wt, tip)
         action = "created"
-    emit(status="ready", worktree=wt, action=action, head=git(wt, "rev-parse", "HEAD").strip())
+    emit(status="ready", worktree=wt, action=action, head=git(wt, "rev-parse", "HEAD").strip(), saved=saved)
 
 def ignore():
     main, wt = located()
@@ -490,11 +507,14 @@ def branch():
     git(wt, "switch", "--no-track", "-c", b, "origin/" + base)
     emit(status="ok", branch=b, start=git(wt, "rev-parse", "HEAD").strip())
 
-def save():
-    main, wt = located()
-    if listed(main, wt) is not False:
-        die("%s is no worktree of this clone. run.sh worktree %d first" % (wt, P))
-    target = os.path.abspath(ARGS[1])
+# --untracked-files=normal: the user's status.showUntrackedFiles must not hide what add -A stages and clean -fd removes.
+STATUS = ("status", "--porcelain", "--untracked-files=normal")
+
+def save_work(wt, target):
+    """Write the uncommitted work in wt to target as one binary diff, then reset and clean wt. None when wt is clean.
+    Otherwise {file, head, changes, merge, left, errors}: head is the commit the diff applies to, merge is MERGE_HEAD
+    when a merge was in progress and None otherwise, left is what status still shows afterwards, and errors are the
+    failed steps of the discard."""
     if not os.path.isdir(os.path.dirname(target)):
         die("no such directory: " + os.path.dirname(target))
     if os.path.lexists(target):
@@ -505,14 +525,13 @@ def save():
             and run("git", "-C", wt, "check-ignore", "-q", real).returncode != 0:
         die("%s is inside %s and git does not ignore it there, so saving it would change the work it saves"
             % (target, wt))
-    # --untracked-files=normal: the user's status.showUntrackedFiles must not hide what add -A stages and clean -fd removes.
-    status = ("status", "--porcelain", "--untracked-files=normal")
-    before = git(wt, *status).splitlines()
+    before = git(wt, *STATUS).splitlines()
     if not before:
-        emit(status="clean", worktree=wt)
-    if run("git", "-C", wt, "rev-parse", "--verify", "--quiet", "MERGE_HEAD").returncode == 0:
-        stop("merging", "%s holds an unfinished merge, which one diff cannot save" % wt, worktree=wt)
+        return None
     head = git(wt, "rev-parse", "HEAD").strip()
+    # reset --hard in the discard below clears MERGE_HEAD too.
+    r = run("git", "-C", wt, "rev-parse", "--verify", "--quiet", "MERGE_HEAD")
+    merge = r.stdout.strip() if r.returncode == 0 else None
     # A nested repository in an untracked directory cannot be staged (one without a commit makes add fail, one with a
     # commit becomes a gitlink). Keep it out of the add; clean -fd leaves it in place, so it shows up in left.
     nested = []
@@ -534,8 +553,17 @@ def save():
             run("git", "-C", wt, "reset")
             die("git %s failed: %s" % (" ".join(args[:2]), r.stderr.strip()))
     errors = discard(wt)
-    left = git(wt, *status).splitlines()
-    emit(status="saved", worktree=wt, file=target, head=head, changes=before[:20], left=left[:20], errors=errors)
+    left = git(wt, *STATUS).splitlines()
+    return {"file": target, "head": head, "changes": before[:20], "merge": merge, "left": left[:20], "errors": errors}
+
+def save():
+    main, wt = located()
+    if listed(main, wt) is not False:
+        die("%s is no worktree of this clone. run.sh worktree %d first" % (wt, P))
+    done = save_work(wt, os.path.abspath(ARGS[1]))
+    if done is None:
+        emit(status="clean", worktree=wt)
+    emit(status="saved", worktree=wt, **done)
 
 def merge():
     k, m, comment = int(ARGS[0]), int(ARGS[1]), ARGS[3]

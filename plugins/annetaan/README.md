@@ -59,11 +59,12 @@ In short, from [format.md](skills/pj1-plan/format.md)'s The parts:
 Only two pieces of a project's state live outside GitHub: your approval within one run, which the next run asks for
 again unless it starts `unattended` (every run of a `pj-auto` drive does, under the drive's one approval), and the
 uncommitted work a run leaves in its worktree under `.claude/worktrees/` when it ends without saving it, which the
-next run never uses.
+next run saves to `stopped.diff` and discards, and never uses.
 Because of this, a project can stop anywhere and resume in another session or on another machine.
 
 The work report of each issue is a record, not state. It stays local and no later run reads it. A stopped issue's
-work is saved there too, as `stopped.diff`. Only its `log.md` reaches GitHub, as the pull request's body.
+work is saved there too, as `stopped.diff`, and so is the work a dead run left in the worktree, in a
+`<stamp>-discarded` directory. Only its `log.md` reaches GitHub, as the pull request's body.
 
 ```mermaid
 flowchart TB
@@ -281,10 +282,12 @@ What they need:
 The `ready`, `blocker` and `project` labels are created when missing, and a label that already exists is reused as
 it is.
 
-`pj4-running` asks up to two more questions before its first issue. When git does not ignore `.claude/worktrees/`
+`pj4-running` asks one more question before its first issue. When git does not ignore `.claude/worktrees/`
 or `work-reports/`, it asks to add them to `.git/info/exclude`. That file stays in your clone, so nothing is
-committed, and `.gitignore` is never edited. When an earlier run ended without saving its work in the worktree, for example a process that was killed, it
-asks whether to discard that work. The next run redoes it either way.
+committed, and `.gitignore` is never edited. When an earlier run ended without saving its work in the worktree, for
+example a process that was killed, it does not ask: it saves that work to `work-reports/<stamp>-discarded/stopped.diff`
+in the worktree and discards it. The run then redoes that work. Run one session per project, because a
+second session's work in the worktree would be taken for a dead run's.
 
 ### pj-auto
 

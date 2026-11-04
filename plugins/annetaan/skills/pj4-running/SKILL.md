@@ -165,22 +165,20 @@ $RUNNING/scripts/run.sh worktree <P>
 It fetches the base branch again. It creates `<WT>`, moves a clean one onto `origin/<base>`, or prunes and recreates
 one whose directory is gone. `action` says which. Act by `status`.
 
-- **`dirty`**: an earlier run left work in `<WT>`, and nothing was changed. That is a run that ended without saving
-  it (a process killed mid-run), work a save left behind (`left`) or could not save, or a stopped merge of `<from>`. `changes` lists it as
-  `git status --porcelain` prints it. Ask once.
-
-  ```
-  AskUserQuestion: <WT> holds uncommitted work from an earlier run. The next run redoes it.
-    - Discard it and go on (Recommended) - run.sh resets and cleans <WT>, then moves it onto the base. Ignored files such as work-reports/ stay.
-    - Stop and look at <WT>
-  ```
-
-  On the first answer, run `$RUNNING/scripts/run.sh worktree <P> --discard`, and act on what it prints as here. On
-  the second, stop the run. Name `<WT>` and say that `git -C <WT> diff` shows the work. An unattended run does not
-  ask: it **discards nothing**, treats this as the second answer, and ends as needs-user.
+- **`ready`**: enter it. `action` `discarded` means an earlier run left uncommitted work in `<WT>` (a run that ended
+  without saving it, work a save left behind, or a stopped merge of `<from>`). `worktree` saved it to
+  `<WT>/work-reports/<stamp>-discarded/stopped.diff`, reset and cleaned `<WT>`, and moved it onto the base. Nothing
+  was asked, because of **One session per project** in the Rules. `saved` carries `file`, `head`, `changes` and
+  `merge`. Print one line, `saved and discarded the work left in <WT>: <file>`, and keep `saved` for the report.
 - **`stop`** with `foreign`: `<WT>` exists but is not a worktree of this repository, and nothing here may touch it.
   Stop. With `fetch-failed`, quote `message` and stop.
-- **`ready`**: enter it.
+- **`stop`** with `not-ignored`: `<WT>` holds uncommitted work, but `work-reports/` is not ignored in it, so the work
+  cannot be saved without changing it. Nothing was changed. Take **Paths this clone must ignore** now, which asks the
+  ignore question as usual, then run `worktree` again. When the user stops there, the run stops, and the report says
+  that `git -C <WT> diff` shows the work.
+- **`stop`** with `not-clean`: the work was saved (`saved`), but `<WT>` is not clean afterwards. `left` lists what
+  stays, such as a nested git repository, and `errors` the reset or clean that failed. Quote `message`, name `<WT>`
+  and `saved.file`, and stop the run. The user clears `left`, and the next run goes on.
 
 **Then enter it, once.**
 
@@ -229,7 +227,8 @@ Act by `status`.
 **Never edit `.gitignore` here.** That commit would land on the base branch with no pull request.
 
 On a stop, leave `<WT>` as phase 6 step 2 says and end the run. `<WT>` stays in place, and the report says that
-`git -C "<MAIN>" worktree remove <WT>` removes it.
+`git -C "<MAIN>" worktree remove <WT>` removes it. When `worktree` stopped on `not-ignored`, `<WT>` holds
+uncommitted work, so the report names that work with `git -C <WT> diff` in place of the `worktree remove` line.
 
 ## Phase 1: the order
 
@@ -440,12 +439,13 @@ $RUNNING/scripts/run.sh save <P> --to <WORKDIR>/stopped.diff
 Act by what it prints.
 
 - **`clean`**: no work was left. Name no file.
-- **`saved`**: keep `file`, `head`, `left` and `errors`. The diff in `file` applies to `head`, and `<WT>` is clean
-  apart from what `left` lists. A path in `left` stays in `<WT>` and may not be in `file`, as with a nested git
+- **`saved`**: keep `file`, `head`, `merge`, `left` and `errors`. The diff in `file` applies to `head`, and `<WT>` is
+  clean apart from what `left` lists. A `merge` that is not null is the SHA of a merge in progress that the save
+  ended: the diff holds its conflicted files, and the merge itself is gone. A path in `left` stays in `<WT>` and may not be in `file`, as with a nested git
   repository. A step in `errors` is a reset or a clean that failed.
-- **`stop`** with `merging`, or a non-zero exit: an exception to the `run.sh` rule in **Paths: `$RUNNING`**, because
-  the stop is already under way. Quote the message, say the work stays uncommitted in `<WT>`, and carry on with the
-  reason's steps, so the blocker stub is still filed.
+- A non-zero exit: an exception to the `run.sh` rule in **Paths: `$RUNNING`**, because the stop is already under way.
+  Quote the message, say the work stays uncommitted in `<WT>`, and carry on with the reason's steps, so the blocker
+  stub is still filed.
 
 Then act by the reason, and go to phase 6. Every comment below is written to a file under `$TMP` and starts with
 `**[pj4-running]**`. When `save` printed `saved`, each comment of `blocking`, `diverged` and `round cap` says that
@@ -479,8 +479,8 @@ Every way the run ends comes here: the run order is done, the run stopped, or th
    or for `start`'s `done` the invocation itself, covered it. Skip this step when the run stopped before
    **The worktree** was entered.
 2. Leave `<WT>`, only when this session entered it in **The worktree**. A stop before that point, such as a base
-   branch gone from origin, a base branch that cannot be created, or a dirty `<WT>` the user wants to look at, skips
-   this step. `<WT>` stays for the next
+   branch gone from origin, a base branch that cannot be created, or `worktree` stopping on `not-ignored` or
+   `not-clean`, skips this step. `<WT>` stays for the next
    run. The detach frees the branch for `<MAIN>`, and it works on a dirty tree too. Keep the `-C`, so the command
    cannot reach `<MAIN>` even after a context summary has lost the directory.
 
@@ -534,8 +534,8 @@ $RUNNING/scripts/run.sh sync <P>
     `merged`: print `<from> merged into <base> as <short sha>`. Go on to the pull request, unless the user said stop:
     then go to phase 6 step 2. A `stop` is handled as below.
   - **`stopped`**: report the reason and the text of the `Unplanned:` or `Diverged:` report, and say whether
-    uncommitted work stays in `<WT>`. There is no issue to comment on, so nothing goes to GitHub. The next run asks
-    about the dirty `<WT>` and redoes the merge. Go to phase 6 step 2.
+    uncommitted work stays in `<WT>`. There is no issue to comment on, so nothing goes to GitHub. The next run saves
+    the dirty `<WT>` to `stopped.diff`, discards it and redoes the merge. Go to phase 6 step 2.
 - **`stop`** with `push-rejected`: quote `message`. A rule on `<base>` refuses a direct push, or `<base>` moved since
   the fetch. The merge commit stays at `<WT>`'s HEAD, and the next run redoes the merge. Go to phase 6 step 2.
 - **`stop`** with `dirty`, `unfinished` or `not-the-merge`: `<WT>` is not as `sync` expects. Quote `message` and go
@@ -583,9 +583,12 @@ $RUNNING/scripts/run.sh pr <P> --body "$TMP/<P>-pr.md"
 - **the saved work, when `save` printed `saved`.** Give the path of `file`. `git -C <WT> apply <file>` brings it back
   on `<head>`. Say plainly that the next run never uses it because the work gets redone. Add `left` and `errors`
   when they are not empty
+- **the work `worktree` saved at the start, when `saved` was not null.** Give the path of `saved.file`.
+  `git -C <WT> apply <file>` on `saved.head` brings it back. When `saved.merge` is set, it was a merge of `<from>` in
+  progress at that commit. Say plainly that the next run never uses it because the work gets redone
 - **the uncommitted work still in `<WT>`, when there is some** (a non-empty `left`, a `save` that failed, a stopped
-  merge of `<from>`). `git -C <WT> diff` shows it. Say plainly that the next run asks whether to discard it, and that
-  the next run never uses it because the work gets redone
+  merge of `<from>`). `git -C <WT> diff` shows it. Say plainly that the next run saves it to
+  `<stamp>-discarded/stopped.diff` and discards it, and that the next run never uses it because the work gets redone
 - the screenshots that could not be attached, with their paths and the URL of the pull request
 - what is workable now and what is waiting
 - the next step: `/annetaan:pj3-doctor` when a `blocker` or a stub exists, otherwise `/annetaan:pj4-running`.
@@ -608,7 +611,7 @@ An unattended run prints its last line as `between-skills.md` says under **Unatt
 - Phase 5 step 2 marked the issue that failed `--check` and stopped.
 - **When workflow returns** got `stopped` with the reason `blocking` or `diverged`, and either no `<WORKDIR>` was
   set, or `save` printed `clean`, or it printed `saved` with an empty `left` and an empty `errors`. With any other
-  `save` output, the next step would stop on `dirty`, so it is needs-user below.
+  `save` output, the next step would stop on `not-clean`, so it is needs-user below.
 - The run order was worked to the end, and phase 6's project pull request came to `opened` or `exists`, or not every
   sub-issue is closed yet.
 
@@ -618,6 +621,11 @@ section does not name never reads as done.
 ## Rules
 
 - **You never write code.** workflow's sessions do.
+- **One session per project.** A person never runs two sessions on the same project at once: two pj4-running runs, or
+  a run beside a pj-auto drive. The parent's assignee keeps a different person off the project, not the same
+  person's second session, because both use one GitHub account. So a dirty `<WT>` at the start was always left by a
+  run that has ended, and `run.sh worktree` saves it to `work-reports/<stamp>-discarded/stopped.diff` and discards it
+  without asking.
 - **Only this session writes to GitHub.** workflow runs in this same session and pushes and opens the draft pull
   request there. Every comment starts with `**[pj4-running]**`.
 - **One issue at a time.**
