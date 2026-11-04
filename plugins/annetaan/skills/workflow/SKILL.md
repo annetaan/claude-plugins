@@ -25,6 +25,8 @@ it with a refusal or a suggestion to run something else, unless **From a pull re
 
 `$FLOW` is not a shell variable. Replace it with the real absolute path when you run bash and when you write a prompt for a sub-agent. Sub-agents have not read this instruction, so a relative path or a literal `$FLOW` finds them nothing.
 
+Parts of this skill live in files next to this one, named by their bare name from here on: `$FLOW/merge-task.md`.
+
 The standalone flow also uses the script `$FLOW/scripts/worktree.sh`, written `worktree.sh` below. Every subcommand
 prints one JSON object with a `status`. A non-zero exit is a usage error or an unexpected failure: quote its message
 and stop. The standalone flow and From a pull request call it. From an issue and From a sync never do.
@@ -441,7 +443,7 @@ $FLOW/scripts/worktree.sh sync <name> <base>
 - **`clean`**: `origin/<base>` gained `behind` commits, and they merge without a conflict. Nothing was changed. The
   branch gets no merge commit it does not need. Go on.
 - **`conflict`**: the merge of `origin/<base>` stopped on conflicts in `files`, and stays in progress in `<WT>`.
-  Print `<base> conflicts with <branch> in <n> file(s)`, then run **The merge task** with `<incoming>` as
+  Print `<base> conflicts with <branch> in <n> file(s)`, then read `merge-task.md` and run **The merge task** with `<incoming>` as
   `origin/<base>`, `<into>` as `<branch>`, `<M>` as `start`, and as `<intent>`: "the approved design, as the commits
   since `<START>` implement it", followed by the approved design.
   - **`finished`**: go on. That implementation session is alive, and it writes the work report. Keep the `later`
@@ -542,74 +544,6 @@ Every standalone run that got past approval ends here, finished or stopped (roun
 - **the cleanup**: once the pull request is merged or closed, `/annetaan:workflow-cleanup <PR number>` moves the work report into `<MAIN>/work-reports/`, removes `<WT>` and the branch, and fast-forwards the local `<base>` after a merge. A run that stopped with no pull request is cleaned up with `/annetaan:workflow-cleanup` and no number
 - for a stopped run, what is still uncommitted in `<WT>`
 
-## The merge task
-
-A merge that stopped on conflicts runs as one task with review rounds, and its commit is the merge commit. Three
-places start it: **Bringing the base in** in phase 6, **From a pull request**, and **From a sync**. There is no
-design session, no approval, no question and no integration review.
-
-### What the caller has settled
-
-- `<WT>`, where the merge is in progress: HEAD is `<M>`, the commit the merge started from, `MERGE_HEAD` is the tip
-  of `<incoming>`, and the conflicted files hold conflict markers
-- `<incoming>`, the ref coming in, such as `origin/main`, and `<into>`, the branch it comes into
-- the conflicted files
-- `<intent>`: what the `<into>` side is for, in words the sessions can check a resolution against
-- `<WORKDIR>`, and the handover notes, or none
-
-### The design, the plan and the detail
-
-```bash
-git log --oneline <M>..MERGE_HEAD
-git diff --name-only --diff-filter=U
-```
-
-- **The approved design**, for every prompt below: "Merge `<incoming>` into `<into>`. Resolve every conflict so that
-  both sides hold: what `<incoming>` brings, as it is, and `<intent>` on top of it. Change nothing beyond the
-  resolution and what the build and the tests need on the merged code." As acceptance criteria: no conflict marker is
-  left, `git diff --name-only --diff-filter=U` prints nothing, and the tests and the type checks pass.
-- **The plan**: one task, "1. Merge `<incoming>` into `<into>`".
-- **The detail design for task 1**: the conflicted files, and the commits the `git log` above lists.
-
-### The rounds
-
-Phases 3 and 4 run as written for task 1, with a new implementation session and a new review session, five rounds,
-and the worktree line in every prompt, except for these.
-
-- The phase 3 prompt: "Start point START: `<M>`. Branch: `<into>`. This is a merge in progress. Resolve the
-  conflicts, and `git add` each file you resolve. Never run `git merge --abort`, `git reset` or `git commit`: the
-  merge state is the task. Follow **Work outside the task** in your role instruction."
-- The review prompt: "This is a merge. `git diff HEAD` also shows everything `<incoming>` brings. Review the
-  resolution: each conflicted file against both sides, with `git diff HEAD -- <file>` and
-  `git diff MERGE_HEAD -- <file>`, and any change outside those files. Write round 1 as `merge-round-1.md`." Later
-  rounds are `merge-round-<r>.md`, and the replies `merge-round-<r>-reply.md`.
-- **The commit**, in phase 4 (d): "The merge passed review. Run `git add -A`, then `git commit --no-edit`, which
-  records the merge with both parents and the message git prepared. Check that `git status --porcelain` prints
-  nothing and that `git rev-parse --verify --quiet MERGE_HEAD` fails, and report back", with the notes for the next
-  session as written.
-
-Check it yourself with `git log -1 --oneline` and `git rev-parse --verify --quiet MERGE_HEAD`. Print
-`merge done: <short SHA>`.
-
-### Reports from the implementation session
-
-- **`Unplanned:` with `later`**: keep it for the caller. The task goes on.
-- **`Unplanned:` with `blocking`**, and **`Diverged:`**: stop as below.
-
-### Stopping
-
-The round cap, a `blocking` or `Diverged:` report, or the user saying stop.
-
-- **No merge commit yet**, while `git rev-parse --verify --quiet MERGE_HEAD` still succeeds: leave the working tree
-  as it is, push nothing, send nothing more to the sessions in flight, and return `stopped`.
-- **The merge commit exists**: return `finished`, with `stop requested: yes` when the user said stop.
-
-### What it hands back
-
-- **`finished`**: the SHA of the merge commit, the handover lines, the `later` reports, and `stop requested`.
-- **`stopped`**: the reason (`round cap`, `blocking`, `diverged` or `user`), the points still open or the text of the
-  report, and that the merge stays in progress in `<WT>`.
-
 ## From a pull request
 
 The user asks to resolve the conflicts of a pull request that is already open, often one this skill or pj4-running
@@ -663,7 +597,7 @@ $FLOW/scripts/worktree.sh sync <name> <base>
 - **`current`** or **`clean`**: `<head>` does not conflict with `origin/<base>`, so nothing is resolved. Say so, and
   that GitHub may take a moment to see it. Clean up as below.
 - **`conflict`**: print `<base> conflicts with <head> in <k> file(s)`. Read the pull request,
-  `gh pr view <n> --json title,body`. When its body begins `Implements #<i>`, read that issue's `## Design` too. Run
+  `gh pr view <n> --json title,body`. When its body begins `Implements #<i>`, read that issue's `## Design` too. Read `merge-task.md` and run
   **The merge task** with `<incoming>` as `origin/<base>`, `<into>` as `<head>`, `<M>` as `start`, and as `<intent>`:
   "the change pull request #<n> makes, as its title and body describe it", followed by the title, the body and the
   issue's design when there is one.
@@ -840,7 +774,7 @@ The task commit decides the case, whatever the phase. Look for it in `git log --
 
 pj4-running loads this skill once every sub-issue of project `P` is closed, before it opens the project's pull
 request, when merging `origin/<from>` into the project's base branch stopped on conflicts. The merge is in progress in
-`<WT>`. It runs **The merge task**, and pushes nothing. pj4-running pushes the merge.
+`<WT>`. It runs **The merge task** in `merge-task.md`, and pushes nothing. pj4-running pushes the merge.
 
 ### What pj4-running has settled
 
@@ -861,7 +795,7 @@ Everything **From an issue** skips, phase 2 (c) and phase 6. Phase 2 (d) runs as
 
 ### The merge task
 
-Read the parent, `gh issue view <P> --json body`. Run **The merge task** with `<incoming>` as `origin/<from>`,
+Read the parent, `gh issue view <P> --json body`. Read `merge-task.md` and run **The merge task** with `<incoming>` as `origin/<from>`,
 `<into>` as `<base>`, `<M>` as `<START>`, and as `<intent>`: "project #<P>'s changes, as the parent's `## Design`
 describes them", followed by that design. A `later` report goes to pj4-running's **Unplanned work** as it arrives,
 worded "found while merging `<from>` into `<base>`". The merge task says that a stop leaves the merge in progress in
@@ -869,7 +803,7 @@ worded "found while merging `<from>` into `<base>`". The merge task says that a 
 
 ### What it hands back to pj4-running
 
-What **The merge task** hands back, to pj4-running's **Bringing `<from>` in**.
+What **The merge task** in `merge-task.md` hands back, to pj4-running's **Bringing `<from>` in**.
 
 ## Rules for the whole flow
 
