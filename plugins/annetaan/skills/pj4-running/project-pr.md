@@ -22,7 +22,7 @@ $RUNNING/scripts/run.sh sync <P>
 - **`merged`**: the merge went through with no conflict, and `sync` pushed the merge commit `sha` to `<base>`. Print
   `<from> merged into <base> as <short sha>` and go on to the pull request.
 - **`conflict`**: the merge stopped on conflicts in `files`, and stays in progress in `<WT>`, on top of `start`.
-  Print `<from> conflicts with <base> in <n> file(s)`, then run workflow's **From a sync** (`from-sync.md` in the workflow skill). These are what it expects
+  Print `<from> conflicts with <base> in <n> file(s)`, take **Before workflow runs** in SKILL.md with From a sync, then run workflow's **From a sync** (`from-sync.md` in the workflow skill). These are what it expects
   you to have settled, so say them in your context before you start it: `P`, `<base>`, `<from>`, `files`, `start` as
   `<START>`, the handover notes, and the paths `<WT>` and `<MAIN>`. workflow hands **Unplanned work** in SKILL.md a `later`
   report as it does for an issue, worded "found while merging `<from>` into `<base>`". It comes back here.

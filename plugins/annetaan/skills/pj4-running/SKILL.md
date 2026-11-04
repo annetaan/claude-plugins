@@ -47,7 +47,7 @@ This skill uses three more things:
   `status`. A `stop` whose `reason` the section at hand does not name, such as `project` when `project.sh` fails,
   stops the run: quote `message`. A non-zero exit is a usage error or an unexpected failure: quote its message and
   stop the run
-- the `workflow` skill, loaded with the Skill tool as `annetaan:workflow`
+- the `workflow` skill, loaded with the Skill tool as `annetaan:workflow` (see **Before workflow runs**)
 
 Parts of this skill live in files next to this one, named by their bare name from here on: `$RUNNING/issues.md` (phases 1 to 5) and `$RUNNING/project-pr.md` (**The project's pull request**). Phase 6 is in this file.
 
@@ -262,6 +262,21 @@ Fold the handover lines into the notes. Merge duplicates, keep fifteen lines at 
 first. Rewrite the parent's handover comment as `between-skills.md` says under "The handover comment": read
 its `updated_at` again first, and keep any change a human made since. Create it when there is none.
 
+## Before workflow runs
+
+Take this with an entry name, `<entry>`, which is `From an issue` or `From a sync`, before that entry runs. Take it every time, never only when the notes are empty.
+
+1. Load workflow.
+
+   ```
+   Skill(skill: "annetaan:workflow", args: "<entry>, driven by pj4-running")
+   ```
+
+   Follow that entry's file in the workflow skill, `from-issue.md` or `from-sync.md`. **Load it again, and read the entry file again, when a context summary has dropped it.**
+2. Read the handover comment with the command in `between-skills.md` under "The handover comment". Keep its lines
+   as the handover notes. With no comment, the notes are empty. Every fold writes the notes back to the comment, so
+   reading it again loses nothing and picks up a human's edit.
+
 ## Phase 6: end of the run
 
 Every way the run ends comes here: the run order is done, the run stopped, or the user said stop.
@@ -369,4 +384,4 @@ section does not name never reads as done.
 - **Close an issue or a parent only through `run.sh close` or `run.sh merge`, which refuse one that is not due, and
   close as completed.**
 - An unattended run never calls `AskUserQuestion` and ends with one `unattended:` line.
-- After a context summary, take whether the run is unattended from the `project #<P>` line, `$TMP` from the `tmp` line, and rebuild the run from the progress lines and `project.sh <P>`. Read `issues.md` again when the run is in phases 1 to 5, and `project-pr.md` when it is in **The project's pull request**.
+- After a context summary, take whether the run is unattended from the `project #<P>` line, `$TMP` from the `tmp` line, and rebuild the run from the progress lines and `project.sh <P>`. Read `issues.md` again when the run is in phases 1 to 5, and `project-pr.md` when it is in **The project's pull request**. A run inside a workflow entry takes **Before workflow runs** again for that entry.

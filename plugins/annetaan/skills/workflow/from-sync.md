@@ -11,7 +11,7 @@ These values are already in your context. Nothing arrives as an argument.
 - the parent `P`, the base branch `<base>`, and `<from>`
 - the conflicted files
 - `<START>`: the tip of the base branch the merge started from
-- the handover notes, seeded from the parent's handover comment
+- the handover notes, from the parent's handover comment (`between-skills.md`, **The handover comment**)
 - the run's worktree `<WT>`, and `<MAIN>`, the main working tree. The session is in `<WT>`, on a detached HEAD
 
 pj4-running has already confirmed that `work-reports/` is ignored in `<WT>`. Every command below runs in `<WT>`.
