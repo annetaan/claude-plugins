@@ -228,7 +228,9 @@ checks that you can merge your own pull request into the project's branch withou
 run order from the top and takes issues until the first one that is not workable, then checks every issue it took.
 Any issue that needs design again sends the run back to `pj3-doctor` before anything starts. After you approve the
 order, each issue goes through the same steps in turn, in a git worktree of the project's own under
-`.claude/worktrees/`, so you can keep working in your clone while the run goes on. It gets a branch.
+`.claude/worktrees/`, so you can keep working in your clone while the run goes on. Before it starts work it assigns
+you to the parent, and it stops when someone else is assigned. The assignment stays for the life of the project, and a
+person removes it to hand the project over. Each issue gets a branch.
 [workflow](skills/workflow/README.md#driven-from-an-issue) runs it as one task, with review rounds. A draft pull
 request follows, with the work report as its body. Then the merge into the project's branch, by squash where the
 repository allows it. pj4-running then closes the issue itself, because GitHub closes nothing on a merge into a

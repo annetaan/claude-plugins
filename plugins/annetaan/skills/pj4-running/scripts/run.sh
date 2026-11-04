@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Runs the mechanical steps of pj4-running for one project and prints each result as one JSON object.
 # The judgment and the questions stay in the skill. --add carries the user's answer back.
-# Writes on GitHub: start creates the project's base branch through the API when it is due, and close comments on an
+# Writes on GitHub: worktree assigns the user to the parent when nobody is assigned. start creates the project's base branch through the API when it is due, and close comments on an
 # issue and closes it as completed, when it is due. For a parent it also lists the projects that can be split now
 # (startable). merge marks the pull request ready, merges it, comments on and closes the issue,
 # and deletes the head branch on origin. sync pushes the merge of <from> into the base branch, the one push to the base
@@ -21,7 +21,7 @@ usage() {
   cat >&2 <<'USAGE'
 usage: run.sh start <P>                       check the clone, gh and the repository, read the project, create its base branch when due, fetch it, read the merge rules
        run.sh close <P> <n> --comment <file>  comment on and close #<n> as completed, when it is due. For a parent it also lists the projects that can be split now (startable)
-       run.sh worktree <P>                    put the run's worktree on the tip of origin/<base>; a dirty one is saved to work-reports/<stamp>-discarded/stopped.diff and discarded
+       run.sh worktree <P>                    put the run's worktree on the tip of origin/<base>; a dirty one is saved to work-reports/<stamp>-discarded/stopped.diff and discarded; assigns you to the parent, and stops when someone else is assigned
        run.sh ignore <P> [--add]              whether .claude/worktrees/ and work-reports/ are ignored; --add writes them to info/exclude
        run.sh branch <P> <branch>             create <branch> in the run's worktree from the tip of origin/<base>
        run.sh merge <P> <k> <m> --comment <file> [--wait <seconds>]
@@ -404,11 +404,43 @@ def discard(wt):
             errors.append({"step": step, "message": r.stderr.strip()})
     return errors
 
+def claim(wt):
+    """Assign the user to the parent when nobody is assigned, and stop when someone else is. {"login", "added"}."""
+    def assignees(repo):
+        r = api_json("repos/%s/issues/%d" % (repo, P))
+        if r is None:
+            stop("assign-failed", "cannot read the assignees of #%d" % P, step="read", worktree=wt)
+        return [a["login"] for a in r.get("assignees") or []]
+
+    def others(me, logins, added=False):
+        found = [l for l in logins if l.lower() != me.lower()]
+        if found:
+            # self: the user is assigned too, from before or from the add just made.
+            stop("assigned", "#%d is assigned to %s" % (P, ", ".join(found)), login=me, assignees=found,
+                 self=added or len(found) < len(logins), worktree=wt)
+
+    u = api_json("user")
+    if u is None or not u.get("login"):
+        stop("assign-failed", "cannot read the user's login from GitHub", step="login", worktree=wt)
+    me = u["login"]
+    repo = repo_view()["nameWithOwner"]
+    logins = assignees(repo)
+    others(me, logins)
+    added = False
+    if not logins:
+        r = run("gh", "issue", "edit", str(P), "--add-assignee", me)
+        if r.returncode != 0:
+            stop("assign-failed", "cannot assign %s to #%d: %s" % (me, P, r.stderr.strip()), step="add", worktree=wt)
+        others(me, assignees(repo), added=True)
+        added = True
+    return {"login": me, "added": added}
+
 def worktree():
     main, wt = located()
     base = project(P)["parent"]["base"]
     if not fetch(main, base):
         stop("fetch-failed", "cannot fetch %s from origin" % base, worktree=wt)
+    assignee = claim(wt)
     tip = "origin/" + base
     prunable = listed(main, wt)
     saved = None
@@ -425,7 +457,7 @@ def worktree():
             # the tree the save reads.
             if run("git", "-C", wt, "check-ignore", "-q", "work-reports/").returncode != 0:
                 stop("not-ignored", "work-reports/ is not ignored in %s, and %s has uncommitted changes"
-                     % (wt, wt), worktree=wt, changes=changes[:20])
+                     % (wt, wt), worktree=wt, assignee=assignee, changes=changes[:20])
             stamp = time.strftime("%Y-%m-%d-%H%M")
             os.makedirs(os.path.join(wt, "work-reports"), exist_ok=True)
             n, name = 1, "%s-discarded" % stamp
@@ -439,16 +471,18 @@ def worktree():
             done = save_work(wt, os.path.join(wt, "work-reports", name, "stopped.diff"))
             saved = {k: done[k] for k in ("file", "head", "changes", "merge")}
             if done["left"] or done["errors"]:
-                stop("not-clean", "%s is not clean after the save and the discard" % wt, worktree=wt, saved=saved,
+                stop("not-clean", "%s is not clean after the save and the discard" % wt, worktree=wt, assignee=assignee, saved=saved,
                      left=done["left"], errors=done["errors"])
             action = "discarded"
         git(wt, "switch", "--detach", tip)
     elif os.path.lexists(wt):
-        stop("foreign", "%s exists and is not a worktree of this clone" % wt, worktree=wt)
+        stop("foreign", "%s exists and is not a worktree of this clone" % wt, worktree=wt,
+             assignee=assignee)
     else:
         git(main, "worktree", "add", "--detach", wt, tip)
         action = "created"
-    emit(status="ready", worktree=wt, action=action, head=git(wt, "rev-parse", "HEAD").strip(), saved=saved)
+    emit(status="ready", worktree=wt, action=action, head=git(wt, "rev-parse", "HEAD").strip(),
+         assignee=assignee, saved=saved)
 
 def ignore():
     main, wt = located()

@@ -163,15 +163,24 @@ $RUNNING/scripts/run.sh worktree <P>
 ```
 
 It fetches the base branch again. It creates `<WT>`, moves a clean one onto `origin/<base>`, or prunes and recreates
-one whose directory is gone. `action` says which. Act by `status`.
+one whose directory is gone. `action` says which. Before any of that it reads the parent's assignees, assigns the
+user when nobody is assigned, and stops when someone else is. Act by `status`.
 
-- **`ready`**: enter it. `action` `discarded` means an earlier run left uncommitted work in `<WT>` (a run that ended
+- **`ready`**: enter it. On every `worktree` output that carries `assignee` (the assignment is made before any
+  later stop), print `#<P> assigned to <assignee.login>` when `assignee.added` is true. The second call after a
+  `not-ignored` stop has `added` false, so it is printed once. `action` `discarded` means an earlier run left uncommitted work in `<WT>` (a run that ended
   without saving it, work a save left behind, or a stopped merge of `<from>`). `worktree` saved it to
   `<WT>/work-reports/<stamp>-discarded/stopped.diff`, reset and cleaned `<WT>`, and moved it onto the base. Nothing
   was asked, because of **One session per project** in the Rules. `saved` carries `file`, `head`, `changes` and
   `merge`. Print one line, `saved and discarded the work left in <WT>: <file>`, and keep `saved` for the report.
 - **`stop`** with `foreign`: `<WT>` exists but is not a worktree of this repository, and nothing here may touch it.
-  Stop. With `fetch-failed`, quote `message` and stop.
+  Stop. With `fetch-failed`, quote `message` and stop. With `assign-failed`, quote `message`, say which `step` failed
+  (`login`, `read` or `add`), and stop.
+- **`stop`** with `assigned`: `assignees` names the people assigned to `#<P>` besides the user. The project belongs to
+  someone else, and pj4-running does not take a parent assigned to another person. Name the logins and stop. Once
+  that person no longer works on it, removing them from `#<P>`'s Assignees lets the next run take it. When `self` is
+  true, the user is assigned too, so two people started at once, and a human decides who stays. The user's own
+  assignment stays either way, and removing it is a human's call.
 - **`stop`** with `not-ignored`: `<WT>` holds uncommitted work, but `work-reports/` is not ignored in it, so the work
   cannot be saved without changing it. Nothing was changed. Take **Paths this clone must ignore** now, which asks the
   ignore question as usual, then run `worktree` again. When the user stops there, the run stops, and the report says
@@ -301,6 +310,8 @@ Show the user:
 - each parent closed at the start, as `#<Q>`
 - the worktree `<WT>`, where the whole run happens, and that `<MAIN>` is not touched, so the user can keep working
   there
+- that `#<P>` is assigned to `<login>` (now, when this run assigned it), and that the assignment stays for the life of
+  the project
 - that `<WT>` has none of `<MAIN>`'s ignored files, such as dependencies or a `.env`, so the first worker prepares
   them
 - how each issue runs: a branch, workflow's **From an issue** (one task with review rounds, with the review files
@@ -577,6 +588,7 @@ $RUNNING/scripts/run.sh pr <P> --body "$TMP/<P>-pr.md"
   `/annetaan:pj2-issues <R>` with its title
 - the worktree `<WT>`. The next run reuses it. The work reports live only under its `work-reports/`.
   `/annetaan:pj-cleanup <P>` moves them into `<MAIN>` and removes `<WT>` once the project is merged
+- that this run assigned `#<P>` to `<login>`, when `assignee.added` was true, and that the assignment stays
 - each merged issue with the URL of its pull request
 - the stubs filed, the `later` ones and the `blocker` ones
 - where the run stopped and why, or that the run order is done
@@ -626,6 +638,8 @@ section does not name never reads as done.
   person's second session, because both use one GitHub account. So a dirty `<WT>` at the start was always left by a
   run that has ended, and `run.sh worktree` saves it to `work-reports/<stamp>-discarded/stopped.diff` and discards it
   without asking.
+- **Take a project only when nobody else is assigned to its parent.** `run.sh worktree` assigns the user and leaves
+  the assignment in place for the life of the project.
 - **Only this session writes to GitHub.** workflow runs in this same session and pushes and opens the draft pull
   request there. Every comment starts with `**[pj4-running]**`.
 - **One issue at a time.**
