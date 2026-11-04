@@ -80,7 +80,7 @@ Keep the handover lines from phase 4 (d) for pj4-running.
 
 - **`Unplanned:` with `later`**: hand it to pj4-running's **Unplanned work** as soon as it arrives. The task goes on.
 - **`Unplanned:` with `blocking`**, and **`Diverged:`**: take the stop procedure, then hand the report to
-  pj4-running's **When workflow returns**.
+  pj4-running's **When workflow returns** in `issues.md`.
 - **Adaptations** the implementation session lists: keep them for the review requests and for `log.md`.
 
 ## Phase 6 from an issue

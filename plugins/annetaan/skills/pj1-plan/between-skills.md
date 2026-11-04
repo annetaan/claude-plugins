@@ -187,7 +187,7 @@ A `pj3-doctor` or `pj4-running` run is unattended when its args carry the word `
 - **The project.** Only rule 1 of **Picking the project** applies. No number, or a number that points at no option,
   ends the run as needs-user without asking. Rules 2 and 3 do not apply.
 - **Questions.** An unattended run never calls `AskUserQuestion`. The approval question (`pj3-doctor` phase 4,
-  `pj4-running` phase 3) is skipped, and the summary it would have shown is printed as usual. Any other question that
+  `pj4-running` phase 3, in `pj4-running/issues.md`) is skipped, and the summary it would have shown is printed as usual. Any other question that
   comes due ends the run without asking, the way choosing stop on that question would, as needs-user.
 - **The last line.** On ending, the run prints exactly one last line, one of:
   - `unattended: done`, when it ended in one of the ways its skill lists under **Ending an unattended run**
