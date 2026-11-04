@@ -4,7 +4,7 @@ This file holds what `pj1-plan`, `pj2-issues`, `pj3-doctor` and `pj4-running` ag
 the base branch, the labels, the comments, the pull requests, how they name an issue to the user, the commands
 and how they write to GitHub. The four skills,
 `pj-auto` and `pj-cleanup` read it first.
-The project reviewer looks up **Blockers**, and the `workflow` skill's **From an issue** looks up **Pull requests**.
+The project reviewer looks up **Blockers**, and the `workflow` skill's **From an issue** (`workflow/from-issue.md`) looks up **Pull requests**.
 The issues and their bodies are in `format.md`, and how `project.sh` judges a project is in `state.md`, both next to
 this file.
 
