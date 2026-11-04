@@ -473,5 +473,9 @@ uses the name from there on.
 The replacement happens only in SKILL.md. A file the skill hands to a sub-agent, such as `workflow/roles/*.md`, is
 read as plain text. It has to work the path out from where it was read, or take it from the prompt.
 
+A file the main session reads on the skill's behalf, such as `workflow/from-issue.md` or `pj4-running/issues.md`, has
+no replacement either. Its SKILL.md names it with its full path, and the file uses the short name SKILL.md
+gives. A file that uses that name says so in one line at its top.
+
 A skill that reads another skill's file goes through its own directory, as `pj3-doctor` reads
 `$DOCTOR/../pj1-plan/format.md`.

@@ -191,7 +191,14 @@ screenshots it could not attach.
 
 | File | What it is |
 | --- | --- |
-| `SKILL.md` | the procedure for the orchestrator, which is the main session |
+| `SKILL.md` | the procedure for the orchestrator, which is the main session: which file each entry reads, the worktree line, the agents, phases 2 to 4 and the rules every entry shares |
+| `standalone.md` | the standalone run: the breaking-change check, design and approval, the integration review and the finish |
+| `from-pr.md` | resolving the conflicts of a pull request that is already open |
+| `from-issue.md` | one sub-issue as one task, for pj4-running |
+| `from-sync.md` | a merge of the source branch into a project's base branch that stopped on conflicts, for pj4-running |
+| `merge-task.md` | the merge task, which resolves conflicts under review, for the standalone finish, from-pr and from-sync |
+| `worktree.md` | the start check and the run's worktree, for the standalone run and from-pr |
+| `finish.md` | the work report and the pull request, for the standalone run and from-issue |
 | `roles/design.md` | the role for the design session, which returns the design and the plan |
 | `roles/design-review.md` | the role for the design review session, which pushes the design toward its ideal shape once, before approval |
 | `roles/work.md` | the role for the implementation session |
