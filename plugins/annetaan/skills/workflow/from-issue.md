@@ -85,7 +85,7 @@ Keep the handover lines from phase 4 (d) for pj4-running.
 
 ## Phase 6 from an issue
 
-1. **The work report.** The request in **The work report** in SKILL.md gains this, with the values filled in:
+1. **The work report.** Read `finish.md`. The request in **The work report** in `finish.md` gains this, with the values filled in:
 
    > Begin `log.md` with this head, exactly, then the report:
    >
@@ -109,7 +109,7 @@ Keep the handover lines from phase 4 (d) for pj4-running.
    gh pr create --draft --base <base branch> --title "<issue title>" --body-file log.md
    ```
 
-   The `--attach` rules apply as in **The pull request** in SKILL.md. When `attach` is false and there are screenshots, open the pull
+   The `--attach` rules apply as in **The pull request** in `finish.md`. When `attach` is false and there are screenshots, open the pull
    request with the `gh pr create` line above, without `--attach`, so it keeps `--draft --base <base branch>`. The
    file paths go into what you hand back. Nothing waits on the user.
 4. Return `finished`.
