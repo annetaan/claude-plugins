@@ -14,7 +14,7 @@ These values are already in your context. Nothing arrives as an argument.
 - the issue number `n`, the parent `P`, and the issue title
 - the projects `P` waits on, `Q1, Q2, …` (`parent.waitsOn` in `project.sh`), or none
 - the base branch (the parent's `Base:` line), and the branch pj4-running just made from the tip of the base branch
-- the handover notes, seeded from the parent's handover comment
+- the handover notes, from the parent's handover comment (`between-skills.md`, **The handover comment**)
 - the run's worktree `<WT>`, and `<MAIN>`, the main working tree. The session is in `<WT>`, and the branch is
   checked out there
 - `attach` from pj4-running's `run.sh start`, which has run its checks: whether `--attach` works

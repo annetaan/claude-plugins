@@ -99,15 +99,7 @@ The approval covers this run only (`between-skills.md`, **Principle**).
 
 ## Phase 4: before the first issue
 
-1. Load workflow.
-
-   ```
-   Skill(skill: "annetaan:workflow", args: "From an issue, driven by pj4-running")
-   ```
-
-   Follow its **From an issue** entry, `from-issue.md` in the workflow skill, for every issue. **Load it again, and read `from-issue.md` again, when a context summary has dropped it.**
-2. Read the handover comment with the command in `between-skills.md` under "The handover comment". Keep its lines
-   as the handover notes. With no comment, the notes are empty.
+Take **Before workflow runs** in SKILL.md with From an issue. Its entry, `from-issue.md` in the workflow skill, is followed for every issue.
 
 ## Phase 5: one issue at a time
 
