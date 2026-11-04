@@ -24,10 +24,10 @@ Every command below runs in `<WT>`, so `<ROOT>` and `<WORKDIR>` come from there.
 
 ## What it skips
 
-- **Before you start**'s `worktree.sh start`, in SKILL.md. pj4-running's `run.sh start` has run its checks, and its `attach` says
+- **The start check**'s `worktree.sh start`, in `worktree.md`. pj4-running's `run.sh start` has run its checks, and its `attach` says
   whether `--attach` works.
 - **Does this repository accept breaking changes?** in SKILL.md. Ask nothing and write nothing to memory.
-- **The worktree** in SKILL.md. pj4-running made `<WT>` and checked what it must ignore.
+- **The worktree** in `worktree.md`. pj4-running made `<WT>` and checked what it must ignore.
 - All of phase 1: the design session, the design review, the open questions and the approval dialog.
 - Phase 2 (a) and (b). pj4-running owns the branch. Keep the two commands of (b) as a guard, because (d) needs
   `<ROOT>` from the first one.
@@ -70,7 +70,7 @@ a line each.
 
 - The phase 3 prompt: "This run comes from issue #<n>. Follow **Work outside the task** in your role instruction."
 - The review prompt: "The design is issue #<n>. Its checked decisions bind."
-- Every prompt, implementation and review alike, carries **the worktree line** (in **The worktree** in SKILL.md).
+- Every prompt, implementation and review alike, carries **the worktree line** (**The worktree line** in SKILL.md).
 - Every review request, the round 1 prompt and each "review it again" `SendMessage`, also carries the adaptations
   the implementation session has listed so far, under "Adaptations", or "none".
 

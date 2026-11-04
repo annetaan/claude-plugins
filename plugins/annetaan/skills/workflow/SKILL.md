@@ -25,7 +25,7 @@ it with a refusal or a suggestion to run something else, unless **From a pull re
 
 `$FLOW` is not a shell variable. Replace it with the real absolute path when you run bash and when you write a prompt for a sub-agent. Sub-agents have not read this instruction, so a relative path or a literal `$FLOW` finds them nothing.
 
-Parts of this skill live in files next to this one, named by their bare name from here on: `$FLOW/merge-task.md`, `$FLOW/from-issue.md`, `$FLOW/from-sync.md`, `$FLOW/from-pr.md`.
+Parts of this skill live in files next to this one, named by their bare name from here on: `$FLOW/merge-task.md`, `$FLOW/from-issue.md`, `$FLOW/from-sync.md`, `$FLOW/from-pr.md`, `$FLOW/worktree.md`.
 
 The standalone flow also uses the script `$FLOW/scripts/worktree.sh`, written `worktree.sh` below. Every subcommand
 prints one JSON object with a `status`. A non-zero exit is a usage error or an unexpected failure: quote its message
@@ -37,25 +37,11 @@ This skill spawns sub-sessions and adds commits. **Start it only when the user n
 `/annetaan:workflow`, asks to resolve the conflicts of a pull request, or pj4-running loads it for an issue or a
 sync.**
 
-Run one command and keep every answer. Phase 1 needs them.
-
-```bash
-$FLOW/scripts/worktree.sh start
-```
-
-It prints `status: ok` with `main`, `mainBranch`, `defaultBranch`, `gh` and `attach`.
-
-- `main` is `<MAIN>`, the main working tree. The flow never works in it.
-- `mainBranch` is the branch `<MAIN>` has checked out, or null on a detached HEAD.
-- `defaultBranch` is the branch origin's HEAD names, or null.
-- `attach` says whether `gh` is new enough for `gh pr create --attach` (2.99.0 or later). Phase 6 reads it, and `gh` holds the version.
-- **A `stop` ends the flow before design.** Its `reason` is `not-a-repo`, `no-origin`, `gh`, `gh-auth` or `repo`. Name the check and quote `message`. For `no-origin`, `gh` and `gh-auth`, add that this flow ends in a pull request and one cannot be opened here.
-- **A null `defaultBranch` stops the flow too**, unless the request names the branch to start from. Say that the default branch cannot be read.
-- **A dirty `<MAIN>` does not stop the flow**, because the flow never works in it.
+The standalone flow first reads `worktree.md` and runs **The start check**, then comes back to **Does this repository accept breaking changes?** below.
 
 ### Does this repository accept breaking changes?
 
-Decide this after `worktree.sh start` and before **The worktree**. It decides whether the design review runs. The review pushes
+Decide this after `worktree.sh start` and before **The worktree** in `worktree.md`. It decides whether the design review runs. The review pushes
 the design toward the shape it would have from a blank slate, and that shape often moves existing code, so it runs
 only where the repository accepts breaking changes. **The answer is a sentence you keep**, not a shell variable. The
 approval message needs it.
@@ -83,70 +69,19 @@ AskUserQuestion: Do you want broader design improvements (accepting breaking cha
 run, or will not run, because `<file>` says … / memory from <date> says …. That line is where the user stops a
 stale memory.
 
-## The worktree
+Then run **The worktree** in `worktree.md`, and come back to phase 1 below.
 
-The standalone flow works in a git worktree of its own, `.claude/worktrees/wf-<stamp>` inside `<MAIN>`, detached at the tip of the base branch on origin. `<MAIN>` stays as the user left it. Run these steps after **Does this repository accept breaking changes?** and before phase 1, so that design reads the code in `<WT>`. The memory lookup above ran in the session's own project, before the worktree.
+## The worktree line
 
-1. **The base.** The branch the request names, otherwise `defaultBranch`.
-2. **The base question.** Only when the project's instructions in context (`CLAUDE.md`) ask for the base branch to be confirmed on every run. They are free-form, so you judge whether they do. Ask one `AskUserQuestion` with these options in this order, leaving out any that repeat an earlier one: the branch the request names `(Recommended)`; `defaultBranch` (`(Recommended)` when it comes first); `mainBranch` when it is set and differs from the default branch. The tool adds Other on its own. The answer is the base. **When fewer than two options remain**, ask a two-option confirm question instead: `Use <base> (Recommended)` and `Another branch - type its name under Other`, where `<base>` is the one candidate. An answer under Other is the base.
-3. **Create it.**
+A sub-session does not start in `<WT>` by itself. **Every sub-agent prompt, once `<WT>` is entered, ends with this line**: the design, the design review, the implementation, the review, the integration review and the report session.
 
-   ```bash
-   $FLOW/scripts/worktree.sh create <base>
-   ```
+> Your working directory must be the worktree `<WT>`. Run `git rev-parse --show-toplevel` first. When it prints anything else, call `EnterWorktree(path: "<WT>")` before anything else, or, when that tool is not available, start every command with `cd <WT>` and keep Edit and Write paths under `<WT>`. Never touch `<MAIN>`.
 
-   - `ready`: keep `worktree` as `<WT>`, `name` as `<name>` and `base` as `<base>`.
-   - `stop` with `base-missing`: say that origin has no branch `<base>`, and stop the flow.
-   - `stop` with `fetch-failed`: quote `message` and stop the flow.
-
-   Both stops come before a worktree exists, so there is nothing to remove.
-4. **Ignore rules.** Two paths must stay out of git: `.claude/worktrees/` in `<MAIN>` and `work-reports/` in `<WT>`.
-
-   ```bash
-   $FLOW/scripts/worktree.sh ignore <name>
-   ```
-
-   `ok`: go on. `ask`: ask once, naming `notIgnored`.
-
-   ```
-   AskUserQuestion: These paths are not ignored in this repository: <paths>. workflow works in .claude/worktrees/ and writes its reports to work-reports/.
-     - Ignore them in this clone (Recommended) - adds them to .git/info/exclude and commits nothing
-     - Stop
-   ```
-
-   On the first answer, run `$FLOW/scripts/worktree.sh ignore <name> --add` and act on what it prints as here. On
-   `stop` with `still-not-ignored`, a `.gitignore` rule overrides the exclude file: say so and take **Ending before
-   approval**. On Stop, take **Ending before approval**. **Never edit `.gitignore`.**
-5. **Enter it, once.**
-
-   ```
-   EnterWorktree(path: "<WT>")
-   ```
-
-   Where that tool is not available, `cd <WT>`. Print `worktree <WT> base <base>` once. **Every command from here to
-   the end of the run runs in `<WT>`.** After a context summary, run `git rev-parse --show-toplevel`, and enter
-   `<WT>` again when it prints anything else.
-6. **The worktree line.** A sub-session does not start in `<WT>` by itself. **Every sub-agent prompt from here on
-   ends with this line**: the design, the design review, the implementation, the review, the integration review and
-   the report session.
-
-   > Your working directory must be the worktree `<WT>`. Run `git rev-parse --show-toplevel` first. When it prints anything else, call `EnterWorktree(path: "<WT>")` before anything else, or, when that tool is not available, start every command with `cd <WT>` and keep Edit and Write paths under `<WT>`. Never touch `<MAIN>`.
-
-   Write the real path for `<WT>` and `<MAIN>` when you send it.
-7. `<WT>` has none of `<MAIN>`'s ignored files, such as installed dependencies or a `.env`. The first worker prepares what the tests need and leaves the steps in the handover notes, so later tasks find them there.
-
-### Ending before approval
-
-When the run ends before approval, leave the worktree and remove it.
-
-1. When you have entered `<WT>` (**The worktree** step 5), `ExitWorktree(action: "keep")`, or `cd <MAIN>` where that tool is not available. A stop at step 4 comes before that: skip this step.
-2. `git -C <MAIN> worktree remove <WT>`
-
-The reasons: the Stop answer at the ignore question, a feasibility of "no" or "conditional" the user does not pursue, any answer at approval that ends the flow, and the user saying stop. Design sessions never change code, so there is no `--force`. When git refuses, something wrote into `<WT>`: quote the refusal, name `<WT>`, and point to `/annetaan:workflow-cleanup`.
+Write the real path for `<WT>` and `<MAIN>` when you send it.
 
 ## Phase 1: design
 
-Hand the user's request to the design session as it was written, with the worktree line (see **The worktree**).
+Hand the user's request to the design session as it was written, with the worktree line (see **The worktree line**).
 
 ```
 Agent(subagent_type: "annetaan:workflow-design", description: "design",
@@ -221,8 +156,8 @@ does not accept breaking changes, or the request asks for a minimal change.
 
 **When the user corrects the base at approval**, the design was written against the wrong code:
 
-1. Leave and remove the worktree as **Ending before approval** says.
-2. Run steps 3 to 6 of **The worktree** with the new base.
+1. Leave and remove the worktree as **Ending before approval** in `worktree.md` says.
+2. Run steps 3 to 6 of **The worktree** in `worktree.md` with the new base.
 3. Start a new design session from the design call.
 4. Run no second design review, as for any rework at approval.
 5. Ask the open questions again, then ask for approval again.
@@ -272,7 +207,7 @@ git -C <ROOT> check-ignore -q work-reports/   # exit 0: ignored
 before the first run there is no directory, so `check-ignore work-reports` answers exit 1 even when
 `.gitignore` already has `work-reports/`. With the slash, git takes the path as a directory whether it exists or not.
 
-Exit 0: go on. Exit 1: stop and report, because **The worktree** step 4 should have settled it. Never add the path to `.gitignore`.
+Exit 0: go on. Exit 1: stop and report, because **The worktree** step 4 in `worktree.md` should have settled it. Never add the path to `.gitignore`.
 
 ### (c) Record the start point
 

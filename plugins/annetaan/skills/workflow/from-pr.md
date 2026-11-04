@@ -15,7 +15,7 @@ worktree is cleaned up.
 
 ## Which pull request
 
-Run `worktree.sh start` as **Before you start** in SKILL.md says. Then take the number the request names, as `#12` or a URL.
+Run `worktree.sh start` as **The start check** in `worktree.md` says. Then take the number the request names, as `#12` or a URL.
 When it names none and the conversation is about one pull request, take that one. Otherwise:
 
 ```bash
@@ -39,7 +39,7 @@ $FLOW/scripts/worktree.sh pr <number>
 
 ## The worktree
 
-Run steps 3 to 6 of **The worktree** in SKILL.md with `<head>` in place of the base: `worktree.sh create <head>` puts the new
+Run steps 3 to 6 of **The worktree** in `worktree.md` with `<head>` in place of the base: `worktree.sh create <head>` puts the new
 worktree on the tip of `origin/<head>`, detached, so a worktree that already has `<head>` checked out, such as the
 one the run that opened the pull request left, is not in the way. A stop there ends this entry, as it would a
 standalone run. Then make the work directory as phase 2 (d) says, from `git rev-parse HEAD`.
@@ -57,7 +57,7 @@ $FLOW/scripts/worktree.sh sync <name> <base>
   **The merge task** with `<incoming>` as `origin/<base>`, `<into>` as `<head>`, `<M>` as `start`, and as `<intent>`:
   "the change pull request #<n> makes, as its title and body describe it", followed by the title, the body and the
   issue's design when there is one.
-- **`stop`**: quote `message`, and leave the worktree as **Ending before approval** in SKILL.md says.
+- **`stop`**: quote `message`, and leave the worktree as **Ending before approval** in `worktree.md` says.
 
 ## The push
 
