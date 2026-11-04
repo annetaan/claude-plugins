@@ -43,4 +43,4 @@ worded "found while merging `<from>` into `<base>`". The merge task says that a 
 
 ## What it hands back to pj4-running
 
-What **The merge task** in `merge-task.md` hands back, to pj4-running's **Bringing `<from>` in**.
+What **The merge task** in `merge-task.md` hands back, to pj4-running's **Bringing `<from>` in** in `project-pr.md`.

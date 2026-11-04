@@ -49,7 +49,7 @@ This skill uses three more things:
   stop the run
 - the `workflow` skill, loaded with the Skill tool as `annetaan:workflow`
 
-Parts of this skill live in files next to this one, named by their bare name from here on: `$RUNNING/issues.md`.
+Parts of this skill live in files next to this one, named by their bare name from here on: `$RUNNING/issues.md` (phases 1 to 5) and `$RUNNING/project-pr.md` (**The project's pull request**). Phase 6 is in this file.
 
 **Language**: talk to the user in the user's language. Write issue, comment and pull request text in the repository's
 language (`format.md`, **Writing bodies**). The tokens in (`format.md`, **Fixed tokens**) stay in English.
@@ -267,7 +267,7 @@ its `updated_at` again first, and keep any change a human made since. Create it 
 Every way the run ends comes here: the run order is done, the run stopped, or the user said stop.
 
 1. `project.sh <P>`. **When every sub-issue is closed** and the project is not `merged`, bring `<from>` in and open
-   the project's pull request as **The project's pull request** says. Ask nothing, because the approval in phase 3,
+   the project's pull request: read `project-pr.md` and run **The project's pull request**, then come back to step 2. Ask nothing, because the approval in phase 3,
    or for `start`'s `done` the invocation itself, covered it. Skip this step when the run stopped before
    **The worktree** was entered.
 2. Leave `<WT>`, only when this session entered it in **The worktree**. A stop before that point, such as a base
@@ -280,7 +280,7 @@ Every way the run ends comes here: the run order is done, the run stopped, or th
    git -C "<WT>" switch --detach
    ```
 
-   Skip that command when a stopped **Bringing `<from>` in** left a merge in progress: git refuses to switch then, and
+   Skip that command when a stopped **Bringing `<from>` in** in `project-pr.md` left a merge in progress: git refuses to switch then, and
    the HEAD is detached already.
 
    ```
@@ -288,75 +288,6 @@ Every way the run ends comes here: the run order is done, the run stopped, or th
    ```
 
    A worktree entered by path is never deleted by `ExitWorktree`. Where that tool is not available, `cd "<MAIN>"`.
-
-## The project's pull request
-
-The project's pull request takes the whole project from `<base>` into `<from>`. pj4-running opens it, and never
-merges it. Merging it is the user's job.
-
-Before it opens it, pj4-running merges `origin/<from>` into `<base>`, so that the pull request shows the project as it
-lands on `<from>` today, and a conflict with what `<from>` gained since `<base>` was cut is settled here, under review,
-instead of in the user's merge. Both steps run in `<WT>`.
-
-### Bringing `<from>` in
-
-```bash
-$RUNNING/scripts/run.sh sync <P>
-```
-
-`sync` fetches `<base>` and `<from>`, and merges `origin/<from>` into the tip of `origin/<base>` in `<WT>`. Act by
-`status`.
-
-- **`current`**: `<base>` contains `<from>` already. Go on to the pull request.
-- **`merged`**: the merge went through with no conflict, and `sync` pushed the merge commit `sha` to `<base>`. Print
-  `<from> merged into <base> as <short sha>` and go on to the pull request.
-- **`conflict`**: the merge stopped on conflicts in `files`, and stays in progress in `<WT>`, on top of `start`.
-  Print `<from> conflicts with <base> in <n> file(s)`, then run workflow's **From a sync**. These are what it expects
-  you to have settled, so say them in your context before you start it: `P`, `<base>`, `<from>`, `files`, `start` as
-  `<START>`, the handover notes, and the paths `<WT>` and `<MAIN>`. workflow hands **Unplanned work** a `later`
-  report as it does for an issue, worded "found while merging `<from>` into `<base>`". It comes back here.
-  - **`finished`** with the SHA of the merge commit, even with `stop requested: yes`, because the merge is reviewed
-    and the next run would redo it otherwise: fold the handover lines as **Folding the handover lines** says, then
-    push it.
-
-    ```bash
-    $RUNNING/scripts/run.sh sync <P> --push
-    ```
-
-    `merged`: print `<from> merged into <base> as <short sha>`. Go on to the pull request, unless the user said stop:
-    then go to phase 6 step 2. A `stop` is handled as below.
-  - **`stopped`**: report the reason and the text of the `Unplanned:` or `Diverged:` report, and say whether
-    uncommitted work stays in `<WT>`. There is no issue to comment on, so nothing goes to GitHub. The next run saves
-    the dirty `<WT>` to `stopped.diff`, discards it and redoes the merge. Go to phase 6 step 2.
-- **`stop`** with `push-rejected`: quote `message`. A rule on `<base>` refuses a direct push, or `<base>` moved since
-  the fetch. The merge commit stays at `<WT>`'s HEAD, and the next run redoes the merge. Go to phase 6 step 2.
-- **`stop`** with `dirty`, `unfinished` or `not-the-merge`: `<WT>` is not as `sync` expects. Quote `message` and go
-  to phase 6 step 2.
-- **`stop`** with `base-gone`, `merged`, `not-due` or `fetch-failed`: as for the pull request below.
-
-### Opening it
-
-Write `$TMP/<P>-pr.md`. Its first line is `Part of #<P>`. Below it, in the repository's language, it says that the
-pull request brings project `#<P>` into `<from>`, lists each sub-issue closed as completed as `#<k> <title>` with its
-pull request `#<m>` from `project.sh <P>`, names the stubs and the issues closed as not planned, and says that the
-parent closes as completed when a pj4-running run sees the merge, or when the user closes it after merging.
-
-```bash
-$RUNNING/scripts/run.sh pr <P> --body "$TMP/<P>-pr.md"
-```
-
-`run.sh pr` opens it with the parent's title, from `<base>`, which is on origin already, so nothing is pushed. Act by
-`status`.
-
-- **`opened`**: keep `url` for the report.
-- **`exists`**: an open pull request from `<base>` into `<from>` is there already, from an earlier run or from the
-  user. Nothing was written. Keep `url`.
-- **`stop`** with `base-gone`: the base branch is gone from origin, so nothing can be opened. Say so.
-- **`stop`** with `create-failed`: quote `message`. A base branch with no commits beyond `<from>`, for example when
-  every sub-issue was closed as not planned, has nothing to bring in.
-- **`stop`** with `merged` or `not-due`: the project changed under the run. Quote `message`.
-- **`stop`** with `behind` or `fetch-failed`: `<from>` moved after **Bringing `<from>` in**, or origin could not be
-  read. Quote `message`. The next run brings `<from>` in again.
 
 ## Report to the user
 
@@ -397,7 +328,7 @@ An unattended run prints its last line as `between-skills.md` says under **Unatt
 - `start` returned `empty`.
 - `start` returned `stop` with `waits`. The projects waited on are readable on GitHub.
 - `start` returned `done` with `project.merged` true, and `close` closed `<P>` or found it `already` closed.
-- `start` returned `done` and **The project's pull request** came to `opened` or `exists`.
+- `start` returned `done` and **The project's pull request** in `project-pr.md` came to `opened` or `exists`.
 - Phase 1's run order was empty, including when `orderCheck` is not ok and no issue has a merged pull request.
 - Phase 2 marked the issue that failed `--check` and stopped.
 - Phase 5 step 1 stopped because a human had removed `ready`.
@@ -438,4 +369,4 @@ section does not name never reads as done.
 - **Close an issue or a parent only through `run.sh close` or `run.sh merge`, which refuse one that is not due, and
   close as completed.**
 - An unattended run never calls `AskUserQuestion` and ends with one `unattended:` line.
-- After a context summary, take whether the run is unattended from the `project #<P>` line, `$TMP` from the `tmp` line, and rebuild the run from the progress lines and `project.sh <P>`. Read `issues.md` again when the run is in phases 1 to 5.
+- After a context summary, take whether the run is unattended from the `project #<P>` line, `$TMP` from the `tmp` line, and rebuild the run from the progress lines and `project.sh <P>`. Read `issues.md` again when the run is in phases 1 to 5, and `project-pr.md` when it is in **The project's pull request**.
