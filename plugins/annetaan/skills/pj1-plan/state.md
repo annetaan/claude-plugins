@@ -62,7 +62,8 @@ project.sh --exact <before> <after> <findings>   # whether <after> is <before> w
   ones included. A skill edits an open issue's title when the two differ, and never retitles a closed one
   (`between-skills.md`, **Titles**).
 - `parent` in `blockedBy` is the number of the blocker's parent issue, or null.
-- `readyAt` is the time of the last `ready` labelled event on the issue, or null.
+- `readyAt` is the time of the last `ready` labelled event on the issue, or null. It marks the last time a
+  `pj3-doctor` review read the body against the code (see **Is the body still current?**).
 - `pr` is the issue's pull request, open or merged (see **The pull request of an issue** below), or null. Its `state`
   is `OPEN` or `MERGED`.
 - `stub` is true when `## Design` reads `To be drawn.`.
@@ -91,7 +92,9 @@ only once it exists, which moves local refs and nothing else, and prints:
  "history": {"stale": [{"sha", "subject", "pr" or null}]}}
 ```
 
-`ok` is true when the lint is clear, no premise failed and no commit is stale. `evaluated` is false while a blocker is
+`ok` is true when the lint is clear, no premise failed and no commit is stale. A commit in `history.stale` keeps `ok`
+false until `readyAt` moves past it. `pj3-doctor` moves it by putting `ready` on again once its review has returned the
+commit as cleared and the issue has nothing left on it. `evaluated` is false while a blocker is
 still open, or while the base branch does not exist and a project in `waitsOn` is not `merged` (see **Is the body
 still current?**).
 
@@ -208,6 +211,11 @@ at the tip of `origin/<from>` while the base branch does not exist yet, since th
   this project waits on, directly or not. The transitive `blockedBy` is its blockers, their blockers, and so on
   through the project, closed issues included.
   Every other candidate is **stale**. With no `readyAt`, or no base branch, there is no history.
+
+  `readyAt` is the acknowledgment: a stale commit is one that no review has read yet. When a `pj3-doctor` review
+  returns the commit as cleared and the issue has nothing left on it, `pj3-doctor` puts `ready` on, or takes it off
+  and on again when the issue already carries it. The new `readyAt` drops the commit from the next `--check`
+  (`pj3-doctor`, "`ready` goes on an issue").
 
 The design was written knowing its blockers would land first, and that the projects it waits on would be merged
 into `<from>` before its base branch was cut, so their commits were foreseen. A commit from anywhere else that

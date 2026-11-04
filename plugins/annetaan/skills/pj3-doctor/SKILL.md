@@ -97,7 +97,8 @@ not outlive one command, so write the path in full each time.
    - number and title, and `ready`, `blocker` or `stub` when it is one
    - the open decisions, by count, and the contradictory ones
    - the reviewer's findings, in a few words each
-   - `clear` when the reviewer found nothing and the check passed
+   - `clear` when the reviewer found nothing and the check passed, or failed only on stale commits the reviewer
+     returned as `cleared`, with their short SHAs
 
    Then one line for each parent with a finding, and the edges the reviewer would change.
 
@@ -220,7 +221,8 @@ $DOCTOR/../pj1-plan/scripts/project.sh <Q>
 - the blockers to close
 - the titles to change, as `#<n> <title> -> <wantedTitle>`. An issue rewritten or filed in this run has no
   `wantedTitle` yet, so take its count from the decisions in its new body (`format.md`, **The title**)
-- `ready` to add, and `ready` to take off, each with why
+- `ready` to add, `ready` to renew (with the short SHAs it moves `readyAt` past), and `ready` to take off, each with
+  why
 - the new `## Order`, one line per issue as it will read
 
 ```
@@ -233,10 +235,18 @@ An unattended run skips this question, prints the same summary, and writes as on
 
 The approval covers this run only (`between-skills.md`, **Principle**).
 
-**`ready` goes on an issue** when it is open, `--check` passes with the lint clear and the premises clear or not
-evaluated yet, and no review finding is left on it: the reviewer's last return lists it as clear, or every finding it
-has there is `exact` and the issue printed `#<k> exact fixed`. `ready` stays on an issue that still meets this.
-**`ready` comes off** an issue that had it and no longer meets this.
+**`ready` goes on an issue** when it is open and all of these hold:
+
+- the step 7 `--check` has a clear lint and the premises clear or not evaluated yet
+- every SHA in its `history.stale` is carried as a `cleared` line in the reviewer's last return on that issue (the
+  second return when it covers the issue, the first otherwise). A stale SHA with no `cleared` line keeps `ready` off.
+  That covers a commit that landed after phase 1, and one that a redrawn file list now reaches. You hold nothing from
+  phase 1 for this: match the SHAs of the step 7 `--check` against the `cleared` lines you have.
+- no review finding is left on it: the reviewer's last return lists it as clear, or every finding it has there is
+  `exact` and the issue printed `#<k> exact fixed`
+
+Putting `ready` on moves `readyAt` past the cleared commits (`state.md`, **Is the body still current?**). `ready`
+stays on an issue that still meets this. **`ready` comes off** an issue that had it and no longer meets this.
 
 Write in this order. **When a command fails halfway**, stop and tell the user what was written and what was not, with
 the numbers.
@@ -316,8 +326,25 @@ the numbers.
    gh issue edit <k> --add-label ready --remove-label blocker
    ```
 
-   **An issue that carries `blocker` loses it in the same command.** A check that fails now leaves `ready` off, and
-   the report names the failures.
+   **An issue that carries `blocker` loses it in the same command.** A check whose lint or premises fail now, or
+   whose `history.stale` holds a SHA with no `cleared` line, leaves `ready` off, and the report names the failures.
+
+   **An issue that already carries `ready`, whose step 7 `history.stale` is not empty and fully cleared, gets `ready`
+   renewed**, so that `readyAt` moves past the cleared commits. `--add-label` on a label already present creates no
+   event, so take the label off and put it on again.
+
+   ```bash
+   gh issue edit <k> --remove-label ready
+   gh issue edit <k> --add-label ready
+   ```
+
+   **Every time `ready` goes on, or is renewed, with a step 7 `history.stale` that is not empty**, post one comment.
+   It starts with `**[pj3-doctor]**` and lists each cleared commit: its SHA, subject and pull request from the step 7
+   `--check`, and the reason from the reviewer's `cleared` line.
+
+   ```bash
+   gh issue comment <k> --body-file "$TMP/<k>-cleared.md"
+   ```
 
    **Whoever takes `ready` off leaves a comment** (`between-skills.md`, **Labels**). It starts with
    `**[pj3-doctor]**` and says what changed and why.
@@ -343,8 +370,9 @@ the numbers.
 
 ## Report to the user
 
-- every open sub-issue, one line each, in the new run order: `ready` or not, and when not, why. An issue left
-  without `ready` by the second review gives its `design` findings as the reason
+- every open sub-issue, one line each, in the new run order: `ready`, `ready` renewed past `<short SHAs>`, or not
+  ready with why. An issue left without `ready` by the second review gives its `design` findings as the reason, and
+  one left without it by a stale commit with no `cleared` line names that commit
 - **the decisions left for the user**, one line each, as `<issue URL> D<k> <question>`. This is the
   user's next step: tick them on GitHub, then run `/annetaan:pj3-doctor` again
 - the issues filed, the sub-issue and parent edges changed, the blockers closed, the parents rewritten and the
