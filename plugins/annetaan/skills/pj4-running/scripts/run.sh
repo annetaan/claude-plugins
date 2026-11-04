@@ -406,10 +406,12 @@ def discard(wt):
 
 def claim(wt):
     """Assign the user to the parent when nobody is assigned, and stop when someone else is. {"login", "added"}."""
-    def assignees(repo):
+    def assignees(repo, me=None):
         r = api_json("repos/%s/issues/%d" % (repo, P))
         if r is None:
-            stop("assign-failed", "cannot read the assignees of #%d" % P, step="read", worktree=wt)
+            # me is set after the add: the user is assigned now, and the stop has to say so.
+            extra = {"assignee": {"login": me, "added": True}} if me else {}
+            stop("assign-failed", "cannot read the assignees of #%d" % P, step="read", worktree=wt, **extra)
         return [a["login"] for a in r.get("assignees") or []]
 
     def others(me, logins, added=False):
@@ -431,7 +433,7 @@ def claim(wt):
         r = run("gh", "issue", "edit", str(P), "--add-assignee", me)
         if r.returncode != 0:
             stop("assign-failed", "cannot assign %s to #%d: %s" % (me, P, r.stderr.strip()), step="add", worktree=wt)
-        others(me, assignees(repo), added=True)
+        others(me, assignees(repo, me), added=True)
         added = True
     return {"login": me, "added": added}
 
