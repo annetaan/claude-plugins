@@ -6,7 +6,7 @@ description: Takes the project from a number given, a sub-issue's number naming 
 # pj4-running
 
 The fourth of the four pj skills: it works down a project's run order, the parent's `## Order`, and merges one pull
-request per issue. Once every sub-issue is closed, it merges `<from>` into the base branch and opens the project's
+request per sub-issue. Once every sub-issue is closed, it merges `<from>` into the base branch and opens the project's
 pull request, from the base branch into `<from>`, and the user merges it.
 
 You are the main session. **You do not write code.** workflow's sessions implement and review. You own the branch,
@@ -201,11 +201,11 @@ Where that tool is not available, `cd "<WT>"`. A Bash `cd` moves this session on
 to enter `<WT>` themselves, because their directory resets on every bash call.
 
 **Every command from here to the end of the run runs in `<WT>`.** After a context summary, run
-`git rev-parse --show-toplevel`, and enter `<WT>` again when it prints anything else. Between issues `<WT>` holds a
+`git rev-parse --show-toplevel`, and enter `<WT>` again when it prints anything else. Between tasks `<WT>` holds a
 detached HEAD. A stop from here on, even one before the approval, leaves `<WT>` as phase 6 step 2 says.
 
 `<WT>` has none of `<MAIN>`'s ignored files, such as installed dependencies or a `.env`. The first worker prepares
-what the tests need and leaves the steps in the handover notes, so later issues find them there.
+what the tests need and leaves the steps in the handover notes, so later tasks find them there.
 
 ### Paths this clone must ignore
 
@@ -369,7 +369,7 @@ section does not name never reads as done.
   the assignment in place for the life of the project.
 - **Only this session writes to GitHub.** workflow runs in this same session and pushes and opens the draft pull
   request there. Every comment starts with `**[pj4-running]**`.
-- **One issue at a time.**
+- **One task at a time.**
 - **Everything runs in `<WT>`.** Never switch, stash, commit or clean in `<MAIN>`. The user works there.
 - **Never `--admin`. Never create a label with `--force`. Always pass a body with `--body-file`.**
 - **Never merge the project's pull request.** It goes into `<from>`, and the user merges it.

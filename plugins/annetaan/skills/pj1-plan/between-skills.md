@@ -23,10 +23,10 @@ only the questions that change the cut into projects, the split into tasks, or a
 talks with the user about everything else: a split, two boxes ticked in one decision, and its changes before they are
 written.
 
-`pj-auto` is no stage of its own. It drives `pj3-doctor` and `pj4-running` on one project as unattended runs, one
+`pj-auto` is not one of the four. It drives `pj3-doctor` and `pj4-running` on one project as unattended runs, one
 fresh `claude -p` process per step, and lets `project.sh --next` (`state.md`, **What comes next**) pick every step.
 
-`pj-cleanup` is no stage either. It runs once the user has merged a project's pull request: it closes the parent,
+`pj-cleanup` is not one of the four either. It runs once the user has merged a project's pull request: it closes the parent,
 removes the project's worktree after moving its work reports into the main working tree, deletes the base branch on
 origin and locally, and fast-forwards the local `<from>`.
 
@@ -230,7 +230,7 @@ gh issue comment <P> --body-file <file>    # the first time, when there is none
 
 `blocker` marks what `pj4-running` stopped on. It goes in one of two places.
 
-1. **On a stub that blocks the stopped issue.** The work found lies outside the issue in hand, and the issue cannot be
+1. **On a stub that blocks the stopped issue.** The work found lies outside the task in hand, and the task cannot be
    finished without it. The stub (`format.md`, **Stubs**) is a sub-issue of the same parent, and the stopped issue is
    blocked by it.
 

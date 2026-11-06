@@ -36,7 +36,7 @@ Read each issue as the worker will: its `## Design`, the lines under each ticked
 the code. Then read the issues against each other.
 
 1. **A ticked box the body does not hold.** Another option than the recommended one is ticked, and its lines change
-   the file list or reach past this issue, or the design says something the ticked option makes untrue.
+   the file list or reach past this task, or the design says something the ticked option makes untrue.
 2. **Two boxes ticked in one decision.** Name it. Only the user can settle it.
 3. **A ticked option the code rules out.**
 4. **A human comment the body does not answer yet**: an answer that is none of the options, or a correction.

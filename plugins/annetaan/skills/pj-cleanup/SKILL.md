@@ -5,7 +5,7 @@ description: Cleans up after the user has merged a project's pull request, the o
 
 # pj-cleanup
 
-`pj-cleanup` is no stage of its own. It runs once a project is `merged`, after the user has merged the pull request
+`pj-cleanup` is not one of the four pj skills. It runs once a project is `merged`, after the user has merged the pull request
 that `pj4-running` opened from the base branch into `<from>`, and tidies up what the project left behind: the open
 parent, the worktree, the base branch, and a local `<from>` that is now behind origin.
 

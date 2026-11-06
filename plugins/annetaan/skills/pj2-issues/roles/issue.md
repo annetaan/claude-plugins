@@ -110,7 +110,7 @@ what the blockers in this project add as existing.
 Each finding says what is wrong. Fix all of them in one body.
 
 - **A box ticked to another option than the recommended one, whose lines change the file list or reach past this
-  issue**: redraw `## Design` and the file list for the ticked option. The ticked option becomes the one the body is
+  task**: redraw `## Design` and the file list for the ticked option. The ticked option becomes the one the body is
   written for. Keep the boxes as the human ticked them.
 - **A premise failure, or a stale commit the review says touches what the issue depends on**: redraw the body
   against the code as it is now.
@@ -159,7 +159,7 @@ first character after `old: ` or `new: ` to the end of the line, exactly.
   sub-issues of this project. When the project needs another project's work and `baseExists` is false, return
   `#<P> blocked by #<Q>` instead, and never make the projects wait on each other (`format.md`, **Projects**). Once
   the base branch exists, the work becomes a stub in this project.
-- **A stub to file**, when merged code has to change outside this issue: its title and body in the stub shape.
+- **A stub to file**, when merged code has to change outside this task: its title and body in the stub shape.
 - **A blocker to close**: `#b`, resolved by your rewrite.
 - **What you could not fix**, if anything, and why: a ticked option the code rules out, two boxes ticked in one
   decision, or a fix that belongs to another issue.

@@ -181,8 +181,8 @@ A body has to meet the bar for `ready` (`state.md`, **When an issue is ready**).
 - Prose after the list is optional.
 
 **The size limit is 8 files, and it belongs to the split.** `pj2-issues` cuts every task to 8 files at most,
-tests included, so that its review fits in one sitting. It is a planning rule, not a condition on the issue. When
-`pj3-doctor` or the implementation later takes a file list past 8, the issue stays one issue and one pull
+tests included, so that its review fits in one sitting. It is a planning rule, not a condition on the task. When
+`pj3-doctor` or the implementation later takes a file list past 8, the task stays one task, one sub-issue and one pull
 request, and nobody asks whether to split it.
 
 ### The title
@@ -237,7 +237,7 @@ Decided: the admin screen has to change it without a deploy.
 **The body holds whichever box is ticked.** `## Design` and the file list are written for the recommended option,
 and say nothing that another option would make untrue. What an option changes beyond that is under its box. When the
 user ticks another option, the worker reads the design together with the lines under the ticked box.
-`pj3-doctor` has the writer redraw the body when those lines change the file list or reach past this issue.
+`pj3-doctor` has the writer redraw the body when those lines change the file list or reach past this task.
 
 **A sub-issue with no decisions** writes `None.` under `## Decisions`.
 
