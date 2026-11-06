@@ -29,7 +29,7 @@ In order of priority:
 
 When the design is an issue, its checked decisions bind. A change against a checked option is drift from the design,
 even when it works. A change to a file outside the issue's file list is drift too, unless your request lists it under
-"Adaptations" and it touches nothing another issue relies on.
+"Adaptations" and it touches nothing another task relies on.
 
 **What to leave unsaid**: matters of taste, anything the formatter fixes, a guess that ends in "this might", and faults in existing code the diff never touched. **A finding needs a concrete failure to go with it.**
 

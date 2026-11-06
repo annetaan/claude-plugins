@@ -8,7 +8,7 @@ run. A standalone run works in a worktree of its own under `.claude/worktrees/`,
 and may be dirty. It always ends in a pull request.
 
 workflow is the plugin's core skill for one implementation. You run it yourself for a change that fits one pull
-request. For larger work, pj4-running runs it once per issue (see [Driven from an issue](#driven-from-an-issue) and
+request. For larger work, pj4-running runs it once per task of a project (see [Driven from an issue](#driven-from-an-issue) and
 [How the skills fit together](../../README.md#how-the-skills-fit-together)).
 
 ## Install
@@ -20,8 +20,7 @@ request. For larger work, pj4-running runs it once per issue (see [Driven from a
 
 ## Use it
 
-Name the skill, or invoke `/annetaan:workflow`. It never starts on its own. You name it, pj4-running runs it for
-one issue, or you ask it to resolve the conflicts of a pull request (see [Conflicts](#conflicts)), because it spawns
+Name the skill, or invoke `/annetaan:workflow`. It never starts on its own. You name it, pj4-running runs it for one task of a project, or you ask it to resolve the conflicts of a pull request (see [Conflicts](#conflicts)), because it spawns
 several sessions and adds commits.
 
 ```
@@ -35,9 +34,7 @@ the design cleaner, and abstractions that are too many or too few. Each finding 
 There is one round. The design session takes in what it agrees with, and what it does not agree with comes to you as
 open questions before the approval.
 
-**The review runs only where the repository accepts breaking changes**, such as a pre-release project or a library you
-control. The skill settles that before design starts: what `CLAUDE.md` or `AGENTS.md` says, then this project's
-memory, then a question whose answer it saves to memory. It never edits `CLAUDE.md` or `AGENTS.md`. When one of those
+**The review runs only where the repository accepts breaking changes**, such as a pre-release product or a library you control. The skill settles that before design starts: what `CLAUDE.md` or `AGENTS.md` says, then the memory Claude Code keeps for this repository, then a question whose answer it saves to memory. It never edits `CLAUDE.md` or `AGENTS.md`. When one of those
 files or memory decides, you get one line saying so before design starts, and that is where you stop a memory that has
 gone stale. A request for a minimal change, such as an urgent fix, skips the review and the question, and writes
 nothing to memory. When Fable cannot start, because of the weekly limit for example, the review is skipped and the
@@ -82,7 +79,7 @@ session, folded together, capped at fifteen.
 
 ## Driven from an issue
 
-pj4-running works through a project's issues one at a time, and runs each one through this skill. That run has no
+pj4-running works through a project's tasks one at a time, one sub-issue each, and runs each one through this skill. That run has no
 design session, no approval and no questions. The issue's text is the approved design, and an issue only gets that
 far once it can be implemented as it stands. The issue becomes one task with its review rounds, so no integration
 review runs.
@@ -98,7 +95,7 @@ finish step, so the run finishes it: the report, the push and the draft pull req
 a task commit that passed review. The shape of the issues is in [format.md](../pj1-plan/format.md), and the shape
 of the pull requests in [between-skills.md](../pj1-plan/between-skills.md).
 
-Once every issue of a project is closed, pj4-running merges the branch the project came from into the project's
+Once every sub-issue of a project is closed, pj4-running merges the branch the project came from into the project's
 branch before it opens the project's pull request. When that merge stops on conflicts, pj4-running runs this skill
 once more, as one task that resolves them with its review rounds. Its commit is the merge commit, and pj4-running
 pushes it. A stop before that commit leaves the merge in progress in the worktree, and the next run redoes it.

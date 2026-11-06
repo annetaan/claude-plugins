@@ -83,8 +83,7 @@ uncommitted work a run leaves in its worktree under `.claude/worktrees/` when it
 next run saves to `stopped.diff` and discards, and never uses.
 Because of this, a project can stop anywhere and resume in another session or on another machine.
 
-The work report of each issue is a record, not state. It stays local and no later run reads it. A stopped issue's
-work is saved there too, as `stopped.diff`, and so is the work a dead run left in the worktree, in a
+The work report of each task is a record, not state. It stays local and no later run reads it. A stopped task's work is saved there too, as `stopped.diff`, and so is the work a dead run left in the worktree, in a
 `<stamp>-discarded` directory. Only its `log.md` reaches GitHub, as the pull request's body.
 
 ```mermaid
@@ -178,7 +177,7 @@ branch now conflicts with it, the finish step merges the base in and resolves th
 before it pushes. A pull request that conflicts later is resolved the same way when you ask for it in plain words,
 such as "コンフリクト解消して", with no skill named ([Conflicts](skills/workflow/README.md#conflicts)).
 
-`pj4-running` runs this flow once per issue ([Driven from an issue](skills/workflow/README.md#driven-from-an-issue),
+`pj4-running` runs this flow once per task ([Driven from an issue](skills/workflow/README.md#driven-from-an-issue),
 [How the skills fit together](#how-the-skills-fit-together)).
 
 Every run leaves a work report behind, inside the repository under `work-reports/` so that you notice them piling
@@ -203,7 +202,7 @@ count goes away once every one is. Ticking a box leaves the title as it is until
 
 Each project's work lands on a branch of its own, `pj/` and the parent's number. `pj4-running` creates it on the
 project's first run, from a branch you pick when the projects are filed, the default branch unless you name another.
-A project that waits on another is split into issues, and gets its branch, only after the other one is merged into
+A project that waits on another is split into tasks, and gets its branch, only after the other one is merged into
 that branch. Every
 sub-issue's pull request merges into its project's branch. Once every sub-issue is closed, `pj4-running` merges the
 branch it came from into it, with `workflow` resolving any conflict under review, then opens the pull request that
@@ -248,10 +247,10 @@ projects and stops instead. It closes the parent of any project it finds merged,
 checks that you can merge your own pull request into the project's branch without an approving review. It walks the
 run order from the top and takes issues until the first one that is not workable, then checks every issue it took.
 Any issue that needs design again sends the run back to `pj3-doctor` before anything starts. After you approve the
-order, each issue goes through the same steps in turn, in a git worktree of the project's own under
+order, each task goes through the same steps in turn, in a git worktree of the project's own under
 `.claude/worktrees/`, so you can keep working in your clone while the run goes on. Before it starts work it assigns
 you to the parent, and it stops when someone else is assigned. The assignment stays for the life of the project, and a
-person removes it to hand the project over. Each issue gets a branch.
+person removes it to hand the project over. Each task gets a branch.
 [workflow](skills/workflow/README.md#driven-from-an-issue) runs it as one task, with review rounds. A draft pull
 request follows, with the work report as its body. Then the merge into the project's branch, by squash where the
 repository allows it. pj4-running then closes the issue itself, because GitHub closes nothing on a merge into a
@@ -305,7 +304,7 @@ What they need:
 The `ready`, `blocker` and `project` labels are created when missing, and a label that already exists is reused as
 it is.
 
-`pj4-running` asks one more question before its first issue. When git does not ignore `.claude/worktrees/`
+`pj4-running` asks one more question before its first task. When git does not ignore `.claude/worktrees/`
 or `work-reports/`, it asks to add them to `.git/info/exclude`. That file stays in your clone, so nothing is
 committed, and `.gitignore` is never edited. When an earlier run ended without saving its work in the worktree, for
 example a process that was killed, it does not ask: it saves that work to `work-reports/<stamp>-discarded/stopped.diff`
