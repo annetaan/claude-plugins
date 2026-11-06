@@ -34,9 +34,30 @@ a project. `workflow-cleanup` does the same for a workflow run.
 Which skill to start with:
 
 - A change that fits one pull request: `/annetaan:workflow`.
-- Anything larger: `/annetaan:pj1-plan`.
+- Anything larger, usually one initiative from your `roadmap.md` ([Task, project, initiative](#task-project-initiative)): `/annetaan:pj1-plan`.
 
 The doc skills are a separate family, for writing and revising documents, and do not use either of these.
+
+### Task, project, initiative
+
+The pj skills size work at three levels, from fine to coarse.
+
+| Level | What it is | Where it lives |
+| --- | --- | --- |
+| task | one implement, review and commit unit, which becomes one commit | a sub-issue, which becomes one pull request into the project's branch |
+| project | tasks aimed at 7 to 8, 10 at most, on the base branch `pj/<n>`, which reaches the branch it was made from in one pull request | a parent issue labelled `project` |
+| initiative | the input of one `pj1-plan` run, which cuts it into one or more projects | an entry in `roadmap.md`, not on GitHub |
+
+A standalone `workflow` run has tasks too: each item of its plan is one, and the whole run becomes one pull request.
+
+An issue is the GitHub container, not a level: a parent issue holds a project, and a sub-issue holds a task. Stages
+and the run order are orders, not levels. A stage groups the projects of one `pj1-plan` run that can run in
+parallel, and the run order is the order of the tasks inside one project.
+
+Keep your initiatives in `roadmap.md` (or `ROADMAP.md`) at the root of the repository, and put on GitHub only the
+projects of the initiatives you are working on. When you start one, hand its entry to `/annetaan:pj1-plan`, quoted or
+named, and it files that initiative's projects. No skill writes `roadmap.md`, and `pj1-plan` plans a request that comes
+from anywhere else the same way.
 
 ### GitHub holds the state
 
@@ -167,7 +188,7 @@ never edited. `/annetaan:workflow-cleanup` moves the report into your clone's `w
 
 ### pj1-plan, pj2-issues, pj3-doctor, pj4-running
 
-These four skills run a piece of work too large for one pull request as one or more projects on GitHub. A project is
+These four skills run an initiative, a piece of work too large for one pull request, as one or more projects on GitHub. A project is
 a parent issue labelled `project`, which holds that project's design and its run order, plus one sub-issue per task,
 at most ten tasks per project. A task touches eight files at most, tests included. A project that waits on another is blocked by it, parent to parent, through GitHub's
 own blocked-by relationship. Blocked-by between sub-issues stays inside one project. Projects that wait on nothing
@@ -192,7 +213,7 @@ the state lives. [format.md](skills/pj1-plan/format.md) describes the issues and
 [state.md](skills/pj1-plan/state.md) how the state of a project is read, and
 [between-skills.md](skills/pj1-plan/between-skills.md) how the four skills work together.
 
-`/annetaan:pj1-plan` ([details](skills/pj1-plan/SKILL.md)) starts with a planner session. It draws the whole in
+`/annetaan:pj1-plan` ([details](skills/pj1-plan/SKILL.md)) starts with a planner session. Its input is usually one initiative from your `roadmap.md`, quoted or named. It draws the whole in
 broad strokes and cuts it into projects of about 7 to 8 tasks, at most ten, with the dependencies between them. You
 answer the plan-level questions and see the projects in stages, with the reason for each wait. You approve them and
 pick the branch the projects start from. Nothing reaches GitHub before that. Then one parent issue per project is

@@ -20,7 +20,7 @@ in `state.md`, and what the skills agree on between them is in `between-skills.m
 
 ### Projects
 
-One request can become several projects, `PJ1, PJ2, …` while `pj1-plan` plans them, each a parent issue of its own.
+One request to `pj1-plan`, usually one initiative, can become several projects, `PJ1, PJ2, …` while `pj1-plan` plans them, each a parent issue of its own.
 `pj2-issues` numbers the tasks of one project `T1…Tn`. Every project from one request is made from the same branch.
 
 **A project holds at most 10 tasks.** Like the 8-file limit, it is a rule of the cut. `pj1-plan` cuts the request so
