@@ -77,7 +77,7 @@ Show the user:
   the project
 - that `<WT>` has none of `<MAIN>`'s ignored files, such as dependencies or a `.env`, so the first worker prepares
   them
-- how each issue runs: a branch, workflow's **From an issue** (one task with review rounds, with the review files
+- how each task runs: a branch, workflow's **From an issue** (one task with review rounds, with the review files
   in its work report), a draft pull request into the base branch, then a merge by pj4-running, which then closes the
   issue. GitHub does not close it on a merge into a branch other than the default branch.
 - that once every sub-issue is closed, the run merges `<from>` into the base branch and pushes the merge there, with
@@ -97,11 +97,11 @@ An unattended run skips this question, prints the same summary, and starts.
 
 The approval covers this run only (`between-skills.md`, **Principle**).
 
-## Phase 4: before the first issue
+## Phase 4: before the first task
 
 Take **Before workflow runs** in SKILL.md with From an issue. Its entry, `from-issue.md` in the workflow skill, is followed for every issue.
 
-## Phase 5: one issue at a time
+## Phase 5: one task at a time
 
 Nothing runs in parallel. There is one worktree, `<WT>`. For each issue `<k>` in the run order:
 
@@ -134,7 +134,7 @@ Nothing runs in parallel. There is one worktree, `<WT>`. For each issue `<k>` in
      - **`stop`** with `unpushed`: stop the run. Name `<branch>` and the number in `commits`, and say that
        `git -C <WT> log origin/<base>..<branch>` shows them. A `finish` stop in an earlier run leaves exactly this.
        The user picks the way out. A draft pull request from `<branch>` into `<base>` with the work report's `log.md`
-       as its body makes the next run merge it. Deleting `<branch>` makes the next run redo the issue.
+       as its body makes the next run merge it. Deleting `<branch>` makes the next run redo the task.
      - **`stop`** with `checked-out`: stop the run, and name the worktree in `worktree` that holds `<branch>`.
 4. **Run From an issue.** These are what it expects you to have settled, so say them in your context before you
    start it: `n` (= `<k>`), `P`, the issue title, the projects `<P>` waits on (the `parent.waitsOn` numbers, or
@@ -198,7 +198,7 @@ Act by what it prints.
 
 Then act by the reason, and go to phase 6. Every comment below is written to a file under `$TMP` and starts with
 `**[pj4-running]**`. When `save` printed `saved`, each comment of `blocking`, `diverged` and `round cap` says that
-the work so far is saved on the machine that ran this, at `file`, that the next run redoes the issue, and which
+the work so far is saved on the machine that ran this, at `file`, that the next run redoes the task, and which
 paths of `left` stay in `<WT>` when there are any. After a `save` that failed or stopped, it says that the work
 stays uncommitted in `<WT>`.
 

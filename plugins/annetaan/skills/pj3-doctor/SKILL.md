@@ -115,7 +115,7 @@ is ticked on GitHub, and a question the reviewer raised becomes a new decision i
 
 Ask with `AskUserQuestion`, at most four questions per call, one issue per question, header `#<n>`:
 
-- **A proposed split** (kind 11): split as proposed, or keep one issue and rework it. Each option says what it files
+- **A proposed split** (kind 11): split as proposed, or keep it one task and rework it. Each option says what it files
   and how the edges move.
 - **Two boxes ticked in one decision** (kind 2): which option stands. List the ticked options, the recommended one
   first.

@@ -19,12 +19,12 @@ of the repository.
 Otherwise, go down this list and stop at the first one that answers.
 
 1. **The repository states it.** `CLAUDE.md` or `AGENTS.md` says whether breaking changes are welcome. Follow it.
-2. **This project's memory has it.** Follow the memory.
-3. **Neither.** Ask, then save the answer to this project's memory, under a name that identifies the repository and the date, in the format the memory directory already uses.
+2. **The memory Claude Code keeps for this repository has it.** Follow the memory.
+3. **Neither.** Ask, then save the answer to that memory, under a name that identifies the repository and the date, in the format the memory directory already uses.
 
 ```
 AskUserQuestion: Do you want broader design improvements (accepting breaking changes)?
-  - Yes - a pre-release project, or a library you control
+  - Yes - a pre-release product, or a library you control
   - No  - a released SaaS, or a widely used OSS
 ```
 

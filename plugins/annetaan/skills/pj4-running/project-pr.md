@@ -25,7 +25,7 @@ $RUNNING/scripts/run.sh sync <P>
   Print `<from> conflicts with <base> in <n> file(s)`, take **Before workflow runs** in SKILL.md with From a sync, then run workflow's **From a sync** (`from-sync.md` in the workflow skill). These are what it expects
   you to have settled, so say them in your context before you start it: `P`, `<base>`, `<from>`, `files`, `start` as
   `<START>`, the handover notes, and the paths `<WT>` and `<MAIN>`. workflow hands **Unplanned work** in SKILL.md a `later`
-  report as it does for an issue, worded "found while merging `<from>` into `<base>`". It comes back here.
+  report as it does for a task, worded "found while merging `<from>` into `<base>`". It comes back here.
   - **`finished`** with the SHA of the merge commit, even with `stop requested: yes`, because the merge is reviewed
     and the next run would redo it otherwise: fold the handover lines as **Folding the handover lines** in SKILL.md says, then
     push it.

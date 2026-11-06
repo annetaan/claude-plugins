@@ -1,11 +1,11 @@
 ---
 name: pj1-plan
-description: Starts a project on GitHub. Has a planner design a large request in broad strokes and cut it into projects aimed at 7 to 8 tasks each, 10 at most, asks the plan-level questions, and shows the projects in stages, where the projects of one stage can run in parallel. Per project files a parent issue labelled `project` that holds its Goal, Design, Decisions and Out of scope, with the dependencies between projects as native blocked-by relationships between the parents. Each parent's `Base:` line names its base branch, `pj/<parent number>`, and a branch the user picks, and pj4-running creates the base branch later. Files no sub-issue. pj2-issues splits a project into tasks once every project it waits on is merged. The first of four skills, followed by pj2-issues, pj3-doctor and pj4-running. Use it only when the user names this skill or invokes /annetaan:pj1-plan, because it creates issues, relationships and labels on GitHub. Do not use it for a change small enough for one pull request.
+description: Starts a project on GitHub. Has a planner design a large request, usually one initiative from the repository's roadmap.md, in broad strokes and cut it into projects aimed at 7 to 8 tasks each, 10 at most, asks the plan-level questions, and shows the projects in stages, where the projects of one stage can run in parallel. Per project files a parent issue labelled `project` that holds its Goal, Design, Decisions and Out of scope, with the dependencies between projects as native blocked-by relationships between the parents. Each parent's `Base:` line names its base branch, `pj/<parent number>`, and a branch the user picks, and pj4-running creates the base branch later. Files no sub-issue. pj2-issues splits a project into tasks once every project it waits on is merged. The first of four skills, followed by pj2-issues, pj3-doctor and pj4-running. Use it only when the user names this skill or invokes /annetaan:pj1-plan, because it creates issues, relationships and labels on GitHub. Do not use it for a change small enough for one pull request.
 ---
 
 # pj1-plan
 
-The first of the four pj skills: it turns a large request into one or more projects, each a parent issue, with the
+The first of the four pj skills: it turns a large request, usually one initiative from the repository's `roadmap.md` or `ROADMAP.md`, into one or more projects, each a parent issue, with the
 dependencies between them. `pj2-issues` splits each project into sub-issues later.
 
 You are the main session. **You do not write code, and you do not design on your own.** A planner draws the whole,

@@ -34,9 +34,30 @@ a project. `workflow-cleanup` does the same for a workflow run.
 Which skill to start with:
 
 - A change that fits one pull request: `/annetaan:workflow`.
-- Anything larger: `/annetaan:pj1-plan`.
+- Anything larger, usually one initiative from your `roadmap.md` ([Task, project, initiative](#task-project-initiative)): `/annetaan:pj1-plan`.
 
 The doc skills are a separate family, for writing and revising documents, and do not use either of these.
+
+### Task, project, initiative
+
+The pj skills size work at three levels, from fine to coarse.
+
+| Level | What it is | Where it lives |
+| --- | --- | --- |
+| task | one implement, review and commit unit, which becomes one commit | a sub-issue, which becomes one pull request into the project's branch |
+| project | tasks aimed at 7 to 8, 10 at most, on the base branch `pj/<n>`, which reaches the branch it was made from in one pull request | a parent issue labelled `project` |
+| initiative | the input of one `pj1-plan` run, which cuts it into one or more projects | an entry in `roadmap.md`, not on GitHub |
+
+A standalone `workflow` run has tasks too: each item of its plan is one, and the whole run becomes one pull request.
+
+An issue is the GitHub container, not a level: a parent issue holds a project, and a sub-issue holds a task. Stages
+and the run order are orders, not levels. A stage groups the projects of one `pj1-plan` run that can run in
+parallel, and the run order is the order of the tasks inside one project.
+
+Keep your initiatives in `roadmap.md` (or `ROADMAP.md`) at the root of the repository, and put on GitHub only the
+projects of the initiatives you are working on. When you start one, hand its entry to `/annetaan:pj1-plan`, quoted or
+named, and it files that initiative's projects. No skill writes `roadmap.md`, and `pj1-plan` plans a request that comes
+from anywhere else the same way.
 
 ### GitHub holds the state
 
@@ -62,8 +83,7 @@ uncommitted work a run leaves in its worktree under `.claude/worktrees/` when it
 next run saves to `stopped.diff` and discards, and never uses.
 Because of this, a project can stop anywhere and resume in another session or on another machine.
 
-The work report of each issue is a record, not state. It stays local and no later run reads it. A stopped issue's
-work is saved there too, as `stopped.diff`, and so is the work a dead run left in the worktree, in a
+The work report of each task is a record, not state. It stays local and no later run reads it. A stopped task's work is saved there too, as `stopped.diff`, and so is the work a dead run left in the worktree, in a
 `<stamp>-discarded` directory. Only its `log.md` reaches GitHub, as the pull request's body.
 
 ```mermaid
@@ -157,7 +177,7 @@ branch now conflicts with it, the finish step merges the base in and resolves th
 before it pushes. A pull request that conflicts later is resolved the same way when you ask for it in plain words,
 such as "コンフリクト解消して", with no skill named ([Conflicts](skills/workflow/README.md#conflicts)).
 
-`pj4-running` runs this flow once per issue ([Driven from an issue](skills/workflow/README.md#driven-from-an-issue),
+`pj4-running` runs this flow once per task ([Driven from an issue](skills/workflow/README.md#driven-from-an-issue),
 [How the skills fit together](#how-the-skills-fit-together)).
 
 Every run leaves a work report behind, inside the repository under `work-reports/` so that you notice them piling
@@ -167,7 +187,7 @@ never edited. `/annetaan:workflow-cleanup` moves the report into your clone's `w
 
 ### pj1-plan, pj2-issues, pj3-doctor, pj4-running
 
-These four skills run a piece of work too large for one pull request as one or more projects on GitHub. A project is
+These four skills run an initiative, a piece of work too large for one pull request, as one or more projects on GitHub. A project is
 a parent issue labelled `project`, which holds that project's design and its run order, plus one sub-issue per task,
 at most ten tasks per project. A task touches eight files at most, tests included. A project that waits on another is blocked by it, parent to parent, through GitHub's
 own blocked-by relationship. Blocked-by between sub-issues stays inside one project. Projects that wait on nothing
@@ -182,7 +202,7 @@ count goes away once every one is. Ticking a box leaves the title as it is until
 
 Each project's work lands on a branch of its own, `pj/` and the parent's number. `pj4-running` creates it on the
 project's first run, from a branch you pick when the projects are filed, the default branch unless you name another.
-A project that waits on another is split into issues, and gets its branch, only after the other one is merged into
+A project that waits on another is split into tasks, and gets its branch, only after the other one is merged into
 that branch. Every
 sub-issue's pull request merges into its project's branch. Once every sub-issue is closed, `pj4-running` merges the
 branch it came from into it, with `workflow` resolving any conflict under review, then opens the pull request that
@@ -192,7 +212,7 @@ the state lives. [format.md](skills/pj1-plan/format.md) describes the issues and
 [state.md](skills/pj1-plan/state.md) how the state of a project is read, and
 [between-skills.md](skills/pj1-plan/between-skills.md) how the four skills work together.
 
-`/annetaan:pj1-plan` ([details](skills/pj1-plan/SKILL.md)) starts with a planner session. It draws the whole in
+`/annetaan:pj1-plan` ([details](skills/pj1-plan/SKILL.md)) starts with a planner session. Its input is usually one initiative from your `roadmap.md`, quoted or named. It draws the whole in
 broad strokes and cuts it into projects of about 7 to 8 tasks, at most ten, with the dependencies between them. You
 answer the plan-level questions and see the projects in stages, with the reason for each wait. You approve them and
 pick the branch the projects start from. Nothing reaches GitHub before that. Then one parent issue per project is
@@ -227,10 +247,10 @@ projects and stops instead. It closes the parent of any project it finds merged,
 checks that you can merge your own pull request into the project's branch without an approving review. It walks the
 run order from the top and takes issues until the first one that is not workable, then checks every issue it took.
 Any issue that needs design again sends the run back to `pj3-doctor` before anything starts. After you approve the
-order, each issue goes through the same steps in turn, in a git worktree of the project's own under
+order, each task goes through the same steps in turn, in a git worktree of the project's own under
 `.claude/worktrees/`, so you can keep working in your clone while the run goes on. Before it starts work it assigns
 you to the parent, and it stops when someone else is assigned. The assignment stays for the life of the project, and a
-person removes it to hand the project over. Each issue gets a branch.
+person removes it to hand the project over. Each task gets a branch.
 [workflow](skills/workflow/README.md#driven-from-an-issue) runs it as one task, with review rounds. A draft pull
 request follows, with the work report as its body. Then the merge into the project's branch, by squash where the
 repository allows it. pj4-running then closes the issue itself, because GitHub closes nothing on a merge into a
@@ -284,7 +304,7 @@ What they need:
 The `ready`, `blocker` and `project` labels are created when missing, and a label that already exists is reused as
 it is.
 
-`pj4-running` asks one more question before its first issue. When git does not ignore `.claude/worktrees/`
+`pj4-running` asks one more question before its first task. When git does not ignore `.claude/worktrees/`
 or `work-reports/`, it asks to add them to `.git/info/exclude`. That file stays in your clone, so nothing is
 committed, and `.gitignore` is never edited. When an earlier run ended without saving its work in the worktree, for
 example a process that was killed, it does not ask: it saves that work to `work-reports/<stamp>-discarded/stopped.diff`

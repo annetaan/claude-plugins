@@ -5,7 +5,7 @@ description: Drives pj3-doctor and pj4-running on one project, each step a fresh
 
 # pj-auto
 
-`pj-auto` is no stage of its own. It drives `pj3-doctor` and `pj4-running` on one project: the main session starts the
+`pj-auto` is not one of the four pj skills. It drives `pj3-doctor` and `pj4-running` on one project: the main session starts the
 script `auto.sh` and waits, and `auto.sh` starts one fresh `claude -p` run per step. **You write nothing to GitHub
 yourself.** The runs do, and `project.sh --next` decides every step.
 
