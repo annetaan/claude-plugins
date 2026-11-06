@@ -110,7 +110,7 @@ Otherwise a step would run. Show a summary first:
   and discarded
 - the permissions: every rule from **The permissions**, one line each, as `covered (<file>)`, `missing`, or
   `blocked (<rule> in <file>)`. For each repository command, where it was found. Each issue under `.claude/` as
-  `<issue URL>: writes <path>`, with the note that the drive stops there and that `/annetaan:pj4-running <P>` run by
+  `<issue URL> writes <path>`, with the note that the drive stops there and that `/annetaan:pj4-running <P>` run by
   hand does that issue.
 
 Under the bullets, one sentence: missing or blocked rules do not stop the question. The user adds the rules to their

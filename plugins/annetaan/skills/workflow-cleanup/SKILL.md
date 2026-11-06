@@ -25,6 +25,12 @@ its message and stop.
 
 **Language**: talk to the user in the user's language.
 
+**A URL you give the user stands between spaces.** Only a plain ASCII space or a line break touches either end: no
+bracket, punctuation or quote, and no particle or full-width punctuation in a language written without spaces. Write it
+bare, outside backticks and Markdown links. A terminal such as Ghostty ends a link at the first space, so anything
+touching the URL becomes part of the link and opens the wrong page (`$CLEANUP/../pj1-plan/between-skills.md`, **Issues
+in a report**).
+
 ## Before you start
 
 This skill deletes branches on origin and in the clone, and removes a worktree. **Start it only when the user names it
