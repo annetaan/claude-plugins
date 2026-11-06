@@ -314,9 +314,19 @@ When it merges, the project is `merged` (`state.md`, **When a project is merged*
 ## Issues in a report
 
 Every report to the user names an issue or a pull request by its full URL, such as
-`https://github.com/<owner>/<repo>/issues/<n>`, never by a bare `#<n>`. The terminal turns a URL into a link, so the
-user reaches a decision to tick in one click. A report format in a skill that writes `#<n>` means that URL. A
-decision is `<issue URL> D<n> <question>`.
+`https://github.com/<owner>/<repo>/issues/<n>`, never by a bare `#<n>`. The terminal turns a URL into a link that ends
+at the first space, so the user reaches a decision to tick in one click. A report format in a skill that writes `#<n>`
+means that URL. A decision is `<issue URL> D<n> <question>`.
+
+**A URL stands between spaces.** Nothing but a plain ASCII space or a line break touches either end of a URL in a
+report: no bracket, comma, full stop, colon or quote, and, in a language written without spaces between words, no
+particle or full-width punctuation either. Write the URL bare, never inside backticks, quotes or a Markdown link. The
+backticks around a report format in a skill are notation and never reach the output. Whatever touches the URL becomes
+part of that link, and the click opens the wrong page. Write `https://github.com/<owner>/<repo>/pull/466 (pj/212 into
+main)`, never `https://github.com/<owner>/<repo>/pull/466(pj/212 into main)` or
+`https://github.com/<owner>/<repo>/pull/466.`
+The rule also holds where a report format in a skill puts punctuation right after `#<n>` or a URL: the output puts a
+space between them, as in `(waits on https://github.com/<owner>/<repo>/issues/7 , closed without a merge)`.
 
 ```bash
 gh repo view --json url --jq .url    # once per run; append /issues/<n> or /pull/<n>
