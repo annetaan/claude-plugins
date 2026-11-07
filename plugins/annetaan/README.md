@@ -46,7 +46,7 @@ The pj skills size work at three levels, from fine to coarse.
 | --- | --- | --- |
 | task | one implement, review and commit unit, which becomes one commit | a sub-issue, which becomes one pull request into the project's branch |
 | project | tasks aimed at 7 to 8, 10 at most, on the base branch `pj/<n>`, which reaches the branch it was made from in one pull request | a parent issue labelled `project` |
-| initiative | the input of one `pj1-plan` run, which cuts it into one or more projects | an entry in `roadmap.md`, not on GitHub |
+| initiative | the input of one `pj1-plan` run, which cuts it into one or more projects | an entry in the roadmap file, not on GitHub |
 
 A standalone `workflow` run has tasks too: each item of its plan is one, and the whole run becomes one pull request.
 
@@ -54,9 +54,10 @@ An issue is the GitHub container, not a level: a parent issue holds a project, a
 and the run order are orders, not levels. A stage groups the projects of one `pj1-plan` run that can run in
 parallel, and the run order is the order of the tasks inside one project.
 
-Keep your initiatives in `roadmap.md` (or `ROADMAP.md`) at the root of the repository, and put on GitHub only the
-projects of the initiatives you are working on. When you start one, hand its entry to `/annetaan:pj1-plan`, quoted or
-named, and it files that initiative's projects. No skill writes `roadmap.md`, and `pj1-plan` plans a request that comes
+Keep your initiatives in a roadmap file, `roadmap.md` or `ROADMAP.md`, at the root of the repository or under `doc/`
+or `docs/`, and put on GitHub only the projects of the initiatives you are working on. When you start one, hand its
+entry to `/annetaan:pj1-plan`, quoted or named, and it files that initiative's projects. The planner looks for a named
+entry in those places. No skill writes the roadmap file, and `pj1-plan` plans a request that comes
 from anywhere else the same way.
 
 ### GitHub holds the state
