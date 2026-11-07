@@ -5,7 +5,7 @@ description: Starts a project on GitHub. Has a planner design a large request, u
 
 # pj1-plan
 
-The first of the four pj skills: it turns a large request, usually one initiative from the repository's `roadmap.md` or `ROADMAP.md`, into one or more projects, each a parent issue, with the
+The first of the four pj skills: it turns a large request, usually one initiative from the repository's `roadmap.md` or `ROADMAP.md` (at the root or under `doc/` or `docs/`), into one or more projects, each a parent issue, with the
 dependencies between them. `pj2-issues` splits each project into sub-issues later.
 
 You are the main session. **You do not write code, and you do not design on your own.** A planner draws the whole,
