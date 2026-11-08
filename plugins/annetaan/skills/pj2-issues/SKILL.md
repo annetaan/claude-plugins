@@ -207,11 +207,21 @@ Agent(subagent_type: "annetaan:pj-issue-writer", description: "issue T<k>",
 opus at medium effort with code changes disabled.
 
 Each writer sends back a title and a body in the shape `format.md` gives a sub-issue, or a statement that the split
-does not hold.
+or the parent does not hold.
 
 **When a writer says the split does not hold**, send what it found to the planner with `SendMessage` and have it
 redraw the split. Rerun the writers whose tasks changed. Show the user the new split and ask the phase 2 question
 again, because nothing has been filed yet and a new split is a new plan.
+
+**When a writer says the parent does not hold**, a redraw of the parent changes what every task is drawn against.
+
+1. Wait until every writer has returned, so that one redraw covers them all.
+2. Send what each such writer found to the planner with `SendMessage`.
+3. Ask the open questions the redraw carries, as phase 1 does, four to a call, and send the answers back.
+4. Rewrite `$TMP/<P>.md` from the revised parent body.
+5. Rerun the writers of the task ids the planner names.
+6. Show the new split and the `diff -u` of the parent, and ask the phase 2 question again, because nothing has been
+   filed yet and a revised parent is a new plan.
 
 **Check every body before it goes out.** Write each one to a file as it comes back, and lint it.
 
@@ -223,6 +233,11 @@ Accept a body only when the lint reports no reason, or `decisions-open` alone. T
 see: a file list of 8 entries at most (`format.md`, **The file list**), no line numbers, no checkbox outside
 `## Decisions`, no dependencies written into the body, and lines under every option saying what it changes. Send a
 body that fails back to its writer with `SendMessage` and say what to fix. Write the fixed body over the same file.
+
+Once every writer has returned, read the bodies against each other. Two or more bodies that carry the same workaround
+(the same caveat, toast, user-facing note or special case for one state) for one consequence of the parent's design
+are the parent not holding, even though no writer said so. Treat it as above, naming the issues and the passages to
+the planner. You only route this, and the planner decides the fix.
 
 ## Phase 4: filing
 

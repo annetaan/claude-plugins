@@ -47,7 +47,9 @@ the code. Then read the issues against each other.
 6. **A stub**, and **an issue labelled `blocker`**, with which case of `between-skills.md` **Blockers** it is.
 7. **A mismatch between issues.** A name, a type, a file or a behaviour that one issue adds and another uses
    differently. Say which side should change, and why.
-8. **A mismatch with a parent's `## Design`.** Say whether the issue or the parent should change.
+8. **A mismatch with a parent's `## Design`.** Say whether the issue or the parent should change. A parent line
+   `decided in #<n> D<k>` whose decision is now settled is a kind 8 finding on the parent: carry the ticked answer
+   into `## Design` (see kind 12).
 9. **An edge that is missing or wrong.** An issue that uses what another adds and is not blocked by it, or an edge
    with nothing behind it.
    - **An edge between a sub-issue of `P` and an issue outside `P` is always wrong.** `issues[].blockedBy[].parent`
@@ -60,6 +62,18 @@ the code. Then read the issues against each other.
      their design or a stub in `P`. Report these only while `parent.baseExists` is false.
 10. **A question only a human can answer**, raised by a ticked option or by the code, that is no decision yet.
 11. **An issue that is two tasks.**
+12. **A parent assumption that no longer holds.**
+    - **Triggers.** The parent's `## Design` keeps a branch whose assumption the project changes and names no one it
+      serves (`format.md`, **Behaviour kept under a changed assumption**). Or two or more issues carry the same
+      workaround for one consequence of the parent's design.
+    - **Report.** A finding in the parent's block that gives the sentence the parent's `## Design` will carry
+      instead. Each issue that carries the workaround gets a kind 8 line that repeats that sentence and says to drop
+      the workaround. The writers run in parallel, so each must see the target sentence, not the parent as it reads
+      on GitHub. When only a human can settle the fork, raise kind 10 on the sub-issue that implements the branch.
+      The kind 10 line gives the decision its number `D<k>`, the next after the highest `D<n>` in that body,
+      counting the other kind 10 findings you raise on the same issue in order. The parent's sentence becomes
+      `decided in #<n> D<k>` with that same `D<k>`.
+    - **Follow-up.** Once that decision is settled, kind 8 carries the ticked answer into the parent.
 
 Leave out what the conventions settle and what a worker can choose without anyone noticing. A finding the writer
 cannot act on is noise.
@@ -121,7 +135,7 @@ it in no quotes and no backticks.
   string, its own included. Otherwise merge them into one finding, or tag them `design`.
 - **The scope.** The fix does not change the design, the file list, a decision or another issue, and does not touch a
   parent's `Base:` line or its `## Order`.
-- **The kind.** Kinds 2, 3, 6, 10 and 11 are always `design`.
+- **The kind.** Kinds 2, 3, 6, 10, 11 and 12 are always `design`.
 
 **When in doubt, tag it `design`.** The main session checks an `exact` fix only against your two strings, and no
 reviewer reads it again, so a wrong `exact` tag lets a wrong fix through without a review.

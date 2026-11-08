@@ -1,6 +1,6 @@
 # workflow
 
-This skill runs one implementation as **design, a design review where the repository accepts breaking changes,
+This skill runs one implementation as **design, a design review in every repository (it moves existing code only where breaking changes are welcome),
 approval, then per task (implement, review rounds, one commit), then an integration review when the plan has more than
 one task, then a finish step**, with each role in a session of its own. The review rounds run through Markdown files
 in the run's work report directory, one per round and one reply to each, so the whole review stays readable after the
@@ -30,11 +30,16 @@ several sessions and adds commits.
 **The design gets one review before you see it.** After the design comes back and before the approval, a separate
 session reads it with one question: would we design it this way from a blank slate? It points out boundaries (the
 contracts, the types, the names) that fall short of their ideal shape, places where moving existing code would make
-the design cleaner, and abstractions that are too many or too few. Each finding says how far existing code moves.
+the design cleaner, abstractions that are too many or too few, and behaviour the design keeps from existing code
+after the change altered what that behaviour relies on. Each finding says how far existing code moves.
 There is one round. The design session takes in what it agrees with, and what it does not agree with comes to you as
 open questions before the approval.
 
-**The review runs only where the repository accepts breaking changes**, such as a pre-release product or a library you control. The skill settles that before design starts: what `CLAUDE.md` or `AGENTS.md` says, then the memory Claude Code keeps for this repository, then a question whose answer it saves to memory. It never edits `CLAUDE.md` or `AGENTS.md`. When one of those
+**The review runs in every repository.** What differs is how far it may move existing code. The skill settles that
+before design starts, in `breaking-changes.md`: what `CLAUDE.md` or `AGENTS.md` says, then the memory Claude Code keeps
+for this repository, then a question whose answer it saves to memory. Where breaking changes are accepted, such as a
+pre-release product or a library you control, the review reports everything it finds. Where they are not, it reports
+only the findings that move no existing code. The skill never edits `CLAUDE.md` or `AGENTS.md`. When one of those
 files or memory decides, you get one line saying so before design starts, and that is where you stop a memory that has
 gone stale. A request for a minimal change, such as an urgent fix, skips the review and the question, and writes
 nothing to memory. When Fable cannot start, because of the weekly limit for example, the review is skipped and the
@@ -189,7 +194,8 @@ screenshots it could not attach.
 | File | What it is |
 | --- | --- |
 | `SKILL.md` | the procedure for the orchestrator, which is the main session: which file each entry reads, the worktree line, the agents, phases 2 to 4 and the rules every entry shares |
-| `standalone.md` | the standalone run: the breaking-change check, design and approval, the integration review and the finish |
+| `standalone.md` | the standalone run: design, the design review and approval, the integration review and the finish |
+| `breaking-changes.md` | the check that settles whether the repository accepts breaking changes, for the standalone run and pj1-plan |
 | `from-pr.md` | resolving the conflicts of a pull request that is already open |
 | `from-issue.md` | one sub-issue as one task, for pj4-running |
 | `from-sync.md` | a merge of the source branch into a project's base branch that stopped on conflicts, for pj4-running |

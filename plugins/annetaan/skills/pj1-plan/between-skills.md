@@ -12,7 +12,7 @@ this file.
 
 | Skill | What it does |
 | --- | --- |
-| `pj1-plan` | designs one initiative or other large request in broad strokes, cuts it into projects of up to ten tasks, and files one parent issue per project, with blocked-by relationships between the parents |
+| `pj1-plan` | designs one initiative or other large request in broad strokes, has the design review read the parents' designs once, cuts it into projects of up to ten tasks, and files one parent issue per project, with blocked-by relationships between the parents |
 | `pj2-issues` | splits one project into tasks once every project it waits on is merged, and files its sub-issues with the decisions they need, the blocked-by relationships inside the project, the run order and the titles |
 | `pj3-doctor` | reviews a whole project against the boxes the user ticked and the code, has the issue writers redraw what no longer holds, draws the stubs, resolves the blockers, rewrites the run order and the titles, and labels an issue `ready` |
 | `pj4-running` | creates a project's base branch when it first starts on the project, then works down the run order one pull request at a time, running the `workflow` skill on each and merging it into the base branch before the next starts, and once every sub-issue is closed, merges the branch it was made from into the base branch and opens the pull request from the base branch into that branch |

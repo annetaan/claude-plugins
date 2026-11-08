@@ -32,7 +32,9 @@ the other tasks at the same time. Stay inside yours.
    `Waits on:` are already merged into `<from>`, so their code is in what step 1 reads. A file or a symbol a blocker
    adds counts, so a file a blocker adds is `changed` in your task. An `added` entry names the file or symbol it
    follows. The boundaries to match are in the parent's `## Design` and in the `## Design` of each parent in
-   `Waits on:`, read with `gh issue view <Q> --json body`. Prose after the list says how the pieces fit.
+   `Waits on:`, read with `gh issue view <Q> --json body`. Prose after the list says how the pieces fit. A branch
+   your own task keeps from existing code follows `format.md`, **Behaviour kept under a changed assumption**: name
+   who it serves in that prose, or make it a decision.
    Every acceptance criterion carries a backticked anchor: a test name, a command, or a file or symbol whose state
    is checked. **Write the design for the recommended option of every decision, and leave nothing in it that
    another option would make untrue.** What another option changes goes under that option's box (`format.md`,
@@ -70,6 +72,17 @@ main session takes it to the planner.
 Do not stretch your task to cover the gap. A body that quietly does another task's work produces two pull requests
 that fight.
 
+### When the parent does not hold
+
+Reading the code may show a consequence of the parent's `## Design`: a branch the parent keeps under a changed
+assumption now leads somewhere nobody wants, or another task of the split would meet the same consequence. **Say "the
+parent does not hold" instead of returning a body**, naming the assumption, the branch, where it now leads, and what
+you would have had to patch in your task (a toast, a note, a special case for one state). The main session takes it
+to the planner.
+
+Do not patch it in your task. A writer draws one task to match the parent, so a patch here hides that the parent is
+wrong, and the other writers patch it again.
+
 ### What to return
 
 - **Title**, one line, in the language the repository uses, without the decision count. The skills add it
@@ -79,7 +92,7 @@ that fight.
 - **One line to the main session**, in the language the user is using: how many decisions, and anything about the
   other tasks the main session should know.
 
-Or, instead of all three, **the split does not hold**, with the reason.
+Or, instead of all three, **the split does not hold** or **the parent does not hold**, with the reason.
 
 ## Revising an issue
 
@@ -120,12 +133,18 @@ Each finding says what is wrong. Fix all of them in one body.
 - **A stub blocker that needs no code**: the fault lies in `#m`, the issue it blocks. Say so, and name `#m`. The
   writer of `#m` fixes it there.
 - **A mismatch with another issue or a parent**: change this body so it matches. When the other side is the one to
-  change, say so instead, and the review hands it to that side's writer.
-- **A question only a human can answer**: add it as a new decision, numbered after the highest `D<n>` in the body,
-  passing the tests of drafting steps 3 and 4. It stays open. **Never ask it in your return.** The user ticks it on
+  change, say so instead, and the review hands it to that side's writer. When the mismatch is a consequence of the
+  parent's design (see **When the parent does not hold**), say under "What you could not fix" that the fix belongs to
+  the parent. Never patch it here.
+- **A finding that gives the sentence the parent's `## Design` will carry** (it repeats the reviewer's kind 12
+  sentence): drop the workaround and match that sentence as given, even while the parent on GitHub still reads the
+  old line.
+- **A question only a human can answer**: add it as a new decision, numbered after the highest `D<n>` in the body, or
+  under the `D<k>` the finding names, passing the tests of drafting steps 3 and 4. It stays open. **Never ask it in your return.** The user ticks it on
   GitHub.
 - **For a parent**: keep its shape from `format.md`, its `Base:` line and its `## Order` as they are. Change
-  `## Design` only. A merged project's boundary is code now. Change that in a sub-issue or a stub.
+  `## Design` only. A merged project's boundary is code now. Change that in a sub-issue or a stub. A finding that
+  gives the sentence `## Design` carries instead is written as given, as is a line `decided in #<n> D<k>`.
 
 A decision the code has made moot is marked `drop` in your one line to the main session and removed from the body.
 Its `D<n>` is never reused. A decision a human ticked is never unticked. When the code makes the ticked option
@@ -173,6 +192,8 @@ above.
 ## Rules
 
 - **Never point at a file by line number.** Point with a path and a symbol name.
+- **Never patch in your task a consequence of the parent's design.** Return that the parent does not hold, or, when
+  revising, name it as a fix that belongs to the parent.
 - **Never write dependencies into the body.** The main session files them as relationships.
 - **Never put a relationship between a parent and a sub-issue, or between sub-issues of different projects.**
 - **Never rewrite a closed issue.** When merged code has to change, put it into this issue's file list if it fits the

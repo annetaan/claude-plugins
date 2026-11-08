@@ -78,7 +78,8 @@ Base: `pj/<P>` from `<branch>`
 ## Design
 
 <the boundaries this project defines and its tasks have to match: contracts, types, schemas, names, and why a new
-abstraction is needed if one is added>
+abstraction is needed if one is added, and, when the project changes an assumption existing behaviour relies on, who
+each branch kept from existing code still serves>
 
 ## Decisions
 
@@ -96,6 +97,15 @@ Before that, the `Base:` line is followed by `## Goal`.
 `## Design` holds only the boundaries this project defines. A boundary another project defines stays in that
 project's parent. Whoever reads the parent's `## Design`, the issue writer and the `workflow` skill alike, also reads
 the `## Design` of every parent in `waitsOn`.
+
+**Behaviour kept under a changed assumption.** An assumption is something existing behaviour relies on: who knows a
+value, who acts, which states a record can be in, what happens in which order. A carried-over branch is a branch, case
+or step the project keeps from existing code. Keeping one is a decision, not a default. When the project changes an
+assumption, `## Design` names it and, for each kept branch that relied on it, says who the branch still serves. A
+branch nobody can be named for is dropped or becomes a decision. For example: before, the admin chose the temporary
+password, so resetting a disabled user and telling them the password later was harmless. After, nobody knows the
+temporary password, so "create, disable, re-send after enabling" leaves a user who can never log in. A line that a
+human fork replaced reads `decided in #<n> D<k>`, which keeps the boundary in the parent.
 
 ### The run order
 
