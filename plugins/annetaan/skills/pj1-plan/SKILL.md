@@ -1,6 +1,6 @@
 ---
 name: pj1-plan
-description: Starts a project on GitHub. Has a planner design a large request, usually one initiative from the repository's roadmap.md, in broad strokes and cut it into projects aimed at 7 to 8 tasks each, 10 at most, asks the plan-level questions, and shows the projects in stages, where the projects of one stage can run in parallel. Per project files a parent issue labelled `project` that holds its Goal, Design, Decisions and Out of scope, with the dependencies between projects as native blocked-by relationships between the parents. Each parent's `Base:` line names its base branch, `pj/<parent number>`, and a branch the user picks, and pj4-running creates the base branch later. Files no sub-issue. pj2-issues splits a project into tasks once every project it waits on is merged. The first of four skills, followed by pj2-issues, pj3-doctor and pj4-running. Use it only when the user names this skill or invokes /annetaan:pj1-plan, because it creates issues, relationships and labels on GitHub. Do not use it for a change small enough for one pull request.
+description: Starts a project on GitHub. Has a planner design a large request, usually one initiative from the repository's roadmap.md, in broad strokes and cut it into projects aimed at 7 to 8 tasks each, 10 at most, has a design reviewer read the parents' designs once, asking whether a blank slate would give the same design, including the behaviour it keeps from existing code, asks the plan-level questions, and shows the projects in stages, where the projects of one stage can run in parallel. Per project files a parent issue labelled `project` that holds its Goal, Design, Decisions and Out of scope, with the dependencies between projects as native blocked-by relationships between the parents. Each parent's `Base:` line names its base branch, `pj/<parent number>`, and a branch the user picks, and pj4-running creates the base branch later. Files no sub-issue. pj2-issues splits a project into tasks once every project it waits on is merged. The first of four skills, followed by pj2-issues, pj3-doctor and pj4-running. Use it only when the user names this skill or invokes /annetaan:pj1-plan, because it creates issues, relationships and labels on GitHub. Do not use it for a change small enough for one pull request.
 ---
 
 # pj1-plan
@@ -18,6 +18,11 @@ and you carry its output to the user and onto GitHub. No issue writer runs in th
 `$PLAN` is not a shell variable. Replace it with the real absolute path when you run bash and when you write a prompt
 for a sub-agent. Sub-agents have not read this instruction, so a relative path or a literal `$PLAN` finds them
 nothing.
+Collapse the `..` in a path to a sibling skill, so that the command text names `<skills>/workflow/roles/design-review.md` and not
+`<skills>/pj1-plan/../workflow/roles/design-review.md`. A permission rule matches the text of the command. This holds in the prompts for
+sub-agents too. `<skills>` means the directory that holds `$PLAN`. Like `$PLAN`, write it as the real absolute path, never
+literally. Two files of the `workflow` skill are read from here: `<skills>/workflow/breaking-changes.md` and
+`<skills>/workflow/roles/design-review.md`.
 
 **Read `$PLAN/format.md` and `$PLAN/between-skills.md` before anything else.** `format.md` is the only description
 of the parent issue, the sub-issue body, the decisions and the relationships. `between-skills.md` holds the labels,
@@ -46,6 +51,12 @@ git branch --show-current
 - A dirty working tree does not matter. This skill reads the code and changes nothing in it. It creates no branch
   either: `pj4-running` creates each project's base branch (`between-skills.md`, **The base branch**).
 
+### Does this repository accept breaking changes?
+
+Read `<skills>/workflow/breaking-changes.md` and follow it before phase 1. Its "before design starts" line means
+before phase 1 here. **The answer is a sentence you keep**, not a shell variable. The review prompt in phase 1 and
+the approval message in phase 2 both carry it. pj1-plan never skips this as a minimal change.
+
 ## Phase 1: the overall design
 
 Hand the user's request to the planner as it was written.
@@ -60,11 +71,39 @@ Agent(subagent_type: "annetaan:pj-planner", description: "project plan",
 When the plan comes back:
 
 - **If feasibility is "no" or "conditional"**, hand that to the user and wait.
-- **Ask the open questions now**, with `AskUserQuestion`, **four to a call**, in as many calls as it takes. These are
+- **Run the design review** (see **The design review** below) the first time the planner returns `yes`, before any
+  open question is asked.
+- **Ask the open questions now**, with `AskUserQuestion`, **four to a call**, in as many calls as it takes: the
+  planner's own first, then those marked `(from the design review)`, in the order the reviewer ranked them. These are
   the plan-level questions, the ones that change the cut into projects, an edge between projects, or a parent's
   `## Design`. The questions that split a project into tasks wait for `pj2-issues`. Send the answers back with
   `SendMessage`. The revised report carries each answer as a settled decision in the `## Decisions` of the parent of
   the project it belongs to, as `roles/plan.md` assigns it.
+
+### The design review
+
+**It runs once**, the first time the planner returns `yes` and before any open question is asked. Hand the reviewer
+the request as it was written, whether breaking changes are accepted, and the planner's full report.
+
+```
+Agent(subagent_type: "annetaan:workflow-design-review", description: "design review",
+      prompt: "Read <skills>/workflow/roles/design-review.md first and follow the role it describes.\n\nBreaking changes: <accepted | not accepted>\n\nThe request:\n<the user's request, verbatim>\n\nThe design:\n<the planner's full report>")
+```
+
+The prompt carries no worktree line, because the reviewer reads the working tree this skill runs in.
+
+**When it cannot start** (a weekly limit, a rate limit, the model is unavailable), skip the review and go on. **Do not
+substitute another agent.** Keep the reason for phase 2.
+
+When the report comes back, `SendMessage` it to the planner.
+
+> <the design review report, in full>
+>
+> Follow **Answering the design review** in your role instruction. Return the whole revised report.
+
+The revised report replaces the plan. **It does not go back to the reviewer**, and neither does a rework the user asks
+for at approval. Never `SendMessage` the reviewer. The points the planner did not take in reach the user as open
+questions.
 
 **Keep the planner alive until phase 3 ends.**
 
@@ -83,6 +122,8 @@ Show:
 
 - the goal of the whole request, in a few lines
 - the plan-level decisions the user settled in phase 1, one line each
+- what happened to the design review, in one line. When it ran: whether breaking changes are accepted, N findings
+  taken in, M decided by the user in phase 1. When it did not run, the reason: Fable could not start
 - each project as `PJ<j> <title>  (about N tasks)` and its goal in one line
 - the stages, in this shape, each edge with the planner's reason:
 
@@ -190,6 +231,8 @@ Then the next steps, in this order:
 - **You do not design and you do not write issue bodies.** The planner does. A body you write yourself never passed
   through anyone who read the code. The `Base:` line in phase 3 step 3 is the one line you add, and you add nothing
   else.
+- **The design review runs once**, before the open questions, never on a revised plan or a rework, and the run goes
+  on without it when it cannot start.
 - **Nothing reaches GitHub before the phase 2 approval.** Labels included.
 - **You create no branch.** `pj4-running` creates every base branch (`between-skills.md`, **The base branch**).
 - **You file no sub-issue.** `pj2-issues` splits each project.

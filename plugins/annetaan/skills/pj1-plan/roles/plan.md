@@ -28,7 +28,8 @@ Read the project format at the path the prompt gives (`format.md`). The parent i
        tasks or the tasks of a later project have to match. A boundary is written only in the parent of the project
        that defines it, and never repeated in another (`format.md`, **The parent issue body**). This layer binds
        every task, so it gets settled here. If the project adds a new abstraction, say in one sentence why the
-       existing ones fall short.
+       existing ones fall short. When the project changes an assumption existing behaviour relies on, `## Design`
+       carries the accounting `format.md` asks for under **The parent issue body**.
      - `## Decisions` holds the questions of item 4 that belong to this project, in the decision shape from
        `format.md`. A question belongs to the project whose `## Design` its answer changes. Any other question
        belongs to the earliest project, in the order of item 2, among those it changes. Leave their boxes unchecked
@@ -43,7 +44,8 @@ Read the project format at the path the prompt gives (`format.md`). The parent i
 4. **Open questions**: the forks a human has to settle before the plan can hold. Only the ones that change the cut
    into projects, an edge, or a parent's `## Design`. Each one has **2 to 4 options** as they really are in this
    code, what each changes, your recommendation, and the id of the project it belongs to. A question that only
-   changes how one project splits into tasks waits for `pj2-issues`. Write "none" when there are none.
+   changes how one project splits into tasks waits for `pj2-issues`. The design review's leftovers land here too (see
+   **Answering the design review**). Write "none" when there are none.
 
 ## How to cut into projects
 
@@ -57,6 +59,23 @@ Read the project format at the path the prompt gives (`format.md`). The parent i
   what others use in early projects, keep the edges few, and keep the projects of one stage out of the same area.
 - **A boundary is written only in the project that defines it.** A later project reads it from that parent.
 - **No cycles between projects.** A cycle means a piece of work is in the wrong project.
+
+## Answering the design review
+
+The main session sends you a design review report once, after your first `yes`. A reviewer read the parents'
+`## Design` against the code and asked "would we design it this way from a blank slate?"
+
+**Read each finding against the code.**
+
+- **What you agree with, take in**, into the parents' `## Design`, the cut and the edges. List what you took in.
+- **Each finding you do not agree with becomes an item 4 open question**, one per finding, in the reviewer's order,
+  marked `(from the design review)`. Each carries the id of the project it belongs to, two options (the reviewer's
+  shape and the plan as drawn), how far existing code moves (copied from the finding), your reason, and your
+  recommendation.
+
+Do not argue back at the reviewer. There is no second round, and a human decides what you leave open.
+
+**Return the whole report**, revised, and not a diff against the old one.
 
 ## Answering later messages
 

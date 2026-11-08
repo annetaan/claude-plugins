@@ -215,7 +215,11 @@ the state lives. [format.md](skills/pj1-plan/format.md) describes the issues and
 [between-skills.md](skills/pj1-plan/between-skills.md) how the four skills work together.
 
 `/annetaan:pj1-plan` ([details](skills/pj1-plan/SKILL.md)) starts with a planner session. Its input is usually one initiative from your `roadmap.md`, quoted or named. It draws the whole in
-broad strokes and cuts it into projects of about 7 to 8 tasks, at most ten, with the dependencies between them. You
+broad strokes and cuts it into projects of about 7 to 8 tasks, at most ten, with the dependencies between them. A design review
+session reads each project's design once and asks whether a blank slate would give the same design, including
+behaviour carried over from existing code. It moves existing code only where breaking changes are welcome, decided
+the same way as for `workflow`. The planner takes in what it agrees with, and the rest reaches you as plan-level
+questions before approval. You
 answer the plan-level questions and see the projects in stages, with the reason for each wait. You approve them and
 pick the branch the projects start from. Nothing reaches GitHub before that. Then one parent issue per project is
 filed, blocked by the parents it waits on. No sub-issue and no branch is created yet, and no issue is `ready` yet.
@@ -276,7 +280,7 @@ again from `/annetaan:pj2-issues` once the projects it waits on are merged.
 
 ```mermaid
 flowchart TD
-    req(["your request"]) --> plan["pj1-plan<br/>planner cuts the work into<br/>projects of up to ten tasks,<br/>with the waits between them"]
+    req(["your request"]) --> plan["pj1-plan<br/>planner cuts the work into<br/>projects of up to ten tasks,<br/>with the waits between them<br/>design review: from a blank slate?"]
     plan --> approve(["you approve the projects and their stages"]) --> filed["a parent issue per project,<br/>labelled project,<br/>blocked-by between parents"]
     filed --> split["pj2-issues, per project<br/>once what it waits on is merged:<br/>planner splits it, issue writers draw each task,<br/>sub-issues, run order"]
     split --> doctor["pj3-doctor<br/>reviewer reads the whole project,<br/>writers redraw what does not hold,<br/>run order rewritten, ready on what is clear"]
@@ -457,10 +461,10 @@ The model and the effort are pinned here, and a skill selects one by name alone.
 | Agent | Model | Effort | Role |
 | --- | --- | --- | --- |
 | `annetaan:workflow-design` | opus | medium | design. returns the design and the plan |
-| `annetaan:workflow-design-review` | fable | medium | design review. once, before approval, in every repository. moves existing code only where breaking changes are welcome |
+| `annetaan:workflow-design-review` | fable | medium | design review for `workflow` and `pj1-plan`. once, before approval, in every repository. moves existing code only where breaking changes are welcome |
 | `annetaan:workflow-worker` | sonnet | medium | implementation, for every task |
 | `annetaan:workflow-reviewer` | opus | medium | review, for every task, and the integration review when the plan has more than one task |
-| `annetaan:pj-planner` | opus | high | planning for `pj1-plan` and `pj2-issues`. the projects, their designs and the waits between them, then one project's split into tasks |
+| `annetaan:pj-planner` | opus | high | planning for `pj1-plan` and `pj2-issues`. the projects, their designs and the waits between them, then one project's split into tasks. answers the design review |
 | `annetaan:pj-issue-writer` | opus | medium | one sub-issue, drawn against the code. drafts it for `pj2-issues`, revises it for `pj3-doctor` |
 | `annetaan:pj-reviewer` | opus | high | project review for `pj3-doctor`. reads the whole project against the ticked boxes, the code and each issue |
 | `annetaan:doc-meta-overview` | opus | high | overview for `doc-meta`. finds what a per-sentence flag misses |
