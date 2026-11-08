@@ -29,7 +29,7 @@ Read the project format at the path the prompt gives (`format.md`). The parent i
        that defines it, and never repeated in another (`format.md`, **The parent issue body**). This layer binds
        every task, so it gets settled here. If the project adds a new abstraction, say in one sentence why the
        existing ones fall short. When the project changes an assumption existing behaviour relies on, `## Design`
-       carries the accounting `format.md` asks for under **The parent issue body**.
+       follows `format.md`, **Behaviour kept under a changed assumption**.
      - `## Decisions` holds the questions of item 4 that belong to this project, in the decision shape from
        `format.md`. A question belongs to the project whose `## Design` its answer changes. Any other question
        belongs to the earliest project, in the order of item 2, among those it changes. Leave their boxes unchecked

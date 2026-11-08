@@ -139,8 +139,8 @@ Each finding says what is wrong. Fix all of them in one body.
 - **A finding that gives the sentence the parent's `## Design` will carry** (it repeats the reviewer's kind 12
   sentence): drop the workaround and match that sentence as given, even while the parent on GitHub still reads the
   old line.
-- **A question only a human can answer**: add it as a new decision, numbered after the highest `D<n>` in the body,
-  passing the tests of drafting steps 3 and 4. It stays open. **Never ask it in your return.** The user ticks it on
+- **A question only a human can answer**: add it as a new decision, numbered after the highest `D<n>` in the body, or
+  under the `D<k>` the finding names, passing the tests of drafting steps 3 and 4. It stays open. **Never ask it in your return.** The user ticks it on
   GitHub.
 - **For a parent**: keep its shape from `format.md`, its `Base:` line and its `## Order` as they are. Change
   `## Design` only. A merged project's boundary is code now. Change that in a sub-issue or a stub. A finding that

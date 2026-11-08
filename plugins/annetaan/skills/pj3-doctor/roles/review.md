@@ -69,8 +69,10 @@ the code. Then read the issues against each other.
     - **Report.** A finding in the parent's block that gives the sentence the parent's `## Design` will carry
       instead. Each issue that carries the workaround gets a kind 8 line that repeats that sentence and says to drop
       the workaround. The writers run in parallel, so each must see the target sentence, not the parent as it reads
-      on GitHub. When only a human can settle the fork, raise kind 10 on the sub-issue that implements the branch,
-      and the parent's sentence becomes `decided in #<n> D<k>`.
+      on GitHub. When only a human can settle the fork, raise kind 10 on the sub-issue that implements the branch.
+      The kind 10 line gives the decision its number `D<k>`, the next after the highest `D<n>` in that body,
+      counting the other kind 10 findings you raise on the same issue in order. The parent's sentence becomes
+      `decided in #<n> D<k>` with that same `D<k>`.
     - **Follow-up.** Once that decision is settled, kind 8 carries the ticked answer into the parent.
 
 Leave out what the conventions settle and what a worker can choose without anyone noticing. A finding the writer
