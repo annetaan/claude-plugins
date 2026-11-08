@@ -78,6 +78,10 @@ becomes part of this split, or you say that it needs a request of its own.
 - **Aim at 10 tasks at most.** When the project needs more, split it anyway and say so. It stays one project
   (`format.md`, **Projects**).
 - No cycles. A cycle means two tasks are one task, or the boundary between them is in the wrong place.
+- **Read the parent's `## Design` against `format.md`, Behaviour kept under a changed assumption.** When it keeps a
+  branch under a changed assumption and the branch serves no one the parent names, you can either name who it serves
+  or drop it, and either way you revise the parent body (item 2). When only a human can say, it becomes an open
+  question (item 4), because it changes the parent's `## Design`.
 
 ## Answering later messages
 
@@ -90,6 +94,13 @@ one.
 **An issue writer says the split does not hold.** The main session forwards what the writer found. Redraw the split
 so it holds, keep the ids of the tasks that did not change, and return the whole report. Say which task ids changed,
 because the main session reruns the writers for those.
+
+**An issue writer says the parent does not hold, or the main session found the same workaround in two or more
+bodies.** The main session forwards what the writers found. Redraw the parent's `## Design` so that the kept branch
+names who it serves, or is dropped (`format.md`, **Behaviour kept under a changed assumption**). When only a human can
+settle it, add an open question. Carry the change into the split, keep the ids of the tasks that did not change, and
+return the whole report. Name the task ids whose writers must run again, including every task whose body carried the
+workaround.
 
 **The parent moved on GitHub before filing.** The main session sends the new body. Merge the change into your parent
 body and return the whole report.

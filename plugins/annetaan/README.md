@@ -229,7 +229,9 @@ projects with no sub-issue yet whose waited-on projects are all merged, and reco
 session splits the project against the code as it stands after those merges, and you answer the split-level
 questions. You approve the split, any change to the parent shown as a diff, and any change to its blocked-by. Then
 one issue writer per task, in parallel, draws its task against the code and picks out what you have to decide. The
-design is written so that it holds whichever box you tick. The sub-issues, their blocked-by inside the project, the
+design is written so that it holds whichever box you tick. A writer that finds a consequence of the parent's design
+returns it to the planner instead of patching its own task, and so does the same workaround appearing in two or more
+drafts. The planner redraws the parent, and you approve the split again. The sub-issues, their blocked-by inside the project, the
 run order and the titles are filed. A project that waits on one not merged yet is refused. When a project it waits
 on was closed without a merge, it asks whether to drop that wait. When the planner finds that the project needs
 another project that is not merged yet, `pj2-issues` asks whether to add that wait. On yes, it adds the blocked-by
@@ -238,7 +240,8 @@ between the two parents and stops without filing anything else.
 `/annetaan:pj3-doctor` ([details](skills/pj3-doctor/SKILL.md)) takes the project from a number given or the only
 project that has sub-issues, and otherwise asks which project to work on. A
 reviewer session reads the whole project against the boxes you ticked, the code, and each issue in it: a ticked
-option the design does not hold, two issues that disagree on a name, a missing blocked-by, a stub, a blocker. One
+option the design does not hold, two issues that disagree on a name, a missing blocked-by, a stub, a blocker, a parent that keeps behaviour whose
+assumption the project changed. One
 issue writer per issue with a finding redraws it, and a question only you can answer becomes a new decision to tick.
 The reviewer reads the rewrites once more. A finding it then tags as a pure text fix, one string for another, goes
 back to the writer and is checked against the reviewer's strings with no third review, so the issue can still be
