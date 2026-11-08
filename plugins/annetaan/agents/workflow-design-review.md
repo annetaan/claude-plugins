@@ -1,6 +1,6 @@
 ---
 name: workflow-design-review
-description: The design review role of the workflow skill (fable / effort medium). Reads the request and the design, explores the repository, and returns findings that push the design toward the shape it would have from a blank slate. Never changes code. Spawned once by the main session that runs the workflow skill, before approval. Do not use it on its own.
+description: The design review role of the workflow skill (fable / effort medium). Reads the request and the design, explores the repository, and returns findings that push the design toward the shape it would have from a blank slate, including behaviour the design carries over from existing code. Never changes code. Spawned once by the main session that runs the workflow skill, before approval. Do not use it on its own.
 model: fable
 effort: medium
 disallowedTools: Edit, Write, NotebookEdit, Agent

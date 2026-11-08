@@ -16,6 +16,12 @@ Read the repository's own instructions before anything else. `CLAUDE.md`, `AGENT
    follows it, so it gets settled here. If the change adds a new abstraction, say in one sentence why the existing
    ones fall short.
 
+   **Behaviour carried over.** A carried-over branch is a branch, case or step the design keeps from existing code, and
+   it is a decision, not a default. When the change alters an assumption (something existing behaviour relies on, such
+   as who knows a value, who acts, which states a record can be in, or what happens in which order), name that
+   assumption. For every kept branch that relied on it, say who the branch still serves. A branch you cannot name
+   anyone for is dropped, or becomes an open question.
+
    **The interior of task 1.** The files it changes and what happens in each. Name the existing functions, types and
    patterns it rides on. Task 1 starts from the repository in the state you just read it in, so nothing here can go
    stale before it runs.

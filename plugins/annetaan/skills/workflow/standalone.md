@@ -6,33 +6,16 @@ Read `worktree.md` and run **The start check** first. Then decide **Does this re
 
 ## Does this repository accept breaking changes?
 
-Decide this after `worktree.sh start` and before **The worktree** in `worktree.md`. It decides whether the design review runs. The review pushes
-the design toward the shape it would have from a blank slate, and that shape often moves existing code, so it runs
-only where the repository accepts breaking changes. **The answer is a sentence you keep**, not a shell variable. The
-approval message needs it.
+Decide this before **The worktree** in `worktree.md`. It decides how far the design review may move existing code
+(see **The design review**). **The answer is a sentence you keep**, not a shell variable. The review prompt and the
+approval message need it.
 
 **When the request asks for a minimal change** (an urgent fix, a hotfix, "just make it work"), skip this check and ask
 nothing. You judge that from the request. Say one line before design starts: design review skipped for this run: the
 request asks for a minimal change. **Write nothing to memory.** A minimal change is a property of this request, not
 of the repository.
 
-Otherwise, go down this list and stop at the first one that answers.
-
-1. **The repository states it.** `CLAUDE.md` or `AGENTS.md` says whether breaking changes are welcome. Follow it.
-2. **The memory Claude Code keeps for this repository has it.** Follow the memory.
-3. **Neither.** Ask, then save the answer to that memory, under a name that identifies the repository and the date, in the format the memory directory already uses.
-
-```
-AskUserQuestion: Do you want broader design improvements (accepting breaking changes)?
-  - Yes - a pre-release product, or a library you control
-  - No  - a released SaaS, or a widely used OSS
-```
-
-**This skill never edits `CLAUDE.md` or `AGENTS.md`.** The answer goes to memory and nowhere in the repository.
-
-**When 1 or 2 decided it and nothing was asked, say so in one line before design starts**: the design review will
-run, or will not run, because `<file>` says … / memory from <date> says …. That line is where the user stops a
-stale memory.
+Otherwise read `breaking-changes.md` and follow it.
 
 ## Phase 1: design
 
@@ -57,13 +40,13 @@ to have it redraw the remaining tasks.
 
 ### The design review
 
-**It runs once, after feasibility has passed and before the open questions**, and only when the repository accepts
-breaking changes (see **Does this repository accept breaking changes?**). Hand the reviewer the request as it was
-written and the design report in full.
+**It runs once, after feasibility has passed and before the open questions**, in every repository except for a
+minimal-change run (see **Does this repository accept breaking changes?**). Hand the reviewer the request as it was
+written, whether breaking changes are accepted, and the design report in full.
 
 ```
 Agent(subagent_type: "annetaan:workflow-design-review", description: "design review",
-      prompt: "Read $FLOW/roles/design-review.md first and follow the role it describes.\n\nThe request:\n<the user's request, verbatim>\n\nThe design:\n<the full design report>\n\n<the worktree line>")
+      prompt: "Read $FLOW/roles/design-review.md first and follow the role it describes.\n\nThe request:\n<the user's request, verbatim>\n\nBreaking changes: <accepted | not accepted>\n\nThe design:\n<the full design report>\n\n<the worktree line>")
 ```
 
 `annetaan:workflow-design-review` ships with this plugin and is pinned to Fable at medium effort with code changes
@@ -105,9 +88,9 @@ The approval message states:
 
 **You pick the branch name yourself.** Match the naming the repository already uses (`git branch -a`), choose one that `git branch -a` does not list yet, and write it into the approval message, so the user can correct it there. Do not spend a question on it.
 
-**Say what happened to the design review, in one line of the approval message.** When it ran: N findings taken in,
-M decided by you in the open questions above. When it did not run, the reason: Fable could not start, the repository
-does not accept breaking changes, or the request asks for a minimal change.
+**Say what happened to the design review, in one line of the approval message.** When it ran: whether breaking
+changes are accepted, N findings taken in, M decided by you in the open questions above. When it did not run, the
+reason: Fable could not start, or the request asks for a minimal change.
 
 **When the user corrects the base at approval**, the design was written against the wrong code:
 

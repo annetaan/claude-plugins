@@ -126,8 +126,9 @@ do.
 `/annetaan:workflow` ([details](skills/workflow))
 
 Runs one implementation through sessions with different jobs. A design session writes the plan, then details each
-task as its turn comes. In a repository that accepts breaking changes, a design review session pushes the design
-toward its ideal shape once, before approval. An implementation session writes the code for one task. A review
+task as its turn comes. A design review session pushes the design toward its ideal shape once, before approval, and
+checks the behaviour the design keeps from existing code. It moves existing code only where breaking changes are
+welcome. An implementation session writes the code for one task. A review
 session reads it and writes its findings to a file. Those last two are new for every task. You approve once, near the start, and
 the approval message names the branch and the base. The run happens in `.claude/worktrees/wf-<stamp>`.
 
@@ -138,7 +139,7 @@ it is written, so the directory reads back as the whole review, in order.
 ```mermaid
 flowchart TD
     req(["your request"]) --> wt["worktree on the tip of the base<br/>work-reports/ and .claude/worktrees/ ignored?"] --> design["design session<br/>boundaries, acceptance criteria,<br/>plan of small tasks"]
-    design --> dreview["design review session<br/>once, where breaking<br/>changes are welcome"] --> ask["one approval<br/>proceed with this plan?<br/>branch and base named"]
+    design --> dreview["design review session<br/>once, in every repo<br/>existing code moves only<br/>where breaking changes<br/>are welcome"] --> ask["one approval<br/>proceed with this plan?<br/>branch and base named"]
     ask -->|rework| redo["design session<br/>revises, no second review"] --> ask
     ask -->|approved| setup["branch in the worktree<br/>record START"]
     setup --> detail
@@ -456,7 +457,7 @@ The model and the effort are pinned here, and a skill selects one by name alone.
 | Agent | Model | Effort | Role |
 | --- | --- | --- | --- |
 | `annetaan:workflow-design` | opus | medium | design. returns the design and the plan |
-| `annetaan:workflow-design-review` | fable | medium | design review. once, before approval, where the repository accepts breaking changes |
+| `annetaan:workflow-design-review` | fable | medium | design review. once, before approval, in every repository. moves existing code only where breaking changes are welcome |
 | `annetaan:workflow-worker` | sonnet | medium | implementation, for every task |
 | `annetaan:workflow-reviewer` | opus | medium | review, for every task, and the integration review when the plan has more than one task |
 | `annetaan:pj-planner` | opus | high | planning for `pj1-plan` and `pj2-issues`. the projects, their designs and the waits between them, then one project's split into tasks |
