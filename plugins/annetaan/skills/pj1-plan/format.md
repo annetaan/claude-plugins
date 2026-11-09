@@ -184,8 +184,10 @@ A body has to meet the bar for `ready` (`state.md`, **When an issue is ready**).
   a file is a path and never a symbol**, whether the file is in this issue's file list, in the repository, or in a
   blocker's file list. That includes a file at the root: `package.json` in a `package.json` entry names no symbol.
 - **A `changed` entry names at least one symbol, and every symbol it names exists in that file at the tip of the
-  base branch once every issue in its `blockedBy` has merged.** `--check` looks each one up. A file or a symbol a
-  blocker adds counts as existing, so a file a blocker adds is `changed` here. The projects this one waits on are
+  base branch once every issue in its `blockedBy` has merged.** `--check` looks each one up. A file a blocker lists
+  as `added` counts as existing, so it is `changed` here, never `added`. A file a blocker lists as `deleted` is never
+  `changed` or `deleted` here. A symbol a blocker adds counts as existing only when that blocker lists the file and
+  names the symbol somewhere in its body. `--check` reads the open blockers' bodies for this while they are open. The projects this one waits on are
   merged into `<from>` before `pj2-issues` splits it, so their code is already there. A new name, or a name from
   another file, goes without backticks or into its own file's entry.
 - Each entry is one bullet. A long description may wrap onto indented lines, and blank lines between entries are

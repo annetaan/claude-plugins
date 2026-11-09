@@ -702,21 +702,44 @@ if MODE == "check":
     paths |= {f["path"] for f in issue["files"]}
     check_lint = lint(parse(body_of[n]), paths)
 
-    # premises: only once every blocker is closed, and the base exists or will be cut from a <from> that holds every
-    # project this one waits on. Before that the blockers are still meant to change these files.
+    # premises, in one of three modes.
+    #   none:  nothing is checked. The base is missing and a project this one waits on is not merged, or an open
+    #          blocker is outside the project, or an open blocker in the project is a stub. There is no body to read.
+    #   early: open in-project blockers (excusers) are still meant to change the files. A path they list or a symbol
+    #          they name counts as present, and a file list that contradicts this one is a failure.
+    #   full:  every blocker is closed. The files are read at ref as they are.
     failures = []
-    evaluated = (all(b["state"] == "CLOSED" for b in issue["blockedBy"])
-                 and (base_exists or all(d["merged"] for d in waits_on_entries)))
-    if evaluated:
+    excusers = []
+    walked = transitive_blockers(issue)
+    if (not (base_exists or all(d["merged"] for d in waits_on_entries))
+            or any(b["number"] not in by_number and b["state"] == "OPEN" for b in issue["blockedBy"])
+            or any(m in by_number and by_number[m]["state"] == "OPEN" and by_number[m]["stub"] for m in walked)):
+        mode = "none"
+    else:
+        excusers = sorted(m for m in walked if m in by_number and by_number[m]["state"] == "OPEN")
+        mode = "early" if excusers else "full"
+        lists = lambda kinds, path: [m for m in excusers
+                                     if any(g["path"] == path and g["kind"] in kinds for g in by_number[m]["files"])]
+        tokens = {m: set(re.findall(r"[A-Za-z_$][\w$]*", body_of[m] or "")) for m in excusers}
         for f in issue["files"]:
             exists = run("git", "cat-file", "-e", "%s:%s" % (ref, f["path"])).returncode == 0
-            if f["kind"] == "added" and exists:
-                failures.append({"path": f["path"], "why": "added, but already exists"})
-            elif f["kind"] != "added" and not exists:
-                failures.append({"path": f["path"], "why": "%s, but does not exist" % f["kind"]})
+            why = None
+            if f["kind"] == "added":
+                if lists({"added"}, f["path"]):
+                    why = "added, but an open blocker adds it too"
+                elif exists and not lists({"deleted"}, f["path"]):
+                    why = "added, but already exists"
+            elif lists({"deleted"}, f["path"]):
+                why = "%s, but an open blocker deletes it" % f["kind"]
+            elif not exists and not lists({"added"}, f["path"]):
+                why = "%s, but does not exist" % f["kind"]
+            if why:
+                failures.append({"path": f["path"], "why": why})
             elif f["kind"] == "changed":
+                namers = lists({"added", "changed"}, f["path"])
                 for sym in symbols(f, paths):
-                    if run("git", "grep", "-w", "-F", "-q", sym, ref, "--", f["path"]).returncode != 0:
+                    found = exists and run("git", "grep", "-w", "-F", "-q", sym, ref, "--", f["path"]).returncode == 0
+                    if not found and not any(sym in tokens[m] for m in namers):
                         failures.append({"path": f["path"], "symbol": sym, "why": "symbol not found"})
 
     # history: commits on the base branch that touched these files after ready went on, except the ones a blocker's
@@ -754,7 +777,7 @@ if MODE == "check":
         "baseExists": base_exists,
         "ok": check_lint["ok"] and not failures and not stale,
         "lint": check_lint,
-        "premises": {"evaluated": evaluated, "failures": failures},
+        "premises": {"mode": mode, "excusers": excusers, "failures": failures},
         "history": {"stale": stale},
     }, ensure_ascii=False))
     sys.exit(0)

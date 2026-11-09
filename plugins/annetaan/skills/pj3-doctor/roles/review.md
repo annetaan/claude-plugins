@@ -44,6 +44,10 @@ the code. Then read the issues against each other.
    commit, read its diff with `git show <sha>` against the body and say whether it touches what the issue depends on:
    a path, symbol or behaviour its `## Design` relies on. One that does is a finding. One that does not gets a
    `cleared` line (see **What to return**).
+   For a failure under `premises.mode` `early`, decide which body is wrong, using `excusers`. This issue: a wrong
+   name, a backticked file name, or a wrong kind. An excuser: it adds the name without listing the file or naming it,
+   or its file list contradicts this one (`an open blocker deletes it`, `adds it too`). That is a kind 7 finding on
+   that blocker, saying which side changes. An issue not in `excusers` that makes the name: a missing edge, kind 9.
 6. **A stub**, and **an issue labelled `blocker`**, with which case of `between-skills.md` **Blockers** it is.
 7. **A mismatch between issues.** A name, a type, a file or a behaviour that one issue adds and another uses
    differently. Say which side should change, and why.

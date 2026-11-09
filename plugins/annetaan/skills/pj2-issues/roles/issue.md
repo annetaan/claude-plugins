@@ -128,7 +128,9 @@ Each finding says what is wrong. Fix all of them in one body.
   task**: redraw `## Design` and the file list for the ticked option. The ticked option becomes the one the body is
   written for. Keep the boxes as the human ticked them.
 - **A premise failure, or a stale commit the review says touches what the issue depends on**: redraw the body
-  against the code as it is now.
+  against the code as it is now. Under `premises.mode` `early`, count what the `excusers` list and name. When the
+  fault is an excuser's (it adds the name without listing the file or without naming it in its body, or its file list contradicts this one), say so under what you could
+  not fix and name the issue. Never drop a correct backtick to silence the check.
 - **A stub**: draw the full body as in **Drafting an issue**.
 - **A blocker on the issue itself**: the `pj4-running` comment and `--check` say what diverged. Redraw the body
   against the code.
