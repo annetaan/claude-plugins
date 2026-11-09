@@ -31,9 +31,12 @@ the other tasks at the same time. Stay inside yours.
    file in its own entry, or leave it out of backticks.
    "Exist" means at the tip of the base branch once every task of this project your task is blocked by has merged.
    The base branch is cut from `<from>` later, so the code step 1 reads is where it starts. The projects in
-   `Waits on:` are already merged into `<from>`, so their code is in what step 1 reads. A file or a symbol a blocker
-   adds counts, so a file a blocker adds is `changed` in your task. An `added` entry names the file or symbol it
-   follows. The boundaries to match are in the parent's `## Design` and in the `## Design` of each parent in
+   `Waits on:` are already merged into `<from>`, so their code is in what step 1 reads. A file a blocker lists as
+   `added` is `changed` in your task, never `added`. A file a blocker lists as `deleted` is not in your file list.
+   A symbol a blocker adds counts as existing only when that blocker lists the file and names the symbol somewhere
+   in its body. The other side is yours: when your task adds a symbol that a later task of this project uses, name
+   it in that file's entry in your own body, so the later task's `--check` can count it. In a `changed` entry a new
+   symbol goes without backticks, as above. An `added` entry names the file or symbol it follows. The boundaries to match are in the parent's `## Design` and in the `## Design` of each parent in
    `Waits on:`, read with `gh issue view <Q> --json body`. Prose after the list says how the pieces fit. A branch
    your own task keeps from existing code follows `format.md`, **Behaviour kept under a changed assumption**: name
    who it serves in that prose, or make it a decision.
