@@ -220,15 +220,24 @@ def split_sections(body):
             out[name].append(line)
     return order, {k: "\n".join(v).strip() for k, v in out.items()}
 
-def symbols_of(desc):
-    """Backticked identifiers in an entry's description. foo() counts as foo, A.b as b."""
+def spans_of(desc):
+    """Backticked identifier spans in an entry's description, in order, without repeats. foo() counts as foo."""
     out = []
     for span in re.findall(r"`([^`\n]+)`", desc):
         span = re.sub(r"\(.*\)$", "", span.strip())
-        if IDENT_RE.match(span):
-            sym = span.split(".")[-1]
-            if sym not in out:
-                out.append(sym)
+        if IDENT_RE.match(span) and span not in out:
+            out.append(span)
+    return out
+
+def symbols(entry, paths):
+    """The symbols of a file entry: the last segment of each span that does not name a path in paths (A.b is b)."""
+    out = []
+    for span in entry["spans"]:
+        if span in paths:
+            continue
+        sym = span.split(".")[-1]
+        if sym not in out:
+            out.append(sym)
     return out
 
 def file_list(design):
@@ -254,7 +263,7 @@ def file_list(design):
         path = m.group(1).strip()
         if path.startswith("./"):
             path = path[2:]
-        files.append({"path": path, "kind": m.group(2), "symbols": symbols_of(m.group(3))})
+        files.append({"path": path, "kind": m.group(2), "spans": spans_of(m.group(3))})
     return files, bad
 
 def decisions(text):
@@ -291,7 +300,9 @@ def parse(body):
         "stub": design == "To be drawn.",
     }
 
-def lint(p):
+def lint(p, paths=frozenset()):
+    """paths: file names known from outside the issue. A span naming one of them, or a path in the issue's own
+    file list, is a path and not a symbol."""
     if p["stub"]:
         return {"ok": False, "reasons": ["stub"]}
     reasons = []
@@ -301,7 +312,8 @@ def lint(p):
         reasons.append("no-files")
     if p["bad_entries"]:
         reasons.append("file-entry")
-    if any(f["kind"] == "changed" and not f["symbols"] for f in p["files"]):
+    known = {f["path"] for f in p["files"]} | paths
+    if any(f["kind"] == "changed" and not symbols(f, known) for f in p["files"]):
         reasons.append("no-symbols")
     criteria = [l for l in p["secs"].get("Acceptance criteria", "").split("\n") if re.match(r"^\s*[-*]\s", l)]
     if not criteria or any("`" not in l for l in criteria):
@@ -365,7 +377,9 @@ for pr in json.loads(listed.stdout):
         pr_of[n] = {"number": pr["number"], "state": pr["state"], "isDraft": pr["isDraft"], "url": pr["url"]}
 
 issues = []
+body_of = {}
 for node in parent["subIssues"]["nodes"]:
+    body_of[node["number"]] = node["body"]
     p = parse(node["body"])
     counts = decision_counts(p["decs"])
     ready_events = [e["createdAt"] for e in node["timelineItems"]["nodes"]
@@ -391,6 +405,19 @@ for node in parent["subIssues"]["nodes"]:
     })
 issues.sort(key=lambda i: i["number"])
 by_number = {i["number"]: i for i in issues}
+
+def transitive_blockers(issue):
+    """The numbers in the transitive blockedBy of an issue, closed ones included. The walk follows only issues in the
+    project, but the result also holds a direct blocker outside it."""
+    seen, todo = set(), [b["number"] for b in issue["blockedBy"]]
+    while todo:
+        m = todo.pop()
+        if m in seen:
+            continue
+        seen.add(m)
+        if m in by_number:
+            todo.extend(b["number"] for b in by_number[m]["blockedBy"])
+    return seen
 
 # The run order: the open sub-issues, blockers first. Only edges between open sub-issues count.
 # A closed blocker is done, and a blocker outside the project is not this script's to order.
@@ -661,6 +688,20 @@ if MODE == "check":
     # Before the base exists, it is going to be cut from the tip of <from>.
     ref = "origin/" + (base if base_exists else made_from)
 
+    # A path is one in the issue's own file list, a blob at the root of ref, or one in a blocker's file list.
+    # Directories are left out on purpose: `scripts` in a package.json entry is a real key and also a root directory.
+    tree = run("git", "ls-tree", "-z", ref)
+    if tree.returncode != 0:
+        die("git ls-tree failed: " + tree.stderr.strip())
+    root_files = set()
+    for rec in tree.stdout.split("\0"):
+        meta, _, name = rec.partition("\t")
+        if name and meta.split()[1] == "blob":
+            root_files.add(name)
+    paths = root_files | {f["path"] for m in transitive_blockers(issue) if m in by_number for f in by_number[m]["files"]}
+    paths |= {f["path"] for f in issue["files"]}
+    check_lint = lint(parse(body_of[n]), paths)
+
     # premises: only once every blocker is closed, and the base exists or will be cut from a <from> that holds every
     # project this one waits on. Before that the blockers are still meant to change these files.
     failures = []
@@ -674,7 +715,7 @@ if MODE == "check":
             elif f["kind"] != "added" and not exists:
                 failures.append({"path": f["path"], "why": "%s, but does not exist" % f["kind"]})
             elif f["kind"] == "changed":
-                for sym in f["symbols"]:
+                for sym in symbols(f, paths):
                     if run("git", "grep", "-w", "-F", "-q", sym, ref, "--", f["path"]).returncode != 0:
                         failures.append({"path": f["path"], "symbol": sym, "why": "symbol not found"})
 
@@ -688,15 +729,7 @@ if MODE == "check":
         if log.returncode != 0:
             die("git log failed: " + log.stderr.strip())
         commits = [l.split("\t", 1) for l in log.stdout.splitlines() if l]
-        # The transitive blockedBy: walk the project's issues, closed ones included. The walk stays inside the project.
-        anticipated, todo = set(), [b["number"] for b in issue["blockedBy"]]
-        while todo:
-            m = todo.pop()
-            if m in anticipated:
-                continue
-            anticipated.add(m)
-            if m in by_number:
-                todo.extend(b["number"] for b in by_number[m]["blockedBy"])
+        anticipated = transitive_blockers(issue)
         # The projects this issue's work was drawn against: the ones this project waits on, directly or not.
         waited = walk_projects(parent["number"]) if commits else set()
         for start in range(0, len(commits), 100):
@@ -719,8 +752,8 @@ if MODE == "check":
         "base": base,
         "from": made_from,
         "baseExists": base_exists,
-        "ok": issue["lint"]["ok"] and not failures and not stale,
-        "lint": issue["lint"],
+        "ok": check_lint["ok"] and not failures and not stale,
+        "lint": check_lint,
         "premises": {"evaluated": evaluated, "failures": failures},
         "history": {"stale": stale},
     }, ensure_ascii=False))

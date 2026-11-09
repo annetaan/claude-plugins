@@ -27,6 +27,8 @@ the other tasks at the same time. Stay inside yours.
    `Mode: revise` there is no such line. Read where **Revising an issue** says.
 2. **Draw the task.** `## Design` opens with the file list from `format.md`, one entry per file, tests included. A
    `changed` entry names the existing symbols it rides on, and only names that exist in that file go in backticks.
+   A file name in backticks, including one at the root such as `package.json`, is a path and not a symbol: name that
+   file in its own entry, or leave it out of backticks.
    "Exist" means at the tip of the base branch once every task of this project your task is blocked by has merged.
    The base branch is cut from `<from>` later, so the code step 1 reads is where it starts. The projects in
    `Waits on:` are already merged into `<from>`, so their code is in what step 1 reads. A file or a symbol a blocker

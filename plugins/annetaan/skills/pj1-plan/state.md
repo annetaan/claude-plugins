@@ -92,6 +92,10 @@ only once it exists, which moves local refs and nothing else, and prints:
  "history": {"stale": [{"sha", "subject", "pr" or null}]}}
 ```
 
+The `lint` here is not always the one in `issues[].lint`. It also counts as paths the files at the root of the ref it
+reads and the paths in the file lists of the issue's blockers, so a backticked file name there is no symbol, and it
+can be stricter than `issues[].lint`.
+
 `ok` is true when the lint is clear, no premise failed and no commit is stale. A commit in `history.stale` keeps `ok`
 false until `readyAt` moves past it. `pj3-doctor` moves it by putting `ready` on again once its review has returned the
 commit as cleared and the issue has nothing left on it. `evaluated` is false while a blocker is

@@ -180,7 +180,9 @@ A body has to meet the bar for `ready` (`state.md`, **When an issue is ready**).
 - The path is a repository path in backticks. A file at the root is written as it is, such as `Makefile`.
 - The kind is `added`, `changed` or `deleted`.
 - The description follows the colon. **Its backticked identifiers are the entry's symbols.** `foo()` counts as `foo`
-  and `A.b` as `b`. A backticked span with spaces, such as a test name, is no symbol.
+  and `A.b` as `b`. A backticked span with spaces, such as a test name, is no symbol. **A backticked span that names
+  a file is a path and never a symbol**, whether the file is in this issue's file list, in the repository, or in a
+  blocker's file list. That includes a file at the root: `package.json` in a `package.json` entry names no symbol.
 - **A `changed` entry names at least one symbol, and every symbol it names exists in that file at the tip of the
   base branch once every issue in its `blockedBy` has merged.** `--check` looks each one up. A file or a symbol a
   blocker adds counts as existing, so a file a blocker adds is `changed` here. The projects this one waits on are
