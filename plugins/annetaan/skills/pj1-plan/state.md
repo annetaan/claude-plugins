@@ -88,14 +88,20 @@ only once it exists, which moves local refs and nothing else, and prints:
 
 ```
 {"number", "base", "from", "baseExists", "ok", "lint": {"ok", "reasons"},
- "premises": {"evaluated", "failures": [{"path", "symbol" (when one is missing), "why"}]},
+ "premises": {"mode": "full" | "early" | "none", "excusers": [numbers],
+              "failures": [{"path", "symbol" (when one is missing), "why"}]},
  "history": {"stale": [{"sha", "subject", "pr" or null}]}}
 ```
 
+The `lint` here is not always the one in `issues[].lint`. It also counts as paths the files at the root of the ref it
+reads and the paths in the file lists of the issue's blockers, so a backticked file name there is no symbol, and it
+can be stricter than `issues[].lint`.
+
 `ok` is true when the lint is clear, no premise failed and no commit is stale. A commit in `history.stale` keeps `ok`
 false until `readyAt` moves past it. `pj3-doctor` moves it by putting `ready` on again once its review has returned the
-commit as cleared and the issue has nothing left on it. `evaluated` is false while a blocker is
-still open, or while the base branch does not exist and a project in `waitsOn` is not `merged` (see **Is the body
+commit as cleared and the issue has nothing left on it. `premises.mode` is `none` while the base branch does not
+exist and a project in `waitsOn` is not `merged`, while an open blocker is outside the project, or while an open
+issue in the transitive `blockedBy` is a stub. `excusers` names the open blockers the check read (see **Is the body
 still current?**).
 
 `--order` prints `{"order": [issue objects], "list": [numbers]}`. `order` is the open sub-issues, each a blocker
@@ -155,8 +161,7 @@ current?**).
 ## When an issue is workable
 
 An issue is **workable** when it carries `ready`, every issue in its `blockedBy` is `CLOSED`, `--check` is clear, and
-its project has `baseExists`, or every project in `waitsOn` is `merged`. The last part is the same condition the
-premises wait for.
+its project has `baseExists`, or every project in `waitsOn` is `merged`.
 
 ## What comes next
 
@@ -200,9 +205,14 @@ A body is drawn against the code of its day. `--check` asks whether it still hol
 at the tip of `origin/<from>` while the base branch does not exist yet, since that is where it will be cut from.
 
 - **Premises.** Every `changed` and `deleted` path exists, and no `added` path does. Every symbol of a `changed` entry
-  is still found in its file. The premises are evaluated **only once every `blockedBy` is closed, and the project has
-  `baseExists` or every project in `waitsOn` is `merged`**. Until then the blockers are still meant to change these
-  files, and the result reads not evaluated.
+  is still found in its file. Three modes. `full`: every blocker in the transitive `blockedBy` is closed, and the
+  files are read at the ref as they are. `early`: some of those blockers are open (the `excusers`), and the check
+  reads their file lists and bodies too. A path an excuser lists as `added` counts as existing, and one it lists as
+  `deleted` counts as gone. A symbol missing at the ref counts as present when it is named in the body of an
+  excuser that lists the file as `added` or `changed`. Two failures come from a contradiction with an excuser's file list: `added, but an open
+  blocker adds it too`, and `changed, but an open blocker deletes it` (or `deleted`). `none`: nothing is checked,
+  while the project has no `baseExists` and a project in `waitsOn` is not `merged`, while an open blocker is outside
+  the project, or while an open issue in the transitive `blockedBy` is a stub, because there is no body to read.
 - **History.** Every commit on the base branch's first-parent line since `readyAt` that touched a path in the file
   list is a candidate. A candidate is **anticipated** when a merged pull request it came from has `Implements #<x>`
   as its head with x in this issue's transitive `blockedBy`, has `pj/<Q>` as head and `<from>` as base, or has

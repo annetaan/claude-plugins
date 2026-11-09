@@ -27,11 +27,16 @@ the other tasks at the same time. Stay inside yours.
    `Mode: revise` there is no such line. Read where **Revising an issue** says.
 2. **Draw the task.** `## Design` opens with the file list from `format.md`, one entry per file, tests included. A
    `changed` entry names the existing symbols it rides on, and only names that exist in that file go in backticks.
+   A file name in backticks, including one at the root such as `package.json`, is a path and not a symbol: name that
+   file in its own entry, or leave it out of backticks.
    "Exist" means at the tip of the base branch once every task of this project your task is blocked by has merged.
    The base branch is cut from `<from>` later, so the code step 1 reads is where it starts. The projects in
-   `Waits on:` are already merged into `<from>`, so their code is in what step 1 reads. A file or a symbol a blocker
-   adds counts, so a file a blocker adds is `changed` in your task. An `added` entry names the file or symbol it
-   follows. The boundaries to match are in the parent's `## Design` and in the `## Design` of each parent in
+   `Waits on:` are already merged into `<from>`, so their code is in what step 1 reads. A file a blocker lists as
+   `added` is `changed` in your task, never `added`. A file a blocker lists as `deleted` is not in your file list.
+   A symbol a blocker adds counts as existing only when that blocker lists the file and names the symbol somewhere
+   in its body. The other side is yours: when your task adds a symbol that a later task of this project uses, name
+   it in that file's entry in your own body, so the later task's `--check` can count it. In a `changed` entry a new
+   symbol goes without backticks, as above. An `added` entry names the file or symbol it follows. The boundaries to match are in the parent's `## Design` and in the `## Design` of each parent in
    `Waits on:`, read with `gh issue view <Q> --json body`. Prose after the list says how the pieces fit. A branch
    your own task keeps from existing code follows `format.md`, **Behaviour kept under a changed assumption**: name
    who it serves in that prose, or make it a decision.
@@ -126,7 +131,9 @@ Each finding says what is wrong. Fix all of them in one body.
   task**: redraw `## Design` and the file list for the ticked option. The ticked option becomes the one the body is
   written for. Keep the boxes as the human ticked them.
 - **A premise failure, or a stale commit the review says touches what the issue depends on**: redraw the body
-  against the code as it is now.
+  against the code as it is now. Under `premises.mode` `early`, count what the `excusers` list and name. When the
+  fault is an excuser's (it adds the name without listing the file or without naming it in its body, or its file list contradicts this one), say so under what you could
+  not fix and name the issue. Never drop a correct backtick to silence the check.
 - **A stub**: draw the full body as in **Drafting an issue**.
 - **A blocker on the issue itself**: the `pj4-running` comment and `--check` say what diverged. Redraw the body
   against the code.

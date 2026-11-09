@@ -237,7 +237,7 @@ The approval covers this run only (`between-skills.md`, **Principle**).
 
 **`ready` goes on an issue** when it is open and all of these hold:
 
-- the step 7 `--check` has a clear lint and the premises clear or not evaluated yet
+- the step 7 `--check` has a clear lint and no premise failure (`premises.mode` `none` has none)
 - every SHA in its `history.stale` is carried as a `cleared` line in the reviewer's last return on that issue (the
   second return when it covers the issue, the first otherwise). A stale SHA with no `cleared` line keeps `ready` off.
   That covers a commit that landed after phase 1, and one that a redrawn file list now reaches. You hold nothing from

@@ -34,7 +34,8 @@
 ## Phase 2: the pre-check
 
 Check every issue in the run order against the code before anything starts, except the ones whose `pr` is merged.
-Their own `added` files exist now, so `--check` would fail them.
+Their own `added` files exist now, so `--check` would fail them. An issue whose blockers are earlier in the same run
+order is checked in `early` mode, against its open blockers' bodies.
 
 ```bash
 $RUNNING/../pj1-plan/scripts/project.sh <P> --check <k>
@@ -50,7 +51,7 @@ $RUNNING/../pj1-plan/scripts/project.sh <P> --check <k>
    ```
 
 3. Write `$TMP/<k>-check.md` and post it. It starts with `**[pj4-running]**`, then lists the lint codes, each premise
-   failure (path, symbol, why) and each stale commit (SHA, subject, pull request), and ends with "Settle it with
+   failure (path, symbol, why), with `premises.excusers` when it is not empty, and each stale commit (SHA, subject, pull request), and ends with "Settle it with
    /annetaan:pj3-doctor."
 
    ```bash
