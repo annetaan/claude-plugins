@@ -24,9 +24,10 @@ in `state.md`, and what the skills agree on between them is in `between-skills.m
 One request to `pj1-plan`, usually one initiative, can become several projects, `PJ1, PJ2, …` while `pj1-plan` plans them, each a parent issue of its own.
 `pj2-issues` numbers the tasks of one project `T1…Tn`. Every project from one request is made from the same branch.
 
-**A project holds at most 10 tasks.** Like the 8-file limit, it is a rule of the cut. `pj1-plan` cuts the request so
-that each project is estimated at 7 to 8 tasks, and never more than ten. When `pj2-issues` or `pj3-doctor` later takes
-a project past ten, it stays one project, and nobody asks whether to split it.
+**A project holds at most 5 tasks.** Like the file limits, it is a rule of the cut. `pj1-plan` cuts the request so
+that each project is estimated at 3 to 4 tasks, and never more than five, so that the project's own pull request stays
+readable. When `pj2-issues` or `pj3-doctor` later takes a project past five, it stays one project, and nobody asks
+whether to split it.
 
 **Project P waits on project Q when parent P is blocked by parent Q.** That relationship is the only record of it.
 `project.sh` reads it as `parent.waitsOn`. `pj1-plan` draws an edge in two cases only: P uses something Q makes, or
@@ -195,10 +196,12 @@ A body has to meet the bar for `ready` (`state.md`, **When an issue is ready**).
   allowed. The list ends at the first line that is neither a bullet nor indented.
 - Prose after the list is optional.
 
-**The size limit is 8 files, and it belongs to the split.** `pj2-issues` cuts every task to 8 files at most,
-tests included, so that its review fits in one sitting. It is a planning rule, not a condition on the task. When
-`pj3-doctor` or the implementation later takes a file list past 8, the task stays one task, one sub-issue and one pull
-request, and nobody asks whether to split it.
+**The size limits count every file in the list, tests included, and they belong to the split.** The split aims at
+30 files at most per task, and the issue writer accepts up to 50 when the code turns out to need more. The count is a
+guard, not the reason to cut: the split cuts where the design gives it a seam and where a reviewer can read one pull
+request in one sitting, so a rename that reaches many files stays one task. They are planning rules, not conditions
+on the task. When `pj3-doctor` or the implementation later takes a file list past 50, the task stays one task, one
+sub-issue and one pull request, and nobody asks whether to split it.
 
 ### The title
 

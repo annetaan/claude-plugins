@@ -50,8 +50,8 @@ Read the project format at the path the prompt gives (`format.md`). The parent i
 ## How to cut into projects
 
 - **A project is merged into `<from>` as one piece**, so it has to leave `<from>` whole on its own.
-- **A project fits 10 tasks** of the size in `format.md`: 8 files at most each, tests included, one pull request
-  each. Aim at 7 to 8, so the split has room. Estimate the count from the paths and the seams you find in the code.
+- **A project fits 5 tasks** of the size in `format.md`: about 30 files at most each, tests included, one pull
+  request each. Aim at 3 to 4, so the split has room. Estimate the count from the paths and the seams you find in the code.
   A request that fits in one project is one project.
 - **Draw an edge only in two cases.** `PJa` uses something `PJb` makes, or both touch the same area. Projects with no
   edge between them can go in any order.
@@ -85,7 +85,7 @@ belongs to, carry the answers into `## Design`, the cut and the edges, and retur
 **The user asks for a change at approval.** Revise and return the whole report. Never return a diff against the old
 one.
 
-**The main session finds a cycle between projects, a project estimated at more than 10 tasks, or an edge naming a
+**The main session finds a cycle between projects, a project estimated at more than 5 tasks, or an edge naming a
 project that is not in the plan.** Recut the projects and return the whole report.
 
 ## How to write it

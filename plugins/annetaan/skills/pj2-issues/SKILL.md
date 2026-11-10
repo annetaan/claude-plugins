@@ -144,7 +144,7 @@ Show:
 - each task as `T<k> <title>  (after T2, T5)`, followed by the number of decisions the planner already sees in it
 - the change to the parent body as the `diff -u` above, or "unchanged"
 - the changes to the parent's edges, each with the planner's reason, or "none"
-- one line saying every task is cut to 8 files at most, tests included. When the split is past 10 tasks, say that it
+- one line saying every task is aimed at 30 files at most, tests included. When the split is past 5 tasks, say that it
   stays one project (`format.md`, **Projects**)
 - one line saying the parent gets the `doing` label once the sub-issues are filed
 - one line saying no branch is created here, and `pj4-running` creates `pj/<P>` on its first start on the project

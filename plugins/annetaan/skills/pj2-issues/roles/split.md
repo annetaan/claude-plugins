@@ -61,8 +61,9 @@ becomes part of this split, or you say that it needs a request of its own.
 
 ## How to split
 
-- **Every task fits the size limit in `format.md`** (**The file list**): 8 files at most, tests included. A task
-  over it is split where the design gives it a seam.
+- **Every task fits the size limit in `format.md`** (**The file list**): aim at 30 files at most, tests included. A
+  task over it is split where the design gives it a seam. The count is a guard, not a reason to cut: a rename and every
+  file it reaches is one task.
 - **Every task can be implemented from its own body.** A task that cannot be drawn without designing a part of
   another task is cut in the wrong place.
 - **One task is one pull request**, merged on its own, with the tests passing at the end. A pair that turns the suite
@@ -75,7 +76,7 @@ becomes part of this split, or you say that it needs a request of its own.
   produce pull requests that fight.
 - **Every edge stays inside this project.** What this project needs from another project is either merged already or
   a parent edge in item 3.
-- **Aim at 10 tasks at most.** When the project needs more, split it anyway and say so. It stays one project
+- **Aim at 5 tasks at most.** When the project needs more, split it anyway and say so. It stays one project
   (`format.md`, **Projects**).
 - No cycles. A cycle means two tasks are one task, or the boundary between them is in the wrong place.
 - **Read the parent's `## Design` against `format.md`, Behaviour kept under a changed assumption.** When it keeps a
