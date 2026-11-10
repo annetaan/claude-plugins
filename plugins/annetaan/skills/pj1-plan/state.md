@@ -31,7 +31,7 @@ project.sh --exact <before> <after> <findings>   # whether <after> is <before> w
 `project.sh <P>` prints:
 
 ```
-{"parent": {"number", "title", "state", "stateReason", "updatedAt", "base", "from",
+{"parent": {"number", "title", "state", "stateReason", "updatedAt", "labels": [names], "base", "from",
             "baseExists", "merged", "projectPr", "waitedOnBy": [numbers], "startable",
             "waitsOn": [{"number", "title", "state", "stateReason", "base", "merged"}],
             "order": [numbers],
@@ -45,6 +45,7 @@ project.sh --exact <before> <after> <findings>   # whether <after> is <before> w
              "lint": {"ok", "reasons": [codes]}}]}
 ```
 
+- `labels` on the parent is the names of its labels, the same as `labels` on an issue.
 - `base` is the base branch the parent's `Base:` line names, and `from` is the branch it is made from
   (`format.md`, **The parent issue body**).
 - `baseExists` is true once the base branch is on origin, and `merged` is whether the project is merged (see
@@ -195,7 +196,7 @@ only for `merge-project-pr`.
 The rows under 8 run in the order shown. `--next` does not run `--check`. A `--check` failure that `pj4-running` finds
 gets the issue a `blocker` label, so the next `--next` sends the project to `doctor`.
 
-`fingerprint` is the sha256 of the parent's `updatedAt` and `state`, each issue's `number`, `state`, `updatedAt` and
+`fingerprint` is the sha256 of the parent's `updatedAt`, `state` and `labels`, each issue's `number`, `state`, `updatedAt` and
 `labels`, each issue's pull request `number` and `state`, and `projectPr`. A step that changes the project changes it.
 Only `pj-auto` reads it, to tell that a step made no progress.
 

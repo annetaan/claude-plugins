@@ -598,6 +598,7 @@ def project_view():
     """The dict project mode prints."""
     return {
         "parent": dict({k: parent.get(k) for k in ("number", "title", "state", "stateReason", "updatedAt")},
+                       labels=[l["name"] for l in parent["labels"]["nodes"]],
                        base=base, **{"from": made_from},
                        baseExists=base_exists,
                        merged=merged(parent, [i["state"] for i in issues], own["reached"]),
@@ -616,7 +617,7 @@ def fingerprint(view):
     project's pull request."""
     p = view["parent"]
     state = {
-        "parent": {"updatedAt": p["updatedAt"], "state": p["state"]},
+        "parent": {"updatedAt": p["updatedAt"], "state": p["state"], "labels": p["labels"]},
         "issues": [{"number": i["number"], "state": i["state"], "updatedAt": i["updatedAt"], "labels": i["labels"],
                     "pr": {"number": i["pr"]["number"], "state": i["pr"]["state"]} if i["pr"] else None}
                    for i in view["issues"]],
@@ -841,6 +842,7 @@ query($owner: String!, $name: String!, $n: Int!) {
   repository(owner: $owner, name: $name) {
     issue(number: $n) {
       number title state stateReason updatedAt body
+      labels(first: 50) { nodes { name } }
       blockedBy(first: 50) { nodes { number title state stateReason body } }
       blocking(first: 50) { nodes { number body } }
       subIssues(first: 100) {
