@@ -67,6 +67,7 @@ In short, from [format.md](skills/pj1-plan/format.md)'s The parts:
 | What | On GitHub |
 | --- | --- |
 | a project | parent issue, label `project` |
+| split into tasks | `doing` label on the parent |
 | a task | a sub-issue |
 | your decisions | ticked checkboxes |
 | an order between projects | blocked-by between the parents |
@@ -232,7 +233,7 @@ one issue writer per task, in parallel, draws its task against the code and pick
 design is written so that it holds whichever box you tick. A writer that finds a consequence of the parent's design
 returns it to the planner instead of patching its own task, and so does the same workaround appearing in two or more
 drafts. The planner redraws the parent, and you approve the split again. The sub-issues, their blocked-by inside the project, the
-run order and the titles are filed. A project that waits on one not merged yet is refused. When a project it waits
+run order and the titles are filed, and the parent gets the `doing` label. A project that waits on one not merged yet is refused. When a project it waits
 on was closed without a merge, it asks whether to drop that wait. When the planner finds that the project needs
 another project that is not merged yet, `pj2-issues` asks whether to add that wait. On yes, it adds the blocked-by
 between the two parents and stops without filing anything else.
@@ -310,7 +311,7 @@ What they need:
 - For `pj4-running`: write access and a project branch that accepts a merge with no approving review. Your own
   working tree may be dirty, because the run works in a worktree of its own.
 
-The `ready`, `blocker` and `project` labels are created when missing, and a label that already exists is reused as
+The `ready`, `blocker`, `project` and `doing` labels are created when missing, and a label that already exists is reused as
 it is.
 
 `pj4-running` asks one more question before its first task. When git does not ignore `.claude/worktrees/`
