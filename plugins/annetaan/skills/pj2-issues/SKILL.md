@@ -1,6 +1,6 @@
 ---
 name: pj2-issues
-description: Takes the project to split from a number given, or the only one it could split, and otherwise asks, offering the projects with no sub-issue whose waited-on projects are all merged or closed without a merge, with the lowest-numbered one as the recommended one. Refuses a project that waits on one not yet merged. Has a planner split the project into tasks against the code as it stands after those merges, and asks the split-level questions. Shows the split, a diff of any change to the parent, and any change to its blocked-by relationships for approval. Has one issue writer per task draw that task in parallel, then files the sub-issues with the blocked-by relationships inside the project, the run order in the parent's Order list, and the titles. The second of four skills, after pj1-plan and before pj3-doctor and pj4-running. Use it only when the user names this skill or invokes /annetaan:pj2-issues, because it creates and edits issues and relationships on GitHub.
+description: Takes the project to split from a number given, or the only one it could split, and otherwise asks, offering the projects with no sub-issue whose waited-on projects are all merged or closed without a merge, with the lowest-numbered one as the recommended one. Refuses a project that waits on one not yet merged. Has a planner split the project into tasks against the code as it stands after those merges, and asks the split-level questions. Shows the split, a diff of any change to the parent, and any change to its blocked-by relationships for approval. Has one issue writer per task draw that task in parallel, then files the sub-issues with the blocked-by relationships inside the project, the run order in the parent's Order list, and the titles, and labels the parent doing. The second of four skills, after pj1-plan and before pj3-doctor and pj4-running. Use it only when the user names this skill or invokes /annetaan:pj2-issues, because it creates and edits issues, relationships and labels on GitHub.
 ---
 
 # pj2-issues
@@ -38,7 +38,7 @@ says.
 
 ## Before you start
 
-This skill creates and edits issues and relationships on GitHub. **Start it only when the user names it or invokes
+This skill creates and edits issues, relationships and labels on GitHub. **Start it only when the user names it or invokes
 `/annetaan:pj2-issues`.**
 
 ```bash
@@ -146,6 +146,7 @@ Show:
 - the changes to the parent's edges, each with the planner's reason, or "none"
 - one line saying every task is cut to 8 files at most, tests included. When the split is past 10 tasks, say that it
   stays one project (`format.md`, **Projects**)
+- one line saying the parent gets the `doing` label once the sub-issues are filed
 - one line saying no branch is created here, and `pj4-running` creates `pj/<P>` on its first start on the project
 
 ```
@@ -274,7 +275,14 @@ The sub-issue bodies sit in `$TMP` from phase 3, and the parent body in `$TMP/<P
    gh issue create --parent <P> --blocked-by <n>,<m> --title "<title>" --body-file "$TMP/T<k>.md"
    ```
 
-5. **The run order.** Write `list` under `## Order`, one line `1. #<n>` per number, with `--order-body`. Its own read of the
+5. **The label.** Make sure `doing` exists with the command in `between-skills.md` under **Labels**, then put it on
+   the parent.
+
+   ```bash
+   gh issue edit <P> --add-label doing
+   ```
+
+6. **The run order.** Write `list` under `## Order`, one line `1. #<n>` per number, with `--order-body`. Its own read of the
    parent is the re-read **Writing to GitHub** asks for. When there is no `## Order` yet, it puts the list between the
    `Base:` line and `## Goal` (`format.md`, **The run order**).
 
@@ -284,7 +292,7 @@ The sub-issue bodies sit in `$TMP` from phase 3, and the parent body in `$TMP/<P
    gh issue edit <P> --body-file "$TMP/<P>-order.md"
    ```
 
-6. **The titles.** Run the sync in `between-skills.md` under **Titles** for `<P>`.
+7. **The titles.** Run the sync in `between-skills.md` under **Titles** for `<P>`.
 
    ```bash
    $ISSUES/../pj1-plan/scripts/project.sh <P>
@@ -294,8 +302,8 @@ The sub-issue bodies sit in `$TMP` from phase 3, and the parent body in `$TMP/<P
 No issue gets `ready` here. Only `pj3-doctor` adds it, after it has reviewed the whole project.
 
 **When a command fails halfway**, stop and tell the user what was filed and what was not, with the numbers, and
-whether the parent body, its edges, its `## Order` and the titles were written. Never retry the whole run, or the
-issues double. A missing count or a missing `## Order` is fixed by the next `pj3-doctor` run.
+whether the parent body, its edges, its `doing` label, its `## Order` and the titles were written. Never retry the whole run, or the
+issues double. A missing count, a missing `doing` or a missing `## Order` is fixed by the next `pj3-doctor` run.
 
 Then check the result against the split the user approved:
 
@@ -307,11 +315,11 @@ $ISSUES/../pj1-plan/scripts/project.sh <P> --order
 The fields are in `state.md` under **Reading a project**. Every task of the split is there, and its `blockedBy`
 matches the split, with `<P>` as the `parent` of every blocker. The decision counts and the lint match the bodies.
 Every sub-issue's `title` equals its `wantedTitle`. `parent.orderCheck.ok` is true with `missing` empty, and
-`parent.baseExists` is false. `--order` finds no cycle. Report anything that does not match.
+`parent.baseExists` is false. `parent.labels` holds `doing`. `--order` finds no cycle. Report anything that does not match.
 
 ## Report to the user
 
-- the parent issue URL
+- the parent issue URL, and that it carries the `doing` label
 - one line per sub-issue: its URL, title, the issues it waits on as `#<n>`, and the open decisions by count
 - the changes to the parent body and to its edges, or that there were none
 

@@ -93,6 +93,7 @@ itself is the human's job.
 | `ready` | `0E8A16` | Every decision is settled and the body can be implemented as it stands. pj4-running may work on it. |
 | `blocker` | `B60205` | pj4-running stopped on this. Settle it before anything else. |
 | `project` | `5319E7` | The parent issue of a pj project. Its sub-issues are the project's tasks. |
+| `doing` | `1D76DB` | A pj project whose sub-issues are filed. It marks the parent issue. |
 
 **Make sure a label exists right before a skill first adds it in a run.** Run the label's command. An error saying the
 label already exists means the repository has it, and it is reused as it is. **Never pass `--force`.** It would
@@ -102,6 +103,7 @@ overwrite the color and the description of a label the repository already uses.
 gh label create ready --color 0E8A16 --description "Every decision is settled and the body can be implemented as it stands. pj4-running may work on it."
 gh label create blocker --color B60205 --description "pj4-running stopped on this. Settle it before anything else."
 gh label create project --color 5319E7 --description "The parent issue of a pj project. Its sub-issues are the project's tasks."
+gh label create doing --color 1D76DB --description "A pj project whose sub-issues are filed. It marks the parent issue."
 ```
 
 Only `pj3-doctor` adds `ready`, after its project review, to an issue that meets the bar
@@ -113,6 +115,11 @@ reported, so that `readyAt` moves past them. Whenever it moves `readyAt` past st
 with that renewal, it leaves a marked comment naming each cleared commit and the reviewer's reason.
 
 The parent never gets `ready` and is never worked on.
+
+`pj2-issues` adds `doing` to the parent once its sub-issues are filed. `pj3-doctor` adds it to a parent that has
+sub-issues and lacks it, as read from `parent.labels` (`state.md`, **Reading a project**). Nothing takes it off, and it
+stays on a closed parent. Nothing reads it to decide anything: a project counts as split when it has a sub-issue
+(**Picking the project**), and `doing` is there for a human to filter by. No comment goes with it.
 
 **A stub never carries `ready`.** `pj3-doctor` has the writer draw it into a full body first.
 

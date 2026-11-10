@@ -10,6 +10,7 @@ in `state.md`, and what the skills agree on between them is in `between-skills.m
 | Part | On GitHub |
 | --- | --- |
 | The project | one **parent issue** labelled **`project`**. Its body holds the design of this project. |
+| A project split into tasks | the **`doing`** label on the parent |
 | A task | one **sub-issue** of the parent. One task becomes one pull request. |
 | Where the work lands | the **base branch** `pj/<P>`, named by the parent's `Base:` line (see **The parent issue body**) |
 | An order between tasks | a native **blocked by** relationship between two sub-issues of one project. Never written into a body. |
