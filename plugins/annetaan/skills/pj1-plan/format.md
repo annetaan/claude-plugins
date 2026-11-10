@@ -24,10 +24,16 @@ in `state.md`, and what the skills agree on between them is in `between-skills.m
 One request to `pj1-plan`, usually one initiative, can become several projects, `PJ1, PJ2, …` while `pj1-plan` plans them, each a parent issue of its own.
 `pj2-issues` numbers the tasks of one project `T1…Tn`. Every project from one request is made from the same branch.
 
-**A project holds at most 5 tasks.** Like the file limits, it is a rule of the cut. `pj1-plan` cuts the request so
-that each project is estimated at 3 to 4 tasks, and never more than five, so that the project's own pull request stays
-readable. When `pj2-issues` or `pj3-doctor` later takes a project past five, it stays one project, and nobody asks
-whether to split it.
+**A project holds at most 10 tasks.** Like the file limits, it is a rule of the cut. `pj1-plan` cuts the request so
+that each project is estimated at 7 to 8 tasks, and never more than ten. When `pj2-issues` or `pj3-doctor` later takes
+a project past ten, it stays one project, and nobody asks whether to split it.
+
+**A request becomes several projects for two reasons only.** It does not fit in 10 tasks, or the projects it becomes
+can run in parallel. Work that can only go one way, each part waiting on the one before it, stays one project: a cut
+there runs nothing in parallel, and it costs a pull request into `<from>` and a merge to wait for before the next
+project can even be split into tasks. A chain past 10 tasks is cut only where a merge into `<from>` is worth
+something: the part before the cut is of value on its own, or a project outside the chain can start once that part is
+merged.
 
 **Project P waits on project Q when parent P is blocked by parent Q.** That relationship is the only record of it.
 `project.sh` reads it as `parent.waitsOn`. `pj1-plan` draws an edge in two cases only: P uses something Q makes, or

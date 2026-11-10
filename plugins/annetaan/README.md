@@ -45,7 +45,7 @@ The pj skills size work at three levels, from fine to coarse.
 | Level | What it is | Where it lives |
 | --- | --- | --- |
 | task | one implement, review and commit unit, which becomes one commit | a sub-issue, which becomes one pull request into the project's branch |
-| project | tasks aimed at 3 to 4, 5 at most, on the base branch `pj/<n>`, which reaches the branch it was made from in one pull request | a parent issue labelled `project` |
+| project | tasks aimed at 7 to 8, 10 at most, on the base branch `pj/<n>`, which reaches the branch it was made from in one pull request | a parent issue labelled `project` |
 | initiative | the input of one `pj1-plan` run, which cuts it into one or more projects | an entry in the roadmap file, not on GitHub |
 
 A standalone `workflow` run has tasks too: each item of its plan is one, and the whole run becomes one pull request.
@@ -192,7 +192,7 @@ never edited. `/annetaan:workflow-cleanup` moves the report into your clone's `w
 
 These four skills run an initiative, a piece of work too large for one pull request, as one or more projects on GitHub. A project is
 a parent issue labelled `project`, which holds that project's design and its run order, plus one sub-issue per task,
-at most five tasks per project. A task is aimed at thirty files at most, tests included, and fifty are accepted when the code needs them. A project that waits on another is blocked by it, parent to parent, through GitHub's
+at most ten tasks per project. A task is aimed at thirty files at most, tests included, and fifty are accepted when the code needs them. A project that waits on another is blocked by it, parent to parent, through GitHub's
 own blocked-by relationship. Blocked-by between sub-issues stays inside one project. Projects that wait on nothing
 between them run in parallel, and `pj1-plan` shows them as stages. The run order is a numbered list in the parent,
 `1. #12`, `2. #13`, and GitHub shows each line with the issue's title and whether it is closed, so the list doubles as
@@ -216,7 +216,8 @@ the state lives. [format.md](skills/pj1-plan/format.md) describes the issues and
 [between-skills.md](skills/pj1-plan/between-skills.md) how the four skills work together.
 
 `/annetaan:pj1-plan` ([details](skills/pj1-plan/SKILL.md)) starts with a planner session. Its input is usually one initiative from your `roadmap.md`, quoted or named. It draws the whole in
-broad strokes and cuts it into projects of about 3 to 4 tasks, at most five, with the dependencies between them. A design review
+broad strokes and cuts it into projects of about 7 to 8 tasks, at most ten, with the dependencies between them. It cuts only where the work does not fit one project or where the
+projects can run in parallel, so a chain of work that can only go one way stays one project unless it is too large. A design review
 session reads each project's design once and asks whether a blank slate would give the same design, including
 behaviour carried over from existing code. It moves existing code only where breaking changes are welcome, decided
 the same way as for `workflow`. The planner takes in what it agrees with, and the rest reaches you as plan-level
@@ -284,7 +285,7 @@ again from `/annetaan:pj2-issues` once the projects it waits on are merged.
 
 ```mermaid
 flowchart TD
-    req(["your request"]) --> plan["pj1-plan<br/>planner cuts the work into<br/>projects of up to five tasks,<br/>with the waits between them<br/>design review: from a blank slate?"]
+    req(["your request"]) --> plan["pj1-plan<br/>planner cuts the work into<br/>projects of up to ten tasks,<br/>with the waits between them<br/>design review: from a blank slate?"]
     plan --> approve(["you approve the projects and their stages"]) --> filed["a parent issue per project,<br/>labelled project,<br/>blocked-by between parents"]
     filed --> split["pj2-issues, per project<br/>once what it waits on is merged:<br/>planner splits it, issue writers draw each task,<br/>sub-issues, run order"]
     split --> doctor["pj3-doctor<br/>reviewer reads the whole project,<br/>writers redraw what does not hold,<br/>run order rewritten, ready on what is clear"]
