@@ -1,6 +1,6 @@
 ---
 name: pj1-plan
-description: Starts a project on GitHub. Has a planner design a large request, usually one initiative from the repository's roadmap.md, in broad strokes and cut it into projects aimed at 7 to 8 tasks each, 10 at most, has a design reviewer read the parents' designs once, asking whether a blank slate would give the same design, including the behaviour it keeps from existing code, asks the plan-level questions, and shows the projects in stages, where the projects of one stage can run in parallel. Per project files a parent issue labelled `project` that holds its Goal, Design, Decisions and Out of scope, with the dependencies between projects as native blocked-by relationships between the parents. Each parent's `Base:` line names its base branch, `pj/<parent number>`, and a branch the user picks, and pj4-running creates the base branch later. Files no sub-issue. pj2-issues splits a project into tasks once every project it waits on is merged. The first of four skills, followed by pj2-issues, pj3-doctor and pj4-running. Use it only when the user names this skill or invokes /annetaan:pj1-plan, because it creates issues, relationships and labels on GitHub. Do not use it for a change small enough for one pull request.
+description: Starts a project on GitHub. Has a planner design a large request, usually one initiative from the repository's roadmap.md, in broad strokes and cut it into projects aimed at 3 to 4 tasks each, 5 at most, has a design reviewer read the parents' designs once, asking whether a blank slate would give the same design, including the behaviour it keeps from existing code, asks the plan-level questions, and shows the projects in stages, where the projects of one stage can run in parallel. Per project files a parent issue labelled `project` that holds its Goal, Design, Decisions and Out of scope, with the dependencies between projects as native blocked-by relationships between the parents. Each parent's `Base:` line names its base branch, `pj/<parent number>`, and a branch the user picks, and pj4-running creates the base branch later. Files no sub-issue. pj2-issues splits a project into tasks once every project it waits on is merged. The first of four skills, followed by pj2-issues, pj3-doctor and pj4-running. Use it only when the user names this skill or invokes /annetaan:pj1-plan, because it creates issues, relationships and labels on GitHub. Do not use it for a change small enough for one pull request.
 ---
 
 # pj1-plan
@@ -114,7 +114,7 @@ and this is the last point where changing the cut costs nothing.
 
 **Work out the stages first.** A project that waits on nothing is in stage 1. Every other project is one stage after
 the highest stage among the projects it waits on. Send the plan back to the planner with `SendMessage`, and show the
-user nothing yet, when the projects wait on each other in a cycle, a project is estimated at more than 10 tasks, or an
+user nothing yet, when the projects wait on each other in a cycle, a project is estimated at more than 5 tasks, or an
 edge names a project that is not in the plan. Otherwise show and file the projects by stage, and by `PJ` id within a
 stage. That is the file order below.
 
@@ -139,8 +139,8 @@ Show:
   project, from the tip of the branch picked below, and that `pj2-issues` splits a project into tasks only once every
   project it waits on is merged into that branch. Once every sub-issue of a project is closed, `pj4-running` opens
   the pull request that takes its base branch back, and merging it is the user's job
-- one line saying every project is aimed at 7 to 8 tasks and holds 10 at most, and that `pj2-issues` cuts every task
-  to 8 files at most, tests included, the size limits in `format.md`
+- one line saying every project is aimed at 3 to 4 tasks and holds 5 at most, and that `pj2-issues` aims every task
+  at 30 files at most, tests included, the size limits in `format.md`
 - the label this run will create from `between-skills.md`, `project`, or that the repository already has it and it
   will be reused
 

@@ -56,8 +56,8 @@ the other tasks at the same time. Stay inside yours.
    answer, and anything a worker can choose without anyone noticing. A list of ten decisions gets skimmed. Three that
    matter get answered.
 5. **Lint the body** with the `project.sh` path from the prompt, and fix it until the only reason left is
-   `decisions-open`, or none. The lint does not count files. Keep the file list to the size limit in `format.md`
-   yourself.
+   `decisions-open`, or none. The lint does not count files. Keep the file list to the size limits in `format.md`
+   yourself: 50 files at most.
 
    ```bash
    <path of project.sh> --lint - <<'EOF'
@@ -68,7 +68,7 @@ the other tasks at the same time. Stay inside yours.
 ### When the split does not hold
 
 Reading the code may show that your task cannot be done as the split cut it. It needs something no task before it
-makes, it collides with another task in the same files with no order between them, it names more than 8 files, it
+makes, it collides with another task in the same files with no order between them, it names more than 50 files, it
 cannot become implementable from its body without designing another task's part, it is two tasks, or it needs
 something that neither a merged project nor a task of this project makes. **Say "the split does not hold" instead of
 returning a body**, with what you found in the code and how you would cut it. The
@@ -179,7 +179,7 @@ first character after `old: ` or `new: ` to the end of the line, exactly.
   title read from GitHub carries one. Lint the body as drafting step 5 says.
   `decisions-open` is allowed when a decision is still open.
 - **A split**, instead, when the issue is two tasks: each part's title, without the count, and body, part 1 keeping
-  `n`'s number, and how the edges move. **A file list past 8 is no reason to split.** The main session asks the user
+  `n`'s number, and how the edges move. **A file list past 30 is no reason to split.** The main session asks the user
   before anything is filed.
 - **Edges to add or remove**, one per line as `#a blocked by #b`, with `part k` for a new part, only between
   sub-issues of this project. When the project needs another project's work and `baseExists` is false, return
