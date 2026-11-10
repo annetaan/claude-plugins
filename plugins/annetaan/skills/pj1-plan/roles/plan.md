@@ -50,9 +50,14 @@ Read the project format at the path the prompt gives (`format.md`). The parent i
 ## How to cut into projects
 
 - **A project is merged into `<from>` as one piece**, so it has to leave `<from>` whole on its own.
-- **A project fits 5 tasks** of the size in `format.md`: about 30 files at most each, tests included, one pull
-  request each. Aim at 3 to 4, so the split has room. Estimate the count from the paths and the seams you find in the code.
-  A request that fits in one project is one project.
+- **A project fits 10 tasks** of the size in `format.md`: about 30 files at most each, tests included, one pull
+  request each. Aim at 7 to 8, so the split has room. Estimate the count from the paths and the seams you find in the code.
+- **Cut into projects only where the work does not fit 10 tasks or where the projects can run in parallel**
+  (`format.md`, **Projects**). A request that fits in one project is one project. A chain in which each piece only
+  waits on the one before it stays in one project, whichever kind of edge would join them. When such a chain is past
+  10 tasks, cut it where the part before the cut is of value on its own, or where a project outside the chain can
+  start once that part is merged. The limit of 10 still holds: when no such point falls within it, cut at the best
+  point there is and make the weakness of that cut an open question in item 4.
 - **Draw an edge only in two cases.** `PJa` uses something `PJb` makes, or both touch the same area. Projects with no
   edge between them can go in any order.
 - **A project that waits is split into tasks only after everything it waits on is merged into `<from>`.** So put
@@ -85,7 +90,7 @@ belongs to, carry the answers into `## Design`, the cut and the edges, and retur
 **The user asks for a change at approval.** Revise and return the whole report. Never return a diff against the old
 one.
 
-**The main session finds a cycle between projects, a project estimated at more than 5 tasks, or an edge naming a
+**The main session finds a cycle between projects, a project estimated at more than 10 tasks, or an edge naming a
 project that is not in the plan.** Recut the projects and return the whole report.
 
 ## How to write it

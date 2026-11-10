@@ -76,7 +76,7 @@ becomes part of this split, or you say that it needs a request of its own.
   produce pull requests that fight.
 - **Every edge stays inside this project.** What this project needs from another project is either merged already or
   a parent edge in item 3.
-- **Aim at 5 tasks at most.** When the project needs more, split it anyway and say so. It stays one project
+- **Aim at 10 tasks at most.** When the project needs more, split it anyway and say so. It stays one project
   (`format.md`, **Projects**).
 - No cycles. A cycle means two tasks are one task, or the boundary between them is in the wrong place.
 - **Read the parent's `## Design` against `format.md`, Behaviour kept under a changed assumption.** When it keeps a
