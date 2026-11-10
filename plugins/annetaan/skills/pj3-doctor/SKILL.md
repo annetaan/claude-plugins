@@ -223,6 +223,7 @@ $DOCTOR/../pj1-plan/scripts/project.sh <Q>
   `wantedTitle` yet, so take its count from the decisions in its new body (`format.md`, **The title**)
 - `ready` to add, `ready` to renew (with the short SHAs it moves `readyAt` past), and `ready` to take off, each with
   why
+- `doing` to add to #<P>, when `parent.labels` lacks it (`between-skills.md`, **Labels**)
 - the new `## Order`, one line per issue as it will read
 
 ```
@@ -317,8 +318,16 @@ the numbers.
    gh issue edit <k> --title "<wantedTitle>"
    ```
 
-7. **The labels.** Make sure `ready` exists with the command in `between-skills.md` under "Labels". Check each issue
-   again right before it gets `ready`, because the bodies and the edges just changed.
+7. **The labels.** Make sure `ready` exists, and `doing` when the parent lacks it, with the commands in
+   `between-skills.md` under "Labels".
+
+   **When the phase 1 `project.sh <P>` shows `parent.labels` without `doing`**, add it to the parent.
+
+   ```bash
+   gh issue edit <P> --add-label doing
+   ```
+
+   Check each issue again right before it gets `ready`, because the bodies and the edges just changed.
 
    ```bash
    $DOCTOR/../pj1-plan/scripts/project.sh <P> --check <k>
