@@ -31,7 +31,7 @@ usage: project.sh [-R <owner/repo>] <parent>               the whole project, as
 --order exits non-zero and names the cycle when the blocked-by relationships have one,
         or when the projects wait on each other.
 --next reads only. It prints what to run next (doctor, running, user or done), why, and a fingerprint of the state.
---check runs inside a clone of the repository. It fetches the branch the base was made from,
+--check runs inside a work tree of a clone of the repository, from any directory in it. It fetches the branch the base was made from,
         and the base branch once it exists.
 --order-body prints the parent body as GitHub has it now, with the lines under ## Order replaced by the list --order
         writes. It fails like --order when the blocked-by relationships have a cycle.
@@ -62,7 +62,7 @@ done
 command -v python3 >/dev/null 2>&1 || die "python3 is not installed"
 
 read -r -d '' PY <<'PY' || true
-import hashlib, json, re, subprocess, sys
+import hashlib, json, os, re, subprocess, sys
 
 MODE = sys.argv[1]
 
@@ -676,7 +676,12 @@ if MODE == "next":
 
 def check(n):
     """Print whether sub-issue n can be implemented from its body now, as JSON. A function so that its temporaries
-    cannot rebind a global another function reads."""
+    cannot rebind a global another function reads. Runs from the top of the work tree."""
+    top = run("git", "rev-parse", "--show-toplevel")
+    if top.returncode != 0:
+        die("--check runs inside a work tree of a clone of %s/%s" % (REPO_OWNER, REPO_NAME))
+    # ls-tree with no path lists the current directory, and grep and log read pathspecs from it: run from the top.
+    os.chdir(top.stdout.strip())
     issue = by_number.get(n)
     if issue is None:
         die("#%d is not a sub-issue of #%d" % (n, parent["number"]))
@@ -866,7 +871,6 @@ query($owner: String!, $name: String!, $n: Int!) {
 }' > "$TMP/issues.json" || die "cannot read issue #$PARENT in $REPO"
 
 if [ "$MODE" = "check" ]; then
-  git rev-parse --git-dir >/dev/null 2>&1 || die "--check runs inside a clone of $REPO"
   python3 -c "$PY" check "$TMP/issues.json" "$REPO" "$TARGET"
   exit 0
 fi
