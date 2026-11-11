@@ -1,14 +1,17 @@
 #!/usr/bin/env bash
-# Test: worktree.sh deletes the work reports in <MAIN>/work-reports/ that arrived 14 days ago or more,
-# in check, cleanup and old-reports, and never deletes anything else.
+# Test: worktree.sh and pj-cleanup's cleanup.sh delete the work reports in <MAIN>/work-reports/ that arrived 14 days
+# ago or more, in check, cleanup, run and old-reports, and never delete anything else.
 #
 # Run: bash tests/old-reports.sh   (exit 0 is success, anything else is failure)
-# Runs offline: the clone has no remote, and the worktree is detached, so worktree.sh calls neither gh nor origin.
-# WORKTREE_SH=<path> tests another copy of worktree.sh.
+# Runs offline: the worktree.sh clone has no remote, and the worktree is detached, so worktree.sh calls neither gh nor
+# origin. The cleanup.sh clone has a bare origin in the temp dir and a fake project.sh.
+# WORKTREE_SH=<path> tests another copy of worktree.sh, CLEANUP_SH=<path> another copy of cleanup.sh.
 set -euo pipefail
 
 SCRIPT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)/plugins/annetaan/skills/workflow/scripts/worktree.sh"
 SCRIPT="${WORKTREE_SH:-$SCRIPT}"
+CLEANUP_SRC="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)/plugins/annetaan/skills/pj-cleanup/scripts/cleanup.sh"
+CLEANUP_SRC="${CLEANUP_SH:-$CLEANUP_SRC}"
 
 TMP="$(mktemp -d)"
 trap 'chmod -R u+rwx "$TMP" 2>/dev/null || true; rm -rf "$TMP"' EXIT
@@ -49,6 +52,12 @@ setup() {
   )
   WT="$MAIN/.claude/worktrees/wf-test"
   R="$MAIN/work-reports"
+  seed_reports
+  cd "$MAIN"
+}
+
+# The 7 entries under $R with their ages.
+seed_reports() {
   mkdir -p "$R"
   mkdir "$R/2026-01-01-0000-aaaaaaa" "$R/2026-01-02-0000-bbbbbbb" "$R/2026-01-03-0000-discarded" \
         "$R/2026-01-04-0000-ccccccc-wf-test" "$R/2026-02-01-0000-ddddddd" "$R/notes"
@@ -63,6 +72,38 @@ setup() {
   age 13 "$R/2026-02-01-0000-ddddddd"
   age 40 "$R/notes"
   age 40 "$R/.DS_Store"
+}
+
+# A clone with a bare origin and a worktree pj-1, next to a fake project.sh, laid out as the skills are.
+setup_pj() {
+  rm -rf "$TMP/pj"
+  mkdir -p "$TMP/pj/skills/pj-cleanup/scripts" "$TMP/pj/skills/workflow/scripts" "$TMP/pj/skills/pj1-plan/scripts"
+  cp "$CLEANUP_SRC" "$TMP/pj/skills/pj-cleanup/scripts/cleanup.sh"
+  cp "$SCRIPT" "$TMP/pj/skills/workflow/scripts/worktree.sh"
+  cat > "$TMP/pj/skills/pj1-plan/scripts/project.sh" <<'FAKE'
+#!/usr/bin/env bash
+echo '{"parent":{"number":1,"title":"P","state":"CLOSED","base":"pj/1","from":"main","merged":true}}'
+FAKE
+  chmod +x "$TMP/pj/skills/pj-cleanup/scripts/cleanup.sh" "$TMP/pj/skills/workflow/scripts/worktree.sh" \
+           "$TMP/pj/skills/pj1-plan/scripts/project.sh"
+  CLEANUP="$TMP/pj/skills/pj-cleanup/scripts/cleanup.sh"
+  git init -q --bare "$TMP/pj/origin.git"
+  git init -q -b main "$TMP/pj/work"
+  MAIN="$(cd "$TMP/pj/work" && pwd -P)"
+  (
+    cd "$MAIN"
+    echo 'work-reports/' > .gitignore
+    echo '.claude/worktrees/' >> .gitignore
+    echo readme > README.md
+    git add .gitignore README.md
+    git commit -q -m init
+    git remote add origin "$TMP/pj/origin.git"
+    git push -q origin main
+    git worktree add -q --detach .claude/worktrees/pj-1 HEAD
+  )
+  WT="$MAIN/.claude/worktrees/pj-1"
+  R="$MAIN/work-reports"
+  seed_reports
   cd "$MAIN"
 }
 
@@ -146,3 +187,47 @@ exists "$R/2026-01-01-0000-aaaaaaa" && fail "other old report kept"
 exists "$R/2026-01-06-0000-locked" || fail "locked report vanished"
 chmod 755 "$R/2026-01-06-0000-locked"
 echo "ok: worktree.sh old-reports --delete records a report it cannot delete in errors and deletes the others"
+
+setup_pj
+out="$("$CLEANUP" check 1)"
+[ "$(echo "$out" | json 'd["status"]')" = ok ] || fail "pj check status: $out"
+[ "$(echo "$out" | json 'd["oldReports"]["names"]')" = "['2026-01-01-0000-aaaaaaa', '2026-01-02-0000-bbbbbbb', '2026-01-03-0000-discarded', '2026-01-04-0000-ccccccc-wf-test']" ] \
+  || fail "pj check names: $out"
+[ "$(echo "$out" | json 'd["oldReports"]["days"]')" = 14 ] || fail "pj check days: $out"
+[ "$(echo "$out" | json 'd["oldReports"]["path"]')" = "$R" ] || fail "pj check path: $out"
+[ "$(echo "$out" | json '"deleted" in d["oldReports"]')" = False ] || fail "pj check carries deleted: $out"
+[ "$(ls "$R" | wc -l | tr -d ' ')" = 7 ] || fail "pj check deleted something"
+echo "ok: cleanup.sh check carries the oldReports from worktree.sh and deletes nothing"
+
+setup_pj
+mkdir -p "$WT/work-reports/2020-01-01-0000-eeeeeee"
+age 100 "$WT/work-reports/2020-01-01-0000-eeeeeee"
+out="$("$CLEANUP" run 1)"
+[ "$(echo "$out" | json 'd["status"]')" = done ] || fail "pj run status: $out"
+[ "$(echo "$out" | json 'd["worktree"]["action"]')" = removed ] || fail "pj run worktree: $out"
+exists "$R/2026-01-01-0000-aaaaaaa" && fail "pj old report kept"
+exists "$R/2026-01-02-0000-bbbbbbb" && fail "pj 14-day-old report kept"
+exists "$R/2026-01-03-0000-discarded" && fail "pj old -discarded report kept"
+exists "$R/2026-01-04-0000-ccccccc-wf-test" && fail "pj old suffixed report kept"
+exists "$R/2026-02-01-0000-ddddddd" || fail "pj 13-day-old report deleted"
+exists "$R/notes" || fail "pj unstamped directory deleted"
+exists "$R/.DS_Store" || fail "pj file deleted"
+exists "$R/2026-01-05-0000-link" || fail "pj symlink deleted"
+exists "$R/2020-01-01-0000-eeeeeee" || fail "pj moved report deleted"
+python3 - "$R/2020-01-01-0000-eeeeeee" <<'PY' || fail "pj moved report mtime is not now"
+import os, sys, time
+sys.exit(0 if time.time() - os.lstat(sys.argv[1]).st_mtime < 3600 else 1)
+PY
+[ "$(echo "$out" | json 'd["oldReports"]["deleted"]')" = "['2026-01-01-0000-aaaaaaa', '2026-01-02-0000-bbbbbbb', '2026-01-03-0000-discarded', '2026-01-04-0000-ccccccc-wf-test']" ] \
+  || fail "pj run deleted: $out"
+[ "$(echo "$out" | json 'd["errors"]')" = "[]" ] || fail "pj run errors: $out"
+echo "ok: cleanup.sh run deletes the old reports and keeps a report it moved in"
+
+setup_pj
+echo dirty > "$WT/untracked.txt"
+out="$("$CLEANUP" run 1)"
+[ "$(echo "$out" | json 'd["status"]')" = stop ] || fail "pj refused status: $out"
+[ "$(echo "$out" | json 'd["reason"]')" = dirty ] || fail "pj refused reason: $out"
+[ "$(ls "$R" | wc -l | tr -d ' ')" = 7 ] || fail "pj refused run deleted something"
+exists "$R/2026-01-01-0000-aaaaaaa" || fail "pj refused run deleted an old report"
+echo "ok: cleanup.sh run refused for dirty deletes nothing"

@@ -4,7 +4,10 @@
 # Writes on GitHub: run deletes the project's base branch on origin. Writes in git: run moves the work reports out of
 # the run's worktree into <MAIN>/work-reports/, removes the worktree, deletes the local base branch when origin holds
 # its tip, and fast-forwards the local <from> to origin/<from>. It never switches a branch, stashes, commits or resets.
-# It reads the project with ../../pj1-plan/scripts/project.sh, and refuses a project that is not merged.
+# run also deletes the work reports in <MAIN>/work-reports/ that arrived there 14 days ago or more, by calling
+# ../../workflow/scripts/worktree.sh old-reports --delete, and check lists them with old-reports.
+# It reads the project with ../../pj1-plan/scripts/project.sh, the old reports through
+# ../../workflow/scripts/worktree.sh, and refuses a project that is not merged.
 set -euo pipefail
 
 die() { echo "cleanup: $*" >&2; exit 1; }
@@ -14,7 +17,8 @@ usage() {
 usage: cleanup.sh list                  the projects that have a worktree in this clone
        cleanup.sh check <P>             what run would do for project <P>, which must be merged
        cleanup.sh run <P> [--discard]   move the work reports out, remove the worktree, delete the base branch,
-                                        fast-forward <from>. --discard removes a worktree with uncommitted work
+                                        fast-forward <from>. --discard removes a worktree with uncommitted work.
+                                        It also deletes the old reports
 Every subcommand prints one JSON object with "status" and exits 0. "stop" carries "reason" and "message".
 Exit 1 means a usage error or an unexpected failure.
 USAGE
@@ -36,16 +40,17 @@ esac
 command -v python3 >/dev/null 2>&1 || die "python3 is not installed"
 
 PROJECT_SH="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/../../pj1-plan/scripts/project.sh"
+WORKTREE_SH="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/../../workflow/scripts/worktree.sh"
 
 read -r -d '' PY <<'PY' || true
 import json, os, re, shutil, subprocess, sys
 
-PROJECT_SH, SUB = sys.argv[1], sys.argv[2]
-P = int(sys.argv[3]) if len(sys.argv) > 3 else None
-ARGS = sys.argv[4:]
+PROJECT_SH, WORKTREE_SH, SUB = sys.argv[1:4]
+P = int(sys.argv[4]) if len(sys.argv) > 4 else None
+ARGS = sys.argv[5:]
 
-def run(*cmd):
-    return subprocess.run(cmd, capture_output=True, text=True)
+def run(*cmd, cwd=None):
+    return subprocess.run(cmd, capture_output=True, text=True, cwd=cwd)
 
 def emit(**obj):
     print(json.dumps(obj, ensure_ascii=False))
@@ -137,6 +142,18 @@ def reports(wt):
         return []
     return sorted(e for e in os.listdir(root) if os.path.isdir(os.path.join(root, e)))
 
+def read_old_reports(main, *flags):
+    """worktree.sh old-reports, started in main: the cwd may be a worktree that was just removed.
+    Returns (parsed JSON or None, message)."""
+    r = run(WORKTREE_SH, "old-reports", *flags, cwd=main)
+    message = r.stderr.strip() or r.stdout.strip()
+    if r.returncode != 0:
+        return None, message
+    try:
+        return json.loads(r.stdout), message
+    except ValueError:
+        return None, message
+
 def plan(p):
     """Everything check prints and run acts on."""
     main, trees = located()
@@ -191,9 +208,14 @@ def plan(p):
         else:
             update = {"action": "diverged", "sha": current, "to": target, "worktree": holder}
 
+    result, message = read_old_reports(main)
+    if result is None or result.get("status") != "ok":
+        die("worktree.sh old-reports failed: " + message)
+
     return main, {"project": {k: parent[k] for k in ("number", "title", "state", "base", "from")},
                   "main": main, "worktree": tree, "localBase": local,
-                  "remoteBase": "present" if remote else "absent", "update": update}
+                  "remoteBase": "present" if remote else "absent", "update": update,
+                  "oldReports": result["oldReports"]}
 
 def list_projects():
     main, trees = located()
@@ -228,6 +250,7 @@ def move_reports(main, wt):
         if os.path.lexists(dest):
             die("cannot move %s: %s exists" % (name, dest))
         shutil.move(os.path.join(wt, "work-reports", name), dest)
+        os.utime(dest)  # the clock of the 14 days is the arrival
         moved.append(dest)
     return moved
 
@@ -282,9 +305,17 @@ def cleanup():
             update["action"] = "not-updated"
             errors.append({"step": "update", "message": (r.stderr or r.stdout).strip()})
 
+    result, message = read_old_reports(main, "--delete")
+    if result is not None and result.get("status") == "done":
+        out["oldReports"] = result["oldReports"]
+        errors.extend(result["errors"])
+    else:
+        out["oldReports"]["deleted"] = []
+        errors.append({"step": "old-reports", "message": message})
+
     emit(status="done", errors=errors, **out)
 
 {"list": list_projects, "check": check, "run": cleanup}[SUB]()
 PY
 
-exec python3 -c "$PY" "$PROJECT_SH" "$@"
+exec python3 -c "$PY" "$PROJECT_SH" "$WORKTREE_SH" "$@"

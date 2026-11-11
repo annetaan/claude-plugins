@@ -364,7 +364,7 @@ What it needs:
 Without a number, it takes the merged project whose worktree is in your clone, and asks when there are several. It
 shows what it will do and asks once. Then it closes the parent when it is still open, moves the work reports out of
 the project's worktree into `work-reports/` in your clone, removes the worktree, deletes the project's branch on
-origin and locally, and fast-forwards your local copy of the branch the project merged into, usually `main`.
+origin and locally, fast-forwards your local copy of the branch the project merged into, usually `main`, and deletes the work reports in `work-reports/` that have been there for 14 days or more.
 
 It never switches your branch, stashes or resets. When the branch is checked out in your clone, it moves with
 `git merge --ff-only`, which refuses rather than overwrite a local change. A local branch with commits origin does not

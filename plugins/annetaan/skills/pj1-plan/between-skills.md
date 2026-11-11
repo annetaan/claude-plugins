@@ -28,7 +28,7 @@ fresh `claude -p` process per step, and lets `project.sh --next` (`state.md`, **
 
 `pj-cleanup` is not one of the four either. It runs once the user has merged a project's pull request: it closes the parent,
 removes the project's worktree after moving its work reports into the main working tree, deletes the base branch on
-origin and locally, and fast-forwards the local `<from>`.
+origin and locally, fast-forwards the local `<from>`, and deletes the work reports that have been in the main working tree 14 days or more.
 
 ## Principle
 

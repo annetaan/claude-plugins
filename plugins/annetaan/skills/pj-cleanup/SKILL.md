@@ -1,6 +1,6 @@
 ---
 name: pj-cleanup
-description: Cleans up after the user has merged a project's pull request, the one pj4-running opened from the project's base branch. Closes the parent when it is still open, moves the work reports out of the project's worktree into the main working tree, removes the worktree, deletes the base branch on origin and locally, and fast-forwards the branch the project merged into, normally main, to origin. Asks one approval question. Use it only when the user names this skill or invokes /annetaan:pj-cleanup, because it closes an issue, deletes branches and removes a worktree.
+description: Cleans up after the user has merged a project's pull request, the one pj4-running opened from the project's base branch. Closes the parent when it is still open, moves the work reports out of the project's worktree into the main working tree, removes the worktree, deletes the base branch on origin and locally, fast-forwards the branch the project merged into, normally main, to origin, and deletes the work reports that have been in the main working tree 14 days or more. Asks one approval question. Use it only when the user names this skill or invokes /annetaan:pj-cleanup, because it closes an issue, deletes branches and removes a worktree.
 ---
 
 # pj-cleanup
@@ -29,6 +29,8 @@ This skill uses these files:
 - the script `$CLEANUP/scripts/cleanup.sh`, written `cleanup.sh` below. Every subcommand prints one JSON object with
   a `status`. A non-zero exit is a usage error or an unexpected failure: quote its message and stop
 - the script `$CLEANUP/../pj4-running/scripts/run.sh`, written `run.sh` below, for its `close` only
+- the script `$CLEANUP/../workflow/scripts/worktree.sh`, which `cleanup.sh` calls for its `old-reports` only. You never
+  run it yourself
 
 **Language**: talk to the user in the user's language. Write the comment on the parent in the repository's language.
 
@@ -103,6 +105,8 @@ Show what the cleanup does, one line per item, from the `check` output.
   - `current`: it is up to date
   - `diverged`: it holds commits origin does not have, and it is left alone
   - `absent`: there is no local `<from>`, and nothing is created
+- when `oldReports.names` is not empty: the reports in it are deleted from `<MAIN>/work-reports/`, because they have
+  been there 14 days or more. List the names
 
 When `worktree.state` is `foreign`, stop instead of asking: say that `<WT>` is not a worktree of this clone, and that
 nothing was changed.
@@ -160,6 +164,7 @@ and name `<WT>`, and say that `git -C <WT> status` shows the work. The approval 
     the user decides
   - `not-updated`: the fast-forward refused. Quote its message from `errors`
   - `absent`: there is no local `<from>`
+- `oldReports.deleted`, when it is not empty: the work reports deleted from `<MAIN>/work-reports/`
 - each other entry of `errors` with its `step` and `message`
 - the projects that can be split now, from `startable`, one line each as `/annetaan:pj2-issues <R>` with its title
 
@@ -171,4 +176,6 @@ and name `<WT>`, and say that `git -C <WT> status` shows the work. The approval 
 - **Never switch a branch, stash, commit, reset or clean in `<MAIN>`.** `<from>` only ever fast-forwards.
 - **Close the parent only through `run.sh close`**, which refuses one that is not merged. Write nothing else to GitHub
   yourself. `cleanup.sh run` deletes the base branch on origin.
+- In `<MAIN>/work-reports/`, only real directories whose names start with a timestamp and that have been there 14 days
+  or more are deleted.
 - Every comment starts with `**[pj-cleanup]**`.
