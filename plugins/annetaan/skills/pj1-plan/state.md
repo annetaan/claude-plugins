@@ -84,7 +84,7 @@ project.sh --lint - <<'EOF'
 EOF
 ```
 
-`--check <n>` runs inside a clone of the repository. It fetches `<from>` from origin every time, and the base branch
+`--check <n>` runs inside a work tree of a clone of the repository, from any directory in it. It fetches `<from>` from origin every time, and the base branch
 only once it exists, which moves local refs and nothing else, and prints:
 
 ```
