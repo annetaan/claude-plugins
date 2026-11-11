@@ -128,7 +128,7 @@ them. A run that ends before approval removes its worktree. Every other run leav
 or stopped midway.
 
 After you merge or close the pull request, `/annetaan:workflow-cleanup` moves the work report into `work-reports/` in
-your clone, removes the worktree and the branch, fast-forwards your local base after a merge, and deletes the reports there that are 14 days old or more. Details are in
+your clone, removes the worktree and the branch, fast-forwards your local base after a merge, and deletes the reports that have been there 14 days or more. Details are in
 [workflow-cleanup](../workflow-cleanup/SKILL.md).
 
 ```
