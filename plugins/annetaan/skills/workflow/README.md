@@ -128,7 +128,7 @@ them. A run that ends before approval removes its worktree. Every other run leav
 or stopped midway.
 
 After you merge or close the pull request, `/annetaan:workflow-cleanup` moves the work report into `work-reports/` in
-your clone, removes the worktree and the branch, and fast-forwards your local base after a merge. Details are in
+your clone, removes the worktree and the branch, fast-forwards your local base after a merge, and deletes the reports there that are 14 days old or more. Details are in
 [workflow-cleanup](../workflow-cleanup/SKILL.md).
 
 ```
@@ -154,7 +154,8 @@ work-reports/2026-09-19-1346-a1b2c3d/
 The directory name is the local time the run started, plus the short SHA of the commit it started from. The newest
 run sorts last, so there is never a question about which report is the current one.
 
-**These live inside the repository so that you notice them piling up.** In a temp directory somewhere else they eat
+**These live inside the repository so that you see them.** A cleanup deletes the ones that have sat in your clone's
+`work-reports/` for 14 days. In a temp directory somewhere else they eat
 disk where nobody looks. In exchange, the skill checks that `.claude/worktrees/` and `work-reports/` are
 ignored by git before it writes anything, and asks before adding them to `.git/info/exclude`. That file stays in your
 clone, so nothing is committed and `.gitignore` is never edited.

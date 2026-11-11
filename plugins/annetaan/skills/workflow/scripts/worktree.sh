@@ -7,7 +7,8 @@
 # request's head (refs/pull/<n>/head, object only, no ref), create adds the detached worktree, ignore --add appends to the clone's info/exclude, and cleanup
 # moves the work reports into <MAIN>/work-reports/, removes the worktree, deletes the run's branch locally and on
 # origin, and fast-forwards the local base branch when the pull request merged. It never switches a branch, stashes,
-# commits or resets in the main working tree. sync fetches origin/<base> and, on a conflict, starts a merge in the
+# commits or resets in the main working tree. cleanup and old-reports --delete delete the work reports in
+# <MAIN>/work-reports/ that arrived there 14 days ago or more. sync fetches origin/<base> and, on a conflict, starts a merge in the
 # worktree and leaves it in progress. Nothing is recorded in git config or in files.
 set -euo pipefail
 
@@ -22,8 +23,10 @@ usage: worktree.sh start                          check the clone, gh and the re
        worktree.sh pr [<number>]                  the open pull request <number>, or the open pull requests of the user that conflict
        worktree.sh list                           the wf-* worktrees of this clone with the state of their pull request
        worktree.sh check <name>                   what cleanup would do for the worktree <name>
+       worktree.sh old-reports [--delete]         the work reports in <MAIN>/work-reports/ that arrived 14 days ago or more; --delete removes them.
+                                                  Used by pj-cleanup
        worktree.sh cleanup <name> [--discard]     move the work reports out, remove the worktree, delete the branch, fast-forward the base.
-                                                  --discard removes work that nothing else holds
+                                                  --discard removes work that nothing else holds. It also deletes the old reports
 Every subcommand prints one JSON object with "status" and exits 0. "stop" carries "reason" and "message".
 Exit 1 means a usage error or an unexpected failure.
 USAGE
@@ -38,6 +41,7 @@ case "$1" in
   ignore)     [ $# -eq 2 ] || { [ $# -eq 3 ] && [ "$3" = "--add" ]; } || usage ;;
   sync)       [ $# -eq 3 ] || usage ;;
   pr)         [ $# -le 2 ] || usage ;;
+  old-reports) [ $# -eq 1 ] || { [ $# -eq 2 ] && [ "$2" = "--delete" ]; } || usage ;;
   cleanup)    [ $# -eq 2 ] || { [ $# -eq 3 ] && [ "$3" = "--discard" ]; } || usage ;;
   *)          usage ;;
 esac
@@ -155,6 +159,37 @@ def reports(wt):
     if not os.path.isdir(root):
         return []
     return sorted(e for e in os.listdir(root) if os.path.isdir(os.path.join(root, e)))
+
+REPORT_DAYS = 14
+
+def old_reports(main):
+    """The names of the work reports in <main>/work-reports/ that arrived REPORT_DAYS days ago or more, sorted.
+    A report is a real directory whose name starts with a timestamp. Its own mtime is the clock."""
+    root = os.path.join(main, "work-reports")
+    if not os.path.isdir(root):
+        return []
+    limit = time.time() - REPORT_DAYS * 86400
+    found = []
+    for e in os.listdir(root):
+        path = os.path.join(root, e)
+        if not re.match(r"\d{4}-\d{2}-\d{2}-\d{4}(-|$)", e):
+            continue
+        if os.path.islink(path) or not os.path.isdir(path):
+            continue
+        if os.lstat(path).st_mtime <= limit:
+            found.append(e)
+    return sorted(found)
+
+def delete_reports(main, names, errors):
+    """Remove each named report from <main>/work-reports/. A failure goes into errors and the rest go on."""
+    deleted = []
+    for n in names:
+        try:
+            shutil.rmtree(os.path.join(main, "work-reports", n))
+            deleted.append(n)
+        except OSError as e:
+            errors.append({"step": "old-reports", "message": "cannot delete %s: %s" % (n, e)})
+    return deleted
 
 def version(text):
     m = re.search(r"gh version (\d+)\.(\d+)\.(\d+)", text)
@@ -358,7 +393,9 @@ def plan(name):
                 update = {"action": "diverged", "sha": current, "to": target, "worktree": holder}
 
     return main, {"main": main, "name": name, "state": state, "pr": pr, "base": base, "worktree": tree,
-                  "branch": br, "loses": loses, "update": update}
+                  "branch": br, "loses": loses, "update": update,
+                  "oldReports": {"path": os.path.join(main, "work-reports"), "days": REPORT_DAYS,
+                                 "names": old_reports(main)}}
 
 def check():
     _, out = plan(ARGS[0])
@@ -376,6 +413,7 @@ def move_reports(main, wt, name):
         if os.path.lexists(dest):
             die("cannot move %s: %s exists" % (report, dest))
         shutil.move(os.path.join(wt, "work-reports", report), dest)
+        os.utime(dest)
         moved.append(dest)
     return moved
 
@@ -429,7 +467,17 @@ def cleanup():
             update["action"] = "not-updated"
             errors.append({"step": "update", "message": (r.stderr or r.stdout).strip()})
 
+    out["oldReports"]["deleted"] = delete_reports(main, out["oldReports"]["names"], errors)
     emit(status="done", errors=errors, **out)
+
+def old_reports_cmd():
+    main = located()
+    info = {"path": os.path.join(main, "work-reports"), "days": REPORT_DAYS, "names": old_reports(main)}
+    if "--delete" not in ARGS:
+        emit(status="ok", main=main, oldReports=info)
+    errors = []
+    info["deleted"] = delete_reports(main, info["names"], errors)
+    emit(status="done", main=main, oldReports=info, errors=errors)
 
 def sync():
     main = located()
@@ -495,7 +543,8 @@ def pr():
               "base": p["baseRefName"]} for p in json.loads(r.stdout) if p["mergeable"] == "CONFLICTING"]
     emit(status="pick", candidates=sorted(found, key=lambda p: p["number"]))
 
-{"start": start, "create": create, "ignore": ignore, "sync": sync, "pr": pr, "list": list_runs, "check": check, "cleanup": cleanup}[SUB]()
+{"start": start, "create": create, "ignore": ignore, "sync": sync, "pr": pr, "list": list_runs, "check": check, "cleanup": cleanup,
+ "old-reports": old_reports_cmd}[SUB]()
 PY
 
 exec python3 -c "$PY" "$@"
