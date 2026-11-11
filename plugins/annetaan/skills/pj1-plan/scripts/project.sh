@@ -195,7 +195,7 @@ def graphql(fields, ints=None, strs=None, what="read the repository"):
     ints, strs = ints or {}, strs or {}
     decls = ["$owner: String!", "$name: String!"]
     decls += ["$%s: Int!" % k for k in ints] + ["$%s: String!" % k for k in strs]
-    cmd = ["gh", "api", "graphql", "-f", "owner=" + owner, "-f", "name=" + name]
+    cmd = ["gh", "api", "graphql", "-f", "owner=" + REPO_OWNER, "-f", "name=" + REPO_NAME]
     for k, v in ints.items():
         cmd += ["-F", "%s=%d" % (k, v)]
     for k, v in strs.items():
@@ -346,7 +346,7 @@ if MODE == "exact":
     sys.exit(0)
 
 issues_file, repo = sys.argv[2], sys.argv[3]
-owner, name = repo.split("/", 1)
+REPO_OWNER, REPO_NAME = repo.split("/", 1)
 
 data = json.load(open(issues_file))
 parent = ((data.get("data") or {}).get("repository") or {}).get("issue")
@@ -674,8 +674,9 @@ if MODE == "next":
     print(json.dumps(next_step(project_view()), ensure_ascii=False))
     sys.exit(0)
 
-if MODE == "check":
-    n = int(sys.argv[4])
+def check(n):
+    """Print whether sub-issue n can be implemented from its body now, as JSON. A function so that its temporaries
+    cannot rebind a global another function reads."""
     issue = by_number.get(n)
     if issue is None:
         die("#%d is not a sub-issue of #%d" % (n, parent["number"]))
@@ -696,9 +697,9 @@ if MODE == "check":
         die("git ls-tree failed: " + tree.stderr.strip())
     root_files = set()
     for rec in tree.stdout.split("\0"):
-        meta, _, name = rec.partition("\t")
-        if name and meta.split()[1] == "blob":
-            root_files.add(name)
+        meta, _, fname = rec.partition("\t")
+        if fname and meta.split()[1] == "blob":
+            root_files.add(fname)
     paths = root_files | {f["path"] for m in transitive_blockers(issue) if m in by_number for f in by_number[m]["files"]}
     paths |= {f["path"] for f in issue["files"]}
     check_lint = lint(parse(body_of[n]), paths)
@@ -781,6 +782,9 @@ if MODE == "check":
         "premises": {"mode": mode, "excusers": excusers, "failures": failures},
         "history": {"stale": stale},
     }, ensure_ascii=False))
+
+if MODE == "check":
+    check(int(sys.argv[4]))
     sys.exit(0)
 
 # --order and --order-body: the run order and the ## Order list (see run_order).
