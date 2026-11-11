@@ -187,5 +187,5 @@ Every standalone run that got past approval ends here, finished or stopped (roun
 - the review files, under `<WORKDIR>/review/`
 - the screenshot paths, when the change shows on screen
 - when phase 5 was skipped, one line saying the integration review did not run because the plan had one task
-- **the cleanup**: once the pull request is merged or closed, `/annetaan:workflow-cleanup <PR number>` moves the work report into `<MAIN>/work-reports/`, removes `<WT>` and the branch, and fast-forwards the local `<base>` after a merge. A run that stopped with no pull request is cleaned up with `/annetaan:workflow-cleanup` and no number
+- **the cleanup**: once the pull request is merged or closed, `/annetaan:workflow-cleanup <PR number>` moves the work report into `<MAIN>/work-reports/`, removes `<WT>` and the branch, fast-forwards the local `<base>` after a merge, and deletes the reports that have been in `<MAIN>/work-reports/` 14 days or more. A run that stopped with no pull request is cleaned up with `/annetaan:workflow-cleanup` and no number
 - for a stopped run, what is still uncommitted in `<WT>`

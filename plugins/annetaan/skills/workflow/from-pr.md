@@ -83,9 +83,10 @@ $FLOW/scripts/worktree.sh cleanup <name>
 ```
 
 The worktree holds a detached HEAD whose commit is on origin, so nothing is lost: the work reports move into
-`<MAIN>/work-reports/`, and the worktree is removed. On `stopped` from the merge task, leave `<WT>` as it is instead,
+`<MAIN>/work-reports/`, the worktree is removed, and the reports that have been in `<MAIN>/work-reports/` 14 days or
+more are deleted. On `stopped` from the merge task, leave `<WT>` as it is instead,
 and say that `/annetaan:workflow-cleanup`, picking `<name>`, removes it.
 
 Tell the user: the pull request URL, the files resolved and how each was settled, in a line each, the merge commit,
-what the review rounds changed, the `later` reports, and where the review files now are. For a pull request
+what the review rounds changed, the `later` reports, the work reports the cleanup deleted from `<MAIN>/work-reports/` (`oldReports.deleted`) when there are any, and where the review files now are. For a pull request
 pj4-running opened for a sub-issue, add that the next `/annetaan:pj4-running` merges it.

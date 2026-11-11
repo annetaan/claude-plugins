@@ -183,10 +183,9 @@ such as "コンフリクト解消して", with no skill named ([Conflicts](skill
 `pj4-running` runs this flow once per task ([Driven from an issue](skills/workflow/README.md#driven-from-an-issue),
 [How the skills fit together](#how-the-skills-fit-together)).
 
-Every run leaves a work report behind, inside the repository under `work-reports/` so that you notice them piling
-up. The skill checks that git ignores `.claude/worktrees/` and `work-reports/` before it writes anything, and asks
+Every run leaves a work report behind, inside the repository under `work-reports/` so that you see them. The skill checks that git ignores `.claude/worktrees/` and `work-reports/` before it writes anything, and asks
 before adding them to `.git/info/exclude`. That file stays in your clone, so nothing is committed and `.gitignore` is
-never edited. `/annetaan:workflow-cleanup` moves the report into your clone's `work-reports/` once the run is over.
+never edited. `/annetaan:workflow-cleanup` moves the report into your clone's `work-reports/` once the run is over, and deletes the reports that have sat there for 14 days or more.
 
 ### pj1-plan, pj2-issues, pj3-doctor, pj4-running
 
@@ -365,7 +364,7 @@ What it needs:
 Without a number, it takes the merged project whose worktree is in your clone, and asks when there are several. It
 shows what it will do and asks once. Then it closes the parent when it is still open, moves the work reports out of
 the project's worktree into `work-reports/` in your clone, removes the worktree, deletes the project's branch on
-origin and locally, and fast-forwards your local copy of the branch the project merged into, usually `main`.
+origin and locally, fast-forwards your local copy of the branch the project merged into, usually `main`, and deletes the work reports in `work-reports/` that have been there for 14 days or more.
 
 It never switches your branch, stashes or resets. When the branch is checked out in your clone, it moves with
 `git merge --ff-only`, which refuses rather than overwrite a local change. A local branch with commits origin does not
@@ -382,8 +381,9 @@ be split now that this one is merged.
 `/annetaan:workflow-cleanup` ([details](skills/workflow-cleanup/SKILL.md)) cleans up after a workflow run. Without a
 number, it lists the `wf-*` worktrees whose pull request is merged or closed, and those that have none, which is a run that
 stopped or one still going in another session. It takes the only candidate, or asks which. It shows what it will do and asks once. Then it moves the work
-reports into `work-reports/` in your clone, removes the worktree, deletes the branch locally and on origin, and
-fast-forwards your local base after a merge.
+reports into `work-reports/` in your clone, removes the worktree, deletes the branch locally and on origin,
+fast-forwards your local base after a merge, and deletes the work reports in `work-reports/` that have been there for
+14 days or more.
 
 It never switches your branch, stashes or resets. Work that nothing else holds is removed only when you choose to
 discard it. That means uncommitted changes, commits that are on no other branch on origin, and the branch of a closed
