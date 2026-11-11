@@ -461,17 +461,18 @@ sidecar matches again.
 ## Agents
 
 These are the sub-agents the skills spawn. Anything under `agents/` becomes callable as `annetaan:<name>`.
-The model and the effort are pinned here, and a skill selects one by name alone.
+The model and the effort are pinned here, and a skill selects one by name alone. When a Fable agent other than the
+design review cannot start, the skill spawns it again on opus at the same effort.
 
 | Agent | Model | Effort | Role |
 | --- | --- | --- | --- |
-| `annetaan:workflow-design` | opus | medium | design. returns the design and the plan |
+| `annetaan:workflow-design` | fable | medium | design. returns the design and the plan |
 | `annetaan:workflow-design-review` | fable | medium | design review for `workflow` and `pj1-plan`. once, before approval, in every repository. moves existing code only where breaking changes are welcome |
 | `annetaan:workflow-worker` | sonnet | medium | implementation, for every task |
 | `annetaan:workflow-reviewer` | opus | medium | review, for every task, and the integration review when the plan has more than one task |
-| `annetaan:pj-planner` | opus | high | planning for `pj1-plan` and `pj2-issues`. the projects, their designs and the waits between them, then one project's split into tasks. answers the design review |
+| `annetaan:pj-planner` | fable | medium | planning for `pj1-plan` and `pj2-issues`. the projects, their designs and the waits between them, then one project's split into tasks. answers the design review |
 | `annetaan:pj-issue-writer` | opus | medium | one sub-issue, drawn against the code. drafts it for `pj2-issues`, revises it for `pj3-doctor` |
-| `annetaan:pj-reviewer` | opus | high | project review for `pj3-doctor`. reads the whole project against the ticked boxes, the code and each issue |
+| `annetaan:pj-reviewer` | fable | medium | project review for `pj3-doctor`. reads the whole project against the ticked boxes, the code and each issue |
 | `annetaan:doc-meta-overview` | opus | high | overview for `doc-meta`. finds what a per-sentence flag misses |
 
 `pj4-running` has no agents of its own. It runs workflow's.

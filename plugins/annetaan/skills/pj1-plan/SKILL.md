@@ -66,7 +66,9 @@ Agent(subagent_type: "annetaan:pj-planner", description: "project plan",
       prompt: "Read $PLAN/roles/plan.md first and follow the role it describes. The project format is in $PLAN/format.md.\n\nThe request:\n<the user's request, verbatim>")
 ```
 
-`annetaan:pj-planner` ships with this plugin and is pinned to opus at high effort with code changes disabled.
+`annetaan:pj-planner` ships with this plugin and is pinned to Fable at medium effort with code changes disabled.
+**When it cannot start** (a weekly limit, a rate limit, the model is unavailable), spawn it again with the same
+prompt and `model: "opus"`. The effort stays medium.
 
 When the plan comes back:
 

@@ -111,7 +111,9 @@ Agent(subagent_type: "annetaan:pj-planner", description: "split #<P>",
 
 `Removed waits:` names the projects whose edges **The project** step 2 removed in this run.
 
-`annetaan:pj-planner` ships with this plugin and is pinned to opus at high effort with code changes disabled.
+`annetaan:pj-planner` ships with this plugin and is pinned to Fable at medium effort with code changes disabled.
+**When it cannot start** (a weekly limit, a rate limit, the model is unavailable), spawn it again with the same
+prompt and `model: "opus"`. The effort stays medium.
 
 When the split comes back:
 

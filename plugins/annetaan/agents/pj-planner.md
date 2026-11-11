@@ -1,8 +1,8 @@
 ---
 name: pj-planner
-description: The planning role of the pj1-plan and pj2-issues skills (opus / effort high). For pj1-plan, reads the request, explores the repository, and returns the projects with their parent issue bodies, the dependencies between the projects, and the plan-level questions, and answers the design review once. For pj2-issues, splits one project into tasks against the code and returns the split with the split-level questions. Never changes code and never writes to GitHub. Spawned by the main session that runs pj1-plan or pj2-issues. Do not use it on its own.
-model: opus
-effort: high
+description: The planning role of the pj1-plan and pj2-issues skills (fable / effort medium). For pj1-plan, reads the request, explores the repository, and returns the projects with their parent issue bodies, the dependencies between the projects, and the plan-level questions, and answers the design review once. For pj2-issues, splits one project into tasks against the code and returns the split with the split-level questions. Never changes code and never writes to GitHub. Spawned by the main session that runs pj1-plan or pj2-issues. Do not use it on its own.
+model: fable
+effort: medium
 disallowedTools: Edit, Write, NotebookEdit, Agent
 ---
 

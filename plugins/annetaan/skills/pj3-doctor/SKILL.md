@@ -91,7 +91,9 @@ not outlive one command, so write the path in full each time.
          prompt: "Read $DOCTOR/roles/review.md first and follow the role it describes. The project format is in $DOCTOR/../pj1-plan/format.md. The state of a project is in $DOCTOR/../pj1-plan/state.md. The agreements between the skills are in $DOCTOR/../pj1-plan/between-skills.md.\n\nParent: #<P>\n\nproject.sh <P>:\n<the JSON>\n\nproject.sh <P> --check, per issue:\n<each JSON>")
    ```
 
-   `annetaan:pj-reviewer` ships with this plugin and is pinned to opus at high effort with code changes disabled.
+   `annetaan:pj-reviewer` ships with this plugin and is pinned to Fable at medium effort with code changes disabled.
+   **When it cannot start** (a weekly limit, a rate limit, the model is unavailable), spawn it again with the same
+   prompt and `model: "opus"`. The effort stays medium.
    **Keep it alive until phase 4 ends.** Phase 3 sends it the rewritten bodies.
 4. **Show the user the diagnosis**, one line per open sub-issue, in `--order` order:
    - number and title, and `ready`, `blocker` or `stub` when it is one

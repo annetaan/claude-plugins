@@ -26,7 +26,9 @@ Agent(subagent_type: "annetaan:workflow-design", description: "design",
       prompt: "Read $FLOW/roles/design.md first and follow the role it describes.\n\nThe request:\n<the user's request, verbatim>\n\n<the worktree line>")
 ```
 
-`annetaan:workflow-design` ships with this plugin and is pinned to opus at medium effort with code changes disabled.
+`annetaan:workflow-design` ships with this plugin and is pinned to Fable at medium effort with code changes disabled.
+**When it cannot start** (a weekly limit, a rate limit, the model is unavailable), spawn it again with the same
+prompt and `model: "opus"`. The effort stays medium.
 
 When the design comes back:
 

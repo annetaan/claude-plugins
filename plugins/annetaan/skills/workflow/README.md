@@ -211,6 +211,6 @@ screenshots it could not attach.
 | `review-files.md` | the shape of the review files, read by the review and implementation sessions |
 
 The design, implementation and review sessions run on agents that ship with the plugin (`../../agents/`). Design is
-`annetaan:workflow-design` (opus / medium). The design review is `annetaan:workflow-design-review` (fable / medium),
-once before approval. Implementation is `annetaan:workflow-worker` (sonnet / medium) and review is
-`annetaan:workflow-reviewer` (opus / medium). The full list is in [the plugin README](../../README.md).
+`annetaan:workflow-design` (fable / medium, opus when Fable cannot start). The design review is
+`annetaan:workflow-design-review` (fable / medium), once before approval. Implementation is `annetaan:workflow-worker`
+(sonnet / medium) and review is `annetaan:workflow-reviewer` (opus / medium). The full list is in [the plugin README](../../README.md).
