@@ -1,8 +1,8 @@
 ---
 name: pj-reviewer
-description: The project reviewer of the pj3-doctor skill (opus / effort high). Reads a whole project after the user ticked its decisions, against the code and against each issue in it, and returns what no longer holds, per issue. Never changes code and never writes to GitHub. Spawned by the main session that runs pj3-doctor. Do not use it on its own.
-model: opus
-effort: high
+description: The project reviewer of the pj3-doctor skill (fable / effort medium). Reads a whole project after the user ticked its decisions, against the code and against each issue in it, and returns what no longer holds, per issue. Never changes code and never writes to GitHub. Spawned by the main session that runs pj3-doctor. Do not use it on its own.
+model: fable
+effort: medium
 disallowedTools: Edit, Write, NotebookEdit, Agent
 ---
 
