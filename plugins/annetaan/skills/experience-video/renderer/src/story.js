@@ -401,6 +401,19 @@ export function resolveStory(parsed, { storyDir = '.' } = {}) {
           return { text: l.text, style: l.style ?? null, count };
         });
       }
+      if (c.part === 'image') {
+        props.fit = c.fit ?? 'cover';
+        props.zoom = c.zoom ?? 'none';
+        props.focus = c.focus ?? 'center';
+      } else if (c.part === 'video') {
+        props.fit = c.fit ?? 'cover';
+        // A position in the file, not on the timeline: no mark and no `end`.
+        const s = c.start === undefined ? 0 : fail(() => resolveTimeExpr(c.start, { beat, bar, marks: {} }), 0);
+        if (s < 0) errors.push(finding('bad-value', `start must not be negative: "${c.start}"`, sc.index, id));
+        props.start = round(Math.max(0, s));
+      } else if (c.part === 'screen') {
+        props.device = c.device ?? 'phone';
+      }
       const refs = [];
       if (typeof props.src === 'string') {
         const abs = path.resolve(storyDir, props.src);

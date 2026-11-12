@@ -4,15 +4,11 @@
   var data = window.__evCut;
   var cut = data.cut;
   var root = document.documentElement;
-  var theme = data.theme || {};
-  if (theme.background) root.style.setProperty('--bg', theme.background);
-  if (theme.foreground) root.style.setProperty('--fg', theme.foreground);
-  if (theme.accent) root.style.setProperty('--accent', theme.accent);
-  if (theme.font) root.style.setProperty('--font', theme.font);
-  else root.style.setProperty('--font', 'system-ui');
 
   var stage = document.getElementById('stage');
   var counters = [];
+  var videoStep = null; // set by buildVideo: t -> promise
+  var ownImage = null; // the image of an image or video part
   var EASE_IN_MS = 500;
 
   function el(tag, cls, text) {
@@ -55,6 +51,60 @@
     return box;
   }
 
+  function buildImage(props, asset) {
+    var box = el('div', 'part image');
+    var img = el('img');
+    img.style.objectFit = props.fit || 'cover';
+    img.style.objectPosition = props.focus || 'center';
+    img.src = asset.url;
+    box.appendChild(img);
+    ownImage = img;
+    var span = (cut.duration + cut.tail) * 1000;
+    if (props.zoom === 'in' || props.zoom === 'out') {
+      var frames = [{ transform: 'scale(1)' }, { transform: 'scale(1.08)' }];
+      if (props.zoom === 'out') frames.reverse();
+      hold(img.animate(frames, { duration: span, fill: 'both', easing: 'linear' }));
+    }
+    return box;
+  }
+
+  function buildVideo(props, asset) {
+    var box = el('div', 'part video');
+    var img = el('img');
+    img.style.objectFit = props.fit || 'cover';
+    box.appendChild(img);
+    ownImage = img;
+    var shown = -1;
+    function name(i) {
+      return asset.dir + '/' + ('00000' + (i + 1)).slice(-5) + '.jpg';
+    }
+    videoStep = function (t) {
+      var i = Math.max(0, Math.min(asset.count - 1, Math.floor(t * asset.fps + 1e-6)));
+      if (i === shown) return null;
+      shown = i;
+      img.src = name(i);
+      return img.decode();
+    };
+    img.src = name(0);
+    shown = 0;
+    return box;
+  }
+
+  function fitDevice(device, size) {
+    var content = document.getElementById('fragment');
+    var dev = content.parentNode;
+    var logical = (window.__evDevices || {})[device];
+    content.style.width = logical.width + 'px';
+    content.style.height = logical.height + 'px';
+    // Outer size of the device in CSS pixels: the screen plus bezel (and the laptop's base).
+    var outerW = logical.width + (device === 'phone' ? 28 : 24 + 96);
+    var outerH = logical.height + (device === 'phone' ? 28 : 24 + 20);
+    var scale = device === 'phone'
+      ? Math.min((size.height * 0.8) / outerH, (size.width * 0.8) / outerW)
+      : Math.min((size.width * 0.78) / outerW, (size.height * 0.7) / outerH);
+    dev.style.transform = 'translate(-50%, -50%) scale(' + scale + ')';
+  }
+
   function buildTelops(telops) {
     var layer = el('div');
     layer.id = 'telops';
@@ -95,11 +145,24 @@
     });
   }
 
+  var asset = data.asset;
   if (cut.part === 'card') stage.appendChild(buildCard(cut.props));
+  else if (cut.part === 'image' && asset) stage.appendChild(buildImage(cut.props, asset));
+  else if (cut.part === 'video' && asset) stage.appendChild(buildVideo(cut.props, asset));
+  else if (cut.part === 'screen') fitDevice(cut.props.device, data);
+  else if (cut.part === 'custom') { /* the fragment is already in the stage */ }
   else stage.appendChild(buildPlaceholder(cut.part, cut.props));
   stage.appendChild(buildTelops(cut.telops));
 
-  var ready = document.fonts.ready.then(function () { return true; });
+  // Fonts, then every image decoded. Only the image part's own image can fail the cut; the others are reported by
+  // the request rules, or are the fragment's own business.
+  var ready = document.fonts.ready.then(function () {
+    return Promise.all(Array.prototype.map.call(document.images, function (img) {
+      return img.decode().catch(function (err) {
+        if (img === ownImage) throw new Error('ev-bad-image: ' + (img.getAttribute('src') || '') + ': ' + (err && err.message));
+      });
+    }));
+  }).then(function () { return true; });
 
   function seek(t) {
     document.getAnimations().forEach(function (a) {
@@ -110,6 +173,7 @@
     root.style.setProperty('--p', String(cut.duration > 0 ? t / cut.duration : 0));
     updateCounters(t);
     if (typeof window.renderAt === 'function') window.renderAt(t);
+    return videoStep ? videoStep(t) : undefined;
   }
 
   window.__ev = { ready: ready, seek: seek };

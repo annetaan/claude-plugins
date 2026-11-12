@@ -67,7 +67,8 @@ CODE=$?
 set -e
 [ "$CODE" = "0" ] || { cat "$TMP/render.log" >&2; fail "render --preview exited $CODE: $R1"; }
 [ "$(echo "$R1" | json "d['ok']")" = "True" ] || fail "render did not report ok: $R1"
-[ "$(echo "$R1" | json "sorted(d['rendered'])")" = "['basket', 'headline', 'question', 'recipe', 'table', 'twenty', 'week']" ] || fail "render rendered the wrong cuts: $R1"
+[ "$(echo "$R1" | json "sorted(d['rendered'])")" = "['basket', 'headline', 'order', 'question', 'recipe', 'table', 'twenty', 'week']" ] || fail "render rendered the wrong cuts: $R1"
+[ "$(echo "$R1" | json "d['errors']")" = "[]" ] || fail "the sample should render with no findings, fragments included: $R1"
 PREVIEW="$TMP/sample/build/preview.mp4"
 [ -f "$PREVIEW" ] || fail "render --preview wrote no build/preview.mp4"
 DUR="$(echo "$CHECK" | json "d['duration']")"
@@ -79,12 +80,12 @@ echo "ok: render --preview"
 
 # A second render renders no cut.
 R2="$(node "$EV" render "$TMP/sample/story.md" --preview 2>/dev/null)" || fail "second render failed: $R2"
-[ "$(echo "$R2" | json "(d['rendered'], len(d['cached']))")" = "([], 7)" ] || fail "a second render should render nothing: $R2"
+[ "$(echo "$R2" | json "(d['rendered'], len(d['cached']))")" = "([], 8)" ] || fail "a second render should render nothing: $R2"
 echo "ok: a second render is cached"
 
 # --force renders every cut.
 RF="$(node "$EV" render "$TMP/sample/story.md" --preview --force 2>/dev/null)" || fail "render --force failed: $RF"
-[ "$(echo "$RF" | json "len(d['rendered'])")" = "7" ] || fail "--force should render all 7 cuts: $RF"
+[ "$(echo "$RF" | json "len(d['rendered'])")" = "8" ] || fail "--force should render all 8 cuts: $RF"
 echo "ok: render --force"
 
 # Editing one telop renders exactly one cut.
@@ -118,8 +119,8 @@ R5="$(node "$EV" render "$TMP/sample/story.md" --preview 2>/dev/null)" || fail "
 echo "ok: edits render only the cuts they change"
 
 # Pruning leaves only the referenced files. Four edits have replaced the files of question and basket by now, so the
-# old ones are gone only if prune removed them: one file per distinct key, 7.
-[ "$(ls "$TMP/sample/build/cuts/preview" | wc -l | tr -d ' ')" = "7" ] || fail "build/cuts/preview should hold 7 files after the edits"
+# old ones are gone only if prune removed them: one file per distinct key, 8.
+[ "$(ls "$TMP/sample/build/cuts/preview" | wc -l | tr -d ' ')" = "8" ] || fail "build/cuts/preview should hold 8 files after the edits"
 echo "ok: pruning leaves only referenced files"
 
 # snapshot at peak+0.5 writes a PNG of the output size and names the cut.
@@ -128,6 +129,96 @@ SNAP="$(node "$EV" snapshot "$TMP/sample/story.md" --at "peak+0.5")" || fail "sn
 SNAP_FILE="$(echo "$SNAP" | json "d['file']")"
 [ "$(python3 -c 'import struct,sys; b=open(sys.argv[1],"rb").read(24); print(struct.unpack(">II", b[16:24]))' "$SNAP_FILE")" = "(1920, 1080)" ] || fail "the snapshot is not 1920x1080"
 echo "ok: snapshot"
+
+# snapshot of the screen cut writes a PNG of the output size.
+SNAP2="$(node "$EV" snapshot "$TMP/sample/story.md" --at "order+2")" || fail "snapshot of the screen cut failed: $SNAP2"
+[ "$(echo "$SNAP2" | json "d['cut']")" = "order" ] || fail "snapshot at order+2 should land in order: $SNAP2"
+SNAP2_FILE="$(echo "$SNAP2" | json "d['file']")"
+[ "$(python3 -c 'import struct,sys; b=open(sys.argv[1],"rb").read(24); print(struct.unpack(">II", b[16:24]))' "$SNAP2_FILE")" = "(1920, 1080)" ] || fail "the screen snapshot is not 1920x1080"
+echo "ok: snapshot of the screen cut"
+
+# A story of small helpers for the part tests: story_with <dir> <cuts yaml> writes <dir>/story.md.
+story_with() {
+  mkdir -p "$1/assets"
+  {
+    printf -- '---\ntitle: Parts\nmusic: { bpm: 120, beats_per_bar: 4 }\n%s---\n\n## Brief\n\nA small test.\n\n## Scene 1 — Only\n\nPurpose.\n\n```yaml\nrole: headline\ncuts:\n' "${3:-}"
+    printf '%s\n```\n' "$2"
+  } >"$1/story.md"
+}
+
+# Media made here with ffmpeg: no binary file is kept in the repository.
+mkdir -p "$TMP/media"
+story_with "$TMP/media" "  - { id: pic, part: image, bars: 1, src: assets/pic.png, prompt: A red picture, zoom: in }
+  - { id: clip, part: video, bars: 1, src: assets/clip.mp4, prompt: A test clip, start: 0.5 }"
+M1="$(node "$EV" render "$TMP/media/story.md" --preview 2>/dev/null)" || fail "render with no media failed: $M1"
+[ "$(echo "$M1" | json "d['rendered']")" = "['pic', 'clip']" ] || fail "the placeholders should render both cuts: $M1"
+ffmpeg -v error -y -f lavfi -i color=c=red:s=640x360 -frames:v 1 "$TMP/media/assets/pic.png" || fail "could not make the image"
+M2="$(node "$EV" render "$TMP/media/story.md" --preview 2>/dev/null)" || fail "render after dropping the image failed: $M2"
+[ "$(echo "$M2" | json "d['rendered']")" = "['pic']" ] || fail "dropping an image should render only that cut: $M2"
+echo "ok: a dropped-in image re-renders exactly its cut"
+
+ffmpeg -v error -y -f lavfi -i testsrc=d=2:s=320x240:r=30 -pix_fmt yuv420p "$TMP/media/assets/clip.mp4" || fail "could not make the clip"
+M3="$(node "$EV" render "$TMP/media/story.md" --preview 2>/dev/null)" || fail "render with a clip failed: $M3"
+[ "$(echo "$M3" | json "d['rendered']")" = "['clip']" ] || fail "dropping a clip should render only that cut: $M3"
+MDUR="$(echo "$M3" | json "d['duration']")"
+[ "$(SIZE "$TMP/media/build/preview.mp4" | json "abs(float(d['format']['duration']) - $MDUR) < 0.1")" = "True" ] || fail "the preview with a clip is not $MDUR s long"
+FRAMES_BEFORE="$(python3 -c 'import os,sys; d=sys.argv[1]; print([ (n, os.stat(os.path.join(d, n)).st_mtime_ns) for n in sorted(os.listdir(d)) ])' "$TMP/media/build/video-frames")"
+[ "$(ls "$TMP/media/build/video-frames" | wc -l | tr -d ' ')" = "1" ] || fail "expected one frame directory: $FRAMES_BEFORE"
+node "$EV" render "$TMP/media/story.md" --preview --force >/dev/null 2>&1 || fail "a forced render with a clip failed"
+FRAMES_AFTER="$(python3 -c 'import os,sys; d=sys.argv[1]; print([ (n, os.stat(os.path.join(d, n)).st_mtime_ns) for n in sorted(os.listdir(d)) ])' "$TMP/media/build/video-frames")"
+[ "$FRAMES_BEFORE" = "$FRAMES_AFTER" ] || fail "a second render extracted the frames again: $FRAMES_BEFORE then $FRAMES_AFTER"
+echo "ok: a video cut renders from a clip and its frames are kept"
+
+# An image that cannot be decoded is a story error.
+echo "not a picture" >"$TMP/media/assets/pic.png"
+set +e
+MB="$(node "$EV" render "$TMP/media/story.md" --preview 2>/dev/null)"
+CODE=$?
+set -e
+[ "$CODE" = "1" ] || fail "an undecodable image should exit 1, got $CODE: $MB"
+[ "$(echo "$MB" | json "(d['errors'][0]['code'], d['errors'][0]['cut'])")" = "('bad-image', 'pic')" ] || fail "expected bad-image on pic: $MB"
+echo "ok: an undecodable image fails with bad-image"
+
+# A fragment's relative path resolves against the story's directory: a red picture shows in the middle of the frame.
+mkdir -p "$TMP/relpath"
+story_with "$TMP/relpath" "  - { id: show, part: custom, bars: 1, src: assets/f.html }"
+ffmpeg -v error -y -f lavfi -i color=c=red:s=640x360 -frames:v 1 "$TMP/relpath/assets/photo.png" || fail "could not make the photo"
+echo '<img src="assets/photo.png" style="position:absolute;inset:0;width:100%;height:100%">' >"$TMP/relpath/assets/f.html"
+RP="$(node "$EV" snapshot "$TMP/relpath/story.md" --at 0.5 --preview)" || fail "snapshot with a relative picture failed: $RP"
+PIXEL="$(ffmpeg -v error -i "$(echo "$RP" | json "d['file']")" -vf crop=1:1:480:270 -f rawvideo -pix_fmt rgb24 - | od -An -tu1 | tr -s ' ')"
+[ "$(echo "$PIXEL" | python3 -c 'import sys; r,g,b=map(int, sys.stdin.read().split()); print(r > 240 and g < 15 and b < 15)')" = "True" ] || fail "the relative picture is not on screen; the middle pixel is:$PIXEL"
+echo "ok: a fragment's relative path resolves against the story"
+
+# Fragments that break the rules fail with the finding and the cut's id, exit 1, and leave no file in build/cuts.
+fragment_fails() { # <name> <fragment html> <expected code>
+  local dir="$TMP/frag-$1"
+  story_with "$dir" "  - { id: boom, part: custom, bars: 1, src: assets/f.html }"
+  printf '%s\n' "$2" >"$dir/assets/f.html"
+  set +e
+  local out
+  out="$(node "$EV" render "$dir/story.md" --preview 2>/dev/null)"
+  local code=$?
+  set -e
+  [ "$code" = "1" ] || fail "fragment $1 should exit 1, got $code: $out"
+  [ "$(echo "$out" | json "(d['errors'][0]['code'], d['errors'][0]['cut'])")" = "('$3', 'boom')" ] || fail "fragment $1 should fail with $3 on boom: $out"
+  [ -z "$(ls "$dir/build/cuts/preview" 2>/dev/null)" ] || fail "fragment $1 left a file in build/cuts/preview"
+}
+fragment_fails clock '<div>x</div><script>setTimeout(function () {}, 10)</script>' fragment-clock
+fragment_fails network '<div>x</div><img src="http://example.invalid/a.png">' fragment-network
+fragment_fails error '<div>x</div><script>throw new Error("kaboom")</script>' fragment-error
+echo "ok: fragments that break the rules fail"
+
+# A 9:16 story with a screen cut renders at 540x960 in preview.
+story_with "$TMP/tallscreen" "  - id: app
+    part: screen
+    device: phone
+    bars: 1
+    html: '<div style=\"padding:40px;font-size:30px\">Hello</div>'" 'output: { aspect: "9:16", fps: 30 }
+'
+node "$EV" render "$TMP/tallscreen/story.md" --preview >/dev/null 2>&1 || fail "the 9:16 screen render failed"
+TS="$(SIZE "$TMP/tallscreen/build/preview.mp4")"
+[ "$(echo "$TS" | json "(d['streams'][0]['width'], d['streams'][0]['height'])")" = "(540, 960)" ] || fail "the 9:16 screen preview is not 540x960: $TS"
+echo "ok: 9:16 screen cut"
 
 # A 9:16 story renders at 1080x1920 (540x960 in preview).
 mkdir -p "$TMP/tall"

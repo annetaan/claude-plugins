@@ -6,6 +6,7 @@ import { loadStory } from './story.js';
 import { resolveTimeExpr, TimeError } from './time.js';
 import { QUALITIES, cutKey, rendererVersion } from './hash.js';
 import { paths, cutFile, prune } from './cache.js';
+import { extractFrames, framesPath } from './video-frames.js';
 import { buildPage, openBrowser, captureCut, snapshotCut, CaptureError } from './capture.js';
 import { assemble } from './assemble.js';
 
@@ -19,11 +20,6 @@ const envFinding = (code, cut, message) => ({ code, scene: null, cut, message })
 export function load(storyFile, deps, say) {
   const r = loadStory(path.resolve(storyFile), deps, { say });
   if (r.errors.length > 0) return { failure: fail(1, r.errors, r.warnings) };
-  const unsupported = r.timeline.scenes.flatMap((s) => s.cuts).filter((c) => c.part === 'screen' || c.part === 'custom');
-  if (unsupported.length > 0) {
-    const c = unsupported[0];
-    return { failure: fail(2, [envFinding('part-not-implemented', c.id, `cut ${c.id}: the ${c.part} part is not implemented yet`)], r.warnings) };
-  }
   return { timeline: r.timeline, warnings: r.warnings };
 }
 
@@ -44,7 +40,31 @@ async function runPool(items, limit, worker) {
   if (failure) throw failure;
 }
 
+// A video cut whose file exists draws from extracted frames: at the capture's frame rate and the output's width.
+const videoArgs = (cut, { timeline, quality, storyDir, p }) => {
+  const file = typeof cut.props.src === 'string' ? path.resolve(storyDir, cut.props.src) : null;
+  if (cut.part !== 'video' || !file || !fs.existsSync(file)) return null;
+  return {
+    file,
+    start: cut.props.start ?? 0,
+    seconds: cut.duration + cut.tail,
+    fps: timeline.fps / quality.fpsDivisor,
+    maxWidth: timeline.width * quality.scale,
+    framesDir: p.videoFramesDir,
+    cutId: cut.id,
+  };
+};
+
+const assetsOf = (cut, ctx) => {
+  const args = videoArgs(cut, ctx);
+  if (!args) return {};
+  const { dir, count } = extractFrames(args);
+  return { video: { dir, count, fps: args.fps } };
+};
+
 const toFinding = (e) => (e instanceof CaptureError ? envFinding(e.code, e.cutId, e.message) : envFinding('render', null, String(e.message ?? e)));
+// A finding about the story's own files is a story error (1); anything else is the environment (2).
+const failOn = (e, warnings) => fail(e instanceof CaptureError && e.story ? 1 : 2, [toFinding(e)], warnings);
 
 export async function render({ storyFile, deps, preview = false, force = false, say = true }) {
   const loaded = load(storyFile, deps, say);
@@ -57,6 +77,7 @@ export async function render({ storyFile, deps, preview = false, force = false, 
   const cuts = timeline.scenes.flatMap((s) => s.cuts);
   const keyOf = new Map(cuts.map((c) => [c.id, cutKey(c, { timeline, quality, storyDir, version })]));
 
+  const ctx = { timeline, quality, storyDir, p };
   const rendered = [];
   const cached = [];
   const todo = new Map(); // key -> first cut with that key
@@ -77,7 +98,7 @@ export async function render({ storyFile, deps, preview = false, force = false, 
       const browser = await openBrowser(deps);
       try {
         await runPool([...todo], MAX_PAGES, async ([key, cut]) => {
-          const url = buildPage(cut, timeline, p.pagesDir, key);
+          const url = buildPage(cut, timeline, p.pagesDir, key, storyDir, assetsOf(cut, ctx));
           await captureCut({ browser, cut, timeline, quality, url, outFile: cutFile(p.cutsDir, key) });
         });
       } finally {
@@ -86,10 +107,11 @@ export async function render({ storyFile, deps, preview = false, force = false, 
     }
     const outFile = preview ? p.preview : p.out;
     await assemble({ timeline, files: cuts.map((c) => cutFile(p.cutsDir, keyOf.get(c.id))), quality, outFile });
-    prune(p.cutsDir, cuts.map((c) => cutFile(p.cutsDir, keyOf.get(c.id))), p.pagesDir);
+    const frameDirs = cuts.map((c) => videoArgs(c, ctx)).filter(Boolean).map(framesPath);
+    prune(p.cutsDir, cuts.map((c) => cutFile(p.cutsDir, keyOf.get(c.id))), p.pagesDir, p.videoFramesDir, frameDirs);
     return { code: 0, body: { ok: true, out: outFile, duration: timeline.duration, rendered, cached, errors: [], warnings } };
   } catch (e) {
-    return fail(2, [toFinding(e)], warnings);
+    return failOn(e, warnings);
   }
 }
 
@@ -117,13 +139,13 @@ export async function snapshot({ storyFile, deps, at, out, preview = false, say 
   try {
     const browser = await openBrowser(deps);
     try {
-      const url = buildPage(cut, timeline, p.pagesDir, key);
+      const url = buildPage(cut, timeline, p.pagesDir, key, storyDir, assetsOf(cut, { timeline, quality, storyDir, p }));
       await snapshotCut({ browser, cut, timeline, scale: quality.scale, url, t: Math.min(Math.max(0, t - cut.start), cut.duration), outFile: file });
     } finally {
       await browser.close();
     }
   } catch (e) {
-    return fail(2, [toFinding(e)], warnings);
+    return failOn(e, warnings);
   }
   return { code: 0, body: { ok: true, file, cut: cut.id, t: Math.round(t * 1e6) / 1e6 } };
 }

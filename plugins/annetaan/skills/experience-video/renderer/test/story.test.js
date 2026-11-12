@@ -156,3 +156,31 @@ test('story: a count duration is capped at the cut duration', () => {
   const text = FRONT + scene(1, 'cuts:\n  - part: card\n    bars: 1\n    lines:\n      - { text: "{n}", count: { from: 0, to: 1, duration: 5bars } }');
   assert.equal(timelineOf(text).scenes[0].cuts[0].props.lines[0].count.duration, 2);
 });
+
+test('story: image, video and screen cuts get their defaults', () => {
+  const text = FRONT + scene(1, [
+    'cuts:',
+    '  - { part: image, bars: 1, prompt: x }',
+    '  - { part: video, bars: 1, prompt: x }',
+    '  - { part: screen, bars: 1, html: "<p>hi</p>" }',
+    '  - { part: image, bars: 1, fit: contain, zoom: in, focus: left top }',
+    '  - { part: screen, bars: 1, device: laptop, html: "<p>hi</p>" }',
+  ].join('\n'));
+  const [image, video, screen, image2, laptop] = timelineOf(text).scenes[0].cuts.map((c) => c.props);
+  assert.deepEqual([image.fit, image.zoom, image.focus], ['cover', 'none', 'center']);
+  assert.deepEqual([video.fit, video.start], ['cover', 0]);
+  assert.equal(screen.device, 'phone');
+  assert.deepEqual([image2.fit, image2.zoom, image2.focus], ['contain', 'in', 'left top']);
+  assert.equal(laptop.device, 'laptop');
+});
+
+test('story: a video start resolves to seconds, and a negative one or a mark is an error', () => {
+  const ok = FRONT + scene(1, 'cuts:\n  - { part: video, bars: 1, start: 1bar }');
+  assert.equal(timelineOf(ok).scenes[0].cuts[0].props.start, 2);
+  const bare = FRONT + scene(1, 'cuts:\n  - { part: video, bars: 1, start: 1.5 }');
+  assert.equal(timelineOf(bare).scenes[0].cuts[0].props.start, 1.5);
+  const negative = FRONT + scene(1, 'cuts:\n  - { part: video, bars: 1, start: "0 - 1s" }');
+  assert.ok(codes(() => timelineOf(negative)).includes('bad-value'));
+  const end = FRONT + scene(1, 'cuts:\n  - { part: video, bars: 1, start: end }');
+  assert.ok(codes(() => timelineOf(end)).length > 0);
+});

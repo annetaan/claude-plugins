@@ -2,13 +2,17 @@
 <html lang="{{LANG}}">
 <head>
 <meta charset="utf-8">
+<base href="{{BASE}}">
 <style>
 {{CSS}}
 </style>
 </head>
 <body>
-<div id="stage"></div>
 <script>window.__evCut = {{CUT_JSON}};</script>
+<script>
+{{PRELUDE}}
+</script>
+<div id="stage">{{STAGE}}</div>
 <script>
 {{RUNTIME}}
 </script>
