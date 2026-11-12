@@ -69,7 +69,7 @@ Run it on the output of `frames`. Do it in this order.
 | `telop-too-short` | lengthen the telop, or cut words |
 | `off-beat-cut` | change the cut's length to whole bars or beats |
 | `off-beat-telop` | move `at` onto a beat |
-| `off-beat-end` | end the telop on a beat, or at the cut's end |
+| `off-beat-end` | the video ends off the beat. Give the cuts whole bars or beats, usually the last cut or one given in `duration` |
 | `no-peak` | add `marks: { peak: ... }` in the peak scene |
 | `narration-too-long` | shorten the text, or lengthen the scene |
 | `no-say` | `say` is missing, so narration is skipped. Drop the narration or tell the user |

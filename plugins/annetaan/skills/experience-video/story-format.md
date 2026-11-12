@@ -39,7 +39,7 @@ narration: { voice: Samantha, rate: 180 }
 ```
 
 Only `title` is required. Defaults: `language: en`, 16:9 at 30 fps, `bpm: 100`, 4 beats per bar.
-`music.file` is optional. When it is set, the file has to exist and stay inside the story's directory; it plays from `music.offset` seconds. Without it the renderer runs `music.js` beside `story.md` (the contract is in `music.md`); with neither the video has a silent audio track and the check warns `no-music`.
+`music.file` is optional. When it is set, the file has to exist and stay inside the story's directory; it plays from `music.offset` seconds. Without it the renderer runs `music.js` beside `story.md` (the contract is in `music.md`); with neither the video has a silent audio track, and `render` warns `no-music`.
 
 ## Scene block
 

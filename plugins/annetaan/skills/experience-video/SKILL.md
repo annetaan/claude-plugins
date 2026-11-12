@@ -87,6 +87,8 @@ AskUserQuestion: Render this at full quality?
   - Stop here
 ```
 
+On "Stop here", hand over as in "Handing over", with the preview's path (`<slug>/build/preview.mp4`) in place of `out.mp4`, and say that running the skill again on `story.md` picks up from there.
+
 ## Tweaking
 
 The user says what to change, or edits `story.md` and says so. Spawn the producer again with the same paths and:
