@@ -29,7 +29,8 @@ splits one project into sub-issues once every project it waits on is merged. You
 the project's branch and closes the issue, and at the end opens the pull request that takes the project's branch
 back. The four pass nothing to each other through the conversation. Each one reads the project from GitHub afresh.
 `pj-auto` drives the doctor and the runner and stops where you are needed. `pj-cleanup` tidies up once you have merged
-a project. `workflow-cleanup` does the same for a workflow run.
+a project. `workflow-cleanup` does the same for a workflow run. `pj-roadmap` brings an existing roadmap file into the
+format the pj skills read, through a pull request.
 
 Which skill to start with:
 
@@ -114,7 +115,7 @@ your decisions there too.
 
 A skill whose `description` matches a request normally starts without being named. The ones here do not. `workflow`
 spawns several sessions, adds commits, creates a worktree and pushes a branch on its own. `workflow-cleanup` deletes
-branches and removes a worktree. The pj skills create, edit and close
+branches and removes a worktree. `pj-roadmap` creates a worktree, pushes a branch and opens a pull request. The pj skills create, edit and close
 issues and labels on GitHub, and `pj4-running` also creates each project's branch, pushes, opens and merges pull
 requests. The doc skills make a file next to your document, rewrite the document itself, and can add one commit of
 their own to `.gitignore` after asking. Any of these is enough reason to wait, so each skill here starts only when you
@@ -376,9 +377,26 @@ be split now that this one is merged.
 /annetaan:pj-cleanup 12
 ```
 
+### pj-roadmap
+
+`/annetaan:pj-roadmap` ([details](skills/pj-roadmap/SKILL.md)) brings your roadmap file into the format the pj skills
+read. It checks the file on the branch you pick. It does nothing when the file is in the format and, where it could be
+read two ways (`###` items under a `## `, or initiatives that are not `## ` sections), you confirm that each `## ` is
+an initiative. When the file is not in the format, or you ask for a regroup, it works in a worktree of its own, draws the rewrite so that each initiative is one `## ` section with a unique heading, and shows
+where every piece came from. It asks once. Then it commits the rewritten file on a new branch, pushes it and opens a
+pull request into the branch you picked. `/annetaan:workflow-cleanup` removes the worktree and the branch after you
+merge it.
+
+It changes the structure and keeps every sentence. It never merges, never touches your working tree and never updates a
+pull request that is already open.
+
+```
+/annetaan:pj-roadmap
+```
+
 ### workflow-cleanup
 
-`/annetaan:workflow-cleanup` ([details](skills/workflow-cleanup/SKILL.md)) cleans up after a workflow run. Without a
+`/annetaan:workflow-cleanup` ([details](skills/workflow-cleanup/SKILL.md)) cleans up after a workflow run or a `pj-roadmap` run. Without a
 number, it lists the `wf-*` worktrees whose pull request is merged or closed, and those that have none, which is a run that
 stopped or one still going in another session. It takes the only candidate, or asks which. It shows what it will do and asks once. Then it moves the work
 reports into `work-reports/` in your clone, removes the worktree, deletes the branch locally and on origin,
@@ -477,7 +495,7 @@ design review cannot start, the skill spawns it again on opus at the same effort
 
 `pj4-running` has no agents of its own. It runs workflow's.
 
-`pj-auto` has no agents of its own. The runs it starts use theirs. `pj-cleanup` and `workflow-cleanup` have none either.
+`pj-auto` has no agents of its own. The runs it starts use theirs. `pj-cleanup`, `pj-roadmap` and `workflow-cleanup` have none either.
 
 The agent definitions are thin. The substance of each role lives in the skill's `roles/*.md`, and an agent reads
 that path out of the prompt the main session hands it.

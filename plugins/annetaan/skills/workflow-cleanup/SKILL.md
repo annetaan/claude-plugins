@@ -1,13 +1,14 @@
 ---
 name: workflow-cleanup
-description: Cleans up a workflow run once its pull request is merged or closed, or after a run that stopped. Moves the work reports out of the run's wf-* worktree into the main working tree, removes the worktree, deletes the run's branch locally and on origin, fast-forwards the local base branch when the pull request merged, and deletes the work reports that have been in the main working tree 14 days or more. Asks one approval question. Use it only when the user names this skill or invokes /annetaan:workflow-cleanup, because it deletes branches and removes a worktree.
+description: Cleans up a workflow run or a pj-roadmap run once its pull request is merged or closed, or after a run that stopped. Moves the work reports out of the run's wf-* worktree into the main working tree, removes the worktree, deletes the run's branch locally and on origin, fast-forwards the local base branch when the pull request merged, and deletes the work reports that have been in the main working tree 14 days or more. Asks one approval question. Use it only when the user names this skill or invokes /annetaan:workflow-cleanup, because it deletes branches and removes a worktree.
 ---
 
 # workflow-cleanup
 
 `workflow-cleanup` is no step of the workflow. It runs after the user has merged or closed the pull request that
 `workflow` opened, or after a run that stopped midway, and tidies up what the run left behind: the worktree
-`.claude/worktrees/wf-<stamp>`, the run's branch, and a local base branch that is now behind origin.
+`.claude/worktrees/wf-<stamp>`, the run's branch, and a local base branch that is now behind origin. It also runs after
+the user has merged or closed the pull request that `pj-roadmap` opened, which works in a `wf-*` worktree too.
 
 The script `worktree.sh` does the git work. **You write nothing to GitHub yourself.**
 
@@ -93,7 +94,8 @@ Show what the cleanup does, one line per item, from the `check` output.
   - `closed`: "PR #<n> was closed without a merge. Its work is lost with the branch; GitHub keeps only the commits on
     the closed pull request."
 - the worktree, by `worktree.state`:
-  - `clean`: the work reports in `reports` move to `<MAIN>/work-reports/`, then `<WT>` is removed
+  - `clean`: the work reports in `reports` move to `<MAIN>/work-reports/`, then `<WT>` is removed. A `pj-roadmap` run
+    has no work report, so `reports` is empty and nothing moves
   - `dirty`: as `clean`, and the uncommitted work in `changes` is discarded. Show `changes`
   - `prunable`: its directory is gone, and only git's record of it is pruned
 - the branch, from `branch` (`null` means the worktree was detached and there is no branch):
