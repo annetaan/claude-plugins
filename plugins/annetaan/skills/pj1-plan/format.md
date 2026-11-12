@@ -16,6 +16,7 @@ in `state.md`, and what the skills agree on between them is in `between-skills.m
 | An order between tasks | a native **blocked by** relationship between two sub-issues of one project. Never written into a body. |
 | The run order | the numbered list under the parent's **`## Order`** (see **The run order**). |
 | An order between projects | a native **blocked by** relationship between the two parents (see **Projects**). |
+| The initiative's roadmap entry | the **`Roadmap:`** line of one parent, and that project's **roadmap task** (see **The parent issue body** and **The roadmap task**) |
 | A task that can be implemented straight from its body | the **`ready`** label |
 | Something `pj4-running` stopped on | the **`blocker`** label |
 
@@ -34,6 +35,10 @@ there runs nothing in parallel, and it costs a pull request into `<from>` and a 
 project can even be split into tasks. A chain past 10 tasks is cut only where a merge into `<from>` is worth
 something: the part before the cut is of value on its own, or a project outside the chain can start once that part is
 merged.
+
+**A request that is a roadmap entry leaves the roadmap through one project, the last of its stages.** `pj1-plan`
+picks it among the projects of the last stage: the one with the largest estimate, then the lowest PJ id. With several
+projects in the last stage, the entry may leave `<from>` before a sibling merges. That is accepted.
 
 **Project P waits on project Q when parent P is blocked by parent Q.** That relationship is the only record of it.
 `project.sh` reads it as `parent.waitsOn`. `pj1-plan` draws an edge in two cases only: P uses something Q makes, or
@@ -99,6 +104,7 @@ reports these codes:
 
 ```markdown
 Base: `pj/<P>` from `<branch>`
+Roadmap: `<path>` <entry heading>
 
 ## Order
 
@@ -126,7 +132,7 @@ each branch kept from existing code still serves>
 
 The task list is the sub-issue list GitHub draws under the body. `## Order` is the one list of sub-issues a body
 holds, and it says the order, not what the tasks are. `## Order` appears once `pj2-issues` files the sub-issues.
-Before that, the `Base:` line is followed by `## Goal`.
+Before that, the lines above are followed by `## Goal`.
 
 `## Design` holds only the boundaries this project defines. A boundary another project defines stays in that
 project's parent. Whoever reads the parent's `## Design`, the issue writer and the `workflow` skill alike, also reads
@@ -163,6 +169,12 @@ the user merges the base branch into at the end. `pj1-plan` files the parent, th
 body. It takes two steps because the branch name carries the parent's number. The line is written before the branch
 exists, and `pj4-running` creates the branch later (`between-skills.md`, **The base branch**). Nobody changes the
 line after that. A skill that rewrites the parent body keeps the line as it is.
+
+The `Roadmap:` line is on one parent only, the one that carries the initiative's roadmap entry, and every other parent
+has `Base:` alone. `<path>` and `<entry heading>` are `path` and the `heading` of one entry from `project.sh --roadmap`. `pj1-plan`
+writes the `Roadmap:` line in the same edit as `Base:`, and nobody changes it afterwards. A skill that rewrites the
+parent body keeps it too. The lines above `## Goal` belong to the main session, and every planner body starts at
+`## Goal`.
 
 ## The sub-issue body
 
@@ -223,7 +235,8 @@ A body has to meet the bar for `ready` (`state.md`, **When an issue is ready**).
   `changed` or `deleted` here. A symbol a blocker adds counts as existing only when that blocker lists the file and
   names the symbol somewhere in its body. `--check` reads the open blockers' bodies for this while they are open. The projects this one waits on are
   merged into `<from>` before `pj2-issues` splits it, so their code is already there. A new name, or a name from
-  another file, goes without backticks or into its own file's entry.
+  another file, goes without backticks or into its own file's entry. The one exception is a `changed` entry on the
+  roadmap file, which needs no symbol (see **The roadmap task**).
 - Each entry is one bullet. A long description may wrap onto indented lines, and blank lines between entries are
   allowed. The list ends at the first line that is neither a bullet nor indented.
 - Prose after the list is optional.
@@ -320,6 +333,28 @@ To be drawn.
 
 The labels a stub may carry are in (`between-skills.md`, **Labels**).
 
+### The roadmap task
+
+A parent with a `Roadmap:` line has one **roadmap task**: the one sub-issue whose file list names the roadmap file.
+No other task lists that file. `project.sh` identifies it as `parent.roadmap.task` (`state.md`, **Reading a
+project**), and reads more than one such issue as no task, which the reviewer raises.
+
+- **It is blocked by every other sub-issue**, so it is last in `## Order` and its change reaches `<from>` in the
+  project's pull request. `pj2-issues` files it with those edges, and `pj3-doctor` adds an edge for each number in
+  `parent.roadmap.missing`, none when there is no task.
+- **What it does.** It deletes the entry the line names, from its `## ` line to the line before the next `## ` line.
+  In the other entries it fixes each name of something this initiative renamed or removed, such as
+  `tenantScopedDynamo` becoming `tenantScopedClients`. Nothing else in the roadmap changes, and no code.
+- **Its premise.** `--check` reads the roadmap file at the ref and fails with `roadmap entry not found` when no entry
+  carries the line's heading. Its `changed` entry on the roadmap file needs no symbol. A stale name it fixes is
+  backticked as it stands, and `--check` still looks it up.
+- **Its acceptance criteria are commands**: `grep -Fxc '## <heading>' <path>` prints `0`, and
+  `git grep -w -F <old name> -- <path>` finds nothing for each fixed name.
+- **`pj2-issues` leaves it out** when the roadmap at `origin/<from>` has no file, or has no entry with the heading.
+  When the entry leaves by another hand after the line was filed, `--check` fails on it, and a human closes the task
+  as not planned.
+- **It counts toward the limits** of 7 to 8 tasks and 10.
+
 ### What the lint checks
 
 `project.sh --lint` reports these codes in `reasons`, for the part of the bar a script can see
@@ -331,7 +366,7 @@ The labels a stub may carry are in (`between-skills.md`, **Labels**).
 | `sections` | the five headings are not all there, in order |
 | `no-files` | the file list is empty |
 | `file-entry` | an entry has no kind or no description |
-| `no-symbols` | a `changed` entry names no symbol |
+| `no-symbols` | a `changed` entry other than the roadmap file's names no symbol |
 | `criteria` | there is no acceptance criterion, or a criterion has no backticked anchor |
 | `decision-shape` | a decision does not have 2 to 4 options, or does not have exactly one `(recommended)` |
 | `decisions-open` | a decision is open |
@@ -346,7 +381,7 @@ These stay in English whatever language the repository uses, because the skills 
 - the kinds in the file list: `added`, `changed` and `deleted`
 - the decision count ` (<settled>/<total>)` at the end of a sub-issue title (see **The title**)
 - the markers (`between-skills.md`, **Comments**)
-- `Base:` and `from` in the parent body's first line, and the parent's `## Order`
+- `Base:` and `from` in the parent body's first line, `Roadmap:` in its second line, and the parent's `## Order`
 - in a pull request body, `Implements` and `Part of` (`between-skills.md`, **Pull requests** and **The project's pull
   request**)
 

@@ -11,7 +11,7 @@ agree on between them is in `between-skills.md`, both next to this file.
 query, the pull requests into the base branch in one `gh pr list`, and where the branches of this project and the
 projects it waits on stand in one more GraphQL query. `--order` and the history of `--check` also read one query per
 project they follow through `waitsOn`. It writes nothing to GitHub. **It is the only parser of a sub-issue body, of
-a parent's `Base:` line, of a pull request's head and of the roadmap file.** Every skill and the issue writer go through it. Pass `-R <owner/repo>` to read a repository other than the current one.
+a parent's `Base:` and `Roadmap:` lines, of a pull request's head and of the roadmap file.** Every skill and the issue writer go through it. Pass `-R <owner/repo>` to read a repository other than the current one.
 
 Every mode that reads a parent fails with `project: #<P> has no Base: line` when the parent body has none, or has
 one that does not name both branches. It also fails with `project: #<P> is blocked by #<X>, which is no project` when
@@ -37,7 +37,8 @@ project.sh --roadmap [<ref>] # the roadmap file, in the work tree or at <ref>, c
             "waitsOn": [{"number", "title", "state", "stateReason", "base", "merged"}],
             "order": [numbers],
             "orderCheck": {"ok", "unknown": [numbers], "duplicate": [numbers],
-                           "early": [{"number", "blocker"}], "missing": [numbers]}},
+                           "early": [{"number", "blocker"}], "missing": [numbers]},
+            "roadmap": {"path", "entry", "tasks": [numbers], "task": number or null, "missing": [numbers]} or null},
  "issues": [{"number", "title", "wantedTitle", "state", "stateReason", "updatedAt", "readyAt", "labels": [names],
              "blockedBy": [{"number", "state", "parent"}], "blocking": [numbers],
              "pr": {"number", "state", "isDraft", "url"} or null, "stub",
@@ -60,6 +61,12 @@ project.sh --roadmap [<ref>] # the roadmap file, in the work tree or at <ref>, c
 - `order` is the numbers under `## Order`, as written. `orderCheck.ok` is false when the list names a number that is
   no sub-issue (`unknown`), names one twice (`duplicate`), or puts an open issue before an open blocker of the same
   project (`early`). `missing` is the open sub-issues the list leaves out, and does not make it false.
+- `roadmap` is read from the parent's `Roadmap:` line (`format.md`, **The parent issue body**), and is null when the
+  parent has none or the line is unreadable: no backticked path, or a path outside the six of the roadmap file.
+  `path` and `entry` are the line's. `tasks` is the numbers of the sub-issues whose `designPaths` hold `path` and that
+  are open or closed as completed. `task` is that number when exactly one sub-issue is in `tasks`, else null: the
+  roadmap task (`format.md`, **The roadmap task**). `missing` is, while `task` is open, the other open sub-issues it
+  is not blocked by, and empty otherwise.
 - `wantedTitle` is the title with the decision count from `format.md` **The title**. Every sub-issue carries it, closed
   ones included. A skill edits an open issue's title when the two differ, and never retitles a closed one
   (`between-skills.md`, **Titles**).
@@ -128,7 +135,8 @@ fails when the projects wait on each other: `project: the projects have a cycle:
 
 `--order-body` prints the parent's body as GitHub has it now, with the CR removed and the lines under `## Order`
 replaced by `list`: one `1. #<n>` per line, framed by blank lines. A body with no `## Order` heading gets the heading
-and the list before its first `## ` heading outside a code fence, or at the end. It fails like `--order` on a cycle.
+and the list before its first `## ` heading outside a code fence, or at the end. The lines above the first heading,
+`Base:` and `Roadmap:`, stay as they are. It fails like `--order` on a cycle.
 Its own read of the body is the re-read that **Writing to GitHub** (`between-skills.md`) asks for.
 
 `--exact <before> <after> <findings>` touches neither GitHub nor git, and exits 0 whatever the result. `findings` holds
@@ -176,7 +184,8 @@ current?**).
 ## When an issue is workable
 
 An issue is **workable** when it carries `ready`, every issue in its `blockedBy` is `CLOSED`, `--check` is clear, and
-its project has `baseExists`, or every project in `waitsOn` is `merged`.
+its project has `baseExists`, or every project in `waitsOn` is `merged`. The roadmap task is workable only when
+`parent.roadmap.missing` is empty.
 
 ## What comes next
 
@@ -205,6 +214,7 @@ only for `merge-project-pr`.
 | | k has an open decision | `user` / `decisions` | k |
 | | k does not carry `ready` | `doctor` / `not-ready` | k |
 | | k has an open issue in `blockedBy` | `doctor` / `blocked` | k |
+| | k is `parent.roadmap.task` and `missing` is not empty | `doctor` / `roadmap-edges` | k |
 | | otherwise | `running` / `workable` | k |
 
 The rows under 8 run in the order shown. `--next` does not run `--check`. A `--check` failure that `pj4-running` finds
@@ -228,6 +238,8 @@ at the tip of `origin/<from>` while the base branch does not exist yet, since th
   blocker adds it too`, and `changed, but an open blocker deletes it` (or `deleted`). `none`: nothing is checked,
   while the project has no `baseExists` and a project in `waitsOn` is not `merged`, while an open blocker is outside
   the project, or while an open issue in the transitive `blockedBy` is a stub, because there is no body to read.
+  A `changed` entry on the parent's roadmap path also needs the entry of the `Roadmap:` line to stand in that file at
+  the ref, and fails with `roadmap entry not found` otherwise. Under mode `none` nothing is checked.
 - **History.** Every commit on the base branch's first-parent line since `readyAt` that touched a path in the file
   list is a candidate. A candidate is **anticipated** when a merged pull request it came from has `Implements #<x>`
   as its head with x in this issue's transitive `blockedBy`, has `pj/<Q>` as head and `<from>` as base, or has

@@ -8,7 +8,8 @@
 # into tasks now (startable).
 # The shape it reads is described in ../format.md.
 # This script is the only place that parses a sub-issue body (## Design, ## Acceptance criteria, ## Decisions),
-# the parent's Base: line (the base branch and the branch it was made from) and its ## Order list, and the Implements
+# the parent's Base: line (the base branch and the branch it was made from), its Roadmap: line (the roadmap file and
+# the entry heading, on the one parent that carries the initiative) and its ## Order list, and the Implements
 # head of a pull request.
 # --next reads only too: it names what to run next on the project, with a fingerprint of the state it was read from.
 # It also derives the title a sub-issue should carry, with its decision count (wantedTitle).
@@ -78,6 +79,7 @@ ENTRY_RE = re.compile(r"^\s*[-*]\s+`([^`]+)`\s+\((added|changed|deleted)\):\s*(.
 IDENT_RE = re.compile(r"^[A-Za-z_$][\w$]*(\.[A-Za-z_$][\w$]*)*$")
 OPTION_RE = re.compile(r"^\s*[-*]\s+\[([ xX])\]\s")
 BASE_RE = re.compile(r"^Base:\s*`?([^`\s]+)`?\s+from\s+`?([^`\s]+)`?\s*$")
+ROADMAP_RE = re.compile(r"^Roadmap:\s*`([^`]+)`\s+(\S.*?)\s*$")
 ORDER_RE = re.compile(r"^\s*\d+\.\s+#(\d+)\b")
 IMPLEMENTS_RE = re.compile(r"^Implements #(\d+)\s*$")
 COUNT_RE = re.compile(r"(\s*\(\d+/\d+\))+\s*$")
@@ -106,6 +108,20 @@ def base_of(body):
         m = BASE_RE.match(line)
         if m:
             return m.group(1), m.group(2)
+    return None
+
+def roadmap_of(body):
+    """The roadmap file and the entry heading, as the Roadmap: line among the unfenced lines before the first ##
+    heading names them, or None. A path outside ROADMAP_PATHS reads as None."""
+    for line in unfenced(body):
+        if line.startswith("## "):
+            break
+        m = ROADMAP_RE.match(line)
+        if m:
+            path = m.group(1).strip()
+            if path.startswith("./"):
+                path = path[2:]
+            return (path, m.group(2)) if path in ROADMAP_PATHS else None
     return None
 
 def order_of(body):
@@ -416,7 +432,7 @@ def lint(p, paths=frozenset()):
     if p["bad_entries"]:
         reasons.append("file-entry")
     known = {f["path"] for f in p["files"]} | paths
-    if any(f["kind"] == "changed" and not symbols(f, known) for f in p["files"]):
+    if any(f["kind"] == "changed" and f["path"] not in ROADMAP_PATHS and not symbols(f, known) for f in p["files"]):
         reasons.append("no-symbols")
     criteria = [l for l in p["secs"].get("Acceptance criteria", "").split("\n") if re.match(r"^\s*[-*]\s", l)]
     if not criteria or any("`" not in l for l in criteria):
@@ -466,6 +482,7 @@ named = base_of(parent["body"])
 if named is None:
     die("#%d has no Base: line" % parent["number"])
 base, made_from = named
+roadmap_line = roadmap_of(parent["body"])
 
 # One call for the pull requests into the base branch, to find the one whose head names each sub-issue.
 listed = run("gh", "pr", "list", "-R", repo, "--base", base, "--state", "all", "--limit", "500",
@@ -602,6 +619,22 @@ def order_check():
     return {"ok": not unknown and not duplicate and not early, "unknown": unknown, "duplicate": duplicate,
             "early": early, "missing": [n for n in sorted(open_) if n not in position]}
 
+def roadmap_view():
+    """The parent's Roadmap: line and its roadmap task, or None without the line. tasks: the sub-issues that list the
+    roadmap file and are open or closed as completed. task: the one of them when there is exactly one. missing: the
+    other open sub-issues the open task is not blocked by."""
+    if roadmap_line is None:
+        return None
+    path, entry = roadmap_line
+    tasks = [i["number"] for i in issues
+             if path in i["designPaths"] and (i["state"] == "OPEN" or i["stateReason"] == "COMPLETED")]
+    task = tasks[0] if len(tasks) == 1 else None
+    missing = []
+    if task is not None and by_number[task]["state"] == "OPEN":
+        blockers = {b["number"] for b in by_number[task]["blockedBy"]}
+        missing = sorted(n for n in open_ if n != task and n not in blockers)
+    return {"path": path, "entry": entry, "tasks": tasks, "task": task, "missing": missing}
+
 def waits_on_parents(number, blockers):
     """The projects project <number> waits on, as {parent number: parent}: the issues its parent is blocked by, other
     than itself. Each has to be a project, a parent whose body has a Base: line. Dies on one that is not."""
@@ -715,7 +748,8 @@ def project_view():
                        startable=(parent["state"] == "OPEN" and not issues
                                   and all(d["merged"] for d in waits_on_entries)),
                        order=written,
-                       orderCheck=order_check()),
+                       orderCheck=order_check(),
+                       roadmap=roadmap_view()),
         "issues": [shown(i) for i in issues],
     }
 
@@ -771,6 +805,9 @@ def next_step(view):
         return out("doctor", "not-ready", n)
     if any(b["state"] == "OPEN" for b in k["blockedBy"]):
         return out("doctor", "blocked", n)
+    rm = p["roadmap"]
+    if rm and rm["task"] == n and rm["missing"]:
+        return out("doctor", "roadmap-edges", n)
     return out("running", "workable", n)
 
 if MODE == "project":
@@ -855,6 +892,11 @@ def check(n):
                     found = exists and run("git", "grep", "-w", "-F", "-q", sym, ref, "--", f["path"]).returncode == 0
                     if not found and not any(sym in tokens[m] for m in namers):
                         failures.append({"path": f["path"], "symbol": sym, "why": "symbol not found"})
+                if roadmap_line and f["path"] == roadmap_line[0]:
+                    shown_text = run("git", "show", "%s:%s" % (ref, f["path"]))
+                    entries = roadmap_parse(shown_text.stdout)[0] if shown_text.returncode == 0 else []
+                    if not any(e["heading"] == roadmap_line[1] for e in entries):
+                        failures.append({"path": f["path"], "why": "roadmap entry not found"})
 
     # history: commits on the base branch that touched these files after ready went on, except the ones a blocker's
     # pull request brought, the merge of a project this one waits on, directly or not, or a pull request into that
