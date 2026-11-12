@@ -29,12 +29,13 @@ splits one project into sub-issues once every project it waits on is merged. You
 the project's branch and closes the issue, and at the end opens the pull request that takes the project's branch
 back. The four pass nothing to each other through the conversation. Each one reads the project from GitHub afresh.
 `pj-auto` drives the doctor and the runner and stops where you are needed. `pj-cleanup` tidies up once you have merged
-a project. `workflow-cleanup` does the same for a workflow run.
+a project. `workflow-cleanup` does the same for a workflow run. `pj-roadmap` brings an existing roadmap file into the
+format the pj skills read, through a pull request.
 
 Which skill to start with:
 
 - A change that fits one pull request: `/annetaan:workflow`.
-- Anything larger, usually one initiative from your `roadmap.md` ([Task, project, initiative](#task-project-initiative)): `/annetaan:pj1-plan`.
+- Anything larger, usually one initiative from your roadmap file ([Task, project, initiative](#task-project-initiative)): `/annetaan:pj1-plan`.
 
 The doc skills are a separate family, for writing and revising documents, and do not use either of these.
 
@@ -46,7 +47,7 @@ The pj skills size work at three levels, from fine to coarse.
 | --- | --- | --- |
 | task | one implement, review and commit unit, which becomes one commit | a sub-issue, which becomes one pull request into the project's branch |
 | project | tasks aimed at 7 to 8, 10 at most, on the base branch `pj/<n>`, which reaches the branch it was made from in one pull request | a parent issue labelled `project` |
-| initiative | the input of one `pj1-plan` run, which cuts it into one or more projects | an entry in the roadmap file, not on GitHub |
+| initiative | the input of one `pj1-plan` run, which cuts it into one or more projects | an entry in the roadmap file, a `## ` section. On GitHub only as the `Roadmap:` line of one of its projects |
 
 A standalone `workflow` run has tasks too: each item of its plan is one, and the whole run becomes one pull request.
 
@@ -54,11 +55,20 @@ An issue is the GitHub container, not a level: a parent issue holds a project, a
 and the run order are orders, not levels. A stage groups the projects of one `pj1-plan` run that can run in
 parallel, and the run order is the order of the tasks inside one project.
 
-Keep your initiatives in a roadmap file, `roadmap.md` or `ROADMAP.md`, at the root of the repository or under `doc/`
-or `docs/`, and put on GitHub only the projects of the initiatives you are working on. When you start one, hand its
-entry to `/annetaan:pj1-plan`, quoted or named, and it files that initiative's projects. The planner looks for a named
-entry in those places. No skill writes the roadmap file, and `pj1-plan` plans a request that comes
-from anywhere else the same way.
+Keep your initiatives in a roadmap file, and put on GitHub only the projects of the initiatives you are working on.
+
+- The file is `roadmap.md` or `ROADMAP.md`, at the root of the repository or under `doc/` or `docs/`, and there is
+  exactly one.
+- Each initiative is one `## ` section with a unique heading, and the rest is free
+  ([format.md](skills/pj1-plan/format.md), The roadmap file).
+- The pj skills check the file with a script. When it is not in that shape, `pj1-plan` stops and points to
+  `/annetaan:pj-roadmap`, which rewrites it through a pull request.
+- When you start an initiative, hand its entry to `/annetaan:pj1-plan`, quoted or by its heading.
+- You do not edit the roadmap when the initiative is done. The last task of one of its projects deletes the entry and
+  fixes the names in other entries that the initiative renamed or removed, and that reaches your branch in the
+  project's pull request.
+- A repository with no roadmap file, or a request that is no entry of it, is planned the same way, with nothing
+  written to a roadmap.
 
 ### GitHub holds the state
 
@@ -67,6 +77,7 @@ In short, from [format.md](skills/pj1-plan/format.md)'s The parts:
 | What | On GitHub |
 | --- | --- |
 | a project | parent issue, label `project` |
+| the initiative's roadmap entry | the `Roadmap:` line on one parent |
 | split into tasks | `doing` label on the parent |
 | a task | a sub-issue |
 | your decisions | ticked checkboxes |
@@ -114,7 +125,7 @@ your decisions there too.
 
 A skill whose `description` matches a request normally starts without being named. The ones here do not. `workflow`
 spawns several sessions, adds commits, creates a worktree and pushes a branch on its own. `workflow-cleanup` deletes
-branches and removes a worktree. The pj skills create, edit and close
+branches and removes a worktree. `pj-roadmap` creates a worktree, pushes a branch and opens a pull request. The pj skills create, edit and close
 issues and labels on GitHub, and `pj4-running` also creates each project's branch, pushes, opens and merges pull
 requests. The doc skills make a file next to your document, rewrite the document itself, and can add one commit of
 their own to `.gitignore` after asking. Any of these is enough reason to wait, so each skill here starts only when you
@@ -214,7 +225,7 @@ the state lives. [format.md](skills/pj1-plan/format.md) describes the issues and
 [state.md](skills/pj1-plan/state.md) how the state of a project is read, and
 [between-skills.md](skills/pj1-plan/between-skills.md) how the four skills work together.
 
-`/annetaan:pj1-plan` ([details](skills/pj1-plan/SKILL.md)) starts with a planner session. Its input is usually one initiative from your `roadmap.md`, quoted or named. It draws the whole in
+`/annetaan:pj1-plan` ([details](skills/pj1-plan/SKILL.md)) starts with a planner session. Its input is usually one initiative from your roadmap file, by heading or quoted. It draws the whole in
 broad strokes and cuts it into projects of about 7 to 8 tasks, at most ten, with the dependencies between them. It cuts only where the work does not fit one project or where the
 projects can run in parallel, so a chain of work that can only go one way stays one project unless it is too large. A design review
 session reads each project's design once and asks whether a blank slate would give the same design, including
@@ -223,7 +234,7 @@ the same way as for `workflow`. The planner takes in what it agrees with, and th
 questions before approval. You
 answer the plan-level questions and see the projects in stages, with the reason for each wait. You approve them and
 pick the branch the projects start from. Nothing reaches GitHub before that. Then one parent issue per project is
-filed, blocked by the parents it waits on. No sub-issue and no branch is created yet, and no issue is `ready` yet.
+filed, blocked by the parents it waits on. When the request is a roadmap entry, one project of the last stage, the largest, carries a `Roadmap:` line naming the file and the entry. No sub-issue and no branch is created yet, and no issue is `ready` yet.
 
 `/annetaan:pj2-issues` ([details](skills/pj2-issues/SKILL.md)) takes the project to split from a number given, or the only one it could split, and otherwise asks. It offers the
 projects with no sub-issue yet whose waited-on projects are all merged, and recommends the lowest-numbered one. A planner
@@ -236,7 +247,8 @@ drafts. The planner redraws the parent, and you approve the split again. The sub
 run order and the titles are filed, and the parent gets the `doing` label. A project that waits on one not merged yet is refused. When a project it waits
 on was closed without a merge, it asks whether to drop that wait. When the planner finds that the project needs
 another project that is not merged yet, `pj2-issues` asks whether to add that wait. On yes, it adds the blocked-by
-between the two parents and stops without filing anything else.
+between the two parents and stops without filing anything else. For the project carrying the `Roadmap:` line, the split
+ends with one more task, blocked by every other, that removes the entry from the roadmap.
 
 `/annetaan:pj3-doctor` ([details](skills/pj3-doctor/SKILL.md)) takes the project from a number given or the only
 project that has sub-issues, and otherwise asks which project to work on. A
@@ -249,7 +261,7 @@ back to the writer and is checked against the reviewer's strings with no third r
 labelled `ready` in the same run. The doctor asks you only about a split, two boxes ticked in one decision, and the
 changes before it writes them. Then it rewrites the run order and labels `ready` every issue that came out
 clear. While the project's branch does not exist yet, it may also change which projects this one waits on, after
-you approve. Run it once after `pj2-issues`, tick the boxes it lists, and run it again.
+you approve. It keeps the roadmap task blocked by every issue filed later, so it stays last. Run it once after `pj2-issues`, tick the boxes it lists, and run it again.
 
 `/annetaan:pj4-running` ([details](skills/pj4-running/SKILL.md)) takes the project the same way. On the
 project's first run it creates the project's branch. When a project it waits on is not merged yet, it lists those
@@ -268,7 +280,8 @@ branch other than the default. Once every sub-issue is closed, it opens the pull
 into the branch it came from, for you to merge. Work nobody planned becomes a new issue. Work that has to
 come first stops the run and gets the `blocker` label. The next run picks up where this one stopped. When it finds
 a project merged and closes its parent, it names the projects that can now be split, as `/annetaan:pj2-issues` with
-their numbers.
+their numbers. It does not take the roadmap task while an open sub-issue is not among its blockers, and sends the project
+back to `pj3-doctor`.
 
 ```
 /annetaan:pj1-plan add CSV export to every report screen
@@ -376,9 +389,26 @@ be split now that this one is merged.
 /annetaan:pj-cleanup 12
 ```
 
+### pj-roadmap
+
+`/annetaan:pj-roadmap` ([details](skills/pj-roadmap/SKILL.md)) brings your roadmap file into the format the pj skills
+read. It checks the file on the branch you pick. It does nothing when the file is in the format and, where it could be
+read two ways (`###` items under a `## `, or initiatives that are not `## ` sections), you confirm that each `## ` is
+an initiative. When the file is not in the format, or you ask for a regroup, it works in a worktree of its own, draws the rewrite so that each initiative is one `## ` section with a unique heading, and shows
+where every piece came from. It asks once. Then it commits the rewritten file on a new branch, pushes it and opens a
+pull request into the branch you picked. `/annetaan:workflow-cleanup` removes the worktree and the branch after you
+merge it.
+
+It changes the structure and keeps every sentence. It never merges, never touches your working tree and never updates a
+pull request that is already open.
+
+```
+/annetaan:pj-roadmap
+```
+
 ### workflow-cleanup
 
-`/annetaan:workflow-cleanup` ([details](skills/workflow-cleanup/SKILL.md)) cleans up after a workflow run. Without a
+`/annetaan:workflow-cleanup` ([details](skills/workflow-cleanup/SKILL.md)) cleans up after a workflow run or a `pj-roadmap` run. Without a
 number, it lists the `wf-*` worktrees whose pull request is merged or closed, and those that have none, which is a run that
 stopped or one still going in another session. It takes the only candidate, or asks which. It shows what it will do and asks once. Then it moves the work
 reports into `work-reports/` in your clone, removes the worktree, deletes the branch locally and on origin,
@@ -477,7 +507,7 @@ design review cannot start, the skill spawns it again on opus at the same effort
 
 `pj4-running` has no agents of its own. It runs workflow's.
 
-`pj-auto` has no agents of its own. The runs it starts use theirs. `pj-cleanup` and `workflow-cleanup` have none either.
+`pj-auto` has no agents of its own. The runs it starts use theirs. `pj-cleanup`, `pj-roadmap` and `workflow-cleanup` have none either.
 
 The agent definitions are thin. The substance of each role lives in the skill's `roles/*.md`, and an agent reads
 that path out of the prompt the main session hands it.

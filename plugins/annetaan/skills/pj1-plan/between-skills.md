@@ -3,7 +3,7 @@
 This file holds what `pj1-plan`, `pj2-issues`, `pj3-doctor` and `pj4-running` agree on between them: who creates
 the base branch, the labels, the comments, the pull requests, how they name an issue to the user, the commands
 and how they write to GitHub. The four skills,
-`pj-auto` and `pj-cleanup` read it first.
+`pj-auto`, `pj-cleanup` and `pj-roadmap` read it first.
 The project reviewer looks up **Blockers**, and the `workflow` skill's **From an issue** (`workflow/from-issue.md`) looks up **Pull requests**.
 The issues and their bodies are in `format.md`, and how `project.sh` judges a project is in `state.md`, both next to
 this file.
@@ -12,10 +12,13 @@ this file.
 
 | Skill | What it does |
 | --- | --- |
-| `pj1-plan` | designs one initiative or other large request in broad strokes, has the design review read the parents' designs once, cuts it into projects of up to ten tasks, and files one parent issue per project, with blocked-by relationships between the parents |
-| `pj2-issues` | splits one project into tasks once every project it waits on is merged, and files its sub-issues with the decisions they need, the blocked-by relationships inside the project, the run order and the titles |
-| `pj3-doctor` | reviews a whole project against the boxes the user ticked and the code, has the issue writers redraw what no longer holds, draws the stubs, resolves the blockers, rewrites the run order and the titles, and labels an issue `ready` |
+| `pj1-plan` | designs one initiative or other large request in broad strokes, has the design review read the parents' designs once, cuts it into projects of up to ten tasks, and files one parent issue per project, with blocked-by relationships between the parents, and, for a request that is a roadmap entry, the `Roadmap:` line on one parent of the last stage |
+| `pj2-issues` | splits one project into tasks once every project it waits on is merged, and files its sub-issues with the decisions they need, the blocked-by relationships inside the project, the run order and the titles, and, under a parent with a `Roadmap:` line, the roadmap task as the last task |
+| `pj3-doctor` | reviews a whole project against the boxes the user ticked and the code, has the issue writers redraw what no longer holds, draws the stubs, resolves the blockers, rewrites the run order and the titles, keeps the roadmap task blocked by every other open sub-issue, and labels an issue `ready` |
 | `pj4-running` | creates a project's base branch when it first starts on the project, then works down the run order one pull request at a time, running the `workflow` skill on each and merging it into the base branch before the next starts, and once every sub-issue is closed, merges the branch it was made from into the base branch and opens the pull request from the base branch into that branch |
+
+The roadmap file, its line and its task are in `format.md` under **The roadmap file**, **The parent issue body** and
+**The roadmap task**.
 
 **The user decides by ticking boxes on GitHub.** Every question a task raises is a decision in its sub-issue
 (`format.md`, **Decisions**). No skill asks a task's decision in the conversation. `pj1-plan` and `pj2-issues` ask
@@ -29,6 +32,10 @@ fresh `claude -p` process per step, and lets `project.sh --next` (`state.md`, **
 `pj-cleanup` is not one of the four either. It runs once the user has merged a project's pull request: it closes the parent,
 removes the project's worktree after moving its work reports into the main working tree, deletes the base branch on
 origin and locally, fast-forwards the local `<from>`, and deletes the work reports that have been in the main working tree 14 days or more.
+
+`pj-roadmap` is not one of the four either. It brings the repository's roadmap file into the format (`format.md`,
+**The roadmap file**) on a branch of its own and opens a pull request that the user merges. `workflow-cleanup` tidies up
+after it.
 
 ## Principle
 

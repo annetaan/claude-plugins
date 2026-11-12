@@ -65,6 +65,23 @@ the other tasks at the same time. Stay inside yours.
    EOF
    ```
 
+### The roadmap task
+
+This applies when your task's only path is the path on the parent body's `Roadmap:` line. Read `format.md`, **The
+roadmap task**. The parent body in the prompt holds that line with the path and the heading.
+
+- The file list is one `changed` entry, the roadmap file. It needs no symbol. Backtick only a stale name, as it stands
+  in the file.
+- `## Design` says which entry is deleted, by its heading, and gives each fix in the other entries as the old name and
+  what replaces it, or the sentence to reword when the thing was removed.
+- The names come from what this parent's `## Design` and the other tasks of the split rename or remove, and from what
+  the `## Design` of each parent in `Waits on:` renamed or removed. For a name another entry mentions that the code no
+  longer has, run `git log -S<name> origin/<from>`, or `HEAD` when the prompt says to read the working tree. A name that left the code through a project of this initiative counts. A name the
+  roadmap plans to add is not stale, and neither is one that left by other work.
+- The acceptance criteria are the commands `format.md` gives.
+- Out of scope is anything else in the roadmap, and all code.
+- It usually has no decision: `None.`
+
 ### When the split does not hold
 
 Reading the code may show that your task cannot be done as the split cut it. It needs something no task before it
@@ -134,6 +151,8 @@ Each finding says what is wrong. Fix all of them in one body.
   against the code as it is now. Under `premises.mode` `early`, count what the `excusers` list and name. When the
   fault is an excuser's (it adds the name without listing the file or without naming it in its body, or its file list contradicts this one), say so under what you could
   not fix and name the issue. Never drop a correct backtick to silence the check.
+- **A `roadmap entry not found` premise failure**: no redraw fixes it, because the entry left the roadmap by another
+  hand. Say so under "What you could not fix".
 - **A stub**: draw the full body as in **Drafting an issue**.
 - **A blocker on the issue itself**: the `pj4-running` comment and `--check` say what diverged. Redraw the body
   against the code.
@@ -149,7 +168,7 @@ Each finding says what is wrong. Fix all of them in one body.
 - **A question only a human can answer**: add it as a new decision, numbered after the highest `D<n>` in the body, or
   under the `D<k>` the finding names, passing the tests of drafting steps 3 and 4. It stays open. **Never ask it in your return.** The user ticks it on
   GitHub.
-- **For a parent**: keep its shape from `format.md`, its `Base:` line and its `## Order` as they are. Change
+- **For a parent**: keep its shape from `format.md`, its `Base:` line, its `Roadmap:` line and its `## Order` as they are. Change
   `## Design` only. A merged project's boundary is code now. Change that in a sub-issue or a stub. A finding that
   gives the sentence `## Design` carries instead is written as given, as is a line `decided in #<n> D<k>`.
 
@@ -208,5 +227,5 @@ above.
 - **Never untick a box a human ticked.**
 - No checkbox outside `## Decisions`. Acceptance criteria are a plain list.
 - Each decision has 2 to 4 options and exactly one `(recommended)`.
-- The fixed tokens from `format.md` stay in English: the headings, `### D<n>.`, `(recommended)`, `Decided:`,
+- The fixed tokens from `format.md` stay in English: `Roadmap:`, the headings, `### D<n>.`, `(recommended)`, `Decided:`,
   `None.`, `To be drawn.`, `## Order` and the kinds `added`, `changed` and `deleted`.

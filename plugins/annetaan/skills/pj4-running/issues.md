@@ -20,11 +20,13 @@
    skip the closed issues. Take each open issue while it is workable (`state.md`, **When an issue is workable**), with
    the issues already taken counting as closed. Phase 2 runs the `--check` part of that. **Stop the walk at the first
    open issue that is not.** Nothing after it is taken, even when it is workable, because the order is the user's
-   (`format.md`, **The run order**).
+   (`format.md`, **The run order**). The roadmap task is not workable while `parent.roadmap.missing` is not empty
+   (`state.md`, **When an issue is workable**), whatever the walk has already taken.
    - **`parent.order` is empty, or `parent.orderCheck.ok` is false**: the run order is the merged-pull-request issues
      alone, and the walk does not start. Show what `orderCheck` names, and give the next step, `/annetaan:pj3-doctor`.
      With no such issue the run order is empty and phase 1 ends here (step 4).
-3. List the issue the walk stopped at, with why it is not workable, and the open issues after it as **waiting**. List
+3. List the issue the walk stopped at, with why it is not workable (for the roadmap task: it is not blocked by every
+   open sub-issue, naming the numbers in `parent.roadmap.missing`, and `/annetaan:pj3-doctor` adds the edges), and the open issues after it as **waiting**. List
    the issues in `orderCheck.missing` too, as not in the order.
 4. **An empty run order** ends the skill here. Report the issue the walk stopped at and why, and the next step,
    `/annetaan:pj3-doctor`. An issue with a merged pull request makes the run order non-empty.
@@ -110,6 +112,9 @@ Nothing runs in parallel. There is one worktree, `<WT>`. For each issue `<k>` in
    - The issue is closed: skip it.
    - `ready` is gone, because a human took it off, and `pr` is not merged: the run stops here, as the walk in phase 1
      would have. Tell the user, and go to phase 6.
+   - The issue is `parent.roadmap.task` and `parent.roadmap.missing` is not empty, as when a stub was filed during
+     this run: the run stops here, as the walk in phase 1 would have. Tell the user, give `/annetaan:pj3-doctor` as the
+     next step, and go to phase 6.
 2. **Check again** with `project.sh <P> --check <k>`, unless `pr` is merged. A failure gets the marks from phase 2,
    and the run stops (phase 6).
 3. **Take the path `pr` gives.**

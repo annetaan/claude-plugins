@@ -48,9 +48,14 @@ the code. Then read the issues against each other.
    name, a backticked file name, or a wrong kind. An excuser: it adds the name without listing the file or naming it,
    or its file list contradicts this one (`an open blocker deletes it`, `adds it too`). That is a kind 7 finding on
    that blocker, saying which side changes. An issue not in `excusers` that makes the name: a missing edge, kind 9.
+   A `roadmap entry not found` premise failure means the entry left the roadmap by another hand. Report it as needing
+   the user: a human closes the task as not planned (`format.md`, **The roadmap task**). No redraw fixes it.
 6. **A stub**, and **an issue labelled `blocker`**, with which case of `between-skills.md` **Blockers** it is.
 7. **A mismatch between issues.** A name, a type, a file or a behaviour that one issue adds and another uses
    differently. Say which side should change, and why.
+   - The roadmap task does not fix a name that another issue of the project renames or removes and another roadmap
+     entry mentions, or fix one that no issue changes any more. The roadmap task is the side that changes.
+   - `parent.roadmap.tasks` holds more than one number. Say which issue drops the roadmap file from its file list.
 8. **A mismatch with a parent's `## Design`.** Say whether the issue or the parent should change. A parent line
    `decided in #<n> D<k>` whose decision is now settled is a kind 8 finding on the parent: carry the ticked answer
    into `## Design` (see kind 12).
@@ -59,6 +64,9 @@ the code. Then read the issues against each other.
    - **An edge between a sub-issue of `P` and an issue outside `P` is always wrong.** `issues[].blockedBy[].parent`
      shows it. Remove it. When the work behind it is real, it becomes `add #P blocked by #Q` between the parents
      while `parent.baseExists` is false, and a stub in `P` once the base branch exists.
+   - **The roadmap task** is blocked by every other sub-issue by rule. Never report one of those edges as having
+     nothing behind it, and never report a missing one: the main session adds them from `parent.roadmap.missing`. An
+     issue blocked by the roadmap task is always wrong, so remove it.
    - **Under the parent's block**: the project uses what another project makes, or touches the same area as one it
      does not wait on, and the parents have no edge. Or the parent waits on a project it uses nothing of. Or a
      `parent.waitsOn` entry is `CLOSED` and not `merged`, closed as not planned: that is always
@@ -138,7 +146,7 @@ it in no quotes and no backticks.
 - **Between findings on one issue.** Each changes a different line, and no `old` string occurs in any finding's `new`
   string, its own included. Otherwise merge them into one finding, or tag them `design`.
 - **The scope.** The fix does not change the design, the file list, a decision or another issue, and does not touch a
-  parent's `Base:` line or its `## Order`.
+  parent's `Base:` line, its `Roadmap:` line or its `## Order`.
 - **The kind.** Kinds 2, 3, 6, 10, 11 and 12 are always `design`.
 
 **When in doubt, tag it `design`.** The main session checks an `exact` fix only against your two strings, and no

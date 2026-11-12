@@ -104,8 +104,8 @@ not outlive one command, so write the path in full each time.
 
    Then one line for each parent with a finding, and the edges the reviewer would change.
 
-**When nothing has a finding and no open decision is left**, go to phase 4 with no writers. Only the titles, the labels
-and the run order may still change.
+**When nothing has a finding and no open decision is left**, go to phase 4 with no writers. Only the titles, the labels,
+the roadmap task's edges and the run order may still change.
 
 ## Phase 2: the questions
 
@@ -149,7 +149,7 @@ $DOCTOR/../pj1-plan/scripts/project.sh --lint "$TMP/<n>.md"
 ```
 
 Accept a clear lint, or `decisions-open` when a decision is still open. Read each parent's body against the parent
-shape in `format.md` instead: its headings, no line numbers, its `Base:` line and its `## Order` unchanged. Send a
+shape in `format.md` instead: its headings, no line numbers, its `Base:` line, its `Roadmap:` line and its `## Order` unchanged. Send a
 body that fails back to its writer with `SendMessage` and say what to fix.
 
 **When a writer could not fix something** that needs the user, ask it as phase 2 says, and send the answer back to
@@ -217,7 +217,9 @@ $DOCTOR/../pj1-plan/scripts/project.sh <Q>
 
 - each body to rewrite, as `#<n>`, with what changed in one line, an `exact` fix included
 - the new issues: the parts of a split and the stubs
-- the sub-issue edges to add and remove
+- the sub-issue edges to add and remove. When `parent.roadmap.task` is set and open, one line
+  `#<task> blocked by #<k>` per `<k>` in `parent.roadmap.missing` of the phase 1 read, and one sentence that every
+  issue filed in this run gets the same edge
 - the parent edges to add and remove, each as `#<P> blocked by #<Q>`. For an added one whose `#<Q>` is not `merged`,
   one more line: `pj4-running` does not start this project until `#<Q>` is merged
 - the blockers to close
@@ -295,6 +297,15 @@ the numbers.
    gh issue edit <a> --remove-blocked-by <b>
    gh issue edit <P> --add-blocked-by <Q>
    gh issue edit <P> --remove-blocked-by <Q>
+   ```
+
+   **The roadmap task's edges** (`format.md`, **The roadmap task**). Read the project again, because step 2 filed
+   new issues, and add one edge per number in `parent.roadmap.missing`. With `parent.roadmap` null or its `task`
+   null, there are none. These come before the `--order` run below, which then covers them.
+
+   ```bash
+   $DOCTOR/../pj1-plan/scripts/project.sh <P>
+   gh issue edit <task> --add-blocked-by <k>
    ```
 
    **After the edges change, run `--order` on `<P>` once.** When it fails, on a cycle or anything else, remove the
@@ -386,7 +397,7 @@ the numbers.
   one left without it by a stale commit with no `cleared` line names that commit
 - **the decisions left for the user**, one line each, as `<issue URL> D<k> <question>`. This is the
   user's next step: tick them on GitHub, then run `/annetaan:pj3-doctor` again
-- the issues filed, the sub-issue and parent edges changed, the blockers closed, the parents rewritten and the
+- the issues filed, the sub-issue and parent edges changed (the roadmap task's edges added among them), the blockers closed, the parents rewritten and the
   titles changed
 - the parent edges dropped before the approval, each with why
 - the `exact` fixes made after the second review, by issue
@@ -414,6 +425,7 @@ is needs-user too.
   `wantedTitle` or from a writer. The writer applies an `exact` fix, and you only compare it.
 - **Each writer writes its own issue only. Only you write to GitHub**, and only after the phase 4 approval. Every
   comment you post starts with `**[pj3-doctor]**`.
+- **The roadmap task's edges come from `parent.roadmap.missing` only.** You never judge them, nor does the reviewer.
 - **Sub-issue edges stay inside the project.** A parent edge runs only between two parents, only while
   `parent.baseExists` is false, and only after the phase 4 approval. Never an edge between a parent and a sub-issue.
 - **Always pass a body with `--body-file`.** Never create a label with `--force`.
