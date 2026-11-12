@@ -104,12 +104,27 @@ git rev-parse HEAD origin/<from>
 When `<from>` is the branch checked out here, the tree is clean and both SHAs match, the sub-agents read the working
 tree. Otherwise their prompt says to read the code at `origin/<from>`.
 
-```
-Agent(subagent_type: "annetaan:pj-planner", description: "split #<P>",
-      prompt: "Read $ISSUES/roles/split.md first and follow the role it describes. The project format is in $ISSUES/../pj1-plan/format.md.\n\nParent: #<P>\n\nproject.sh <P>:\n<the JSON>\n\nRemoved waits: <#Q, #R | none>\n\nRead the code: <the working tree | at origin/<from>>")
+**The roadmap task**, only when `parent.roadmap` in the `project.sh <P>` JSON is not null. The parent carries the
+roadmap entry `parent.roadmap.entry` of `parent.roadmap.path`, and the split ends with the roadmap task (`format.md`,
+**The roadmap task**). Read the roadmap as it stands on `<from>`:
+
+```bash
+$ISSUES/../pj1-plan/scripts/project.sh --roadmap origin/<from>
 ```
 
-`Removed waits:` names the projects whose edges **The project** step 2 removed in this run.
+- `ok` is true and an entry has the heading `parent.roadmap.entry`: the split ends with the roadmap task.
+- The only reason is `no-file`, or `ok` is true and no entry has that heading: there is no roadmap task. Keep one line
+  saying why, for the planner and for phase 2.
+- Anything else: stop, name the reason codes, and point the user to `/annetaan:pj-roadmap`.
+
+```
+Agent(subagent_type: "annetaan:pj-planner", description: "split #<P>",
+      prompt: "Read $ISSUES/roles/split.md first and follow the role it describes. The project format is in $ISSUES/../pj1-plan/format.md.\n\nParent: #<P>\n\nproject.sh <P>:\n<the JSON>\n\nRemoved waits: <#Q, #R | none>\n\nRoadmap task: <yes, the entry \"<heading>\" of <path> | none, <why> | none>\n\nRead the code: <the working tree | at origin/<from>>")
+```
+
+`Removed waits:` names the projects whose edges **The project** step 2 removed in this run. `Roadmap task:` carries
+the first form when the split ends with the roadmap task, the second with the line kept above, and `none` for a parent
+with no `Roadmap:` line.
 
 `annetaan:pj-planner` ships with this plugin and is pinned to Fable at medium effort with code changes disabled.
 **When it cannot start** (a weekly limit, a rate limit, the model is unavailable), spawn it again with the same
@@ -131,7 +146,7 @@ Present the split, then ask for approval. **Nothing has been written to GitHub y
 changing the split costs nothing.
 
 Write the parent change to files first. Save the body as it reads on GitHub to `$TMP/<P>.before.md`. Write
-`$TMP/<P>.md` as the `Base:` line exactly as it reads on GitHub, a blank line, then the planner's body. When the
+`$TMP/<P>.md` as the lines above `## Goal` exactly as they read on GitHub, a blank line, then the planner's body. When the
 planner returned the body unchanged, copy the one from GitHub.
 
 ```bash
@@ -148,6 +163,8 @@ Show:
 - the changes to the parent's edges, each with the planner's reason, or "none"
 - one line saying every task is aimed at 30 files at most, tests included. When the split is past 10 tasks, say that it
   stays one project (`format.md`, **Projects**)
+- one line on the roadmap: the last task removes the roadmap entry `<heading>` from `<path>`, or the line kept in phase 1
+  saying why there is no roadmap task
 - one line saying the parent gets the `doing` label once the sub-issues are filed
 - one line saying no branch is created here, and `pj4-running` creates `pj/<P>` on its first start on the project
 
@@ -160,6 +177,10 @@ AskUserQuestion:
 
 "Change something first" goes to the planner with `SendMessage`, and the revised split comes back here. Ask again
 then.
+
+**Before you show anything, when the prompt said yes**, check that the last task names `parent.roadmap.path` as its only
+path and waits on every other task, and that no other task names that path. Otherwise send the split back to the
+planner with `SendMessage`.
 
 **Before you show anything, read the project that each `add` line and a `conditional` line names.** Phase 4 adds
 only the edges checked here.
@@ -271,7 +292,8 @@ The sub-issue bodies sit in `$TMP` from phase 3, and the parent body in `$TMP/<P
 
 4. **The sub-issues, in dependency order**, so that every `--blocked-by` names an issue that already exists. Leave
    out `--blocked-by` when the task waits on nothing. Keep the mapping from `T<k>` to the issue number as you go,
-   because the next `--blocked-by` needs it.
+   because the next `--blocked-by` needs it. The roadmap task is filed last, with `--blocked-by` naming every other
+   sub-issue.
 
    ```bash
    gh issue create --parent <P> --blocked-by <n>,<m> --title "<title>" --body-file "$TMP/T<k>.md"
@@ -317,7 +339,9 @@ $ISSUES/../pj1-plan/scripts/project.sh <P> --order
 The fields are in `state.md` under **Reading a project**. Every task of the split is there, and its `blockedBy`
 matches the split, with `<P>` as the `parent` of every blocker. The decision counts and the lint match the bodies.
 Every sub-issue's `title` equals its `wantedTitle`. `parent.orderCheck.ok` is true with `missing` empty, and
-`parent.baseExists` is false. `parent.labels` holds `doing`. `--order` finds no cycle. Report anything that does not match.
+`parent.baseExists` is false. `parent.labels` holds `doing`. `--order` finds no cycle. When the split ended with the roadmap task,
+`parent.roadmap.task` is its number and `parent.roadmap.missing` is empty. When it left the task out,
+`parent.roadmap.tasks` is empty. Report anything that does not match.
 
 ## Report to the user
 
@@ -337,7 +361,7 @@ Then the next steps, in this order:
 ## Rules
 
 - **You do not design and you do not write issue bodies.** The planner and the issue writers do. You keep the
-  `Base:` line as it is and write `## Order`, and add nothing else. Titles come from the writers and from
+  lines above `## Goal` as they are and write `## Order`, and add nothing else. Titles come from the writers and from
   `wantedTitle` only.
 - **Nothing reaches GitHub before the phase 2 approval.**
 - **You create no branch.** `pj4-running` creates the base branch (`between-skills.md`, **The base branch**).

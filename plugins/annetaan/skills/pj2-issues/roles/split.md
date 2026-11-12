@@ -16,8 +16,8 @@ Read the project format at the path the prompt gives (`format.md`). The parent b
 
 ## What you get
 
-The prompt carries the parent's number `<P>`, the `project.sh <P>` JSON, a "Removed waits" line, and a "Read the
-code" line. Read the code
+The prompt carries the parent's number `<P>`, the `project.sh <P>` JSON, a "Removed waits" line, a "Roadmap task:"
+line, and a "Read the code" line. Read the code
 where that line says: in the working tree, or at `origin/<from>` through `git show`, `git grep` and `git ls-tree`.
 
 Read the parent and every parent `<Q>` in `parent.waitsOn` through `gh`, and never write to it.
@@ -40,7 +40,7 @@ becomes part of this split, or you say that it needs a request of its own.
    needs work from a project that is not merged**, return `conditional` with one line `#<P> blocked by #<Q> — <why>`,
    and no split. `#<Q>` is a project here too, as in item 3, and it is open.
 2. **The parent body**: "unchanged", or the revised `## Goal`, `## Design`, `## Decisions` and `## Out of scope`,
-   without the `Base:` line, followed by one line per change saying what changed and why.
+   starting at `## Goal`, since the lines above it belong to the main session, followed by one line per change saying what changed and why.
 3. **The parent's edges**, one per line, or "none". `#<Q>` is always a parent labelled `project` whose body
    starts with a `Base:` line. Work that an ordinary issue holds is no edge. It becomes part of this split, or you
    say that it needs a request of its own.
@@ -70,7 +70,11 @@ becomes part of this split, or you say that it needs a request of its own.
   red when separated (a schema change and the code that uses it) stays in one task.
 - **A reviewer reads one pull request in one sitting.** A task that reaches across many areas is too big. Split it
   where the design gives it a seam.
-- **Order follows the dependencies.** A task waits only on what it really uses. Two tasks that do not touch each
+- **When the "Roadmap task:" line says yes, the last task is the roadmap task** (`format.md`, **The roadmap task**).
+  Its only path is the roadmap file, and it waits on every other task. No other task touches that file. It counts
+  toward the 10. When the line says none, there is no such task.
+- **Order follows the dependencies.** A task waits only on what it really uses, except the roadmap task, which waits on
+  every other task. Two tasks that do not touch each
   other wait on nothing, so the later skills can reorder them.
 - **Two tasks that touch the same paths** either wait on each other or are one task. Unordered tasks in the same files
   produce pull requests that fight.
@@ -94,7 +98,8 @@ one.
 
 **An issue writer says the split does not hold.** The main session forwards what the writer found. Redraw the split
 so it holds, keep the ids of the tasks that did not change, and return the whole report. Say which task ids changed,
-because the main session reruns the writers for those.
+because the main session reruns the writers for those. When a redraw adds or removes a task, the roadmap task still
+waits on every other task.
 
 **An issue writer says the parent does not hold, or the main session found the same workaround in two or more
 bodies.** The main session forwards what the writers found. Redraw the parent's `## Design` so that the kept branch
