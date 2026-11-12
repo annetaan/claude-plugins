@@ -1,0 +1,62 @@
+<!-- The peak of the sample: the minutes fall from 45 to 20, and a burst lands on the peak mark.
+     CSS animations only. Everything is scoped under #fragment and sized in viewport units. -->
+<style>
+  @property --n { syntax: "<integer>"; inherits: false; initial-value: 45; }
+
+  #fragment .peak {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 2vmin;
+    padding-bottom: 10vmin;
+  }
+  #fragment .dial { position: relative; display: flex; align-items: baseline; gap: 2.5vmin; }
+  #fragment .num {
+    font-size: 34vmin;
+    font-weight: 800;
+    line-height: 1;
+    letter-spacing: -0.02em;
+    counter-reset: n var(--n);
+    animation: fall var(--mark-peak) cubic-bezier(0.2, 0.7, 0.2, 1) both, glow 0.6s ease-out var(--mark-peak) both;
+  }
+  #fragment .num::before { content: counter(n); }
+  #fragment .unit { font-size: 8vmin; font-weight: 600; opacity: 0.8; }
+  #fragment .caption { font-size: 4.6vmin; opacity: 0.85; }
+
+  #fragment .track { width: 70vmin; height: 1.6vmin; border-radius: 1vmin; background: rgba(255, 255, 255, 0.16); overflow: hidden; margin-top: 3vmin; }
+  #fragment .fill {
+    height: 100%;
+    background: var(--accent);
+    transform-origin: left center;
+    animation: drain var(--mark-peak) cubic-bezier(0.2, 0.7, 0.2, 1) both;
+  }
+
+  #fragment .ring {
+    position: absolute;
+    left: 50%;
+    top: 46%;
+    width: 30vmin;
+    height: 30vmin;
+    margin: -15vmin 0 0 -15vmin;
+    border: 1.2vmin solid var(--accent);
+    border-radius: 50%;
+    animation: burst 1.1s ease-out var(--mark-peak) both;
+  }
+  #fragment .ring.second { animation-delay: calc(var(--mark-peak) + 0.18s); border-width: 0.6vmin; }
+
+  @keyframes fall { from { --n: 45; } to { --n: 20; } }
+  @keyframes drain { from { transform: scaleX(1); } to { transform: scaleX(0.44); } }
+  @keyframes glow { from { color: var(--fg); transform: scale(1); } 40% { color: var(--accent); transform: scale(1.08); } to { color: var(--accent); transform: scale(1); } }
+  @keyframes burst { from { transform: scale(0.3); opacity: 0; } 12% { opacity: 1; } 60% { opacity: 0.5; } to { transform: scale(2.4); opacity: 0; } }
+</style>
+
+<div class="peak">
+  <div class="ring"></div>
+  <div class="ring second"></div>
+  <div class="dial"><span class="num"></span><span class="unit">min</span></div>
+  <div class="caption">from the door to the table</div>
+  <div class="track"><div class="fill"></div></div>
+</div>

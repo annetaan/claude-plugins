@@ -1,0 +1,13 @@
+{
+  "name": "experience-video-renderer",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Renders an experience-video story.md into an mp4.",
+  "engines": { "node": ">=20" },
+  "scripts": { "test": "node --test" },
+  "dependencies": {
+    "playwright": "1.65.0",
+    "yaml": "2.9.1"
+  }
+}

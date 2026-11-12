@@ -28,7 +28,7 @@ Or let Claude Code do it. Open `/plugin`, go to Marketplaces, pick `annetaan` an
 
 | Plugin | Install | Skills |
 | --- | --- | --- |
-| [annetaan](plugins/annetaan) | `/plugin install annetaan@annetaan` | [13 skills](plugins/annetaan/README.md#skills) |
+| [annetaan](plugins/annetaan) | `/plugin install annetaan@annetaan` | [14 skills](plugins/annetaan/README.md#skills) |
 
 - [workflow](plugins/annetaan/skills/workflow) runs one implementation, from design to pull request, in a worktree of its own, and
   [workflow-cleanup](plugins/annetaan/README.md#workflow-cleanup) tidies up after it.
@@ -39,6 +39,8 @@ Or let Claude Code do it. Open `/plugin`, go to Marketplaces, pick `annetaan` an
   [pj-roadmap](plugins/annetaan/README.md#pj-roadmap) brings your roadmap file into the format they read, through a pull request.
 - [doc-write](plugins/annetaan/README.md#doc-write) and
   [doc-meta, doc-review and doc-revise](plugins/annetaan/README.md#doc-meta) write and revise documents.
+- [experience-video](plugins/annetaan/README.md#experience-video) interviews you about your customer's experience and
+  renders a video of under one minute from it.
 
 [How the skills fit together](plugins/annetaan/README.md#how-the-skills-fit-together) explains how workflow and the
 pj skills relate.
