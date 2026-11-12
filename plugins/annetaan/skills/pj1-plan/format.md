@@ -1,7 +1,7 @@
 # The issues of a project
 
 This file holds how a project is laid out as issues: the parent body, the sub-issue body, the decisions and the run
-order. The planners and the issue writer read only this file. The project reviewer, `pj1-plan`, `pj2-issues` and
+order, and the format of the roadmap file. The planners and the issue writer read only this file. The project reviewer, `pj1-plan`, `pj2-issues` and
 `pj3-doctor` read it first too, and `pj4-running` and the `workflow` skill look up sections of it. How `project.sh` judges a project is
 in `state.md`, and what the skills agree on between them is in `between-skills.md`, both next to this file.
 
@@ -68,6 +68,32 @@ no project. `project.sh` fails on the last one.
 **No cycles**, within a project or between projects. After any change to the relationships, run
 `project.sh <P> --order` on the project whose edges changed, and for a parent edge on the blocked parent. It fails
 and names the cycle when there is one, of either kind. Undo the edge that made it.
+
+## The roadmap file
+
+A repository that plans its work in a roadmap keeps it in one file. **Exactly one of `roadmap.md` and `ROADMAP.md`
+exists, at the root, under `doc/` or under `docs/`** (six paths). The names are compared exactly, by listing the
+directory, so a file system that ignores case does not show one file twice.
+
+**One initiative is one entry.** An entry starts at a line `## <heading>` outside a code fence and runs to the line
+before the next such line, or to the end of the file. Deeper headings (`###` and below) belong to the entry. The body
+is free. Headings are unique, compared as written after trimming. The preamble is everything before the first entry.
+It is free and may hold one `# ` title. A file with no entry is in the format: it is what the last initiative leaves
+behind.
+
+**What `project.sh --roadmap` checks.** It is the only reader of this file (see `state.md`). A leading front matter block (a first line `---`, up to the next
+`---` or `...` line) is outside the format: it is neither preamble text nor an entry, and no check looks inside it. It
+reports these codes:
+
+| Code | Meaning |
+| --- | --- |
+| `no-file` | none of the six paths exists |
+| `several-files` | more than one of them exists |
+| `duplicate-heading` | two entries have the same heading |
+| `empty-heading` | a `##` line has no text |
+| `several-titles` | the preamble holds more than one `# ` heading |
+| `title-after-entry` | a `# ` heading comes after the first entry |
+| `setext-heading` | a heading is underlined with `===` or `---` |
 
 ## The parent issue body
 

@@ -14,6 +14,8 @@
 # It also derives the title a sub-issue should carry, with its decision count (wantedTitle).
 # --order-body prints the parent's body as GitHub has it, with its ## Order list replaced by the one --order writes.
 # --exact compares two bodies against a reviewer's old:/new: findings, and touches neither GitHub nor git.
+# --roadmap checks the repository's roadmap file against the format in ../format.md, in the working tree or at a ref.
+# It is the only place that parses the roadmap file.
 set -euo pipefail
 
 die() { echo "project: $*" >&2; exit 1; }
@@ -27,6 +29,7 @@ usage: project.sh [-R <owner/repo>] <parent>               the whole project, as
        project.sh [-R <owner/repo>] <parent> --order-body  the parent body with its ## Order list replaced, as text
        project.sh --lint <file|->                          lint one sub-issue body, read from a file or standard input
        project.sh --exact <before> <after> <findings>      whether <after> is <before> with exactly the findings applied
+       project.sh --roadmap [<ref>]                        check the roadmap file, in the work tree or at <ref>, as JSON
   -R <owner/repo>   read another repository (default: the repository of the current directory)
 --order exits non-zero and names the cycle when the blocked-by relationships have one,
         or when the projects wait on each other.
@@ -38,12 +41,14 @@ usage: project.sh [-R <owner/repo>] <parent>               the whole project, as
 --lint touches neither GitHub nor git and always exits 0.
 --exact touches neither GitHub nor git and always exits 0 on a readable input, printing {"ok", "failures", "lint"}.
         It exits 1 on a usage error, a missing file or a malformed findings file.
+--roadmap runs inside a work tree, reads no parent and touches no GitHub, and always exits 0 on a readable roadmap,
+        printing {"ok", "files", "path", "entries", "reasons"}. It dies outside a work tree and on a ref git cannot read.
 USAGE
   exit 1
 }
 
 REPO=""; MODE="project"; PARENT=""; TARGET=""; LINT_FILE=""
-EXACT_BEFORE=""; EXACT_AFTER=""; EXACT_FINDINGS=""
+EXACT_BEFORE=""; EXACT_AFTER=""; EXACT_FINDINGS=""; ROADMAP_REF=""
 while [ $# -gt 0 ]; do
   case "$1" in
     -R|--repo) [ $# -ge 2 ] || usage; REPO="$2"; shift 2 ;;
@@ -53,6 +58,8 @@ while [ $# -gt 0 ]; do
     --check)   [ $# -ge 2 ] || usage; MODE="check"; TARGET="$2"; shift 2 ;;
     --lint)    [ $# -ge 2 ] || usage; MODE="lint"; LINT_FILE="$2"; shift 2 ;;
     --exact)   [ $# -ge 4 ] || usage; MODE="exact"; EXACT_BEFORE="$2"; EXACT_AFTER="$3"; EXACT_FINDINGS="$4"; shift 4 ;;
+    --roadmap) MODE="roadmap"; shift
+               if [ $# -gt 0 ] && [ "${1#-}" = "$1" ]; then ROADMAP_REF="$1"; shift; fi ;;
     -h|--help) usage ;;
     -?*)       die "unknown option: $1" ;;
     *)         [ -z "$PARENT" ] || die "one parent issue at a time"; PARENT="$1"; shift ;;
@@ -74,6 +81,7 @@ BASE_RE = re.compile(r"^Base:\s*`?([^`\s]+)`?\s+from\s+`?([^`\s]+)`?\s*$")
 ORDER_RE = re.compile(r"^\s*\d+\.\s+#(\d+)\b")
 IMPLEMENTS_RE = re.compile(r"^Implements #(\d+)\s*$")
 COUNT_RE = re.compile(r"(\s*\(\d+/\d+\))+\s*$")
+ROADMAP_PATHS = ["roadmap.md", "ROADMAP.md", "doc/roadmap.md", "doc/ROADMAP.md", "docs/roadmap.md", "docs/ROADMAP.md"]
 
 def die(msg):
     print("project: " + msg, file=sys.stderr)
@@ -188,6 +196,101 @@ def exact(before_file, after_file, findings_file):
 
 def run(*cmd):
     return subprocess.run(cmd, capture_output=True, text=True)
+
+def roadmap_parse(text):
+    """The entries of a roadmap file ({"heading", "start", "end"}, lines 1-based) and the reasons it is not in the
+    format. An entry starts at a ## line outside a code fence and runs to the line before the next one."""
+    lines = (text or "").replace("\r", "").split("\n")
+    if lines and lines[-1] == "":
+        lines.pop()
+    entries, reasons, seen, titles = [], [], set(), 0
+    fence, k = False, 0
+    if lines and lines[0].strip() == "---":
+        close = next((j for j in range(1, len(lines)) if lines[j].strip() in ("---", "...")), None)
+        if close is not None:
+            k = close + 1
+    prev = ""
+    for n in range(k, len(lines)):
+        line = lines[n]
+        if line.lstrip().startswith("```"):
+            fence = not fence
+            prev = ""
+            continue
+        if fence:
+            continue
+        m = re.match(r"^##\s+(.+?)\s*$", line) if not line.startswith("###") and line.strip() != "##" else None
+        if m:
+            heading = m.group(1)
+            if entries:
+                entries[-1]["end"] = n
+            entries.append({"heading": heading, "start": n + 1, "end": len(lines)})
+            if heading in seen:
+                reasons.append({"code": "duplicate-heading", "line": n + 1, "heading": heading})
+            seen.add(heading)
+        elif line.strip() == "##":
+            reasons.append({"code": "empty-heading", "line": n + 1})
+        elif re.match(r"^#\s+\S", line):
+            if entries:
+                reasons.append({"code": "title-after-entry", "line": n + 1})
+            else:
+                titles += 1
+                if titles == 2:
+                    reasons.append({"code": "several-titles", "line": n + 1})
+        elif re.match(r"^\s{0,3}(=+|-+)\s*$", line) and prev.strip() and not prev.lstrip().startswith(("#", ">", "-", "*", "+", "|")) \
+                and not re.match(r"^\s{0,3}\d{1,9}[.)](\s|$)", prev) \
+                and not re.match(r"^\s{0,3}(=+|-+)\s*$", prev):
+            reasons.append({"code": "setext-heading", "line": n, "heading": prev.strip()})
+        prev = line
+    return entries, reasons
+
+def roadmap_read(ref):
+    """The roadmap file of the work tree, or of the ref when one is given, checked against the format."""
+    top = run("git", "rev-parse", "--show-toplevel")
+    if top.returncode != 0:
+        die("not inside a git work tree")
+    top = top.stdout.strip()
+    if ref:
+        if ref.startswith("-") or run("git", "-C", top, "rev-parse", "--verify", "--quiet", ref + "^{commit}").returncode != 0:
+            die("git cannot read the ref: " + ref)
+        tree = run("git", "-C", top, "ls-tree", ref, "--", *ROADMAP_PATHS)
+        if tree.returncode != 0:
+            die("git cannot read the ref: " + ref)
+        found = set()
+        for l in tree.stdout.split("\n"):
+            meta, _, path = l.partition("\t")
+            if meta.split(" ")[1:2] == ["blob"]:
+                found.add(path.strip('"'))
+    else:
+        found = set()
+        for d in ("", "doc", "docs"):
+            try:
+                names = os.listdir(os.path.join(top, d))
+            except OSError:
+                continue
+            for name in names:
+                path = d + "/" + name if d else name
+                if path in ROADMAP_PATHS and os.path.isfile(os.path.join(top, path)):
+                    found.add(path)
+    files = [p for p in ROADMAP_PATHS if p in found]
+    out = {"ok": False, "files": files, "path": None, "entries": [], "reasons": []}
+    if not files:
+        out["reasons"].append({"code": "no-file"})
+        return out
+    if len(files) > 1:
+        out["reasons"].append({"code": "several-files"})
+        return out
+    out["path"] = files[0]
+    if ref:
+        shown_ = run("git", "-C", top, "show", ref + ":" + files[0])
+        if shown_.returncode != 0:
+            die("git cannot read %s at %s" % (files[0], ref))
+        text = shown_.stdout
+    else:
+        with open(os.path.join(top, files[0]), encoding="utf-8", errors="replace") as f:
+            text = f.read()
+    out["entries"], out["reasons"] = roadmap_parse(text)
+    out["ok"] = not out["reasons"]
+    return out
 
 def graphql(fields, ints=None, strs=None, what="read the repository"):
     """Run one GraphQL query on the repository and return its repository object. ints and strs are the variables,
@@ -343,6 +446,10 @@ if MODE == "lint":
 
 if MODE == "exact":
     print(json.dumps(exact(sys.argv[2], sys.argv[3], sys.argv[4]), ensure_ascii=False))
+    sys.exit(0)
+
+if MODE == "roadmap":
+    print(json.dumps(roadmap_read(sys.argv[2]), ensure_ascii=False))
     sys.exit(0)
 
 issues_file, repo = sys.argv[2], sys.argv[3]
@@ -829,6 +936,11 @@ if [ "$MODE" = "exact" ]; then
     [ -f "$f" ] || die "no such file: $f"
   done
   exec python3 -c "$PY" exact "$EXACT_BEFORE" "$EXACT_AFTER" "$EXACT_FINDINGS"
+fi
+
+if [ "$MODE" = "roadmap" ]; then
+  [ -z "$PARENT" ] || die "--roadmap takes no parent"
+  exec python3 -c "$PY" roadmap "$ROADMAP_REF"
 fi
 
 [ -n "$PARENT" ] || usage

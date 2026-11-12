@@ -11,12 +11,12 @@ agree on between them is in `between-skills.md`, both next to this file.
 query, the pull requests into the base branch in one `gh pr list`, and where the branches of this project and the
 projects it waits on stand in one more GraphQL query. `--order` and the history of `--check` also read one query per
 project they follow through `waitsOn`. It writes nothing to GitHub. **It is the only parser of a sub-issue body, of
-a parent's `Base:` line and of a pull request's head.** Every skill and the issue writer go through it. Pass `-R <owner/repo>` to read a repository other than the current one.
+a parent's `Base:` line, of a pull request's head and of the roadmap file.** Every skill and the issue writer go through it. Pass `-R <owner/repo>` to read a repository other than the current one.
 
 Every mode that reads a parent fails with `project: #<P> has no Base: line` when the parent body has none, or has
 one that does not name both branches. It also fails with `project: #<P> is blocked by #<X>, which is no project` when
 an issue the parent is blocked by has no `Base:` line, for this parent and for every project a walk of `--order` or
-`--check` follows. `--lint` and `--exact` read no parent.
+`--check` follows. `--lint`, `--exact` and `--roadmap` read no parent.
 
 ```bash
 project.sh <P>               # the whole project, as JSON
@@ -26,6 +26,7 @@ project.sh <P> --next        # what to run next on the project, and a fingerprin
 project.sh <P> --check <n>   # whether sub-issue <n> can be implemented from its body now (see When an issue is ready)
 project.sh --lint <file>     # the lint of one body, from a file, or from standard input with -
 project.sh --exact <before> <after> <findings>   # whether <after> is <before> with the findings applied, and nothing else
+project.sh --roadmap [<ref>] # the roadmap file, in the work tree or at <ref>, checked against the format (see format.md)
 ```
 
 `project.sh <P>` prints:
@@ -83,6 +84,19 @@ project.sh --lint - <<'EOF'
 <the body>
 EOF
 ```
+
+`--roadmap` needs no parent and touches no GitHub. Without a ref it reads the working tree from the top of the work
+tree. With `<ref>` it reads that ref through `git ls-tree` and `git show`. It dies outside a work tree and on a ref git
+cannot read, and otherwise exits 0 whatever the result:
+
+```
+{"ok", "files": [paths], "path": <path or null>,
+ "entries": [{"heading", "start", "end"}],
+ "reasons": [{"code", "line", "heading"}]}
+```
+
+`path` is set when exactly one roadmap file exists. `start` and `end` are the first and last line of an entry, 1-based.
+`line` and `heading` appear on a reason when one applies. The codes are in `format.md`, **The roadmap file**.
 
 `--check <n>` runs inside a work tree of a clone of the repository, from any directory in it. It fetches `<from>` from origin every time, and the base branch
 only once it exists, which moves local refs and nothing else, and prints:
