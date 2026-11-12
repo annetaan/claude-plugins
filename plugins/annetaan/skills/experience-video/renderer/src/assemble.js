@@ -1,7 +1,7 @@
 // Joins the rendered cuts into one mp4 with one ffmpeg process.
 //   - Each cut is visible from its start, on top until its end, and under the next cut for its tail.
 //   - in: fade / crossfade ramps the cut's alpha over the transition's duration; out: fade goes to black at its end.
-//   - Output is exactly timeline.duration long, at the capture frame rate, h264 yuv420p with +faststart.
+//   - Output is exactly timeline.duration long, at the capture frame rate, h264 yuv420p with +faststart, AAC audio.
 import fs from 'node:fs';
 import path from 'node:path';
 import { spawn } from 'node:child_process';
@@ -25,8 +25,9 @@ export function buildGraph(timeline, captureFps, outW, outH, cuts = timeline.sce
   return parts.join(';');
 }
 
-// assemble({ timeline, files, quality, outFile }): files[i] is the mp4 of cut i, in timeline order.
-export async function assemble({ timeline, files, quality, outFile }) {
+// assemble({ timeline, files, quality, outFile, audio }): files[i] is the mp4 of cut i, in timeline order; audio is
+// the result of audioPlan.
+export async function assemble({ timeline, files, quality, outFile, audio }) {
   const captureFps = timeline.fps / quality.fpsDivisor;
   const outW = Math.round(timeline.width * quality.scale);
   const outH = Math.round(timeline.height * quality.scale);
@@ -35,14 +36,16 @@ export async function assemble({ timeline, files, quality, outFile }) {
   const tmp = `${outFile}.part.mp4`;
   const args = ['-v', 'error', '-y'];
   for (const f of files) args.push('-i', f);
+  args.push(...audio.inputs);
   args.push(
-    '-filter_complex', buildGraph(timeline, captureFps, outW, outH, cuts),
+    '-filter_complex', `${buildGraph(timeline, captureFps, outW, outH, cuts)};${audio.graph}`,
     '-map', '[out]',
+    '-map', '[aout]',
     '-r', String(captureFps),
     '-t', n(timeline.duration),
     '-c:v', 'libx264', '-preset', 'medium', '-crf', String(quality.crf), '-pix_fmt', 'yuv420p',
     '-movflags', '+faststart',
-    '-an',
+    '-c:a', 'aac', '-b:a', '192k',
     tmp,
   );
   const ff = spawn('ffmpeg', args, { stdio: ['ignore', 'ignore', 'pipe'] });

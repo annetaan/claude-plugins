@@ -9,6 +9,8 @@ import { paths, cutFile, prune } from './cache.js';
 import { extractFrames, framesPath } from './video-frames.js';
 import { buildPage, openBrowser, captureCut, snapshotCut, CaptureError } from './capture.js';
 import { assemble } from './assemble.js';
+import { musicSource, synthesize } from './music.js';
+import { narrationClips, audioPlan } from './audio.js';
 
 const RENDERER_DIR = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const MAX_PAGES = 4;
@@ -69,7 +71,8 @@ const failOn = (e, warnings) => fail(e instanceof CaptureError && e.story ? 1 : 
 export async function render({ storyFile, deps, preview = false, force = false, say = true }) {
   const loaded = load(storyFile, deps, say);
   if (loaded.failure) return loaded.failure;
-  const { timeline, warnings } = loaded;
+  const { timeline } = loaded;
+  const warnings = [...loaded.warnings];
   const storyDir = path.dirname(path.resolve(storyFile));
   const quality = preview ? QUALITIES.preview : QUALITIES.full;
   const p = paths(storyDir, quality.name);
@@ -93,6 +96,24 @@ export async function render({ storyFile, deps, preview = false, force = false, 
     } else cached.push(c.id); // the same key renders once; the file is shared
   }
 
+  // Sound first, so a broken music script fails before any cut is captured.
+  const source = musicSource(timeline, storyDir);
+  let musicBody = { source: source ? source.kind : 'none', cached: source?.kind === 'file' };
+  let clips = [];
+  try {
+    if (source?.kind === 'script') {
+      const info = await synthesize({ deps, timeline, storyDir, buildDir: p.buildDir, version });
+      warnings.push(...info.warnings);
+      musicBody = { source: 'script', cached: info.cached };
+    }
+    const narration = narrationClips({ timeline, buildDir: p.buildDir, say });
+    clips = narration.clips;
+    warnings.push(...narration.warnings);
+    if (!source) warnings.push({ code: 'no-music', scene: null, cut: null, message: 'the story has no music: add music.js beside story.md or music.file to the frontmatter' });
+  } catch (e) {
+    return failOn(e, warnings);
+  }
+
   try {
     if (todo.size > 0) {
       const browser = await openBrowser(deps);
@@ -106,10 +127,16 @@ export async function render({ storyFile, deps, preview = false, force = false, 
       }
     }
     const outFile = preview ? p.preview : p.out;
-    await assemble({ timeline, files: cuts.map((c) => cutFile(p.cutsDir, keyOf.get(c.id))), quality, outFile });
+    const audio = audioPlan({
+      timeline,
+      music: source ? { ...source, file: source.kind === 'script' ? p.musicWav : source.file } : null,
+      clips,
+      firstInput: cuts.length,
+    });
+    await assemble({ timeline, files: cuts.map((c) => cutFile(p.cutsDir, keyOf.get(c.id))), quality, outFile, audio });
     const frameDirs = cuts.map((c) => videoArgs(c, ctx)).filter(Boolean).map(framesPath);
     prune(p.cutsDir, cuts.map((c) => cutFile(p.cutsDir, keyOf.get(c.id))), p.pagesDir, p.videoFramesDir, frameDirs);
-    return { code: 0, body: { ok: true, out: outFile, duration: timeline.duration, rendered, cached, errors: [], warnings } };
+    return { code: 0, body: { ok: true, out: outFile, duration: timeline.duration, rendered, cached, music: musicBody, errors: [], warnings } };
   } catch (e) {
     return failOn(e, warnings);
   }
@@ -148,4 +175,28 @@ export async function snapshot({ storyFile, deps, at, out, preview = false, say 
     return failOn(e, warnings);
   }
   return { code: 0, body: { ok: true, file, cut: cut.id, t: Math.round(t * 1e6) / 1e6 } };
+}
+
+// The music command: synthesizes the script and reports what a model cannot hear, the loudness of every bar.
+export async function music({ storyFile, deps, say = true }) {
+  const loaded = load(storyFile, deps, say);
+  if (loaded.failure) return loaded.failure;
+  const { timeline } = loaded;
+  const storyDir = path.dirname(path.resolve(storyFile));
+  const p = paths(storyDir, QUALITIES.full.name);
+  const source = musicSource(timeline, storyDir);
+  if (!source) {
+    return fail(1, [{ code: 'no-music-script', scene: null, cut: null, message: 'there is no music.js beside story.md and no music.file in the frontmatter' }]);
+  }
+  if (source.kind === 'file') return { code: 0, body: { ok: true, source: 'file', file: source.file, cached: true, warnings: [] } };
+  try {
+    const info = await synthesize({ deps, timeline, storyDir, buildDir: p.buildDir, version: rendererVersion(RENDERER_DIR) });
+    const peakBar = timeline.peak === null ? null : Math.min(Math.floor(timeline.peak / timeline.bar + 1e-6), info.levels.length - 1);
+    return {
+      code: 0,
+      body: { ok: true, source: 'script', file: p.musicWav, cached: info.cached, levels: info.levels, loudestBar: info.loudestBar, peakBar, warnings: info.warnings },
+    };
+  } catch (e) {
+    return failOn(e, []);
+  }
 }

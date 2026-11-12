@@ -60,7 +60,7 @@ AGAIN="$(node "$EV" setup --deps "$TMP/deps")" || fail "second setup --deps exit
 echo "ok: setup --deps"
 
 # render: the sample draws with no source files (image cuts become placeholders). Never render in place on sample/.
-SIZE() { ffprobe -v error -of json -show_entries stream=codec_type,width,height:format=duration "$1"; }
+SIZE() { ffprobe -v error -of json -show_entries stream=codec_type,width,height,duration:format=duration "$1"; }
 set +e
 R1="$(node "$EV" render "$TMP/sample/story.md" --preview 2>"$TMP/render.log")"
 CODE=$?
@@ -73,10 +73,132 @@ PREVIEW="$TMP/sample/build/preview.mp4"
 [ -f "$PREVIEW" ] || fail "render --preview wrote no build/preview.mp4"
 DUR="$(echo "$CHECK" | json "d['duration']")"
 PROBE="$(SIZE "$PREVIEW")"
-[ "$(echo "$PROBE" | json "[s['codec_type'] for s in d['streams']]")" = "['video']" ] || fail "the preview should have one video stream and no audio yet: $PROBE"
+[ "$(echo "$PROBE" | json "sorted(s['codec_type'] for s in d['streams'])")" = "['audio', 'video']" ] || fail "the preview should have one video and one audio stream: $PROBE"
+[ "$(echo "$PROBE" | json "all(abs(float(s['duration']) - $DUR) < 0.1 for s in d['streams'])")" = "True" ] || fail "each stream of the preview should be $DUR s long: $PROBE"
+[ "$(echo "$R1" | json "d['music']['source']")" = "script" ] || fail "the sample's music should come from its script: $R1"
 [ "$(echo "$PROBE" | json "(d['streams'][0]['width'], d['streams'][0]['height'])")" = "(960, 540)" ] || fail "the preview is not 960x540: $PROBE"
 [ "$(echo "$PROBE" | json "abs(float(d['format']['duration']) - $DUR) < 0.1")" = "True" ] || fail "the preview is not $DUR s long: $PROBE"
 echo "ok: render --preview"
+
+# A story of small helpers for the part tests: story_with <dir> <cuts yaml> writes <dir>/story.md.
+story_with() {
+  mkdir -p "$1/assets"
+  {
+    printf -- '---\ntitle: Parts\nmusic: { bpm: 120, beats_per_bar: 4 }\n%s---\n\n## Brief\n\nA small test.\n\n## Scene 1 — Only\n\nPurpose.\n\n```yaml\nrole: headline\ncuts:\n' "${3:-}"
+    printf '%s\n```\n' "$2"
+  } >"$1/story.md"
+}
+
+# The sample's audio is not silent: mean volume above -50 dB.
+MEAN="$(ffmpeg -v info -i "$PREVIEW" -vn -af volumedetect -f null - 2>&1 | sed -n 's/.*mean_volume: \(-*[0-9.]*\) dB.*/\1/p')"
+[ "$(python3 -c "print($MEAN > -50)")" = "True" ] || fail "the sample's audio is silent: mean volume $MEAN dB"
+echo "ok: the sample's audio is not silent"
+
+# Narration: one clip per narrated scene, only where `say` exists. The sample narrates scene 1.
+if command -v say >/dev/null 2>&1; then
+  [ "$(ls "$TMP/sample/build/narration" | wc -l | tr -d ' ')" = "1" ] || fail "expected one narration clip in build/narration"
+  # Taking the narration out removes the clip.
+  story_with "$TMP/nar" "  - { id: only, part: card, bars: 1, lines: [Hello] }"
+  sed -i.bak 's/^role: headline$/role: headline\nnarration: "Hello there."/' "$TMP/nar/story.md"
+  node "$EV" render "$TMP/nar/story.md" --preview >/dev/null 2>&1 || fail "render with narration failed"
+  [ "$(ls "$TMP/nar/build/narration" | wc -l | tr -d ' ')" = "1" ] || fail "expected one narration clip for the small story"
+  sed -i.bak '/^narration: /d' "$TMP/nar/story.md"
+  node "$EV" render "$TMP/nar/story.md" --preview >/dev/null 2>&1 || fail "render without narration failed"
+  [ -z "$(ls "$TMP/nar/build/narration" 2>/dev/null)" ] || fail "a stale narration clip stayed in build/narration"
+  echo "ok: narration"
+else
+  echo "skip: narration (no say on this machine)"
+fi
+
+# music: writes a WAV of the timeline's duration, caches by script and timing, and reports levels for a model that cannot listen.
+cp -R "$VIDEO/sample" "$TMP/m1"
+M1="$(node "$EV" music "$TMP/m1/story.md" 2>/dev/null)" || fail "music failed: $M1"
+[ "$(echo "$M1" | json "(d['ok'], d['cached'], d['warnings'])")" = "(True, False, [])" ] || fail "the sample's music should be new and have no warning: $M1"
+[ "$(echo "$M1" | json "d['loudestBar'] >= d['peakBar']")" = "True" ] || fail "the sample's loudest bar should be at or after the peak's bar: $M1"
+[ "$(echo "$M1" | json "sum(d['levels'][:3]) / 3 <= 0.5 * sum(d['levels'][d['peakBar']:d['peakBar'] + 2]) / 2")" = "True" ] || fail "the sample's first scene should be at most half as loud as the peak: $M1"
+WAV="$TMP/m1/build/music.wav"
+[ "$(ffprobe -v error -of json -show_entries stream=sample_rate,channels:format=duration "$WAV" | json "(d['streams'][0]['sample_rate'], d['streams'][0]['channels'], abs(float(d['format']['duration']) - $DUR) < 0.05)")" = "('48000', 2, True)" ] || fail "music.wav is not 48 kHz stereo of $DUR s"
+M2="$(node "$EV" music "$TMP/m1/story.md" 2>/dev/null)" || fail "second music failed: $M2"
+[ "$(echo "$M2" | json "d['cached']")" = "True" ] || fail "a second music run should be cached: $M2"
+echo "// edited" >>"$TMP/m1/music.js"
+M3="$(node "$EV" music "$TMP/m1/story.md" 2>/dev/null)" || fail "music after a script edit failed: $M3"
+[ "$(echo "$M3" | json "d['cached']")" = "False" ] || fail "editing music.js should synthesize again: $M3"
+python3 - "$TMP/m1/story.md" <<'PY'
+import sys
+p = sys.argv[1]
+s = open(p).read()
+old = "  - id: basket\n    part: image\n    bars: 2\n"
+assert old in s
+open(p, "w").write(s.replace(old, old.replace("bars: 2", "bars: 3")))
+PY
+M4="$(node "$EV" music "$TMP/m1/story.md" 2>/dev/null)" || fail "music after lengthening a cut failed: $M4"
+[ "$(echo "$M4" | json "d['cached']")" = "False" ] || fail "lengthening a cut should synthesize again: $M4"
+echo "ok: music"
+
+# A story with music.file uses the file and runs no script.
+mkdir -p "$TMP/mfile/assets"
+ffmpeg -v error -y -f lavfi -i "sine=frequency=440:duration=6" "$TMP/mfile/assets/track.wav" || fail "could not make the track"
+cat >"$TMP/mfile/story.md" <<'MD'
+---
+title: File
+music: { bpm: 120, beats_per_bar: 4, file: assets/track.wav, offset: 1 }
+---
+
+## Brief
+
+A test with a given track.
+
+## Scene 1 — Only
+
+Purpose.
+
+```yaml
+role: headline
+cuts:
+  - part: card
+    bars: 2
+    lines: [Track]
+```
+MD
+MF="$(node "$EV" render "$TMP/mfile/story.md" --preview 2>/dev/null)" || fail "render with music.file failed: $MF"
+[ "$(echo "$MF" | json "d['music']['source']")" = "file" ] || fail "music.source should be file: $MF"
+[ ! -e "$TMP/mfile/build/music.wav" ] || fail "a story with music.file synthesized a WAV"
+[ "$(SIZE "$TMP/mfile/build/preview.mp4" | json "sorted(s['codec_type'] for s in d['streams'])")" = "['audio', 'video']" ] || fail "the file case should have one video and one audio stream"
+MFMEAN="$(ffmpeg -v info -i "$TMP/mfile/build/preview.mp4" -vn -af volumedetect -f null - 2>&1 | sed -n 's/.*mean_volume: \(-*[0-9.]*\) dB.*/\1/p')"
+[ "$(python3 -c "print($MFMEAN > -50)")" = "True" ] || fail "the given track is silent in the video: $MFMEAN dB"
+sed 's#assets/track.wav#assets/gone.wav#' "$TMP/mfile/story.md" >"$TMP/mfile/gone.md"
+set +e
+MG="$(node "$EV" render "$TMP/mfile/gone.md" --preview 2>/dev/null)"
+CODE=$?
+set -e
+[ "$CODE" = "1" ] || fail "a missing music.file should exit 1, got $CODE: $MG"
+[ "$(echo "$MG" | json "d['errors'][0]['code']")" = "missing-file" ] || fail "expected missing-file: $MG"
+echo "ok: music.file"
+
+# A story with neither music nor narration renders a silent track and warns no-music.
+story_with "$TMP/silent" "  - { id: only, part: card, bars: 1, lines: [Quiet] }"
+SL="$(node "$EV" render "$TMP/silent/story.md" --preview 2>/dev/null)" || fail "render with no music failed: $SL"
+[ "$(echo "$SL" | json "(d['music']['source'], [w['code'] for w in d['warnings'] if w['code'] == 'no-music'])")" = "('none', ['no-music'])" ] || fail "expected source none and a no-music warning: $SL"
+[ "$(SIZE "$TMP/silent/build/preview.mp4" | json "sorted(s['codec_type'] for s in d['streams'])")" = "['audio', 'video']" ] || fail "a silent story should still have an audio stream"
+echo "ok: no music renders a silent track"
+
+# A music.js without compose fails with music-script, exit 1.
+story_with "$TMP/badmusic" "  - { id: only, part: card, bars: 1, lines: [Quiet] }"
+echo "window.notCompose = 1;" >"$TMP/badmusic/music.js"
+set +e
+BM="$(node "$EV" render "$TMP/badmusic/story.md" --preview 2>/dev/null)"
+CODE=$?
+set -e
+[ "$CODE" = "1" ] || fail "a music script without compose should exit 1, got $CODE: $BM"
+[ "$(echo "$BM" | json "d['errors'][0]['code']")" = "music-script" ] || fail "expected music-script: $BM"
+echo "window.compose = async () => { Date.now(); };" >"$TMP/badmusic/music.js"
+set +e
+BM="$(node "$EV" render "$TMP/badmusic/story.md" --preview 2>/dev/null)"
+CODE=$?
+set -e
+[ "$CODE" = "1" ] || fail "a music script that reads the clock should exit 1, got $CODE: $BM"
+[ "$(echo "$BM" | json "d['errors'][0]['code']")" = "music-script" ] || fail "expected music-script for the clock: $BM"
+echo "ok: a music script without compose or using the clock fails"
 
 # A second render renders no cut.
 R2="$(node "$EV" render "$TMP/sample/story.md" --preview 2>/dev/null)" || fail "second render failed: $R2"
@@ -136,15 +258,6 @@ SNAP2="$(node "$EV" snapshot "$TMP/sample/story.md" --at "order+2")" || fail "sn
 SNAP2_FILE="$(echo "$SNAP2" | json "d['file']")"
 [ "$(python3 -c 'import struct,sys; b=open(sys.argv[1],"rb").read(24); print(struct.unpack(">II", b[16:24]))' "$SNAP2_FILE")" = "(1920, 1080)" ] || fail "the screen snapshot is not 1920x1080"
 echo "ok: snapshot of the screen cut"
-
-# A story of small helpers for the part tests: story_with <dir> <cuts yaml> writes <dir>/story.md.
-story_with() {
-  mkdir -p "$1/assets"
-  {
-    printf -- '---\ntitle: Parts\nmusic: { bpm: 120, beats_per_bar: 4 }\n%s---\n\n## Brief\n\nA small test.\n\n## Scene 1 — Only\n\nPurpose.\n\n```yaml\nrole: headline\ncuts:\n' "${3:-}"
-    printf '%s\n```\n' "$2"
-  } >"$1/story.md"
-}
 
 # Media made here with ffmpeg: no binary file is kept in the repository.
 mkdir -p "$TMP/media"

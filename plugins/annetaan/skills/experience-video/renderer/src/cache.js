@@ -9,6 +9,8 @@ export function paths(storyDir, quality) {
     cutsDir: path.join(buildDir, 'cuts', quality),
     pagesDir: path.join(buildDir, 'pages'),
     videoFramesDir: path.join(buildDir, 'video-frames'),
+    narrationDir: path.join(buildDir, 'narration'),
+    musicWav: path.join(buildDir, 'music.wav'),
     snapshotsDir: path.join(buildDir, 'snapshots'),
     preview: path.join(buildDir, 'preview.mp4'),
     out: path.join(storyDir, 'out.mp4'),

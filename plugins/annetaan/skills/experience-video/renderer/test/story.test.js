@@ -122,6 +122,14 @@ test('story: a screen or custom cut with a missing src is an error, an image wit
   assert.deepEqual(codes(() => timelineOf(FRONT + image)), []);
 });
 
+test('story: a music file that does not exist or lies outside the story is an error', () => {
+  const body = scene(1, card());
+  const front = (file) => FRONT.replace('music: {', `music: { file: ${file},`);
+  assert.ok(codes(() => timelineOf(front('assets/none.mp3') + body)).includes('missing-file'));
+  assert.ok(codes(() => timelineOf(front('../x.mp3') + body)).includes('src-outside'));
+  assert.deepEqual(codes(() => timelineOf(FRONT + body)), []);
+});
+
 test('story: the frontmatter picks the size from the aspect', () => {
   const text = FRONT.replace('music:', 'output: { aspect: "9:16", fps: 24 }\nmusic:') + scene(1, card());
   const t = timelineOf(text);

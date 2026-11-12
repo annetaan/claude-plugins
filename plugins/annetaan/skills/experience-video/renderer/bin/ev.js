@@ -110,6 +110,11 @@ async function main() {
     const r = await render({ storyFile, deps, preview: values.preview, force: values.force, say });
     out(r.body, r.code);
   }
+  if (command === 'music') {
+    const { music } = await import('../src/render.js');
+    const r = await music({ storyFile, deps, say });
+    out(r.body, r.code);
+  }
   if (command === 'snapshot') {
     if (!values.at) envError('usage', 'snapshot needs --at <time expression>');
     const { snapshot } = await import('../src/render.js');

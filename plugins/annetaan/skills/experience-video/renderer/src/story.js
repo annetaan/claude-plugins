@@ -459,6 +459,15 @@ export function resolveStory(parsed, { storyDir = '.' } = {}) {
       cuts,
     });
   }
+  if (typeof meta.music.file === 'string') {
+    const abs = path.resolve(storyDir, meta.music.file);
+    const rel = path.relative(path.resolve(storyDir), abs);
+    if (rel.startsWith('..') || path.isAbsolute(rel)) {
+      errors.push(finding('src-outside', `music.file "${meta.music.file}" has to stay inside the story's directory`));
+    } else if (!fs.existsSync(abs)) {
+      errors.push(finding('missing-file', `music.file "${meta.music.file}" does not exist`));
+    }
+  }
   if (errors.length > 0) throw new StoryError(errors);
 
   const peakScene = scenes.find((s) => s.role === 'peak');

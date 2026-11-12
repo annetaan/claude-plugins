@@ -8,10 +8,10 @@ export const QUALITIES = {
   preview: { name: 'preview', scale: 0.5, fpsDivisor: 2, crf: 20 },
 };
 
-const sha = (data) => createHash('sha256').update(data).digest('hex');
+export const sha = (data) => createHash('sha256').update(data).digest('hex');
 
 // Sorted-key JSON, so the same value always hashes the same.
-function stable(v) {
+export function stable(v) {
   if (Array.isArray(v)) return `[${v.map(stable).join(',')}]`;
   if (v !== null && typeof v === 'object') {
     return `{${Object.keys(v).sort().filter((k) => v[k] !== undefined).map((k) => `${JSON.stringify(k)}:${stable(v[k])}`).join(',')}}`;

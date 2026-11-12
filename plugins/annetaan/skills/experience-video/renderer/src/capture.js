@@ -83,11 +83,14 @@ export function openBrowser(deps) {
   return deps.playwright.chromium.launch();
 }
 
+// A page may load only local files, data, blob and about URLs. Takes a URL object.
+export const isBlockedUrl = (u) => !['file:', 'data:', 'blob:', 'about:'].includes(u.protocol);
+
 export const frameCount = (cut, captureFps) => Math.ceil((cut.duration + cut.tail) * captureFps - 1e-9) + 1;
 
 // Runs in the page before any page script. Replaces every clock a fragment could animate with: each call is
 // recorded in window.__evViolations and does nothing.
-function clockGuard() {
+export function clockGuard() {
   const violations = (window.__evViolations = []);
   const note = (name) => violations.push(name);
   window.setTimeout = () => (note('setTimeout'), 0);
@@ -143,7 +146,7 @@ async function openPage(browser, cut, timeline, scale, url) {
     const requests = [];
     // Everything that is not a file, data, blob or about request is recorded and refused. File requests are not routed.
     await context.route(
-      (u) => !['file:', 'data:', 'blob:', 'about:'].includes(u.protocol),
+      isBlockedUrl,
       (route) => {
         requests.push(route.request().url());
         return route.abort();
