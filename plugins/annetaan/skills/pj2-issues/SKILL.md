@@ -112,9 +112,11 @@ roadmap entry `parent.roadmap.entry` of `parent.roadmap.path`, and the split end
 $ISSUES/../pj1-plan/scripts/project.sh --roadmap origin/<from>
 ```
 
-- `ok` is true and an entry has the heading `parent.roadmap.entry`: the split ends with the roadmap task.
-- The only reason is `no-file`, or `ok` is true and no entry has that heading: there is no roadmap task. Keep one line
-  saying why, for the planner and for phase 2.
+- `ok` is true, its `path` equals `parent.roadmap.path`, and an entry has the heading `parent.roadmap.entry`: the
+  split ends with the roadmap task.
+- The only reason is `no-file`, or `ok` is true and no entry has that heading or the `path` differs from
+  `parent.roadmap.path`: there is no roadmap task. Keep one line saying why, for the planner and for phase 2, such as
+  that the roadmap moved to `<path>`.
 - Anything else: stop, name the reason codes, and point the user to `/annetaan:pj-roadmap`.
 
 ```
@@ -123,7 +125,7 @@ Agent(subagent_type: "annetaan:pj-planner", description: "split #<P>",
 ```
 
 `Removed waits:` names the projects whose edges **The project** step 2 removed in this run. `Roadmap task:` carries
-the first form when the split ends with the roadmap task, the second with the line kept above, and `none` for a parent
+the first form, with `parent.roadmap.path` as `<path>`, when the split ends with the roadmap task, the second with the line kept above, and `none` for a parent
 with no `Roadmap:` line.
 
 `annetaan:pj-planner` ships with this plugin and is pinned to Fable at medium effort with code changes disabled.

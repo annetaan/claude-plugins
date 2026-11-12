@@ -67,8 +67,8 @@ the other tasks at the same time. Stay inside yours.
 
 ### The roadmap task
 
-This applies when the split marks your task as the roadmap task. Read `format.md`, **The roadmap task**. The parent body
-in the prompt holds the `Roadmap:` line with the path and the heading.
+This applies when your task's only path is the path on the parent body's `Roadmap:` line. Read `format.md`, **The
+roadmap task**. The parent body in the prompt holds that line with the path and the heading.
 
 - The file list is one `changed` entry, the roadmap file. It needs no symbol. Backtick only a stale name, as it stands
   in the file.
