@@ -1,3 +1,5 @@
 .DS_Store
 work-reports/
+node_modules/
 *.doc-meta.md
+plugins/annetaan/skills/experience-video/sample/build/
