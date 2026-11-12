@@ -127,3 +127,32 @@ test('story: the frontmatter picks the size from the aspect', () => {
   const t = timelineOf(text);
   assert.deepEqual([t.width, t.height, t.fps], [1080, 1920, 24]);
 });
+
+test('story: card stagger and count duration resolve to seconds', () => {
+  const text = FRONT + scene(1, [
+    'cuts:',
+    '  - part: card',
+    '    bars: 2',
+    '    stagger: 1beat',
+    '    lines:',
+    '      - { text: "{n} min", style: big, count: { from: 45, to: 20, duration: 1bar, decimals: 1 } }',
+    '      - { text: "{n}", count: { from: 0, to: 9 } }',
+  ].join('\n'));
+  const p = timelineOf(text).scenes[0].cuts[0].props;
+  assert.equal(p.stagger, 0.5);
+  assert.deepEqual(p.lines[0].count, { from: 45, to: 20, duration: 2, decimals: 1 });
+  // no duration means one bar, and no decimals means 0
+  assert.deepEqual(p.lines[1].count, { from: 0, to: 9, duration: 2, decimals: 0 });
+  assert.equal(p.align, 'center');
+});
+
+test('story: a string card line becomes a line object', () => {
+  const p = timelineOf(FRONT + scene(1, card())).scenes[0].cuts[0].props;
+  assert.deepEqual(p.lines, [{ text: 'hello', style: null, count: null }]);
+  assert.equal(p.stagger, 0.3);
+});
+
+test('story: a count duration is capped at the cut duration', () => {
+  const text = FRONT + scene(1, 'cuts:\n  - part: card\n    bars: 1\n    lines:\n      - { text: "{n}", count: { from: 0, to: 1, duration: 5bars } }');
+  assert.equal(timelineOf(text).scenes[0].cuts[0].props.lines[0].count.duration, 2);
+});

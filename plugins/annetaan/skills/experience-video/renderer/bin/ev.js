@@ -84,10 +84,13 @@ async function main() {
   }
   if (!storyArg) envError('usage', `${command} needs the path of a story.md`);
 
+  const say = has('say', ['-v', '?']);
+  const deps = (await import('../src/deps.js')).loadDeps(depsDir);
+  const storyFile = path.resolve(storyArg);
+
   if (command === 'check') {
-    const { loadDeps } = await import('../src/deps.js');
     const { loadStory } = await import('../src/story.js');
-    const r = loadStory(path.resolve(storyArg), loadDeps(depsDir), { say: has('say', ['-v', '?']) });
+    const r = loadStory(storyFile, deps, { say });
     const t = r.timeline;
     const ok = r.errors.length === 0;
     out(
@@ -101,6 +104,22 @@ async function main() {
       },
       ok ? 0 : 1,
     );
+  }
+  if (command === 'render') {
+    const { render } = await import('../src/render.js');
+    const r = await render({ storyFile, deps, preview: values.preview, force: values.force, say });
+    out(r.body, r.code);
+  }
+  if (command === 'snapshot') {
+    if (!values.at) envError('usage', 'snapshot needs --at <time expression>');
+    const { snapshot } = await import('../src/render.js');
+    const r = await snapshot({ storyFile, deps, at: values.at, out: values.out, preview: values.preview, say });
+    out(r.body, r.code);
+  }
+  if (command === 'clean') {
+    const { clean } = await import('../src/cache.js');
+    clean(path.dirname(storyFile));
+    out({ ok: true }, 0);
   }
   envError('not-implemented', `${command} is not implemented yet`);
 }

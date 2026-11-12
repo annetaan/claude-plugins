@@ -388,6 +388,19 @@ export function resolveStory(parsed, { storyDir = '.' } = {}) {
 
       const props = {};
       for (const k of PART_FIELDS[c.part]) if (c[k] !== undefined) props[k] = c[k];
+      if (c.part === 'card') {
+        props.stagger = c.stagger === undefined ? 0.3 : round(fail(() => resolveTimeExpr(c.stagger, ctx()), 0.3));
+        props.align = c.align ?? 'center';
+        props.lines = c.lines.map((l) => {
+          if (typeof l === 'string') return { text: l, style: null, count: null };
+          let count = null;
+          if (l.count) {
+            const d = l.count.duration === undefined ? Math.min(bar, dur) : fail(() => resolveTimeExpr(l.count.duration, ctx()), bar);
+            count = { from: l.count.from, to: l.count.to, duration: round(Math.min(d, dur)), decimals: l.count.decimals ?? 0 };
+          }
+          return { text: l.text, style: l.style ?? null, count };
+        });
+      }
       const refs = [];
       if (typeof props.src === 'string') {
         const abs = path.resolve(storyDir, props.src);

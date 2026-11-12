@@ -1,0 +1,129 @@
+// Command logic for render and snapshot. Each returns { code, body }: the exit code and the JSON for stdout.
+import fs from 'node:fs';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
+import { loadStory } from './story.js';
+import { resolveTimeExpr, TimeError } from './time.js';
+import { QUALITIES, cutKey, rendererVersion } from './hash.js';
+import { paths, cutFile, prune } from './cache.js';
+import { buildPage, openBrowser, captureCut, snapshotCut, CaptureError } from './capture.js';
+import { assemble } from './assemble.js';
+
+const RENDERER_DIR = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
+const MAX_PAGES = 4;
+
+const fail = (code, errors, warnings = []) => ({ code, body: { ok: false, errors, warnings } });
+const envFinding = (code, cut, message) => ({ code, scene: null, cut, message });
+
+// Loads and validates the story; the same error shape for every command that needs one.
+export function load(storyFile, deps, say) {
+  const r = loadStory(path.resolve(storyFile), deps, { say });
+  if (r.errors.length > 0) return { failure: fail(1, r.errors, r.warnings) };
+  const unsupported = r.timeline.scenes.flatMap((s) => s.cuts).filter((c) => c.part === 'screen' || c.part === 'custom');
+  if (unsupported.length > 0) {
+    const c = unsupported[0];
+    return { failure: fail(2, [envFinding('part-not-implemented', c.id, `cut ${c.id}: the ${c.part} part is not implemented yet`)], r.warnings) };
+  }
+  return { timeline: r.timeline, warnings: r.warnings };
+}
+
+async function runPool(items, limit, worker) {
+  const queue = [...items];
+  let failure = null;
+  const lane = async () => {
+    while (queue.length > 0 && !failure) {
+      const item = queue.shift();
+      try {
+        await worker(item);
+      } catch (e) {
+        failure ??= e;
+      }
+    }
+  };
+  await Promise.all(Array.from({ length: Math.min(limit, items.length) }, lane));
+  if (failure) throw failure;
+}
+
+const toFinding = (e) => (e instanceof CaptureError ? envFinding(e.code, e.cutId, e.message) : envFinding('render', null, String(e.message ?? e)));
+
+export async function render({ storyFile, deps, preview = false, force = false, say = true }) {
+  const loaded = load(storyFile, deps, say);
+  if (loaded.failure) return loaded.failure;
+  const { timeline, warnings } = loaded;
+  const storyDir = path.dirname(path.resolve(storyFile));
+  const quality = preview ? QUALITIES.preview : QUALITIES.full;
+  const p = paths(storyDir, quality.name);
+  const version = rendererVersion(RENDERER_DIR);
+  const cuts = timeline.scenes.flatMap((s) => s.cuts);
+  const keyOf = new Map(cuts.map((c) => [c.id, cutKey(c, { timeline, quality, storyDir, version })]));
+
+  const rendered = [];
+  const cached = [];
+  const todo = new Map(); // key -> first cut with that key
+  const doneKeys = new Set();
+  for (const c of cuts) {
+    const key = keyOf.get(c.id);
+    const exists = fs.existsSync(cutFile(p.cutsDir, key));
+    if (exists && !force) cached.push(c.id);
+    else if (!doneKeys.has(key)) {
+      doneKeys.add(key);
+      todo.set(key, c);
+      rendered.push(c.id);
+    } else cached.push(c.id); // the same key renders once; the file is shared
+  }
+
+  try {
+    if (todo.size > 0) {
+      const browser = await openBrowser(deps);
+      try {
+        await runPool([...todo], MAX_PAGES, async ([key, cut]) => {
+          const url = buildPage(cut, timeline, p.pagesDir, key);
+          await captureCut({ browser, cut, timeline, quality, url, outFile: cutFile(p.cutsDir, key) });
+        });
+      } finally {
+        await browser.close();
+      }
+    }
+    const outFile = preview ? p.preview : p.out;
+    await assemble({ timeline, files: cuts.map((c) => cutFile(p.cutsDir, keyOf.get(c.id))), quality, outFile });
+    prune(p.cutsDir, cuts.map((c) => cutFile(p.cutsDir, keyOf.get(c.id))), p.pagesDir);
+    return { code: 0, body: { ok: true, out: outFile, duration: timeline.duration, rendered, cached, errors: [], warnings } };
+  } catch (e) {
+    return fail(2, [toFinding(e)], warnings);
+  }
+}
+
+export async function snapshot({ storyFile, deps, at, out, preview = false, say = true }) {
+  const loaded = load(storyFile, deps, say);
+  if (loaded.failure) return loaded.failure;
+  const { timeline, warnings } = loaded;
+  const storyDir = path.dirname(path.resolve(storyFile));
+  let t;
+  try {
+    t = resolveTimeExpr(at, { beat: timeline.beat, bar: timeline.bar, marks: timeline.marks, duration: timeline.duration });
+  } catch (e) {
+    if (!(e instanceof TimeError)) throw e;
+    return fail(1, [{ code: e.code, scene: null, cut: null, message: e.message }], warnings);
+  }
+  if (!(t >= 0 && t <= timeline.duration)) {
+    return fail(1, [{ code: 'at-outside', scene: null, cut: null, message: `--at ${at} is ${t}s, outside the video (0 to ${timeline.duration}s)` }], warnings);
+  }
+  const cuts = timeline.scenes.flatMap((s) => s.cuts);
+  const cut = cuts.find((c) => c.start <= t && t < c.end) ?? cuts[cuts.length - 1];
+  const quality = preview ? QUALITIES.preview : QUALITIES.full;
+  const p = paths(storyDir, quality.name);
+  const key = cutKey(cut, { timeline, quality, storyDir, version: rendererVersion(RENDERER_DIR) });
+  const file = out ? path.resolve(out) : path.join(p.snapshotsDir, `${cut.id}-${Math.round(t * 1000)}.png`);
+  try {
+    const browser = await openBrowser(deps);
+    try {
+      const url = buildPage(cut, timeline, p.pagesDir, key);
+      await snapshotCut({ browser, cut, timeline, scale: quality.scale, url, t: Math.min(Math.max(0, t - cut.start), cut.duration), outFile: file });
+    } finally {
+      await browser.close();
+    }
+  } catch (e) {
+    return fail(2, [toFinding(e)], warnings);
+  }
+  return { code: 0, body: { ok: true, file, cut: cut.id, t: Math.round(t * 1e6) / 1e6 } };
+}

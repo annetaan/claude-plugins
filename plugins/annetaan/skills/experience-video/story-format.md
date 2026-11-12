@@ -77,6 +77,8 @@ A telop has to be on screen long enough to read: at least 1 second, and about 15
 | screen | `device` (phone/laptop), and one of `html` or `src` |
 | custom | one of `html` or `src` |
 
+Card defaults: `stagger` is 0.3 s, the delay between one line's entrance and the next. A line with `count` shows `from` rising or falling to `to` over `count.duration`, which defaults to one bar and is capped at the cut's length, with `count.decimals` defaulting to 0. `align` is `center` (or `left`, `right`). `background` is any CSS background and defaults to the theme background. Until the image and video parts arrive, they draw the placeholder card.
+
 A missing `src` on an image or video is not an error: the renderer draws a placeholder card showing `prompt` and the path to drop the file at. A missing `src` on a screen or custom cut is an error. `src` has to stay inside the story's directory.
 
 ### Transitions
