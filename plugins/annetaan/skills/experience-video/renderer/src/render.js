@@ -7,7 +7,8 @@ import { resolveTimeExpr, TimeError } from './time.js';
 import { QUALITIES, cutKey, rendererVersion } from './hash.js';
 import { paths, cutFile, prune } from './cache.js';
 import { extractFrames, framesPath } from './video-frames.js';
-import { buildPage, openBrowser, captureCut, snapshotCut, CaptureError } from './capture.js';
+import { buildPage, openBrowser, captureCut, snapshotCut, shootCut, CaptureError } from './capture.js';
+import { keyTimes, measure, MEASURE_ARG, judge, mergeWarnings } from './review.js';
 import { assemble } from './assemble.js';
 import { musicSource, synthesize } from './music.js';
 import { narrationClips, audioPlan } from './audio.js';
@@ -175,6 +176,61 @@ export async function snapshot({ storyFile, deps, at, out, preview = false, say 
     return failOn(e, warnings);
   }
   return { code: 0, body: { ok: true, file, cut: cut.id, t: Math.round(t * 1e6) / 1e6 } };
+}
+
+const FRAME_SCALE = 0.5; // key frames are half the output size
+const fileSafe = (s) => String(s).replace(/[^A-Za-z0-9_-]/g, '_');
+
+// The frames command: key frames of every scene in build/review/, with a measurement of the text in each. Text that
+// overflows is a warning; it never fails the command.
+export async function frames({ storyFile, deps, say = true }) {
+  const loaded = load(storyFile, deps, say);
+  if (loaded.failure) return loaded.failure;
+  const { timeline } = loaded;
+  const storyDir = path.dirname(path.resolve(storyFile));
+  const quality = QUALITIES.preview;
+  const p = paths(storyDir, quality.name);
+  const version = rendererVersion(RENDERER_DIR);
+  const ctx = { timeline, quality, storyDir, p };
+  fs.rmSync(p.reviewDir, { recursive: true, force: true });
+  fs.mkdirSync(p.reviewDir, { recursive: true });
+
+  const jobs = timeline.scenes.flatMap((scene) =>
+    scene.cuts.map((cut) => {
+      const peak = timeline.peak !== null && cut.start <= timeline.peak && timeline.peak < cut.end ? timeline.peak - cut.start : null;
+      const shots = keyTimes(cut, { peak }).map((k) => ({ ...k, outFile: path.join(p.reviewDir, `s${scene.index}-${fileSafe(cut.id)}-${fileSafe(k.label)}.png`) }));
+      return { scene, cut, shots };
+    }),
+  );
+  const results = new Map(); // cut id -> measurements in shot order
+  try {
+    const browser = await openBrowser(deps);
+    try {
+      await runPool(jobs, MAX_PAGES, async ({ cut, shots }) => {
+        const key = cutKey(cut, { timeline, quality, storyDir, version });
+        const url = buildPage(cut, timeline, p.pagesDir, key, storyDir, assetsOf(cut, ctx));
+        results.set(cut.id, await shootCut({ browser, cut, timeline, scale: FRAME_SCALE, url, shots, measure, arg: MEASURE_ARG }));
+      });
+    } finally {
+      await browser.close();
+    }
+  } catch (e) {
+    fs.rmSync(p.reviewDir, { recursive: true, force: true });
+    return failOn(e, loaded.warnings);
+  }
+
+  const list = [];
+  const found = [];
+  for (const { scene, cut, shots } of jobs) {
+    shots.forEach((s, i) => {
+      const t = Math.round((cut.start + s.t) * 1e6) / 1e6;
+      list.push({ file: s.outFile, scene: scene.index, sceneName: scene.name, role: scene.role, cut: cut.id, part: cut.part, t, label: s.label });
+      for (const x of judge(results.get(cut.id)[i], { cut, scene })) found.push({ ...x, frame: s.outFile, t });
+    });
+  }
+  const warnings = [...loaded.warnings, ...mergeWarnings(found)];
+  fs.writeFileSync(path.join(p.reviewDir, 'index.json'), `${JSON.stringify({ duration: timeline.duration, peak: timeline.peak, frames: list, warnings }, null, 2)}\n`);
+  return { code: 0, body: { ok: true, dir: p.reviewDir, frames: list, errors: [], warnings } };
 }
 
 // The music command: synthesizes the script and reports what a model cannot hear, the loudness of every bar.

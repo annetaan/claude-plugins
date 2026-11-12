@@ -121,12 +121,16 @@ async function main() {
     const r = await snapshot({ storyFile, deps, at: values.at, out: values.out, preview: values.preview, say });
     out(r.body, r.code);
   }
+  if (command === 'frames') {
+    const { frames } = await import('../src/render.js');
+    const r = await frames({ storyFile, deps, say });
+    out(r.body, r.code);
+  }
   if (command === 'clean') {
     const { clean } = await import('../src/cache.js');
     clean(path.dirname(storyFile));
     out({ ok: true }, 0);
   }
-  envError('not-implemented', `${command} is not implemented yet`);
 }
 
 main().catch((e) => {

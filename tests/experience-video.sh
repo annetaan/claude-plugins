@@ -375,6 +375,102 @@ set -e
 [ ! -e "$TMP/bad-render/build/preview.mp4" ] || fail "render wrote a video for a story with an error"
 echo "ok: render rejects a bad story"
 
+# frames: key frames of every scene on a temp copy of the sample, with no overflow warning.
+set +e
+FR="$(node "$EV" frames "$TMP/sample/story.md" 2>"$TMP/frames.log")"
+CODE=$?
+set -e
+[ "$CODE" = "0" ] || { cat "$TMP/frames.log" >&2; fail "frames exited $CODE: $FR"; }
+[ "$(echo "$FR" | json "d['ok']")" = "True" ] || fail "frames did not report ok: $FR"
+[ "$(echo "$FR" | json "all(__import__('os').path.isfile(f['file']) for f in d['frames'])")" = "True" ] || fail "a frame in the report does not exist: $FR"
+[ "$(echo "$FR" | json "sorted(set(f['scene'] for f in d['frames']))")" = "[1, 2, 3, 4, 5]" ] || fail "frames did not cover every scene: $FR"
+[ "$(echo "$FR" | json "[f['t'] for f in d['frames']] == sorted(f['t'] for f in d['frames'])")" = "True" ] || fail "frames are not in timeline order: $FR"
+[ "$(echo "$FR" | json "any(f['cut'] == 'twenty' and f['label'] == 'mark-peak' for f in d['frames'])")" = "True" ] || fail "no frame is labelled for the peak: $FR"
+FRAME_SIZES="$(echo "$FR" | json "set(__import__('struct').unpack('>II', open(f['file'], 'rb').read(24)[16:24]) for f in d['frames'])")"
+[ "$FRAME_SIZES" = "{(960, 540)}" ] || fail "the frames are not all 960x540: $FRAME_SIZES"
+[ -f "$TMP/sample/build/review/index.json" ] || fail "frames wrote no build/review/index.json"
+[ "$(json "len(d['frames'])" <"$TMP/sample/build/review/index.json")" = "$(echo "$FR" | json "len(d['frames'])")" ] || fail "index.json does not list the frames that frames reported"
+BAD_CODES="$(echo "$FR" | json "[w['code'] for w in d['warnings'] if w['code'] in ('text-outside', 'fragment-text-clipped', 'telop-lines', 'telop-overlap', 'telop-covered')]")"
+[ "$BAD_CODES" = "[]" ] || fail "the sample has an overflow warning: $FR"
+# frames changes no cut key: a preview render afterwards has nothing to render.
+R2="$(node "$EV" render "$TMP/sample/story.md" --preview 2>/dev/null)" || fail "render --preview after frames failed"
+[ "$(echo "$R2" | json "d['rendered']")" = "[]" ] || fail "a render after frames re-rendered a cut: $R2"
+echo "ok: frames on the sample"
+
+# frames reports a telop of more than two lines, and a card with too many lines, without failing.
+LONG="$(printf 'a long caption that goes on and on %.0s' 1 2 3 4 5 6 7 8)"
+story_with "$TMP/overflow" "  - part: card
+    bars: 2
+    lines: [Hello]
+    telops:
+      - { text: \"$LONG\", at: 0, until: end }"
+set +e
+OF="$(node "$EV" frames "$TMP/overflow/story.md" 2>/dev/null)"
+CODE=$?
+set -e
+[ "$CODE" = "0" ] || fail "an overflowing telop should not fail frames, got $CODE: $OF"
+[ "$(echo "$OF" | json "any(w['code'] == 'telop-lines' for w in d['warnings'])")" = "True" ] || fail "a telop of many lines was not reported: $OF"
+story_with "$TMP/tooMany" "  - part: card
+    bars: 2
+    stagger: 0
+    lines: [{ text: one, style: big }, { text: two, style: big }, { text: three, style: big }, { text: four, style: big }, { text: five, style: big }, { text: six, style: big }, { text: seven, style: big }, { text: eight, style: big }]"
+TM="$(node "$EV" frames "$TMP/tooMany/story.md" 2>/dev/null)" || fail "a card with too many lines should not fail frames: $TM"
+[ "$(echo "$TM" | json "any(w['code'] == 'text-outside' for w in d['warnings'])")" = "True" ] || fail "a card with too many lines was not reported: $TM"
+echo "ok: frames reports overflow"
+
+# frames reads what a fragment draws: its text, its CSS content and its shapes, against the telop and the stage.
+frame_finds() { # <name> <fragment html> <expected code> [telop position]
+  local dir="$TMP/fr-$1"
+  story_with "$dir" "  - part: custom
+    bars: 2
+    src: assets/f.html
+    telops:
+      - { text: Telop over the picture, at: 0, until: end, position: ${4:-center}, style: headline }"
+  printf '%s\n' "$2" >"$dir/assets/f.html"
+  local out
+  out="$(node "$EV" frames "$dir/story.md" 2>/dev/null)" || fail "frames failed on the $1 fragment: $out"
+  [ "$(echo "$out" | json "any(w['code'] == '$3' for w in d['warnings'])")" = "True" ] || fail "frames did not report $3 for the $1 fragment: $out"
+}
+frame_finds words '<div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:12vmin">Fragment words here</div>' telop-overlap
+frame_finds content '<style>#fragment .n::before { content: "123456789012"; font-size: 40vmin; }</style><span class="n" style="position:absolute;left:40%;top:10%"></span>' fragment-text-clipped
+frame_finds ring '<div style="position:absolute;left:50%;bottom:2vmin;width:30vmin;height:30vmin;margin-left:-15vmin;border:1.2vmin solid #f2a33a;border-radius:50%"></div>' telop-covered bottom
+echo "ok: frames reads fragment text, CSS content and shapes"
+
+# An empty decorative content: "" does not turn the element's box into text.
+story_with "$TMP/decor" "  - part: custom
+    bars: 2
+    src: assets/f.html
+    telops:
+      - { text: Caption, at: 0, until: end, position: bottom }"
+printf '%s\n' '<style>#fragment .h { position:absolute; left:0; right:0; top:40%; height:58%; text-align:center; font-size:6vmin } #fragment .h::after { content: "" }</style><div class="h">Short</div>' >"$TMP/decor/assets/f.html"
+DC="$(node "$EV" frames "$TMP/decor/story.md" 2>/dev/null)" || fail "frames failed on the decorated fragment: $DC"
+[ "$(echo "$DC" | json "[w['code'] for w in d['warnings'] if w['code'] != 'no-peak']")" = "[]" ] || fail "an empty ::after content gave a warning: $DC"
+echo "ok: an empty CSS content adds no text"
+
+# A second frames run leaves no stale file.
+story_with "$TMP/stale" "  - part: card
+    bars: 2
+    lines: [Hello]
+    telops:
+      - { text: Caption, at: 0, until: end }"
+node "$EV" frames "$TMP/stale/story.md" >/dev/null 2>&1 || fail "the first frames run failed"
+story_with "$TMP/stale" "  - part: card
+    bars: 2
+    lines: [Hello]"
+ST="$(node "$EV" frames "$TMP/stale/story.md" 2>/dev/null)" || fail "the second frames run failed"
+PNGS="$(find "$TMP/stale/build/review" -name '*.png' | wc -l | tr -d ' ')"
+[ "$PNGS" = "$(echo "$ST" | json "len(d['frames'])")" ] || fail "the second frames run left $PNGS PNGs for $(echo "$ST" | json "len(d['frames'])") frames"
+echo "ok: frames leaves no stale file"
+
+# frames on a story with an error exits 1 and writes no frame.
+set +e
+node "$EV" frames "$TMP/bad-render/story.md" >/dev/null 2>&1
+CODE=$?
+set -e
+[ "$CODE" = "1" ] || fail "frames on a story error should exit 1, got $CODE"
+[ ! -e "$TMP/bad-render/build/review" ] || fail "frames wrote files for a story with an error"
+echo "ok: frames rejects a bad story"
+
 # clean removes build/ and keeps story.md.
 node "$EV" clean "$TMP/sample/story.md" >/dev/null || fail "clean failed"
 [ ! -e "$TMP/sample/build" ] || fail "clean left build/"

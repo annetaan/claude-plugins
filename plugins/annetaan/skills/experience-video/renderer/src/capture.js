@@ -218,6 +218,31 @@ export async function captureCut({ browser, cut, timeline, quality, url, outFile
   }
 }
 
+// shootCut -> one PNG per shot, taken from one page, and the measurement of each frame.
+// shots: [{ t, outFile }] with t cut-relative. measure runs in the page after each seek. Returns the measurements
+// in shot order. The files appear only when the cut ran clean, as in snapshotCut.
+export async function shootCut({ browser, cut, timeline, scale, url, shots, measure, arg }) {
+  const { context, page, guard } = await openPage(browser, cut, timeline, scale, url);
+  const tmps = shots.map((s) => `${s.outFile}.part.png`);
+  try {
+    const measured = [];
+    for (const [i, s] of shots.entries()) {
+      fs.mkdirSync(path.dirname(s.outFile), { recursive: true });
+      await seekTo(guard, s.t);
+      await page.screenshot({ type: 'png', path: tmps[i] });
+      measured.push(await page.evaluate(measure, arg));
+    }
+    await verify(guard);
+    shots.forEach((s, i) => fs.renameSync(tmps[i], s.outFile));
+    return measured;
+  } catch (e) {
+    for (const f of tmps) fs.rmSync(f, { force: true });
+    throw e;
+  } finally {
+    await context.close();
+  }
+}
+
 // snapshotCut -> writes one PNG of the cut at cut-relative time t.
 export async function snapshotCut({ browser, cut, timeline, scale, url, t, outFile }) {
   fs.mkdirSync(path.dirname(outFile), { recursive: true });

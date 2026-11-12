@@ -102,6 +102,9 @@ text and so of the cache key.
   viewport units.
 - The fragment is positioned inside a box that is already `position: relative` (`screen`) or `absolute` (`custom`), so
   `position: absolute; inset: 0` on your root element fills the cut.
+- Draw a shape that may come near a telop (a ring, a bar, a plate) as an element, not with `::before` or `::after`. The
+  frame check measures elements; it cannot see a shape drawn by a pseudo-element, so it would not warn when that shape
+  runs through a telop.
 
 ### A short fragment
 

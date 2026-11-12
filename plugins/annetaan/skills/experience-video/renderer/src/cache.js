@@ -12,6 +12,7 @@ export function paths(storyDir, quality) {
     narrationDir: path.join(buildDir, 'narration'),
     musicWav: path.join(buildDir, 'music.wav'),
     snapshotsDir: path.join(buildDir, 'snapshots'),
+    reviewDir: path.join(buildDir, 'review'),
     preview: path.join(buildDir, 'preview.mp4'),
     out: path.join(storyDir, 'out.mp4'),
   };
