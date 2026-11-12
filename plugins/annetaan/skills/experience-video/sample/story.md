@@ -43,6 +43,7 @@ cuts:
     part: image
     bars: 2
     prompt: A wicker basket of fresh vegetables on a doorstep at dusk
+    src: assets/basket.jpg
     zoom: in
     in: fade
     telops:
@@ -51,6 +52,7 @@ cuts:
     part: image
     bars: 1
     prompt: A hand-written recipe card tucked between two bundles of herbs
+    src: assets/recipe.jpg
     zoom: out
     in: crossfade
   - id: order
@@ -117,6 +119,7 @@ cuts:
     part: image
     bars: 2
     prompt: A table set for two, steam rising from a pot, warm evening light
+    src: assets/table.jpg
     zoom: in
     in: crossfade
     telops:

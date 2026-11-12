@@ -37,7 +37,7 @@ Which skill to start with:
 - A change that fits one pull request: `/annetaan:workflow`.
 - Anything larger, usually one initiative from your roadmap file ([Task, project, initiative](#task-project-initiative)): `/annetaan:pj1-plan`.
 
-The doc skills are a separate family, for writing and revising documents, and do not use either of these.
+The doc skills are a separate family, for writing and revising documents, and do not use either of these. `experience-video` stands alone too. It touches neither GitHub nor your code.
 
 ### Task, project, initiative
 
@@ -128,7 +128,8 @@ spawns several sessions, adds commits, creates a worktree and pushes a branch on
 branches and removes a worktree. `pj-roadmap` creates a worktree, pushes a branch and opens a pull request. The pj skills create, edit and close
 issues and labels on GitHub, and `pj4-running` also creates each project's branch, pushes, opens and merges pull
 requests. The doc skills make a file next to your document, rewrite the document itself, and can add one commit of
-their own to `.gitignore` after asking. Any of these is enough reason to wait, so each skill here starts only when you
+their own to `.gitignore` after asking. `experience-video` installs npm packages, downloads a browser on its first
+run and writes a directory of files. Any of these is enough reason to wait, so each skill here starts only when you
 name it or invoke its slash form. One request is the exception: asking to resolve the conflicts of a pull request, in
 any words, starts `workflow`, or `pj4-running` for a project's pull request, because the request itself says what to
 do.
@@ -488,6 +489,45 @@ to edit, and holds `[keep]` and `[question]` blocks to their exact words while i
 them. It then checks the whole document for what the edit could have broken elsewhere, and reruns `doc-meta` so the
 sidecar matches again.
 
+### experience-video
+
+`/annetaan:experience-video` ([details](skills/experience-video/SKILL.md))
+
+Makes a video of under one minute about what your service is like to use. It follows one customer through a bad
+evening, the first meeting with the service, the moment they say "wow", and the better evening after. The idea is
+"sell the experience, not the product", from Carmine Gallo's *The Presentation Secrets of Steve Jobs*. You need no
+pictures, no footage and no music to start.
+
+It runs in four steps and asks you twice.
+
+1. **Interview.** A few rounds of numbered questions, each with a recommended answer. They end in a Brief and a list
+   of scenes. You approve both.
+2. **Story.** The skill writes `story.md`, which holds the Brief and one section per scene. A producer agent adds
+   the cuts, the fragments and the music.
+3. **Preview.** The producer renders a half-size preview, looks at the key frames of every scene, and fixes
+   overflowing text and weak timing. You watch the preview and approve a full render, or ask for changes.
+4. **Full render.** `out.mp4` lands next to `story.md`.
+
+`story.md` is the whole video, as text. Edit it, or ask for a change in words. Only the cuts that changed are
+rendered again. A picture or a clip you have not supplied shows as a placeholder card with its prompt and the path
+to drop a file at. The next render uses the file.
+
+The music is your own track, when you give a file and its BPM, or a track the producer synthesizes from a script
+and lands its peak on the peak of the story.
+
+```
+/annetaan:experience-video
+```
+
+Give the path of an existing `story.md` after it, and the skill skips the interview and starts from rendering.
+
+**What it needs**: node 20 or later, `ffmpeg` and `ffprobe` on the PATH, and the network on the first run, for the
+packages and a headless browser. Narration uses the macOS `say` command and works on macOS only. It is tested on
+macOS.
+
+The formats are in [`story-format.md`](skills/experience-video/story-format.md),
+[`scenes.md`](skills/experience-video/scenes.md) and [`music.md`](skills/experience-video/music.md).
+
 ## Agents
 
 These are the sub-agents the skills spawn. Anything under `agents/` becomes callable as `annetaan:<name>`.
@@ -503,6 +543,7 @@ design review cannot start, the skill spawns it again on opus at the same effort
 | `annetaan:pj-planner` | fable | medium | planning for `pj1-plan` and `pj2-issues`. the projects, their designs and the waits between them, then one project's split into tasks. answers the design review |
 | `annetaan:pj-issue-writer` | opus | medium | one sub-issue, drawn against the code. drafts it for `pj2-issues`, revises it for `pj3-doctor` |
 | `annetaan:pj-reviewer` | fable | medium | project review for `pj3-doctor`. reads the whole project against the ticked boxes, the code and each issue |
+| `annetaan:experience-video-producer` | fable | medium | production for `experience-video`. fills in the cuts, fragments and music of a story, renders it, and checks its frames |
 | `annetaan:doc-meta-overview` | opus | high | overview for `doc-meta`. finds what a per-sentence flag misses |
 
 `pj4-running` has no agents of its own. It runs workflow's.
