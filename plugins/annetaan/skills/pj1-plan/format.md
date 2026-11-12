@@ -344,7 +344,7 @@ project**), and reads more than one such issue as no task, which the reviewer ra
   `parent.roadmap.missing`, none when there is no task.
 - **What it does.** It deletes the entry the line names, from its `## ` line to the line before the next `## ` line.
   In the other entries it fixes each name of something this initiative renamed or removed, such as
-  `tenantScopedDynamo` becoming `tenantScopedClients`. Nothing else in the roadmap changes, and no code.
+  `retryJob` becoming `runWithRetry`. Nothing else in the roadmap changes, and no code.
 - **Its premise.** `--check` reads the roadmap file at the ref and fails with `roadmap entry not found` when no entry
   carries the line's heading. Its `changed` entry on the roadmap file needs no symbol. A stale name it fixes is
   backticked as it stands, and `--check` still looks it up.
