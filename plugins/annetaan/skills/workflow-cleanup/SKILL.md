@@ -98,6 +98,8 @@ Show what the cleanup does, one line per item, from the `check` output.
     has no work report, so `reports` is empty and nothing moves
   - `dirty`: as `clean`, and the uncommitted work in `changes` is discarded. Show `changes`
   - `prunable`: its directory is gone, and only git's record of it is pruned
+- when `loses` holds `submodules`: each entry of `worktree.submodules` is a submodule removed with `<WT>` that holds
+  work of its own. Show its `path`, its `changes`, and `commits` as the number of commits no remote of the submodule has
 - the branch, from `branch` (`null` means the worktree was detached and there is no branch):
   - `local`: `delete` deletes it. `keep` with `unpushed` keeps it, because it holds commits the pull request's head
     does not have. `keep` with `checked-out` keeps it, because the worktree in `worktree` has it checked out
@@ -164,8 +166,8 @@ It acts as `check` said, from a fresh read. Act by `status`.
 ## Rules
 
 - At most one approval question, `Clean up <name>?`. The `Run` question comes before it and is not part of it.
-- **Never remove uncommitted work, or commits that nothing else holds, unless the user picked `Discard the work and
-  clean up`.**
+- **Never remove uncommitted work, commits that nothing else holds, or what a submodule holds on its own, unless
+  the user picked `Discard the work and clean up`.**
 - **Never switch a branch, stash, commit, reset or clean in `<MAIN>`.** `<base>` only ever fast-forwards.
 - In `<MAIN>/work-reports/`, only real directories whose names start with a timestamp and that have been there 14
   days or more are deleted.

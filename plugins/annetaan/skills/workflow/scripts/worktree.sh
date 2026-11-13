@@ -7,7 +7,7 @@
 # request's head (refs/pull/<n>/head, object only, no ref), create adds the detached worktree, ignore --add appends to the clone's info/exclude, and cleanup
 # moves the work reports into <MAIN>/work-reports/, removes the worktree, deletes the run's branch locally and on
 # origin, and fast-forwards the local base branch when the pull request merged. It never switches a branch, stashes,
-# commits or resets in the main working tree. cleanup and old-reports --delete delete the work reports in
+# commits or resets in the main working tree. list, old-reports without --delete and submodules only read. cleanup and old-reports --delete delete the work reports in
 # <MAIN>/work-reports/ that arrived there 14 days ago or more. sync fetches origin/<base> and, on a conflict, starts a merge in the
 # worktree and leaves it in progress. Nothing is recorded in git config or in files.
 set -euo pipefail
@@ -25,6 +25,8 @@ usage: worktree.sh start                          check the clone, gh and the re
        worktree.sh check <name>                   what cleanup would do for the worktree <name>
        worktree.sh old-reports [--delete]         the work reports in <MAIN>/work-reports/ that arrived 14 days ago or more; --delete removes them.
                                                   Used by pj-cleanup
+       worktree.sh submodules <path>              whether the worktree at <path> has submodules, and which of them hold work of their own.
+                                                  Used by pj-cleanup
        worktree.sh cleanup <name> [--discard]     move the work reports out, remove the worktree, delete the branch, fast-forward the base.
                                                   --discard removes work that nothing else holds. It also deletes the old reports
 Every subcommand prints one JSON object with "status" and exits 0. "stop" carries "reason" and "message".
@@ -38,6 +40,7 @@ case "$1" in
   start|list) [ $# -eq 1 ] || usage ;;
   create)     [ $# -eq 2 ] || usage ;;
   check)      [ $# -eq 2 ] || usage ;;
+  submodules) [ $# -eq 2 ] || usage ;;
   ignore)     [ $# -eq 2 ] || { [ $# -eq 3 ] && [ "$3" = "--add" ]; } || usage ;;
   sync)       [ $# -eq 3 ] || usage ;;
   pr)         [ $# -le 2 ] || usage ;;
@@ -220,6 +223,31 @@ def resolve(main, name):
         stop("unknown", "%s is no wf-* worktree of this clone" % name)
     return os.path.join(wt_root(main), name)
 
+def submodules(wt):
+    """The initialized submodules of wt, at any depth, that hold something of their own: [{path, changes, commits}].
+    A submodule holds something when its working tree has changes, or when a branch, HEAD or the stash has a commit
+    that no ref of its own remote and no tag reaches. A submodule that holds nothing is not listed."""
+    r = run("git", "-C", wt, "submodule", "--quiet", "foreach", "--recursive", "echo $displaypath")
+    if r.returncode != 0:
+        die("git submodule foreach failed: %s" % r.stderr.strip())
+    found = []
+    for path in r.stdout.splitlines():
+        sub = os.path.join(wt, path)
+        changes = git(sub, "status", "--porcelain").splitlines()
+        commits = int(git(sub, "rev-list", "--count", "HEAD", "--branches", "--glob=refs/stash",
+                          "--not", "--remotes", "--tags").strip())
+        if changes or commits > 0:
+            found.append({"path": path, "changes": changes[:20], "commits": commits})
+    return found
+
+def has_submodules(wt):
+    """Whether git sees submodules in wt: a gitlink in the index, or a modules directory in the worktree's git dir.
+    git worktree remove refuses either one without --force."""
+    if any(l.startswith("160000 ") for l in git(wt, "ls-files", "--stage").splitlines()):
+        return True
+    gitdir = git(wt, "rev-parse", "--absolute-git-dir").strip()
+    return os.path.isdir(os.path.join(gitdir, "modules"))
+
 def pull_request(main, branch):
     """The pull request of branch as (pr, error): open wins, else the highest number. (None, None) when it has none."""
     r = run("gh", "pr", "list", "--head", branch, "--state", "all", "--json",
@@ -345,11 +373,13 @@ def plan(name):
     else:
         changes = git(wt, "status", "--porcelain").splitlines()
         tree = {"path": wt, "state": "dirty" if changes else "clean", "changes": changes[:20],
-                "reports": reports(wt)}
+                "reports": reports(wt), "submodules": submodules(wt), "hasSubmodules": has_submodules(wt)}
 
     loses = []
     if tree["state"] == "dirty":
         loses.append("uncommitted")
+    if tree.get("submodules"):
+        loses.append("submodules")
 
     br, remote = None, None
     if branch is not None:
@@ -432,8 +462,10 @@ def cleanup():
     else:
         tree["moved"] = move_reports(main, tree["path"], name)
         # The work reports are ignored files, which git worktree remove deletes without --force. Uncommitted and
-        # untracked files need it, and --discard is the user's word for that.
-        force = ["--force"] if discard and tree["state"] == "dirty" else []
+        # untracked files need it, and --discard is the user's word for that. git also refuses a worktree with
+        # submodules outright, whatever its state, so plan() is the check there and --force is passed without
+        # the user's word.
+        force = ["--force"] if (discard and tree["state"] == "dirty") or tree["hasSubmodules"] else []
         git(main, "worktree", "remove", *force, tree["path"])
         tree["action"] = "removed"
 
@@ -469,6 +501,13 @@ def cleanup():
 
     out["oldReports"]["deleted"] = delete_reports(main, out["oldReports"]["names"], errors)
     emit(status="done", errors=errors, **out)
+
+def submodules_cmd():
+    main = located()
+    path = ARGS[0]
+    if listed(main, path) in (None, True):
+        stop("unknown", "%s is no live worktree of this clone" % path)
+    emit(status="ok", present=has_submodules(path), submodules=submodules(path))
 
 def old_reports_cmd():
     main = located()
@@ -544,7 +583,7 @@ def pr():
     emit(status="pick", candidates=sorted(found, key=lambda p: p["number"]))
 
 {"start": start, "create": create, "ignore": ignore, "sync": sync, "pr": pr, "list": list_runs, "check": check, "cleanup": cleanup,
- "old-reports": old_reports_cmd}[SUB]()
+ "old-reports": old_reports_cmd, "submodules": submodules_cmd}[SUB]()
 PY
 
 exec python3 -c "$PY" "$@"
