@@ -25,7 +25,7 @@ the user. Collapse the `..` in a path to a sibling skill, so that the command te
 This skill uses these files:
 
 - the script `<skills>/pj1-plan/scripts/project.sh`, written `project.sh` below, for `--roadmap`, and with `<P>` to read an open parent's `Roadmap:` line
-- the script `<skills>/workflow/scripts/worktree.sh`, written `worktree.sh` below, for `start`, `create` and `ignore`
+- the script `<skills>/workflow/scripts/worktree.sh`, written `worktree.sh` below, for `start`, `create`, `ignore` and, in **Ending before approval**, `check`
 - `<skills>/workflow/worktree.md`, which you read for **The start check**, steps 3 to 5 of **The worktree** and
   **Ending before approval**. `$FLOW` in that file means `<skills>/workflow`
 - `<skills>/pj1-plan/format.md`: **The roadmap file** and **Writing bodies**

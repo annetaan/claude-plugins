@@ -205,7 +205,7 @@ to enter `<WT>` themselves, because their directory resets on every bash call.
 detached HEAD. A stop from here on, even one before the approval, leaves `<WT>` as phase 6 step 2 says.
 
 `<WT>` has none of `<MAIN>`'s ignored files, such as installed dependencies or a `.env`. The first worker prepares
-what the tests need and leaves the steps in the handover notes, so later tasks find them there.
+what the tests need and leaves the steps in the handover notes, so later tasks find them there. The submodules of `<WT>` are not initialized either. When the build or the tests need one, the first worker runs `git submodule update --init` in `<WT>` and leaves that in the handover notes too.
 
 ### Paths this clone must ignore
 
@@ -238,7 +238,7 @@ Act by `status`.
 **Never edit `.gitignore` here.** That commit would land on the base branch with no pull request.
 
 On a stop, leave `<WT>` as phase 6 step 2 says and end the run. `<WT>` stays in place, and the report says that
-`git -C "<MAIN>" worktree remove <WT>` removes it. When `worktree` stopped on `not-ignored`, `<WT>` holds
+`git -C "<MAIN>" worktree remove <WT>` removes it. In a repository with submodules git refuses that command and it needs `--force`, which also deletes what a submodule in `<WT>` holds on its own; `git -C <WT>/<path> log --branches --not --remotes` shows such commits. When `worktree` stopped on `not-ignored`, `<WT>` holds
 uncommitted work, so the report names that work with `git -C <WT> diff` in place of the `worktree remove` line.
 
 ## Unplanned work
