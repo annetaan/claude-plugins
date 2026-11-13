@@ -29,7 +29,7 @@ This skill uses these files:
 - the script `$CLEANUP/scripts/cleanup.sh`, written `cleanup.sh` below. Every subcommand prints one JSON object with
   a `status`. A non-zero exit is a usage error or an unexpected failure: quote its message and stop
 - the script `$CLEANUP/../pj4-running/scripts/run.sh`, written `run.sh` below, for its `close` only
-- the script `$CLEANUP/../workflow/scripts/worktree.sh`, which `cleanup.sh` calls for its `old-reports` only. You never
+- the script `$CLEANUP/../workflow/scripts/worktree.sh`, which `cleanup.sh` calls for its `old-reports` and `submodules` only. You never
   run it yourself
 
 **Language**: talk to the user in the user's language. Write the comment on the parent in the repository's language.
@@ -94,6 +94,8 @@ Show what the cleanup does, one line per item, from the `check` output.
   - `prunable`: its directory is gone, and only git's record of it is pruned
   - `absent`: there is none
   - `foreign`: `<WT>` is not a worktree of this clone, and nothing touches it
+- when `loses` holds `submodules`: each entry of `worktree.submodules` is a submodule removed with `<WT>` that holds
+  work of its own. Show its `path`, its `changes`, and `commits` as the number of commits no remote of the submodule has
 - the base branch on origin, when `remoteBase` is `present`: it is deleted
 - the local base branch, by `localBase`: `delete` deletes it. `keep` with `unpushed` keeps it, because it holds commits
   neither `origin/<base>` nor `origin/<from>` has. `keep` with `checked-out` keeps it, because the worktree in
@@ -117,8 +119,8 @@ AskUserQuestion: Clean up project #<P>?
   - Do not clean up
 ```
 
-When `worktree.state` is `dirty`, the first option is `Discard the work and clean up`. On `Do not clean up`, stop
-and name `<WT>`, and say that `git -C <WT> status` shows the work. The approval covers this run only.
+When `loses` is not empty, the first option is `Discard the work and clean up`. On `Do not clean up`, stop
+and name `<WT>`, and say that `git -C <WT> status` shows the uncommitted work, and that `git -C <WT>/<path> log --branches --not --remotes` shows the commits of each submodule in `worktree.submodules`. The approval covers this run only.
 
 ## The cleanup
 
@@ -147,7 +149,7 @@ and name `<WT>`, and say that `git -C <WT> status` shows the work. The approval 
 
    It acts as `check` said, from a fresh read. Act by `status`.
 
-   - **`stop`** with `dirty`: `<WT>` gained uncommitted work after the question. Nothing was removed. Say so, and stop.
+   - **`stop`** with `discard`: work appeared after the question, and `loses` names it. Nothing was removed. Say so, and stop.
    - **`stop`** with `foreign`, `not-merged`, `project` or `fetch-failed`: quote `message` and stop.
    - **`done`**: go to the report.
 
@@ -172,7 +174,7 @@ and name `<WT>`, and say that `git -C <WT> status` shows the work. The approval 
 
 - At most one approval question, `Clean up project #<P>?`. The `Project` question comes before it and is not part of
   it.
-- **Never remove a worktree with uncommitted work unless the user picked `Discard the work and clean up`.**
+- **Never remove a worktree with uncommitted work, or with a submodule that holds work of its own, unless the user picked `Discard the work and clean up`.**
 - **Never switch a branch, stash, commit, reset or clean in `<MAIN>`.** `<from>` only ever fast-forwards.
 - **Close the parent only through `run.sh close`**, which refuses one that is not merged. Write nothing else to GitHub
   yourself. `cleanup.sh run` deletes the base branch on origin.

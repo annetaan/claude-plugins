@@ -383,7 +383,7 @@ origin and locally, fast-forwards your local copy of the branch the project merg
 It never switches your branch, stashes or resets. When the branch is checked out in your clone, it moves with
 `git merge --ff-only`, which refuses rather than overwrite a local change. A local branch with commits origin does not
 have is left alone and named in the report, and so is a local project branch with commits nowhere on origin. A
-worktree with uncommitted work is removed only when you choose to discard that work. It names the projects that can
+worktree with uncommitted work, or with a submodule that holds work of its own, is removed only when you choose to discard that work. It names the projects that can
 be split now that this one is merged.
 
 ```
@@ -417,7 +417,7 @@ fast-forwards your local base after a merge, and deletes the work reports in `wo
 14 days or more.
 
 It never switches your branch, stashes or resets. Work that nothing else holds is removed only when you choose to
-discard it. That means uncommitted changes, commits that are on no other branch on origin, and the branch of a closed
+discard it. That means uncommitted changes, what a submodule in the worktree holds on its own (its uncommitted changes and the commits no remote of the submodule has), commits that are on no other branch on origin, and the branch of a closed
 pull request. An open pull request is never touched.
 
 ```
