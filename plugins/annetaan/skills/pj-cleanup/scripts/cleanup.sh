@@ -6,8 +6,9 @@
 # its tip, and fast-forwards the local <from> to origin/<from>. It never switches a branch, stashes, commits or resets.
 # run also deletes the work reports in <MAIN>/work-reports/ that arrived there 14 days ago or more, by calling
 # ../../workflow/scripts/worktree.sh old-reports --delete, and check lists them with old-reports.
-# It reads the project with ../../pj1-plan/scripts/project.sh, the old reports through
-# ../../workflow/scripts/worktree.sh, and refuses a project that is not merged.
+# It reads the project with ../../pj1-plan/scripts/project.sh, the old reports and the submodules that hold work of
+# their own through ../../workflow/scripts/worktree.sh old-reports and submodules, and refuses a project that is not
+# merged.
 set -euo pipefail
 
 die() { echo "cleanup: $*" >&2; exit 1; }
@@ -17,7 +18,7 @@ usage() {
 usage: cleanup.sh list                  the projects that have a worktree in this clone
        cleanup.sh check <P>             what run would do for project <P>, which must be merged
        cleanup.sh run <P> [--discard]   move the work reports out, remove the worktree, delete the base branch,
-                                        fast-forward <from>. --discard removes a worktree with uncommitted work.
+                                        fast-forward <from>. --discard removes a worktree that holds work nothing else holds.
                                         It also deletes the old reports
 Every subcommand prints one JSON object with "status" and exits 0. "stop" carries "reason" and "message".
 Exit 1 means a usage error or an unexpected failure.
@@ -154,6 +155,17 @@ def read_old_reports(main, *flags):
     except ValueError:
         return None, message
 
+def read_submodules(main, wt):
+    """worktree.sh submodules, started in main. Returns (parsed JSON or None, message)."""
+    r = run(WORKTREE_SH, "submodules", wt, cwd=main)
+    message = r.stderr.strip() or r.stdout.strip()
+    if r.returncode != 0:
+        return None, message
+    try:
+        return json.loads(r.stdout), message
+    except ValueError:
+        return None, message
+
 def plan(p):
     """Everything check prints and run acts on."""
     main, trees = located()
@@ -163,6 +175,7 @@ def plan(p):
              projectPr=parent.get("projectPr"))
     base, frm, wt = parent["base"], parent["from"], wt_of(main, p)
 
+    loses = []
     prunable = listed(trees, wt)
     if prunable is None:
         tree = {"path": wt, "state": "foreign" if os.path.lexists(wt) else "absent"}
@@ -172,6 +185,14 @@ def plan(p):
         changes = git(wt, "status", "--porcelain").splitlines()
         tree = {"path": wt, "state": "dirty" if changes else "clean", "changes": changes[:20],
                 "reports": reports(wt)}
+        found, message = read_submodules(main, wt)
+        if found is None or found.get("status") != "ok":
+            die("worktree.sh submodules failed: " + message)
+        tree["submodules"], tree["hasSubmodules"] = found["submodules"], found["present"]
+        if tree["state"] == "dirty":
+            loses.append("uncommitted")
+        if tree["submodules"]:
+            loses.append("submodules")
 
     if not fetch(main, frm):
         stop("fetch-failed", "cannot fetch %s from origin" % frm)
@@ -213,7 +234,7 @@ def plan(p):
         die("worktree.sh old-reports failed: " + message)
 
     return main, {"project": {k: parent[k] for k in ("number", "title", "state", "base", "from")},
-                  "main": main, "worktree": tree, "localBase": local,
+                  "main": main, "worktree": tree, "loses": loses, "localBase": local,
                   "remoteBase": "present" if remote else "absent", "update": update,
                   "oldReports": result["oldReports"]}
 
@@ -261,14 +282,15 @@ def cleanup():
 
     if tree["state"] == "foreign":
         stop("foreign", "%s exists and is not a worktree of this clone" % tree["path"], **out)
-    if tree["state"] == "dirty" and "--discard" not in ARGS:
-        stop("dirty", "%s has uncommitted changes" % tree["path"], **out)
+    if out["loses"] and "--discard" not in ARGS:
+        stop("discard", "%s holds work that nothing else holds: %s" % (tree["path"], ", ".join(out["loses"])), **out)
 
     if tree["state"] in ("clean", "dirty"):
         tree["moved"] = move_reports(main, tree["path"])
         # The work reports are ignored files, which git worktree remove deletes without --force. Uncommitted and
-        # untracked files need it, and --discard is the user's word for that.
-        force = ["--force"] if tree["state"] == "dirty" else []
+        # untracked files need it, and the gate above has required --discard for them. Git also refuses a worktree
+        # with submodules whatever its state, so plan() is the check there.
+        force = ["--force"] if tree["state"] == "dirty" or tree["hasSubmodules"] else []
         git(main, "worktree", "remove", *force, tree["path"])
         tree["action"] = "removed"
     elif tree["state"] == "prunable":

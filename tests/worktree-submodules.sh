@@ -1,15 +1,19 @@
 #!/usr/bin/env bash
-# Test: worktree.sh removes a worktree that has submodules, and refuses without --discard when a submodule holds work
-# of its own (an uncommitted change, or a commit that no remote of the submodule and no tag reaches).
+# Test: worktree.sh and cleanup.sh remove a worktree that has submodules, and refuse without --discard when a
+# submodule holds work of its own (an uncommitted change, or a commit that no remote of the submodule and no tag
+# reaches).
 #
 # Run: bash tests/worktree-submodules.sh   (exit 0 is success, anything else is failure)
-# Runs offline: the clone has no remote, and the worktree is detached, so worktree.sh calls neither gh nor origin.
+# Runs offline: the worktree.sh cases use a clone with no remote, the cleanup.sh cases a bare temp origin, and the
+# worktree is detached, so neither script calls gh. cleanup.sh gets a fake project.sh.
 # The submodule is a second temp repository added by path.
-# WORKTREE_SH=<path> tests another copy of worktree.sh.
+# WORKTREE_SH=<path> and CLEANUP_SH=<path> test other copies of the scripts.
 set -euo pipefail
 
 SCRIPT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)/plugins/annetaan/skills/workflow/scripts/worktree.sh"
 SCRIPT="${WORKTREE_SH:-$SCRIPT}"
+CLEANUP_SRC="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)/plugins/annetaan/skills/pj-cleanup/scripts/cleanup.sh"
+CLEANUP_SRC="${CLEANUP_SH:-$CLEANUP_SRC}"
 
 TMP="$(mktemp -d)"
 trap 'chmod -R u+rwx "$TMP" 2>/dev/null || true; rm -rf "$TMP"' EXIT
@@ -57,6 +61,46 @@ setup() {
   cd "$MAIN"
 }
 
+# A clone with an origin and a detached worktree pj-1 for cleanup.sh, in a tree of skill directories with a fake
+# project.sh. The superproject records the submodule "sub". $WT has it checked out only when $1 is "init".
+setup_pj() {
+  rm -rf "$TMP/pj" "$TMP/subsrc"
+  mkdir -p "$TMP/pj/skills/pj-cleanup/scripts" "$TMP/pj/skills/workflow/scripts" "$TMP/pj/skills/pj1-plan/scripts"
+  cp "$CLEANUP_SRC" "$TMP/pj/skills/pj-cleanup/scripts/cleanup.sh"
+  cp "$SCRIPT" "$TMP/pj/skills/workflow/scripts/worktree.sh"
+  cat > "$TMP/pj/skills/pj1-plan/scripts/project.sh" <<'FAKE'
+#!/usr/bin/env bash
+echo '{"parent":{"number":1,"title":"P","state":"CLOSED","base":"pj/1","from":"main","merged":true}}'
+FAKE
+  chmod +x "$TMP/pj/skills/pj-cleanup/scripts/cleanup.sh" "$TMP/pj/skills/workflow/scripts/worktree.sh" \
+           "$TMP/pj/skills/pj1-plan/scripts/project.sh"
+  CLEANUP="$TMP/pj/skills/pj-cleanup/scripts/cleanup.sh"
+  git init -q "$TMP/subsrc"
+  (cd "$TMP/subsrc" && echo one > f && git add f && git commit -q -m one && git tag v1)
+  git init -q --bare "$TMP/pj/origin.git"
+  git init -q -b main "$TMP/pj/work"
+  MAIN="$(cd "$TMP/pj/work" && pwd -P)"
+  (
+    cd "$MAIN"
+    echo 'work-reports/' > .gitignore
+    echo '.claude/worktrees/' >> .gitignore
+    echo readme > README.md
+    git submodule -q add "$TMP/subsrc" sub
+    git add .gitignore README.md
+    git commit -q -m init
+    git remote add origin "$TMP/pj/origin.git"
+    git push -q origin main
+    git worktree add -q --detach .claude/worktrees/pj-1 HEAD
+  )
+  WT="$MAIN/.claude/worktrees/pj-1"
+  if [ "${1:-}" = init ]; then
+    git -C "$WT" submodule -q update --init
+  fi
+  mkdir -p "$WT/work-reports/2026-01-01-0000-aaaaaaa"
+  echo x > "$WT/work-reports/2026-01-01-0000-aaaaaaa/log.md"
+  cd "$MAIN"
+}
+
 # A commit in the submodule of $WT, recorded in the superproject, so the superproject tree is clean.
 commit_in_sub() {
   git -C "$WT/sub" commit -q --allow-empty -m local
@@ -64,7 +108,7 @@ commit_in_sub() {
   git -C "$WT" commit -q -m bump
 }
 
-gone() { ! exists "$WT" && ! exists "$MAIN/.git/worktrees/wf-test"; }
+gone() { ! exists "$WT" && ! exists "$MAIN/.git/worktrees/${1:-wf-test}"; }
 
 setup init
 out="$("$SCRIPT" check wf-test)"
@@ -139,3 +183,32 @@ out="$("$SCRIPT" submodules "$TMP/elsewhere")"
 [ "$(echo "$out" | json 'd["status"]')" = stop ] || fail "unknown status: $out"
 [ "$(echo "$out" | json 'd["reason"]')" = unknown ] || fail "unknown reason: $out"
 echo "ok: worktree.sh submodules prints present and the list for a worktree path, and stops with unknown for a path that is no worktree"
+
+setup_pj init
+out="$("$CLEANUP" run 1)"
+[ "$(echo "$out" | json 'd["status"]')" = done ] || fail "pj run status: $out"
+[ "$(echo "$out" | json 'd["worktree"]["action"]')" = removed ] || fail "pj run action: $out"
+gone pj-1 || fail "pj worktree or its git dir left"
+exists "$MAIN/work-reports/2026-01-01-0000-aaaaaaa" || fail "pj work report not moved"
+[ "$(echo "$out" | json 'd["errors"]')" = "[]" ] || fail "pj run errors: $out"
+echo "ok: cleanup.sh run removes a worktree with an initialized clean submodule"
+
+setup_pj init
+commit_in_sub
+out="$("$CLEANUP" run 1)"
+[ "$(echo "$out" | json 'd["status"]')" = stop ] || fail "pj commit status: $out"
+[ "$(echo "$out" | json 'd["reason"]')" = discard ] || fail "pj commit reason: $out"
+[ "$(echo "$out" | json 'd["loses"]')" = "['submodules']" ] || fail "pj commit loses: $out"
+[ "$(echo "$out" | json 'd["worktree"]["state"]')" = clean ] || fail "pj commit state: $out"
+[ "$(echo "$out" | json 'd["worktree"]["submodules"][0]["commits"]')" = 1 ] || fail "pj commit count: $out"
+exists "$WT" || fail "pj refused cleanup removed the worktree"
+[ -d "$WT/work-reports/2026-01-01-0000-aaaaaaa" ] || fail "pj refused cleanup moved the report"
+[ ! -e "$MAIN/work-reports" ] || fail "pj refused cleanup created work-reports in main"
+echo "ok: cleanup.sh run refuses with discard when a submodule has a commit on no remote, and removes nothing"
+
+setup_pj init
+commit_in_sub
+out="$("$CLEANUP" run 1 --discard)"
+[ "$(echo "$out" | json 'd["status"]')" = done ] || fail "pj discard status: $out"
+gone pj-1 || fail "pj discard left the worktree"
+echo "ok: cleanup.sh run --discard removes a worktree whose submodule holds work"

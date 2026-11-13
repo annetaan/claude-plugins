@@ -125,7 +125,7 @@ AskUserQuestion: Clean up <name>?
 
 When `loses` is not empty, the options are `Discard the work and clean up` and `Do not clean up` only, because
 `worktree.sh cleanup` refuses such a run without `--discard`. On `Do not clean up`, stop and name `<WT>`, and say that
-`git -C <WT> status` shows the work. The approval covers this run only.
+`git -C <WT> status` shows the uncommitted work, and that `git -C <WT>/<path> log --branches --not --remotes` shows the commits of each submodule in `worktree.submodules`. The approval covers this run only.
 
 ## The cleanup
 
