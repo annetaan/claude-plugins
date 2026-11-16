@@ -52,6 +52,12 @@ cat > "$TMP/projects/-work-r/other.jsonl" <<'EOF'
 {"type":"assistant","sessionId":"s2","cwd":"/elsewhere","gitBranch":"main","timestamp":"2026-11-17T00:00:01Z","message":{"role":"assistant","content":[{"type":"text","text":"Recorded https://github.com/o/r/pull/7"}]}}
 EOF
 
+# The same cwd and branch as the pull request, and only a run of pr-humans in it: not taken for its history.
+cat > "$TMP/projects/-work-r/onlyrun.jsonl" <<'EOF2'
+{"type":"user","sessionId":"s5","entrypoint":"cli","cwd":"/work/r","gitBranch":"feat/x","timestamp":"2026-11-17T01:00:00Z","message":{"role":"user","content":"<command-name>/annetaan:pr-humans</command-name>\n<command-args></command-args>"}}
+{"type":"assistant","sessionId":"s5","cwd":"/work/r","gitBranch":"feat/x","timestamp":"2026-11-17T01:00:01Z","message":{"role":"assistant","content":[{"type":"text","text":"Recorded https://github.com/o/r/pull/7"}]}}
+EOF2
+
 # A session that names the issue the pull request implements, before any pr-humans run.
 cat > "$TMP/projects/-work-r/plan.jsonl" <<'EOF'
 {"type":"user","sessionId":"s3","entrypoint":"cli","cwd":"/work/r","gitBranch":"main","timestamp":"2026-11-10T00:00:00Z","message":{"role":"user","content":"Plan https://github.com/o/r/issues/5 please"}}
@@ -140,6 +146,7 @@ found = {s["session"]: s["why"] for s in m.find_sessions(pr, "o/r", "/work/r")}
 if found.get("11111111-2222-3333-4444-555555555555") != ["created-pr", "on-branch", "names-pr"]:
     fail(f"creating session: {found}")
 if "other" in found: fail("a session that only ran pr-humans was taken")
+if "onlyrun" in found: fail("a session that only ran pr-humans on this branch was taken")
 if "skillrun" in found: fail("a session that only asked for pr-humans in plain words was taken")
 if found.get("afterrun") != ["names-pr"]: fail(f"message after a run: {found}")
 if found.get("otherpr") != ["names-pr"]: fail(f"message after another pull request's run: {found}")
@@ -261,6 +268,20 @@ OUT="$(PATH=/usr/bin:/bin python3 "$SCRIPT" post 7 "$TMP/post3")"; rc=$?
 set -e
 [ "$rc" = 3 ] || fail "post exit $rc with a known cwd"
 check 'd["problems"]==["local-path"]' "post known cwd"
+
+# --- no draft: exit 3 no-draft, for a missing and for an empty comment.md
+mkdir -p "$TMP/post4"
+set +e
+OUT="$(PATH=/usr/bin:/bin python3 "$SCRIPT" post 7 "$TMP/post4")"; rc=$?
+set -e
+[ "$rc" = 3 ] || fail "post without a draft: exit $rc"
+check 'd["status"]=="stop" and d["problems"]==["no-draft"]' "post no-draft"
+printf '  \n' > "$TMP/post4/comment.md"
+set +e
+OUT="$(PATH=/usr/bin:/bin python3 "$SCRIPT" post 7 "$TMP/post4")"; rc=$?
+set -e
+[ "$rc" = 3 ] || fail "post with an empty draft: exit $rc"
+check 'd["problems"]==["no-draft"]' "post empty draft"
 
 # --- usage errors
 set +e

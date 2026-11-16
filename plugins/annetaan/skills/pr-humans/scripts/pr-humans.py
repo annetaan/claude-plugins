@@ -26,7 +26,7 @@ Subcommands (each prints one JSON object on stdout; exit 2 is a usage error, 1 a
       when there is one. Refuses (exit 3, status stop, problems named) a body that holds a local path, a session id
       or an @mention, or any path or id that DIR/sessions.json, DIR/reports.json, DIR itself or $HOME holds
       (local-path, session-id, mention), and when only another account recorded the pull request
-      (recorded-by-other). In each case nothing is written.
+      (recorded-by-other), and a DIR with no comment.md or an empty one (no-draft). In each case nothing is written.
 
 Each pull request that targets lists comes with "recordedBy": "me", "other" or null (who left the marker comment);
 "recorded" stays and means recordedBy is "me". --unrecorded keeps those with recordedBy null.
@@ -410,10 +410,11 @@ def human_turns(path):
             meta["last"] = ts or meta["last"]
             meta["entrypoint"] = meta["entrypoint"] or e.get("entrypoint")
             meta["cwd"] = meta["cwd"] or e.get("cwd")
-            if e.get("cwd"):
-                meta["cwds"].add(e["cwd"])
-            if e.get("gitBranch"):
-                meta["branches"].add(e["gitBranch"])
+            if not in_run:  # a run of pr-humans says nothing of where the work was done
+                if e.get("cwd"):
+                    meta["cwds"].add(e["cwd"])
+                if e.get("gitBranch"):
+                    meta["branches"].add(e["gitBranch"])
             content = (e.get("message") or {}).get("content")
             if t == "assistant":
                 if not isinstance(content, list):
@@ -519,6 +520,8 @@ def find_sessions(pr, repo_full, root):
             if re.search(re.escape(u) + r"(?!\d)", talk):
                 why.append("names-pr" if u == pr_url else "names-issue " + u.rsplit("/", 1)[-1])
         if not why:
+            continue
+        if why == ["on-branch"] and not turns:  # only a run of pr-humans was there (its command line counts as a row)
             continue
         found.append({"file": path, "session": os.path.basename(path)[:-6], "why": why, **meta,
                       "turns": turns})
@@ -668,9 +671,10 @@ def cmd_post(argv):
     try:
         body = open(os.path.join(dir_, "comment.md"), encoding="utf-8").read().strip()
     except OSError:
-        die(f"{dir_}/comment.md is missing")
-    if not body:
-        die("the body is empty")
+        body = ""
+    if not body:  # the writer did not leave a draft: this pull request is left out, the others go on
+        out({"number": n, "status": "stop", "problems": ["no-draft"]})
+        sys.exit(3)
     problems = lint(body, known_values(dir_))
     if problems:
         out({"number": n, "status": "stop", "problems": problems})

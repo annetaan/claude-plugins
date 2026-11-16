@@ -128,6 +128,8 @@ single record.
   problems back to that writer with `SendMessage` to fix the draft, then post again. A working directory or log file
   named in `sessions.json` is also a `local-path` (a cwd is not a `session-id`; that is only a session's name), so
   tell the writer to drop such paths. If the second draft fails too, leave the pull request out and say so.
+- exit 3 with `no-draft`: the writer left no `comment.md`, or an empty one, though it returned its line. Run that
+  writer once more, then post again. If there is still none, leave the pull request out and say so.
 - exit 3 with `recorded-by-other`: another account's record appeared after `targets`. Leave that pull request out,
   do not send it back to the writer, and say so in the report.
 
