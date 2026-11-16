@@ -37,7 +37,7 @@ Which skill to start with:
 - A change that fits one pull request: `/annetaan:workflow`.
 - Anything larger, usually one initiative from your roadmap file ([Task, project, initiative](#task-project-initiative)): `/annetaan:pj1-plan`.
 
-The doc skills are a separate family, for writing and revising documents, and do not use either of these. `experience-video` stands alone too. It touches neither GitHub nor your code.
+The doc skills are a separate family, for writing and revising documents, and do not use either of these. `experience-video` stands alone too. It touches neither GitHub nor your code. `pr-humans` looks back at pull requests either family opened, or any other, and records on each how people took part.
 
 ### Task, project, initiative
 
@@ -125,14 +125,14 @@ your decisions there too.
 
 A skill whose `description` matches a request normally starts without being named. The ones here do not. `workflow`
 spawns several sessions, adds commits, creates a worktree and pushes a branch on its own. `workflow-cleanup` deletes
-branches and removes a worktree. `pj-roadmap` creates a worktree, pushes a branch and opens a pull request. The pj skills create, edit and close
-issues and labels on GitHub, and `pj4-running` also creates each project's branch, pushes, opens and merges pull
-requests. The doc skills make a file next to your document, rewrite the document itself, and can add one commit of
-their own to `.gitignore` after asking. `experience-video` installs npm packages, downloads a browser on its first
-run and writes a directory of files. Any of these is enough reason to wait, so each skill here starts only when you
-name it or invoke its slash form. One request is the exception: asking to resolve the conflicts of a pull request, in
-any words, starts `workflow`, or `pj4-running` for a project's pull request, because the request itself says what to
-do.
+branches and removes a worktree. `pj-roadmap` creates a worktree, pushes a branch and opens a pull request. The pj
+skills create, edit and close issues and labels on GitHub, and `pj4-running` also creates each project's branch,
+pushes, opens and merges pull requests. The doc skills make a file next to your document, rewrite the document itself,
+and can add one commit of their own to `.gitignore` after asking. `experience-video` installs npm packages, downloads a
+browser on its first run and writes a directory of files. `pr-humans` posts a comment on each pull request it records.
+Any of these is enough reason to wait, so each skill here starts only when you name it or invoke its slash form. One
+request is the exception: asking to resolve the conflicts of a pull request, in any words, starts `workflow`, or
+`pj4-running` for a project's pull request, because the request itself says what to do.
 
 ### workflow
 
@@ -528,6 +528,31 @@ macOS.
 The formats are in [`story-format.md`](skills/experience-video/story-format.md),
 [`scenes.md`](skills/experience-video/scenes.md) and [`music.md`](skills/experience-video/music.md).
 
+### pr-humans
+
+`/annetaan:pr-humans` ([details](skills/pr-humans/SKILL.md)) records how people took part in a pull request, open,
+merged or closed, as one comment on it. The comment has three parts: where the work came from, what a person decided
+(boxes ticked in a pj sub-issue's Decisions, a design approved, a question answered) and what a person edited or
+reviewed by hand. Each line says whether it is confirmed or inferred and from what, and a part with nothing to go on
+says it does not know.
+
+It reads the pull request and the issues it works on from GitHub, with the edit history of their bodies, the Claude
+Code conversation logs on your machine that opened it or name it, and workflow's work reports. Claude acts through your
+GitHub account, so a login alone counts for nothing: a box-only edit of an issue, a commit without a
+`Co-Authored-By: Claude` trailer, or a turn in a conversation log does. The comment summarises and never quotes, and
+holds no local path, session id or mention.
+
+Without a number it records the pull request of the current session or branch. It also takes several numbers, a
+range, a project's parent issue, a GitHub search, or every pull request not yet recorded, and asks once when
+there are two or more. Run again, it rewrites its own comment and keeps the lines whose conversation log or work
+report has since gone. A pull request that another account has recorded is left out.
+
+```
+/annetaan:pr-humans
+/annetaan:pr-humans #60-#73
+/annetaan:pr-humans every PR of project #17 that is not recorded yet
+```
+
 ## Agents
 
 These are the sub-agents the skills spawn. Anything under `agents/` becomes callable as `annetaan:<name>`.
@@ -544,6 +569,7 @@ design review cannot start, the skill spawns it again on opus at the same effort
 | `annetaan:pj-issue-writer` | opus | medium | one sub-issue, drawn against the code. drafts it for `pj2-issues`, revises it for `pj3-doctor` |
 | `annetaan:pj-reviewer` | fable | medium | project review for `pj3-doctor`. reads the whole project against the ticked boxes, the code and each issue |
 | `annetaan:experience-video-producer` | fable | medium | production for `experience-video`. fills in the cuts, fragments and music of a story, renders it, and checks its frames |
+| `annetaan:pr-humans-writer` | sonnet | medium | one comment for `pr-humans`. reads only the gathered files. drafts how people took part in one pull request |
 | `annetaan:doc-meta-overview` | opus | high | overview for `doc-meta`. finds what a per-sentence flag misses |
 
 `pj4-running` has no agents of its own. It runs workflow's.
