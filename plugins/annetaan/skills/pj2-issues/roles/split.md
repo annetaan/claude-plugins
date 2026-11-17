@@ -62,23 +62,33 @@ becomes part of this split, or you say that it needs a request of its own.
    - **the paths it touches**, as repository paths, tests included. The issue writer turns this into the file list
      of the issue
    - the tasks of this project it waits on, by id
+   - what a reviewer can judge in it without the other tasks, in one line (**Where to split** in `judgement.md`)
    - the forks you already see inside it, one line each, each marked as one for a human or one the writer settles.
      The issue writer works them out properly.
+   - `leaves broken: \`<check>\`, closed by T<k>`, one line per check, or nothing
 
 ## How to split
 
-- **Every task fits the size limit in `format.md`** (**The file list**): aim at 30 files at most, tests included. A
-  task over it is split where the design gives it a seam. The count is a guard, not a reason to cut: a rename and every
-  file it reaches is one task.
+- **Split only where a reviewer can judge each task on its own** (**Where to split** in `judgement.md`). Size is
+  never a reason, and no count of tasks or files is a limit or a target. Work coupled in code, a rename and every file
+  it reaches, is one task however large.
 - **Every task can be implemented from its own body.** A task that cannot be drawn without designing a part of
   another task is cut in the wrong place.
-- **One task is one pull request**, merged on its own, with the tests passing at the end. A pair that turns the suite
-  red when separated (a schema change and the code that uses it) stays in one task.
-- **A reviewer reads one pull request in one sitting.** A task that reaches across many areas is too big. Split it
-  where the design gives it a seam.
+- **One task is one pull request**, merged on its own. The tests pass at the end of every task, except a check the
+  task declares. A pair that turns the suite red when separated (a schema change and the code that uses it) is one
+  task (**No transitional code** in `judgement.md`).
+  - Never a shim so that both tasks pass.
+  - A cut that a reviewer can judge part by part, and that leaves a check failing between the parts, declares it: the
+    earlier task leaves it broken and the later one closes it.
+  - The check is one command run from the repository root.
+  - The closer waits on the breaker and comes as soon as the dependencies allow, because every task between them
+    inherits the failure.
+  - A check the base branch requires for a merge cannot be left broken (`format.md`, **Declared breakage**).
+- **Parts a reviewer can judge alone stay apart.** A task that holds two such parts is split where the design gives
+  it a seam.
 - **When the "Roadmap task:" line says yes, the last task is the roadmap task** (`format.md`, **The roadmap task**).
-  Its only path is the roadmap file, and it waits on every other task. No other task touches that file. It counts
-  toward the 10. When the line says none, there is no such task.
+  Its only path is the roadmap file, and it waits on every other task. No other task touches that file. When the line
+  says none, there is no such task.
 - **Order follows the dependencies.** A task waits only on what it really uses, except the roadmap task, which waits on
   every other task. Two tasks that do not touch each
   other wait on nothing, so the later skills can reorder them.
@@ -87,8 +97,6 @@ becomes part of this split, or you say that it needs a request of its own.
 - **A removal goes before the tasks that build on what is left** (**Remove before adding**): those tasks wait on it. A task's paths include the documents and examples that state the old shape, and the task moves only as far as the parent's `## Design` moves (**As if it was always required**).
 - **Every edge stays inside this project.** What this project needs from another project is either merged already or
   a parent edge in item 3.
-- **Aim at 10 tasks at most.** When the project needs more, split it anyway and say so. It stays one project
-  (`format.md`, **Projects**).
 - No cycles. A cycle means two tasks are one task, or the boundary between them is in the wrong place.
 - **Read the parent's `## Design` against `format.md`, Behaviour kept under a changed assumption, and against
   **Assumptions** in `judgement.md`, in both directions.** A kept branch nobody is named for goes through **Why

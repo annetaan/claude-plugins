@@ -12,10 +12,10 @@ this file.
 
 | Skill | What it does |
 | --- | --- |
-| `pj1-plan` | designs one initiative or other large request in broad strokes, has the design review read the parents' designs once, cuts it into projects of up to ten tasks, and files one parent issue per project, with blocked-by relationships between the parents, and, for a request that is a roadmap entry, the `Roadmap:` line on one parent of the last stage |
+| `pj1-plan` | designs one initiative or other large request in broad strokes, has the design review read the parents' designs once, cuts it into projects, and files one parent issue per project, with blocked-by relationships between the parents, and, for a request that is a roadmap entry, the `Roadmap:` line on one parent of the last stage |
 | `pj2-issues` | splits one project into tasks once every project it waits on is merged, and files its sub-issues with the decisions they need, the blocked-by relationships inside the project, the run order and the titles, and, under a parent with a `Roadmap:` line, the roadmap task as the last task |
 | `pj3-doctor` | reviews a whole project against the boxes the user ticked and the code, has the issue writers redraw what no longer holds, draws the stubs, resolves the blockers, rewrites the run order and the titles, keeps the roadmap task blocked by every other open sub-issue, and labels an issue `ready` |
-| `pj4-running` | creates a project's base branch when it first starts on the project, then works down the run order one pull request at a time, running the `workflow` skill on each and merging it into the base branch before the next starts, and once every sub-issue is closed, merges the branch it was made from into the base branch and opens the pull request from the base branch into that branch |
+| `pj4-running` | creates a project's base branch when it first starts on the project, then works down the run order one pull request at a time, detailing each sub-issue against the code on the base branch before it runs (and redrawing its body and the order of the issues left when the code asks for it), running the `workflow` skill on each and merging it into the base branch before the next starts, and once every sub-issue is closed, merges the branch it was made from into the base branch and opens the pull request from the base branch into that branch |
 
 The roadmap file, its line and its task are in `format.md` under **The roadmap file**, **The parent issue body** and
 **The roadmap task**.
@@ -23,7 +23,8 @@ The roadmap file, its line and its task are in `format.md` under **The roadmap f
 **The user decides by ticking boxes on GitHub.** Every question a task raises that only the user can answer is a
 decision in its sub-issue (`format.md`, **Decisions**). What a model can settle, it settles and records under
 `### Model decisions` in `## Design`, and the user overturns one with a comment on the issue (on an issue that carries `ready`, also taking `ready` off,
-because `pj4-running` never reads comments). No skill asks a task's decision in the conversation. `pj1-plan` and `pj2-issues` ask
+because `pj4-running` never reads comments). No skill asks a task's decision in the conversation. `pj4-running` may add
+a decision to an issue and stop, when its detail pass finds one only the user can settle. `pj1-plan` and `pj2-issues` ask
 only the questions that change the cut into projects, the split into tasks, or a parent's `## Design`. `pj3-doctor`
 talks with the user about everything else: a split, two boxes ticked in one decision, and its changes before they are
 written.
@@ -53,9 +54,9 @@ Two things live outside GitHub, and only these two:
 - **the uncommitted work a run leaves in its worktree** `<MAIN>/.claude/worktrees/pj-<P>` when it ends without saving
   it, where `<MAIN>` is the main working tree. That is a process killed mid-run, a save that could not clean everything,
   or a stopped merge of `<from>`. It is local. The next run saves it to `work-reports/<stamp>-discarded/stopped.diff`
-  in the worktree and discards it, without asking, and never uses it. The work is redone as the issue's one task.
+  in the worktree and discards it, without asking, and never uses it. The work is redone.
 
-The work of a stopped issue is saved to `stopped.diff` in its work report. Like the work report, it is a record, not
+The work of a stopped issue, commits included, is saved to `stopped.diff` in its work report. Like the work report, it is a record, not
 state.
 
 The worktree itself is a place to work, not state. A run creates it when it is missing. A drive's log directory is the
@@ -99,7 +100,7 @@ itself is the human's job.
 
 | Label | Color | Description |
 | --- | --- | --- |
-| `ready` | `0E8A16` | Every decision is settled and the body can be implemented as it stands. pj4-running may work on it. |
+| `ready` | `0E8A16` | Every decision is settled and the body is complete for its day. pj4-running details it against the code, then works on it. |
 | `blocker` | `B60205` | pj4-running stopped on this. Settle it before anything else. |
 | `project` | `5319E7` | The parent issue of a pj project. Its sub-issues are the project's tasks. |
 | `doing` | `1D76DB` | A pj project whose sub-issues are filed. It marks the parent issue. |
@@ -109,7 +110,7 @@ label already exists means the repository has it, and it is reused as it is. **N
 overwrite the color and the description of a label the repository already uses.
 
 ```bash
-gh label create ready --color 0E8A16 --description "Every decision is settled and the body can be implemented as it stands. pj4-running may work on it."
+gh label create ready --color 0E8A16 --description "Every decision is settled and the body is complete for its day. pj4-running details it against the code, then works on it."
 gh label create blocker --color B60205 --description "pj4-running stopped on this. Settle it before anything else."
 gh label create project --color 5319E7 --description "The parent issue of a pj project. Its sub-issues are the project's tasks."
 gh label create doing --color 1D76DB --description "A pj project whose sub-issues are filed. It marks the parent issue."
@@ -118,10 +119,6 @@ gh label create doing --color 1D76DB --description "A pj project whose sub-issue
 Only `pj3-doctor` adds `ready`, after its project review, to an issue that meets the bar
 for it (`state.md`, **When an issue is ready**). Ticking boxes on GitHub settles decisions and leaves the label
 alone, so the user runs `pj3-doctor` after ticking.
-
-`pj3-doctor` also takes `ready` off and puts it on again when its review cleared the stale commits `--check`
-reported, so that `readyAt` moves past them. Whenever it moves `readyAt` past stale commits, with a first `ready` or
-with that renewal, it leaves a marked comment naming each cleared commit and the reviewer's reason.
 
 The parent never gets `ready` and is never worked on.
 
@@ -138,8 +135,9 @@ leaves a comment** on the issue saying what changed and where. A skill marks tha
 An issue loses `blocker` when it gets `ready`. `pj3-doctor` adds the one and removes the other in one
 command.
 
-**Whenever `pj4-running` takes `ready` off an issue, it adds `blocker`.** An issue it stopped on is then always the
-first thing `pj3-doctor` takes up.
+**Whenever `pj4-running` takes `ready` off an issue, it adds `blocker`**, except on a `decision` stop. There the issue
+holds a decision only the user can settle, so the user comes first, and `pj3-doctor` after the tick. Any other issue it
+stopped on is then always the first thing `pj3-doctor` takes up.
 
 ## Picking the project
 
@@ -203,7 +201,7 @@ A `pj3-doctor` or `pj4-running` run is unattended when its args carry the word `
 - **The project.** Only rule 1 of **Picking the project** applies. No number, or a number that points at no option,
   ends the run as needs-user without asking. Rules 2 and 3 do not apply.
 - **Questions.** An unattended run never calls `AskUserQuestion`. The approval question (`pj3-doctor` phase 4,
-  `pj4-running` phase 3, in `pj4-running/issues.md`) is skipped, and the summary it would have shown is printed as usual. Any other question that
+  `pj4-running` phase 2, in `pj4-running/issues.md`) is skipped, and the summary it would have shown is printed as usual. Any other question that
   comes due ends the run without asking, the way choosing stop on that question would, as needs-user.
 - **The last line.** On ending, the run prints exactly one last line, one of:
   - `unattended: done`, when it ended in one of the ways its skill lists under **Ending an unattended run**
@@ -225,7 +223,7 @@ gh issue edit <k> --title "<wantedTitle>"   # each OPEN sub-issue whose wantedTi
 - A closed issue is never retitled.
 - A sync that fails partway leaves a stale count, and the next `pj3-doctor` run fixes it. Nothing reads the count to
   decide anything.
-- `pj4-running` never writes a title.
+- `pj4-running` writes a title only on a `decision` stop, to bring it to `wantedTitle` after it appended a decision.
 
 ## The handover comment
 
@@ -244,7 +242,8 @@ gh issue comment <P> --body-file <file>    # the first time, when there is none
 
 ## Blockers
 
-`blocker` marks what `pj4-running` stopped on. It goes in one of two places.
+`blocker` marks what `pj4-running` stopped on. It goes in one of two places. A `decision` stop leaves no `blocker`: the
+issue holds an open decision, and the user ticks it first.
 
 1. **On a stub that blocks the stopped issue.** The work found lies outside the task in hand, and the task cannot be
    finished without it. The stub (`format.md`, **Stubs**) is a sub-issue of the same parent, and the stopped issue is
@@ -254,16 +253,15 @@ gh issue comment <P> --body-file <file>    # the first time, when there is none
    gh issue create --parent <P> --blocking <n> --label blocker --title "<title>" --body-file <file>
    ```
 
-2. **On the stopped issue itself, with `ready` taken off.** Its own body no longer holds: `--check` failed, the
-   implementation reported `Diverged:`, or the code contradicts one of its settled decisions.
+2. **On the stopped issue itself, with `ready` taken off.** Its own body no longer holds: the detail
+   pass could not draw a body that passes the checks.
 
    ```bash
    gh issue edit <n> --remove-label ready --add-label blocker
    gh issue comment <n> --body-file <file>
    ```
 
-Either way a marked comment on the stopped issue says what diverged, and names the decision as `#<issue> D<n>` when
-there is one.
+Either way a marked comment on the stopped issue says what diverged.
 
 `pj3-doctor` resolves both. A blocker that needs no code of its own is resolved by rewriting the issue in
 question. A stub blocker resolved that way is then closed with a marked comment that points at the rewrite.
@@ -297,7 +295,7 @@ of its work report (the `workflow` skill), so a pull request carries no review-t
 - Base: the base branch.
 - Branch: follows the repository's naming and contains the issue number.
 - **The pull request of an issue** is the one `project.sh` reports as `pr` (`state.md`, **Reading a project**).
-- A pull request exists only once the task commit has passed review, so an open one has only the merge left. The next
+- A pull request exists only once every commit of the issue's plan has passed review, so an open one has only the merge left. The next
   run of `pj4-running` merges it. It stays a draft until just before the merge.
 - Merge with squash, else a merge commit, else rebase, the first one the repository allows. After the merge, delete
   the head branch on origin and locally. Never `--admin`.

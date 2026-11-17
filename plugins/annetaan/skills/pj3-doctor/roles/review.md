@@ -43,10 +43,7 @@ the code. Then read the issues against each other.
 3. **A ticked option the code rules out.**
 4. **A human comment the body does not answer yet**: an answer that is none of the options, a correction, or a
    comment that overturns an entry of `### Model decisions`.
-5. **What `--check` failed on**: each lint code other than `decisions-open` and each premise failure. For each stale
-   commit, read its diff with `git show <sha>` against the body and say whether it touches what the issue depends on:
-   a path, symbol or behaviour its `## Design` relies on. One that does is a finding. One that does not gets a
-   `cleared` line (see **What to return**).
+5. **What `--check` failed on**: each lint code other than `decisions-open` and each premise failure. An entry of `breakage.unclosed` is reported under kind 15, not here.
    For a failure under `premises.mode` `early`, decide which body is wrong, using `excusers`. This issue: a wrong
    name, a backticked file name, or a wrong kind. An excuser: it adds the name without listing the file or naming it,
    or its file list contradicts this one (`an open blocker deletes it`, `adds it too`). That is a kind 7 finding on
@@ -78,7 +75,7 @@ the code. Then read the issues against each other.
 10. **A question only a human can answer**, raised by a ticked option or by the code, that is no decision yet. It
     passes **What a human is asked** in `judgement.md`, and the finding gives the `Only you know:` line. A question
     that does not pass is no finding, or kind 14 when it already stands as an open decision.
-11. **An issue that is two tasks.**
+11. **An issue that is two tasks**: a reviewer could judge each of two parts without the other (**Where to split** in `judgement.md`). Size alone is no finding, and neither is a long file list.
 12. **A parent assumption that no longer holds.**
     - **Triggers.** The parent's `## Design` keeps a branch whose assumption the project changes and names no one it
       serves (**Assumptions** in `judgement.md`). Or two or more issues carry the same
@@ -97,6 +94,10 @@ the code. Then read the issues against each other.
     where the cause is.
 14. **An open decision a model can settle.** An open decision with no `Only you know:` line, or whose line names
     something the code or the history answers. Never a ticked one.
+15. **Transitional code, or a breakage nobody closes** (**No transitional code** in `judgement.md`). A body that keeps
+    an old path, an adapter or a shim for a later issue: say which issue leaves which check broken and which closes it.
+    An entry of `breakage.unclosed`: name the issue that has to carry the check in its acceptance criteria. It never
+    asks for two issues to be merged: the earlier one declares the check and the later one closes it.
 
 Leave out what the conventions settle and what a worker can choose without anyone noticing. A finding the writer
 cannot act on is noise.
@@ -105,34 +106,23 @@ cannot act on is noise.
 
 One block per issue with a finding, the parents included, as `#<n>`, and in each block one line per finding:
 which of the kinds above it is, what you saw, and what would fix it, naming paths and symbols, never line numbers.
-A finding that needs the user, kinds 2, 3 and 11, says so. Kinds 13 and 14 need no user.
+A finding that needs the user, kinds 2, 3 and 11, says so. Kinds 13, 14 and 15 need no user.
 
 Then **edges**, one per line as `add #a blocked by #b` or `remove #a blocked by #b`. A parent edge is written
 `add #<P> blocked by #<Q>` or `remove #<P> blocked by #<Q>`.
 
 Then **clear**: the open sub-issues with no finding, by number.
 
-**Every SHA in an issue's `history.stale` appears exactly once**, as a kind 5 finding or as a line
-
-```
-cleared <short sha>: <why it touches nothing #<n> depends on>
-```
-
-A `cleared` line is not a finding. It sits after the issue's number under **clear** when the issue has no finding,
-and in the issue's block otherwise.
-
 ### When the main session sends rewritten bodies
 
 After the writers' fixes, the main session sends you the issues it rewrote. Read them again, with the issues next to
 them, and return the same shape for those issues and for any other issue the rewrites reach. Keep what you read
-before. A finding you raised that the rewrite fixed is gone from the return, with one exception: a kind 5 finding on
-a stale commit comes back as a `cleared` line, such as `cleared 64b8c56: the body is redrawn against it`. Every stale
-SHA of each issue this return covers appears exactly once here too, as a finding or a `cleared` line.
+before. A finding you raised that the rewrite fixed is gone from the return.
 
 **In this second return, every finding line starts with a tag**, `exact` or `design`, and then the kind as above.
 An `exact` finding is a pure text fix, one string for another. The writer applies it, and the main session closes it
 in this run by checking the writer's body against your strings. A `design` finding stays open, and the next run takes
-it up. Edges stay in the edges list, untagged, and so are `cleared` lines. The first return carries no tags.
+it up. Edges stay in the edges list, untagged. The first return carries no tags.
 
 An `exact` finding names its section by its `## ` heading, which is a pointer for the writer and a human only. Then it
 gives the string to replace on a line `old: ` and the string to put in on a line `new: `, each on a line of its own.
@@ -158,7 +148,7 @@ it in no quotes and no backticks.
   string, its own included. Otherwise merge them into one finding, or tag them `design`.
 - **The scope.** The fix does not change the design, the file list, a decision or another issue, and does not touch a
   parent's `Base:` line, its `Roadmap:` line or its `## Order`.
-- **The kind.** Kinds 2, 3, 6, 10, 11, 12, 13 and 14 are always `design`.
+- **The kind.** Kinds 2, 3, 6, 10, 11, 12, 13, 14 and 15 are always `design`.
 
 **When in doubt, tag it `design`.** The main session checks an `exact` fix only against your two strings, and no
 reviewer reads it again, so a wrong `exact` tag lets a wrong fix through without a review.

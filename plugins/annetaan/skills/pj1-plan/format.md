@@ -17,7 +17,7 @@ in `state.md`, and what the skills agree on between them is in `between-skills.m
 | The run order | the numbered list under the parent's **`## Order`** (see **The run order**). |
 | An order between projects | a native **blocked by** relationship between the two parents (see **Projects**). |
 | The initiative's roadmap entry | the **`Roadmap:`** line of one parent, and that project's **roadmap task** (see **The parent issue body** and **The roadmap task**) |
-| A task that can be implemented straight from its body | the **`ready`** label |
+| A task whose body is drawn and whose decisions are settled | the **`ready`** label |
 | Something `pj4-running` stopped on | the **`blocker`** label |
 
 ### Projects
@@ -25,19 +25,15 @@ in `state.md`, and what the skills agree on between them is in `between-skills.m
 One request to `pj1-plan`, usually one initiative, can become several projects, `PJ1, PJ2, …` while `pj1-plan` plans them, each a parent issue of its own.
 `pj2-issues` numbers the tasks of one project `T1…Tn`. Every project from one request is made from the same branch.
 
-**A project holds at most 10 tasks.** Like the file limits, it is a rule of the cut. `pj1-plan` cuts the request so
-that each project is estimated at 7 to 8 tasks, and never more than ten. When `pj2-issues` or `pj3-doctor` later takes
-a project past ten, it stays one project, and nobody asks whether to split it.
-
-**A request becomes several projects for two reasons only.** It does not fit in 10 tasks, or the projects it becomes
-can run in parallel. Work that can only go one way, each part waiting on the one before it, stays one project: a cut
-there runs nothing in parallel, and it costs a pull request into `<from>` and a merge to wait for before the next
-project can even be split into tasks. A chain past 10 tasks is cut only where a merge into `<from>` is worth
-something: the part before the cut is of value on its own, or a project outside the chain can start once that part is
-merged.
+**A request becomes several projects for three reasons only.** The split raises review accuracy (a reviewer can judge
+each project on its own, **Where to split** in `judgement.md`), the projects can run in parallel, or a part is worth
+landing in `<from>` first, because it is of value on its own or because another project waits on it. **Size alone is
+never a reason**, and no count of tasks is a limit. Work that can only go one way, each part waiting on the one before
+it, stays one project unless one of those reasons holds: a cut there runs nothing in parallel, and it costs a pull
+request into `<from>` and a merge to wait for before the next project can even be split into tasks.
 
 **A request that is a roadmap entry leaves the roadmap through one project, the last of its stages.** `pj1-plan`
-picks it among the projects of the last stage: the one with the largest estimate, then the lowest PJ id. With several
+picks it among the projects of the last stage: the one with the lowest PJ id. With several
 projects in the last stage, the entry may leave `<from>` before a sibling merges. That is accepted.
 
 **Project P waits on project Q when parent P is blocked by parent Q.** That relationship is the only record of it.
@@ -163,7 +159,8 @@ issue's title and whether it is open or closed, so the list shows the progress w
 - **`pj2-issues` writes it when it files the sub-issues, and `pj3-doctor` rewrites it** from
   `project.sh <P> --order`, whose `list` keeps the human's order wherever the blockers allow it. The closed issues
   come first, then the open ones. An issue closed as not planned leaves the list.
-- **`pj4-running` never writes it.** A closed issue shows as closed where it stands.
+- **`pj4-running` rewrites it only after a detail pass changed the edges**, through `project.sh <P> --order-body`. A
+  closed issue shows as closed where it stands.
 
 `project.sh <P>` reads the list as `parent.order` and checks it as `parent.orderCheck`
 (`state.md`, **Reading a project**). An issue missing from the list, such as a stub filed during a run, waits for
@@ -203,11 +200,15 @@ parent body keeps it too. The lines above `## Goal` belong to the main session, 
 
 <optional: see **Shared state and model decisions**>
 
+### Left broken
+
+<optional: see **Declared breakage**>
+
 ## Acceptance criteria
 
 - <what has to hold for this task to be done, with a backticked anchor: a test name, a command, or a file or symbol
   whose state is checked. One criterion per user flow the task touches and per reader in `### Shared state`. A bug fix
-  with a cheap test path names the test that fails first>
+  with a cheap test path names the test that fails first. A task that closes a declared breakage carries its check>
 
 ## Decisions
 
@@ -228,6 +229,9 @@ Only you know: <the thing only a human can answer>
 ```
 
 A body has to meet the bar for `ready` (`state.md`, **When an issue is ready**).
+
+`pj4-running`'s detail pass may redraw the body before the issue runs, against the code as it then stands. `## Goal` and
+every existing decision stay as they are, and it may append one decision when only the user can settle what it found.
 
 ### The file list
 
@@ -257,12 +261,8 @@ A body has to meet the bar for `ready` (`state.md`, **When an issue is ready**).
   allowed. The list ends at the first line that is neither a bullet nor indented.
 - Prose after the list is optional.
 
-**The size limits count every file in the list, tests included, and they belong to the split.** The split aims at
-30 files at most per task, and the issue writer accepts up to 50 when the code turns out to need more. The count is a
-guard, not the reason to cut: the split cuts where the design gives it a seam and where a reviewer can read one pull
-request in one sitting, so a rename that reaches many files stays one task. They are planning rules, not conditions
-on the task. When `pj3-doctor` or the implementation later takes a file list past 50, the task stays one task, one
-sub-issue and one pull request, and nobody asks whether to split it.
+**The list is not bounded by size.** A task holds what is coupled in code (**Where to split** in `judgement.md`), so a
+rename that reaches many files stays one task.
 
 ### Shared state and model decisions
 
@@ -275,8 +275,32 @@ Both are optional subsections at the end of `## Design`, after the file list and
   and the evidence.
 - **A human overturns an entry** with a comment on the issue. `pj3-doctor` has the writer work the comment in and
   remove the entry. On an issue that carries `ready`, the user also takes `ready` off, so that the next step is
-  `pj3-doctor` and not `pj4-running`, which hands the worker the body and never reads comments.
+  `pj3-doctor` and not `pj4-running`, which reads the body and never the comments.
 - Backticked names in these subsections are not looked up by `--check`.
+- `### Left broken` is the third optional subsection (see **Declared breakage**).
+
+### Declared breakage
+
+A task that a reviewer can judge alone may still leave a check of the repository failing on the project's base
+branch until a later task of the same project closes it (**No transitional code** in `judgement.md`). The task
+declares it as the last subsection of `## Design`:
+
+```markdown
+### Left broken
+
+- `<check>`: <what fails once this task is merged into the base branch, and why>
+```
+
+- **The check** is the first backticked span of the bullet. It is one command, run from the repository root, that
+  exits 0 when the check passes. It is compared as written.
+- **The closer** is a sub-issue of the same project whose transitive `blockedBy` holds the breaker, that is open or
+  closed as completed, and whose `## Acceptance criteria` has a bullet carrying the same backticked span.
+- **`project.sh`** reports each entry in `parent.breakage` with its closers and its state, and `--check` fails with
+  `breakage.unclosed` for an entry no closer carries (`state.md`, **Reading a project**).
+- **A check the base branch requires for a merge cannot be declared.** GitHub refuses the merge, and `run.sh merge`
+  never uses `--admin`, so the tasks are one task.
+- **`pj4-running` runs every declared check** in the project's worktree before it opens the project's pull request
+  (`pj4-running/project-pr.md`, **The declared checks**).
 
 ### The title
 
@@ -292,7 +316,8 @@ read `Add retry settings (0/2)`, then `Add retry settings (1/2)`, then `Add retr
 - **Nobody writes the count by hand.** A writer returns a title without it. `project.sh` derives the title an issue
   should carry as `wantedTitle` (`state.md`, **Reading a project**), and the skills bring the titles in line with it
   (`between-skills.md`, **Titles**).
-- Ticking a box on GitHub leaves the title as it was until the next `pj3-doctor` run.
+- Ticking a box on GitHub leaves the title as it was until the next `pj3-doctor` run. `pj4-running` also writes the
+  count, when it appends a decision to an issue and stops.
 - A parent's title carries no count.
 
 ### Decisions
@@ -314,6 +339,7 @@ reason.
   issue. `pj3-doctor` has the writer work either into the body.
 - A line starting with `Decided:` may follow the options, with the reason in one or two sentences. A human may write
   it, and a writer that redraws the body keeps it.
+- A decision `pj4-running` appends is numbered after the highest `D<n>`, with no box checked.
 - `D<n>` is never renumbered, even when a decision is dropped. Elsewhere a decision is referred to as `#<issue> D<n>`.
 
 ```markdown
@@ -387,7 +413,6 @@ project**), and reads more than one such issue as no task, which the reviewer ra
 - **`pj2-issues` leaves it out** when the roadmap at `origin/<from>` has no file, or has no entry with the heading.
   When the entry leaves by another hand after the line was filed, `--check` fails on it, and a human closes the task
   as not planned.
-- **It counts toward the limits** of 7 to 8 tasks and 10.
 
 ### What the lint checks
 
@@ -402,11 +427,12 @@ project**), and reads more than one such issue as no task, which the reviewer ra
 | `file-entry` | an entry has no kind or no description |
 | `no-symbols` | a `changed` entry other than the roadmap file's names no symbol |
 | `criteria` | there is no acceptance criterion, or a criterion has no backticked anchor |
+| `breakage-entry` | `### Left broken` has no bullet, or a bullet has no backticked check |
 | `decision-shape` | a decision does not have 2 to 4 options, or does not have exactly one `(recommended)` |
 | `decisions-open` | a decision is open |
 | `decisions-contradictory` | a decision is contradictory |
 
-The lint does not look at `Only you know:` or at the two subsections. The main sessions and the project reviewer do.
+The lint does not look at `Only you know:`, at `### Shared state` or at `### Model decisions`. The main sessions and the project reviewer do.
 
 ## Fixed tokens
 
@@ -414,7 +440,7 @@ These stay in English whatever language the repository uses, because the skills 
 
 - the section headings of both bodies, and `### D<n>.`
 - `(recommended)`, `Decided:`, `Only you know:`, `None.` and `To be drawn.`
-- `### Model decisions` and `### Shared state`
+- `### Model decisions`, `### Shared state` and `### Left broken`
 - the kinds in the file list: `added`, `changed` and `deleted`
 - the decision count ` (<settled>/<total>)` at the end of a sub-issue title (see **The title**)
 - the markers (`between-skills.md`, **Comments**)

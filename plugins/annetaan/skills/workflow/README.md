@@ -8,7 +8,7 @@ run. A standalone run works in a worktree of its own under `.claude/worktrees/`,
 and may be dirty. It always ends in a pull request.
 
 workflow is the plugin's core skill for one implementation. You run it yourself for a change that fits one pull
-request. For larger work, pj4-running runs it once per task of a project (see [Driven from an issue](#driven-from-an-issue) and
+request. For larger work, pj4-running runs it once per sub-issue of a project (see [Driven from an issue](#driven-from-an-issue) and
 [How the skills fit together](../../README.md#how-the-skills-fit-together)).
 
 ## Install
@@ -20,7 +20,7 @@ request. For larger work, pj4-running runs it once per task of a project (see [D
 
 ## Use it
 
-Name the skill, or invoke `/annetaan:workflow`. It never starts on its own. You name it, pj4-running runs it for one task of a project, or you ask it to resolve the conflicts of a pull request (see [Conflicts](#conflicts)), because it spawns
+Name the skill, or invoke `/annetaan:workflow`. It never starts on its own. You name it, pj4-running runs it for one sub-issue of a project, or you ask it to resolve the conflicts of a pull request (see [Conflicts](#conflicts)), because it spawns
 several sessions and adds commits.
 
 ```
@@ -46,7 +46,7 @@ gone stale. A request for a minimal change, such as an urgent fix, skips the rev
 nothing to memory. When Fable cannot start, because of the weekly limit for example, the review is skipped and the
 approval message says so.
 
-There is one approval point. You get the design summary and the **plan**, an ordered list of small tasks, and one
+There is one approval point. You get the design summary and the **plan**, an ordered list of tasks, and one
 question: proceed with this design and plan? The open questions come first, on every run: the design's own, and the
 design review's points that turn on something only you know, marked `(from the design review)`. Each says what only you
 know. The approval also shows the model decisions, and "change something first" overturns any of them.
@@ -99,20 +99,24 @@ session, folded together, capped at fifteen.
 
 ## Driven from an issue
 
-pj4-running works through a project's tasks one at a time, one sub-issue each, and runs each one through this skill. That run has no
-design session, no approval and no questions. The issue's text is the approved design, and an issue only gets that
-far once it can be implemented as it stands. The issue becomes one task with its review rounds, so no integration
-review runs.
+pj4-running works through a project's sub-issues one at a time and runs each one through this skill. The issue's text
+is the approved design in its goal, its boundary and its decisions you ticked. A design session first **details the
+issue against the code on the project's base branch**, which earlier issues have changed since the issue was drawn,
+and it may redraw the issue's body and the order of the issues left. It stays for the whole run. That run has no design
+review, no approval and no questions. The detail becomes a plan of one or more tasks, each one reviewed commit, and an
+integration review follows when the plan has more than one. When only you can settle what the detail found, the run
+adds that decision to the issue, stops, and leaves the box for you to tick.
 
 The pull request body is `log.md` under a head of `Implements` and `Part of`. The run pushes and opens the pull
 request as a draft against the project's base branch. pj4-running merges it.
 
 All of it happens in the worktree pj4-running made for the project, so your own working tree is left alone.
 
-A stop before the task is committed pushes nothing. pj4-running saves the work to `stopped.diff` in the run's work
-report and cleans the worktree. The next run redoes it. A stop once the task commit exists can only come during the
+A stop before every commit of the plan has passed review pushes nothing. pj4-running saves everything since the start
+point, commits included, to `stopped.diff` in the run's work report and puts the worktree back on the start point. The
+next run redoes the issue. A stop once the last commit and its integration review are done can only come during the
 finish step, so the run finishes it: the report, the push and the draft pull request. A pull request exists only for
-a task commit that passed review. The shape of the issues is in [format.md](../pj1-plan/format.md), and the shape
+commits that passed review. The shape of the issues is in [format.md](../pj1-plan/format.md), and the shape
 of the pull requests in [between-skills.md](../pj1-plan/between-skills.md).
 
 Once every sub-issue of a project is closed, pj4-running merges the branch the project came from into the project's
@@ -218,7 +222,7 @@ screenshots it could not attach.
 | `judgement.md` | the rules every role of workflow and the pj skills reads. It opens with a table that maps each section to the roles that apply it, and holds what a human is asked, model decisions, experiments, assumptions, root cause, evidence, removing before adding, designing as if always required, reader load, what two failed fixes share, and turning a repeated lesson into a check |
 | `breaking-changes.md` | the check that settles whether the repository accepts breaking changes, for the standalone run and pj1-plan |
 | `from-pr.md` | resolving the conflicts of a pull request that is already open |
-| `from-issue.md` | one sub-issue as one task, for pj4-running |
+| `from-issue.md` | one sub-issue, detailed against the code and run as a plan of one or more commits, for pj4-running |
 | `from-sync.md` | a merge of the source branch into a project's base branch that stopped on conflicts, for pj4-running |
 | `merge-task.md` | the merge task, which resolves conflicts under review, for the standalone finish, from-pr and from-sync |
 | `worktree.md` | the start check and the run's worktree, for the standalone run and from-pr |

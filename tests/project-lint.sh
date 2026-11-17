@@ -17,7 +17,8 @@ fail() { echo "FAIL: $*" >&2; exit 1; }
 
 # body <box1> <box2> <extra> writes a body with two decisions. Each carries an `Only you know:` line before its
 # options. <box1> and <box2> are the mark in the box of each decision's recommended option, `x` or a space.
-# <extra> is appended to the second option of the first decision.
+# <extra> is appended to the second option of the first decision. <broken> is appended to ## Design after
+# ### Model decisions.
 body() {
   cat <<EOF
 ## Goal
@@ -39,6 +40,7 @@ Sign-out stops emptying what the page fetched once.
 ### Model decisions
 
 - Narrow the clear instead of refetching on a miss. The cause is the wide clear (\`src/session.ts\` \`signOut\`).
+${4:-}
 
 ## Acceptance criteria
 
@@ -104,3 +106,23 @@ case "$got" in
   *) fail "two (recommended) in one decision printed $got, wanted decision-shape" ;;
 esac
 echo "ok: two (recommended) in one decision still fail decision-shape"
+
+# Case 4: a ### Left broken subsection with a backticked check passes the lint.
+body x x "" '
+### Left broken
+
+- `npm test -- signin`: fails until the next task moves the callers' >"$TMP/broken.md"
+got="$(ok "$TMP/broken.md")"
+[ "$got" = "True" ] || fail "a body with ### Left broken printed ok $got: $(lint "$TMP/broken.md")"
+got="$(bash "$SCRIPT" --lint - <"$TMP/broken.md" | python3 -c "import json, sys; print(json.load(sys.stdin)['ok'])")"
+[ "$got" = "True" ] || fail "the same body from standard input printed ok $got"
+echo "ok: a body with ### Left broken passes the lint"
+
+# Case 5: a bullet with no backticked check fails breakage-entry.
+body x x "" '
+### Left broken
+
+- the signin tests fail until the next task' >"$TMP/nocheck.md"
+got="$(reasons "$TMP/nocheck.md")"
+[ "$got" = '["breakage-entry"]' ] || fail "a Left broken bullet with no check printed $got, wanted [\"breakage-entry\"]"
+echo "ok: a Left broken bullet with no backticked check fails breakage-entry"

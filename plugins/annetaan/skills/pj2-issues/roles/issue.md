@@ -37,7 +37,10 @@ the other tasks at the same time. Stay inside yours.
    file in its own entry, or leave it out of backticks.
    The file list reaches the documents and examples that state the old shape (**As if it was always required**). The
    task draws no code for an input nobody sends (**Remove before adding**), and a new layer names its second user
-   (**Reader load**).
+   (**Reader load**), and no code that exists only to keep the tests green until a later task (**No transitional
+   code**). When the split line says `leaves broken`, the body ends `## Design` with `### Left broken`, one bullet per
+   check (`format.md`, **Declared breakage**). When the split says another task leaves a check for yours to close, an
+   acceptance criterion carries that check in backticks, written exactly as the split gives it.
    "Exist" means at the tip of the base branch once every task of this project your task is blocked by has merged.
    The base branch is cut from `<from>` later, so the code step 1 reads is where it starts. The projects in
    `Waits on:` are already merged into `<from>`, so their code is in what step 1 reads. A file a blocker lists as
@@ -56,10 +59,10 @@ the other tasks at the same time. Stay inside yours.
    Every acceptance criterion carries a backticked anchor: a test name, a command, or a file or symbol whose state
    is checked. **Write the design for the recommended option of every decision, and leave nothing in it that
    another option would make untrue.** What another option changes goes under that option's box (`format.md`,
-   **Decisions**). The user decides by ticking a box on GitHub and nobody rewrites the body after that, so the
-   design and the lines under the ticked box together are what the worker builds.
-   **The bar: a worker who reads only this body and the code finds nothing left to design, whichever box is
-   ticked.**
+   **Decisions**). The user decides by ticking a box on GitHub, and a later redraw keeps every decision as it is
+   ticked, so the design and the lines under the ticked box together are what the worker builds.
+   **The bar is complete for its day: a worker who reads this body and today's code finds nothing left to design,
+   whichever box is ticked.**
 3. **Pick out what a human has to decide.** A decision belongs in the issue only when it passes **What a human is
    asked** in `judgement.md`: the code and the history cannot answer it, the answers lead to different code, and you
    can write the line `Only you know: <that thing>`. Put that line on its own before the options. For each one, give
@@ -70,8 +73,7 @@ the other tasks at the same time. Stay inside yours.
    What the repository's conventions settle, or what nobody would notice, gets nothing. A list of ten decisions gets
    skimmed. Three that matter get answered.
 5. **Lint the body** with the `project.sh` path from the prompt, and fix it until the only reason left is
-   `decisions-open`, or none. The lint does not count files. Keep the file list to the size limits in `format.md`
-   yourself: 50 files at most. When the same lint code is still there after two rewrites, apply **After two failed
+   `decisions-open`, or none. When the same lint code is still there after two rewrites, apply **After two failed
    fixes** before the third: write one sentence on what both rewrites took for granted (for example, that the code
    is about the file list's format), and test it against `format.md`'s description of that code or by linting a
    minimal body holding only the offending line. When the false assumption belongs to the split or the parent,
@@ -103,8 +105,8 @@ roadmap task**. The parent body in the prompt holds that line with the path and 
 ### When the split does not hold
 
 Reading the code may show that your task cannot be done as the split cut it. It needs something no task before it
-makes, it collides with another task in the same files with no order between them, it names more than 50 files, it
-cannot become implementable from its body without designing another task's part, it is two tasks, or it needs
+makes, it collides with another task in the same files with no order between them, it is coupled in code to another task, so neither can be reviewed alone, it
+cannot become implementable from its body without designing another task's part, it is two tasks, it passes only with a shim for a later task and no check can be declared for it, or it needs
 something that neither a merged project nor a task of this project makes. **Say "the split does not hold" instead of
 returning a body**, with what you found in the code and how you would cut it. The
 main session takes it to the planner.
@@ -152,8 +154,7 @@ gh issue view <Q> --json title,body,labels,comments,updatedAt
 
 `<Q>` is each parent in `parent.waitsOn` of the `project.sh <P>` JSON. Their `## Design` holds the boundaries those
 projects define, which this project matches (`format.md`, **The parent issue body**). Read the sibling issues the
-findings name the same way. A marked comment says why `ready` came off, or which stale commits a review cleared
-and why. **A comment with no marker is a human speaking.** An answer written there, or an option line a human added and ticked, is worked into the body.
+findings name the same way. A marked comment says why `ready` came off. **A comment with no marker is a human speaking.** An answer written there, or an option line a human added and ticked, is worked into the body.
 
 **Read the code where `--check` read it.** It fetched both branches it needs. When `baseExists` in the JSON is true,
 read at `origin/<base>`. When it is false, read at `origin/<from>`. The base branch will be cut from there, so count
@@ -166,7 +167,7 @@ Each finding says what is wrong. Fix all of them in one body.
 - **A box ticked to another option than the recommended one, whose lines change the file list or reach past this
   task**: redraw `## Design` and the file list for the ticked option. The ticked option becomes the one the body is
   written for. Keep the boxes as the human ticked them.
-- **A premise failure, or a stale commit the review says touches what the issue depends on**: redraw the body
+- **A premise failure**: redraw the body
   against the code as it is now. Under `premises.mode` `early`, count what the `excusers` list and name. When the
   fault is an excuser's (it adds the name without listing the file or without naming it in its body, or its file list contradicts this one), say so under what you could
   not fix and name the issue. Never drop a correct backtick to silence the check.
@@ -189,6 +190,7 @@ Each finding says what is wrong. Fix all of them in one body.
 - **Kind 13, an assumption elsewhere that the issue breaks**: add or correct the `### Shared state` list and move the
   fix to the cause (**Root cause** in `judgement.md`). When the cause is outside this task, return a stub or name the
   parent.
+- **Kind 15**: drop the transitional code from the design and declare the check under `### Left broken`, or add the check to the acceptance criteria when this issue is the closer the finding names.
 - **Kind 14, an open decision a model can settle**: settle it, remove it from `## Decisions` (its `D<n>` is never
   reused), record it under `### Model decisions`, and mark it `drop` in your one line to the main session. Never touch
   a ticked decision.
@@ -225,7 +227,7 @@ first character after `old: ` or `new: ` to the end of the line, exactly.
   title read from GitHub carries one. Lint the body as drafting step 5 says.
   `decisions-open` is allowed when a decision is still open.
 - **A split**, instead, when the issue is two tasks: each part's title, without the count, and body, part 1 keeping
-  `n`'s number, and how the edges move. **A file list past 30 is no reason to split.** The main session asks the user
+  `n`'s number, and how the edges move. **Return a split only where a reviewer can judge each part on its own** (**Where to split** in `judgement.md`). The main session asks the user
   before anything is filed.
 - **Edges to add or remove**, one per line as `#a blocked by #b`, with `part k` for a new part, only between
   sub-issues of this project. When the project needs another project's work and `baseExists` is false, return
@@ -255,4 +257,4 @@ above.
 - No checkbox outside `## Decisions`. Acceptance criteria are a plain list.
 - Each decision has 2 to 4 options and exactly one `(recommended)`.
 - The fixed tokens from `format.md` stay in English: `Roadmap:`, the headings, `### D<n>.`, `(recommended)`, `Decided:`,
-  `Only you know:`, `### Model decisions`, `### Shared state`, `None.`, `To be drawn.`, `## Order` and the kinds `added`, `changed` and `deleted`.
+  `Only you know:`, `### Model decisions`, `### Shared state`, `### Left broken`, `None.`, `To be drawn.`, `## Order` and the kinds `added`, `changed` and `deleted`.

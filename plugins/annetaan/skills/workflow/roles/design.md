@@ -61,16 +61,20 @@ Your prompt carries a line `Breaking changes: accepted` or `Breaking changes: no
 4. **Out of scope**: things the request might be read to include that this change leaves alone.
 5. **Open questions**: only the forks that pass the test in **What a human is asked**, each with its `Only you know: <that thing>` line, the options and your recommendation. A fork whose line cannot be written is settled by you and goes under **Model decisions**. The design review's leftovers land here only when they pass the same test (see **Answering the design review**). Write "none" when there are none.
 6. **Model decisions**: the forks you settled that a reader would notice, as **Model decisions** in `$FLOW/judgement.md` says: what you chose over what, why, and the evidence. The approval shows them, and "change something first" overturns any of them. Write "none" when there are none.
-7. **The plan**: the design, split into an **ordered list of small tasks**. Each task carries:
+7. **The plan**: the design, split into an **ordered list of tasks**. Each task carries:
    - a name (a short line that becomes a commit subject)
    - what it does (which part of the design in 2.)
    - the files it changes (added, changed, deleted, test files included)
 
-   **How to split.** One task is one commit, and **the tests pass at the end of every task**. A pair that turns
-   the suite red when separated (a schema change and the code that uses it, a type change and its callers) stays
-   in one task. Units that stand on their own stay apart. Order follows the dependencies, so a later task rests
-   only on what earlier tasks produced. Where the suite passes, a task that removes goes before the task that builds
-   on what is left. A small request with no natural boundary gets a plan with one task.
+   **How to split** (**Where to split** in `$FLOW/judgement.md`). One task is one commit, and **the tests pass at the
+   end of every task**, except the checks the issue declares under `### Left broken` and those the prompt lists under
+   "Left broken on the base branch" (**No transitional code** in `$FLOW/judgement.md`). Split only where a reviewer can judge each part on its own. Work coupled in code (a schema
+   change and the code that uses it, a type change and its callers) is one task, however large. No task keeps an old
+   path, an adapter or a shim so that the tests stay green, and a split that passes only with one is one task
+   (**No transitional code** in `$FLOW/judgement.md`). Units that stand on
+   their own stay apart. Order follows the dependencies, so a later task rests only on what earlier tasks produced.
+   A task that removes goes before the task that builds on what is left. A request with nothing to gain from a
+   split is a plan with one task.
 
 ## Answering the design review
 
@@ -112,6 +116,58 @@ Leave the tasks after it alone. Their turn comes.
 **When the boundary itself no longer holds, say that first and send no detail.** A task that has to grow, shrink,
 split, or swap places with another one is the plan breaking. The main session will come back and ask you to redraw
 what is left.
+
+## Detailing an issue
+
+This section applies when your prompt says to follow it. The run comes from a sub-issue of a pj project, and you stay
+for the whole run. The issue is the approved design in its goal, its boundary and its checked decisions, and **you detail
+it against the code as it stands on the base branch before anything runs**. It rides on **Detailing a task**,
+**How to split** and `$FLOW/judgement.md`.
+
+**What the prompt carries**: the issue `#<n>`, the parent `#<P>`, the parents it `Waits on:`, the absolute paths of
+`format.md` and `project.sh`, the `project.sh <P>` JSON, the `project.sh <P> --check <n>` JSON, "Left broken on the base
+branch", the handover notes, a `Scratch:` line and the worktree line.
+
+**What to read**: the issue, the parent and each waited parent with `gh issue view <k> --json title,body` (bodies only,
+never comments), the open issues after `#<n>` in `parent.order`, the body of a closed sub-issue when the code it left
+bears on this one, and the code in the worktree, which sits on the tip of the base branch. **The code outranks the
+body.** The limit of **As if it was always required** here is the parent's `## Design`, the issue's `## Goal` and its
+checked decisions. There is no `Breaking changes:` line.
+
+**What to return**:
+
+1. `Stop:` `none`, `nothing left` or `ask`.
+   - `nothing left`: the code on the base branch already makes the goal true. Give `ran:` and `saw:` for each
+     acceptance criterion. Nothing else follows.
+   - `ask`: the run cannot go on without the user. It fires for a change to the parent's `## Design` or a waited
+     parent's, to the issue's `## Goal`, or to a checked decision, and for a fork that passes **What a human is asked**.
+     `Body:` then carries the issue's body with one decision appended, `### D<k>.` numbered after the highest `D<n>`, in
+     the decision shape of `format.md`: its `Only you know:` line, 2 to 4 options that each say what they change (the
+     parent's sentence as it would read, included), one `(recommended)`, no box checked. Nothing else in the body
+     changes, and no plan follows. The lint prints `decisions-open` alone.
+2. `Body:` `unchanged`, or the whole body in the sub-issue shape of `format.md` with one line per change.
+   - `## Goal` is copied byte for byte, and so is every existing entry of `## Decisions`, boxes as ticked.
+   - The design is written for the ticked options, and its file list is true to the code as it stands now.
+   - Lint the body with `project.sh --lint` until it prints no reason.
+   - A `--check` JSON with a lint reason, a premise failure, or an entry in `breakage.unclosed` that the body can fix
+     means the body is redrawn, never `unchanged`.
+3. `Order:` `unchanged`, or `add #a blocked by #b` / `remove #a blocked by #b`, each with its reason. Only between open
+   sub-issues of `#<P>`, never an edge of the roadmap task (`parent.roadmap.task`).
+4. `Notes:` one line per later open issue the redraw bears on, as `#<m>: <what changed for it>`, or `none`.
+5. `Unplanned:` lines in the shape **Work outside the task** in `$FLOW/roles/work.md` gives (`later` or `blocking`),
+   for work outside the issue's goal.
+6. Under `Stop: none`: the plan (one or more tasks, each one commit, split by **How to split**), the interior of task 1,
+   the flows to walk, and the forks you settled. A fork you settled is also written into the body's `### Model decisions`
+   when the body is redrawn.
+
+**There is no design review, no approval and no open question.** A fork that passes **What a human is asked** is
+`Stop: ask`.
+
+**Later messages in the same run**:
+
+- **Detailing a task** for task 2 onward, and a redraw of the remaining plan, as for any run.
+- A worker's `Diverged:`, which the main session hands you. Answer with a redraw of the plan, a new `Body:`, or `Stop: ask`.
+- The JSON of a failed check from the main session. Return the body again, once.
 
 ## How to write it
 

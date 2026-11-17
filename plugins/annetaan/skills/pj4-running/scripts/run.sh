@@ -9,9 +9,10 @@
 # every sub-issue is closed and the base branch contains it. Writes in git: start and worktree fetch the base branch
 # into origin/<base>, worktree creates and moves the run's worktree, branch creates the issue's branch in <WT>, merge
 # moves <WT> onto the merged base and deletes the local head branch, sync merges origin/<from> into the base in <WT>,
-# ignore --add appends to the clone's info/exclude, and save writes the uncommitted work in <WT> to a file, also during a
-# merge, then resets and cleans <WT>. worktree does the same on its own when <WT> is dirty: it saves the work to
-# <WT>/work-reports/<stamp>-discarded/stopped.diff and discards it, without asking.
+# ignore --add appends to the clone's info/exclude, and save writes everything in <WT> since a start commit, commits and
+# uncommitted work, to a file as one binary diff, then puts <WT> back on that commit and deletes the run's branch.
+# worktree saves the uncommitted work of a dirty <WT> on its own, to <WT>/work-reports/<stamp>-discarded/stopped.diff,
+# and discards it, without asking.
 # It reads the project with ../../pj1-plan/scripts/project.sh, and never parses an issue body itself.
 set -euo pipefail
 
@@ -28,7 +29,8 @@ usage: run.sh start <P>                       check the clone, gh and the reposi
                                               wait for the required checks, merge #<m> into the base branch, close #<k>, delete the head branch
        run.sh sync <P> [--push]               merge origin/<from> into the base branch in the run's worktree and push it; --push pushes a merge committed after a conflict
        run.sh pr <P> --body <file>            open the pull request from the base branch into <from>, once every sub-issue is closed and the base contains <from>
-       run.sh save <P> --to <file>            save the uncommitted work in the run's worktree, also a merge in progress, to <file> as one binary diff (tracked changes plus untracked files), then reset and clean the worktree, keeping ignored files
+       run.sh save <P> --to <file> --since <sha>
+                                              save everything in the run's worktree since <sha>, commits and uncommitted work (tracked changes plus untracked files), to <file> as one binary diff, then put the worktree back on <sha> and delete the run's branch, keeping ignored files
 Every subcommand prints one JSON object with "status" and exits 0. "stop" carries "reason" and "message".
 Exit 1 means a usage error or an unexpected failure.
 USAGE
@@ -58,7 +60,7 @@ case "$1" in
   sync)     [ $# -eq 2 ] || { [ $# -eq 3 ] && [ "$3" = "--push" ]; } || usage ;;
   pr)       [ $# -eq 4 ] && [ "$3" = "--body" ] || usage
             [ -f "$4" ] || die "no such file: $4" ;;
-  save)     [ $# -eq 4 ] && [ "$3" = "--to" ] || usage ;;
+  save)     [ $# -eq 6 ] && [ "$3" = "--to" ] && [ "$5" = "--since" ] || usage ;;
   *)        usage ;;
 esac
 
@@ -546,11 +548,12 @@ def branch():
 # --untracked-files=normal: the user's status.showUntrackedFiles must not hide what add -A stages and clean -fd removes.
 STATUS = ("status", "--porcelain", "--untracked-files=normal")
 
-def save_work(wt, target):
-    """Write the uncommitted work in wt to target as one binary diff, then reset and clean wt. None when wt is clean.
-    Otherwise {file, head, changes, merge, left, errors}: head is the commit the diff applies to, merge is MERGE_HEAD
-    when a merge was in progress and None otherwise, left is what status still shows afterwards, and errors are the
-    failed steps of the discard."""
+def save_work(wt, target, since=None):
+    """Write the uncommitted work in wt to target as one binary diff, then reset and clean wt. With since, the diff
+    holds the commits from since to HEAD too. None when wt is clean (and, with since, no commit follows it).
+    Otherwise {file, head, changes, merge, left, errors}: head is the commit the diff applies to, since or HEAD, merge
+    is MERGE_HEAD when a merge was in progress and None otherwise, left is what status still shows afterwards, and
+    errors are the failed steps of the discard."""
     if not os.path.isdir(os.path.dirname(target)):
         die("no such directory: " + os.path.dirname(target))
     if os.path.lexists(target):
@@ -562,9 +565,9 @@ def save_work(wt, target):
         die("%s is inside %s and git does not ignore it there, so saving it would change the work it saves"
             % (target, wt))
     before = git(wt, *STATUS).splitlines()
-    if not before:
+    if not before and (since is None or int(git(wt, "rev-list", "--count", since + "..HEAD").strip()) == 0):
         return None
-    head = git(wt, "rev-parse", "HEAD").strip()
+    head = since or git(wt, "rev-parse", "HEAD").strip()
     # reset --hard in the discard below clears MERGE_HEAD too.
     r = run("git", "-C", wt, "rev-parse", "--verify", "--quiet", "MERGE_HEAD")
     merge = r.stdout.strip() if r.returncode == 0 else None
@@ -583,7 +586,7 @@ def save_work(wt, target):
     # git writes the file itself, so a binary diff never passes through a text decoder. diff-index is plumbing: it
     # ignores the user's colour, prefix, external diff and textconv settings, which would make the file unappliable.
     for args in (("add", "-A", "--", ".", *excludes),
-                 ("diff-index", "--cached", "--binary", "-p", "HEAD", "--output=" + target)):
+                 ("diff-index", "--cached", "--binary", "-p", head, "--output=" + target)):
         r = run("git", "-C", wt, *args)
         if r.returncode != 0:
             run("git", "-C", wt, "reset")
@@ -596,10 +599,26 @@ def save():
     main, wt = located()
     if listed(main, wt) is not False:
         die("%s is no worktree of this clone. run.sh worktree %d first" % (wt, P))
-    done = save_work(wt, os.path.abspath(ARGS[1]))
+    since = ARGS[3]
+    if run("git", "-C", wt, "merge-base", "--is-ancestor", since + "^{commit}", "HEAD").returncode != 0:
+        die("%s is no commit, or no ancestor of HEAD in %s" % (since, wt))
+    since = git(wt, "rev-parse", since + "^{commit}").strip()
+    commits = int(git(wt, "rev-list", "--count", since + "..HEAD").strip())
+    # The branch is read before the save: reset --hard and the switch below leave HEAD detached.
+    r = run("git", "-C", wt, "symbolic-ref", "--quiet", "--short", "HEAD")
+    branch = r.stdout.strip() if r.returncode == 0 else None
+    done = save_work(wt, os.path.abspath(ARGS[1]), since)
+    errors = done["errors"] if done else []
+    for step, args in (("detach", ("switch", "--detach", since)),
+                       ("branch", ("branch", "-D", branch) if branch else None)):
+        if args is None:
+            continue
+        r = run("git", "-C", wt, *args)
+        if r.returncode != 0:
+            errors.append({"step": step, "message": r.stderr.strip()})
     if done is None:
-        emit(status="clean", worktree=wt)
-    emit(status="saved", worktree=wt, **done)
+        emit(status="clean", worktree=wt, branch=branch, commits=commits, errors=errors)
+    emit(status="saved", worktree=wt, branch=branch, commits=commits, **{**done, "errors": errors})
 
 def merge():
     k, m, comment = int(ARGS[0]), int(ARGS[1]), ARGS[3]

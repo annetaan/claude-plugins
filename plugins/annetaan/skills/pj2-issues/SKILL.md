@@ -171,8 +171,7 @@ Show:
 - the change to the parent body as the `diff -u` above, or "unchanged"
 - the parent's model decisions that the split added or changed, one line each
 - the changes to the parent's edges, each with the planner's reason, or "none"
-- one line saying every task is aimed at 30 files at most, tests included. When the split is past 10 tasks, say that it
-  stays one project (`format.md`, **Projects**)
+- each task's one line: what a reviewer can judge in it without the other tasks (**Where to split** in `judgement.md`)
 - one line on the roadmap: the last task removes the roadmap entry `<heading>` from `<path>`, or the line kept in phase 1
   saying why there is no roadmap task
 - one line saying the parent gets the `doing` label once the sub-issues are filed
@@ -265,7 +264,7 @@ $ISSUES/../pj1-plan/scripts/project.sh --lint "$TMP/T<k>.md"
 ```
 
 Accept a body only when the lint reports no reason, or `decisions-open` alone. Then read it for what the lint cannot
-see: a file list of 8 entries at most (`format.md`, **The file list**), no line numbers, no checkbox outside
+see: no line numbers, no checkbox outside
 `## Decisions`, no dependencies written into the body, lines under every option saying what it changes, an
 `Only you know:` line on every decision, and a `### Shared state` list in a body whose task writes shared state
 (**Assumptions** in `judgement.md`). Send a

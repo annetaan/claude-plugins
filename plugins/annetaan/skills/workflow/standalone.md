@@ -128,6 +128,8 @@ to several tasks, task 1's (d) ends its sessions as usual and phase 5 runs after
 one task, phase 5 is skipped. Once two tasks are committed, phase 5 runs. When a redraw leaves no task to run after
 task 1 is committed, phase 5 runs too, because task 1's (d) has already ended its sessions.
 
+From an issue runs this phase too, with the stop procedure of `from-issue.md` in place of the report to the user, and goes to **Phase 6 from an issue** after it.
+
 Once every task is committed, **review the whole diff once.** A review inside a task cannot see the task boundaries: interfaces that do not line up, a rename done on one side only, work duplicated between tasks.
 
 The target is the working tree against `START` (`git diff <START>` plus untracked files), which is every commit put
