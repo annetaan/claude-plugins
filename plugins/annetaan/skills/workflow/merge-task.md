@@ -33,12 +33,12 @@ Phases 3 and 4 run as written for task 1, with a new implementation session and 
 and the worktree line in every prompt, except for these.
 
 - The phase 3 prompt: "Start point START: `<M>`. Branch: `<into>`. This is a merge in progress. Resolve the
-  conflicts, and `git add` each file you resolve. Never run `git merge --abort`, `git reset` or `git commit`: the
+  conflicts, and `git add` each file you resolve. Write `merge-evidence.md` under the review files. Never run `git merge --abort`, `git reset` or `git commit`: the
   merge state is the task. Follow **Work outside the task** in your role instruction."
 - The review prompt: "This is a merge. `git diff HEAD` also shows everything `<incoming>` brings. Review the
   resolution: each conflicted file against both sides, with `git diff HEAD -- <file>` and
-  `git diff MERGE_HEAD -- <file>`, and any change outside those files. Write round 1 as `merge-round-1.md`." Later
-  rounds are `merge-round-<r>.md`, and the replies `merge-round-<r>-reply.md`.
+  `git diff MERGE_HEAD -- <file>`, and any change outside those files. The evidence is `merge-evidence.md`. Write round 1 as `merge-round-1.md`." Later
+  rounds are `merge-round-<r>.md`, the replies `merge-round-<r>-reply.md`, and the evidence of a reply that changed code `merge-round-<r>-evidence.md`. The acceptance criteria above are commands, so the evidence is those commands and their output, plus the flows the conflicted files take part in.
 - **The commit**, in phase 4 (d): "The merge passed review. Run `git add -A`, then `git commit --no-edit`, which
   records the merge with both parents and the message git prepared. Check that `git status --porcelain` prints
   nothing and that `git rev-parse --verify --quiet MERGE_HEAD` fails, and report back", with the notes for the next

@@ -19,20 +19,21 @@ Otherwise read `breaking-changes.md` and follow it.
 
 ## Phase 1: design
 
-Hand the user's request to the design session as it was written, with the worktree line (see **The worktree line** in SKILL.md).
+Hand the user's request to the design session as it was written, with the worktree line (see **The worktree line** in SKILL.md) and a `Scratch:` line. The scratch directory is `<WT>/work-reports/<stamp>-design`, with `<stamp>` the worktree's name without `wf-`. Create it first with `mkdir -p`.
 
 ```
 Agent(subagent_type: "annetaan:workflow-design", description: "design",
-      prompt: "Read $FLOW/roles/design.md first and follow the role it describes.\n\nThe request:\n<the user's request, verbatim>\n\n<the worktree line>")
+      prompt: "Read $FLOW/roles/design.md first and follow the role it describes.\n\nThe request:\n<the user's request, verbatim>\n\n<the worktree line>\n\nScratch: <WT>/work-reports/<stamp>-design")
 ```
 
-`annetaan:workflow-design` ships with this plugin and is pinned to Fable at medium effort with code changes disabled.
+`annetaan:workflow-design` ships with this plugin and is pinned to Fable at medium effort. It is told never to change the repository and to write only under its `Scratch:` directory, by instruction.
 **When it cannot start** (a weekly limit, a rate limit, the model is unavailable), spawn it again with the same
 prompt and `model: "opus"`. The effort stays medium.
 
 When the design comes back:
 
 - **If feasibility is "no" or "conditional"**, hand that to the user and wait. Do not walk past it.
+- **An open question with no `Only you know:` line goes back.** `SendMessage` the design session to decide it and record it under Model decisions.
 - **Keep the plan.** It is an ordered list of tasks, each with the files it touches. If the plan is missing, use `SendMessage` to make the design session produce it.
 - **The round cap is five per task and it is fixed.** Mention it once at approval. Do not negotiate the number (see **The round cap** in SKILL.md).
 
@@ -51,8 +52,8 @@ Agent(subagent_type: "annetaan:workflow-design-review", description: "design rev
       prompt: "Read $FLOW/roles/design-review.md first and follow the role it describes.\n\nThe request:\n<the user's request, verbatim>\n\nBreaking changes: <accepted | not accepted>\n\nThe design:\n<the full design report>\n\n<the worktree line>")
 ```
 
-`annetaan:workflow-design-review` ships with this plugin and is pinned to Fable at medium effort with code changes
-disabled.
+`annetaan:workflow-design-review` ships with this plugin and is pinned to Fable at medium effort and cannot edit
+files.
 
 **When it cannot start** (a weekly limit, a rate limit, the model is unavailable), skip the review and go on. **Do not
 substitute another agent.** Keep the reason for the approval message.
@@ -65,23 +66,25 @@ When the report comes back, `SendMessage` it to the design session.
 
 The revised report replaces the design and the plan you kept. **The revised design does not go back to the
 reviewer**, and neither does a rework the user asks for at approval, a corrected base included. The design review session ends with its one
-report. Never `SendMessage` it. The points the design session did not take in reach the user as open questions (see
-**The approval dialog**).
+report. Never `SendMessage` it. The points the design session did not settle by evidence reach the user as open questions only
+when they carry an `Only you know:` line (see **The approval dialog**). The rest are under Model decisions.
 
 ### The approval dialog
 
 **Before the approval question, ask the open questions**, on every run. The design's own questions and, when the
-design review ran, the points the design session did not take from it, marked `(from the design review)`, go to the
-user with `AskUserQuestion`. **One call holds four questions at most**, so ask in as many calls as it takes: the
+design review ran, the points that passed the test in `judgement.md` and that the design session left open, marked
+`(from the design review)`, go to the user with `AskUserQuestion`. **One call holds four questions at most**, so ask in as many calls as it takes: the
 design's own first, then the review's, in the order the reviewer ranked them. Send the answers back with
 `SendMessage` so the design session can settle them.
-The approval is one question, so this is where the review's leftovers get decided.
+Each question carries its `Only you know:` line. The approval is one question, so this is where the review's leftovers get decided.
 
 This is the only approval point in the flow. Present the design summary and the plan, then ask **one `AskUserQuestion`**.
 
 **Proceed with this design and plan?** (approve / change something first)
 
 The approval message states:
+
+- the Model decisions, one line each, and that "change something first" overturns any of them
 
 - the name of the new branch, and `base: <base>`
 - the worktree `<WT>`, and that `<MAIN>` is not touched
@@ -91,7 +94,7 @@ The approval message states:
 **You pick the branch name yourself.** Match the naming the repository already uses (`git branch -a`), choose one that `git branch -a` does not list yet, and write it into the approval message, so the user can correct it there. Do not spend a question on it.
 
 **Say what happened to the design review, in one line of the approval message.** When it ran: whether breaking
-changes are accepted, N findings taken in, M decided by you in the open questions above. When it did not run, the
+changes are accepted, N findings taken in, K settled by the design session, M decided by you in the open questions above. When it did not run, the
 reason: Fable could not start, or the request asks for a minimal change.
 
 **When the user corrects the base at approval**, the design was written against the wrong code:
@@ -133,12 +136,12 @@ working tree, so later rounds see them in the same diff.
 
 ```
 Agent(subagent_type: "annetaan:workflow-reviewer", description: "integration review",
-      prompt: "Read $FLOW/roles/review.md first and follow the role it describes.\n\nApproved design and acceptance criteria:\n<the full design>\n\nPlan, with the commit that closed each task:\n<the plan plus the matching `git log --oneline` lines>\n\nReview files: <absolute path of WORKDIR>/review\n\n<the request below>\n\n<the worktree line>")
+      prompt: "Read $FLOW/roles/review.md first and follow the role it describes.\n\nApproved design and acceptance criteria:\n<the full design>\n\nPlan, with the commit that closed each task:\n<the plan plus the matching `git log --oneline` lines>\n\nReview files: <absolute path of WORKDIR>/review\nScratch: <absolute path of WORKDIR>/scratch/review\n\n<the request below>\n\n<the worktree line>")
 ```
 
-> Every task is committed. This is the integration review. The target is `git diff <START>` plus untracked files. Write round 1 as `integration-round-1.md`. The tasks were reviewed one at a time, so look at **the boundaries**: types and contracts between functions that call each other across tasks, names that do not match, duplicated implementations, and acceptance criteria for the whole design that are still unmet.
+> Every task is committed. This is the integration review. The target is `git diff <START>` plus untracked files. Write round 1 as `integration-round-1.md`. The tasks were reviewed one at a time, so look at **the boundaries**: types and contracts between functions that call each other across tasks, names that do not match, duplicated implementations, and acceptance criteria for the whole design that are still unmet. No evidence file exists before round 1, because the tree is clean, so walk the acceptance criteria and the flows of the whole design yourself.
 
-**`changes-requested` starts a new implementation session as well**, with the phase 3 prompt. The progress is every task, the handover notes are everything you have collected, and the request is to
+**`changes-requested` starts a new implementation session as well**, with the phase 3 prompt, its `Scratch:` line included, and each reply that changes code comes with `integration-round-<r>-evidence.md`. The progress is every task, the handover notes are everything you have collected, and the request is to
 answer the integration review. From there the (b), (c) loop is the same as phase 4, with the `integration-round-<r>`
 files, and the cap is the same
 **five rounds**. Neither session gets rebuilt during those rounds. Fixes become **one commit** after approval, with a

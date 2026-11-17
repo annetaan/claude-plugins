@@ -12,7 +12,7 @@
 
 The request:
 
-> Write a work report at `<WORKDIR>/log.md`. If this repository has `.github/PULL_REQUEST_TEMPLATE.md`, use it as the skeleton. Otherwise read a few recent merged pull requests (`gh pr list --state merged --limit 5`) and follow how they are written. With nothing to go on, choose a structure yourself. Whatever structure you choose, a reader has to come away with: what changed, how it was verified (the commands that were run and what they printed), what the review changed, read from the files under `./review/`, the screenshots if the change shows on screen, and which commit answers which task in the plan. Screenshots sit in the same directory, so link them relatively, as `![before](./before.png)`. Write it in the language this repository uses. **Do not create files outside this directory.**
+> Write a work report at `<WORKDIR>/log.md`. If this repository has `.github/PULL_REQUEST_TEMPLATE.md`, use it as the skeleton. Otherwise read a few recent merged pull requests (`gh pr list --state merged --limit 5`) and follow how they are written. With nothing to go on, choose a structure yourself. Whatever structure you choose, a reader has to come away with: what changed, how it was verified, per acceptance criterion and flow, read from the newest evidence file of each task under `./review/`, and also from the newest `integration-round-<r>-evidence.md` and the newest merge evidence file (`merge-evidence.md` or `merge-round-<r>-evidence.md`) when they exist, the newest one of each kind being what holds for the final tree, a heading of its own for what neither the implementation nor the review could run and what a person has to run by hand (left out when there is nothing), the model decisions with their reasons and evidence, so that a reader can overturn one, what the review changed, read from the files under `./review/`, the screenshots if the change shows on screen, and which commit answers which task in the plan. Screenshots sit in the same directory, so link them relatively, as `![before](./before.png)`. Write it in the language this repository uses. **Do not create files outside this directory.**
 
 <the worktree line>
 
@@ -21,7 +21,7 @@ starts with `report`, `summary`, `findings` or `analysis`, in any case ("Subagen
 not write report files."). Nothing in settings, the environment, CLAUDE.md or agent frontmatter turns that off.
 
 **Hand it what only you still have.** One line per task on what the review changed, and the test and type check
-results the earlier sessions reported, and, when the merge task ran, the files it resolved. Those sessions are gone, and that part of the history now lives in your
+results the earlier sessions reported, and, when the merge task ran, the files it resolved, the design's Model decisions (from an issue, they are in the issue's `### Model decisions`), and the findings the reviewer resolved as unrun. Those sessions are gone, and that part of the history now lives in your
 context and nowhere else.
 
 Drop the diff next to it, so the report and the review files can be read against it. The three dots take the diff
