@@ -15,6 +15,7 @@
 # --next reads only too: it names what to run next on the project, with a fingerprint of the state it was read from.
 # It also derives the title a sub-issue should carry, with its decision count (wantedTitle).
 # --order-body prints the parent's body as GitHub has it, with its ## Order list replaced by the one --order writes.
+# --same-words tells whether two bodies differ in backticks and whitespace only, and touches neither GitHub nor git.
 # --roadmap checks the repository's roadmap file against the format in ../format.md, in the working tree or at a ref.
 # It is the only place that parses the roadmap file.
 set -euo pipefail
@@ -29,6 +30,7 @@ usage: project.sh [-R <owner/repo>] <parent>               the whole project, as
        project.sh [-R <owner/repo>] <parent> --check <n>   whether sub-issue <n> can be implemented from its body now
        project.sh [-R <owner/repo>] <parent> --order-body  the parent body with its ## Order list replaced, as text
        project.sh --lint <file|->                          lint one sub-issue body, read from a file or standard input
+       project.sh --same-words <before> <after>            whether two bodies differ in backticks and whitespace only
        project.sh --roadmap [<ref>]                        check the roadmap file, in the work tree or at <ref>, as JSON
   -R <owner/repo>   read another repository (default: the repository of the current directory)
 --order exits non-zero and names the cycle when the blocked-by relationships have one,
@@ -39,6 +41,9 @@ usage: project.sh [-R <owner/repo>] <parent>               the whole project, as
 --order-body prints the parent body as GitHub has it now, with the lines under ## Order replaced by the list --order
         writes. It fails like --order when the blocked-by relationships have a cycle.
 --lint touches neither GitHub nor git and always exits 0.
+--same-words touches neither GitHub nor git and always exits 0 on two readable files, printing {"ok", "lint"}: ok is
+        true when the two bodies have the same words once backticks are gone and whitespace is one space, and lint is
+        the lint of <after>.
 --roadmap runs inside a work tree, reads no parent and touches no GitHub, and always exits 0 on a readable roadmap,
         printing {"ok", "files", "path", "entries", "reasons"}. It dies outside a work tree and on a ref git cannot read.
 USAGE
@@ -46,6 +51,7 @@ USAGE
 }
 
 REPO=""; MODE="project"; PARENT=""; TARGET=""; LINT_FILE=""
+SAME_BEFORE=""; SAME_AFTER=""
 ROADMAP_REF=""
 while [ $# -gt 0 ]; do
   case "$1" in
@@ -55,6 +61,7 @@ while [ $# -gt 0 ]; do
     --next)    MODE="next"; shift ;;
     --check)   [ $# -ge 2 ] || usage; MODE="check"; TARGET="$2"; shift 2 ;;
     --lint)    [ $# -ge 2 ] || usage; MODE="lint"; LINT_FILE="$2"; shift 2 ;;
+    --same-words) [ $# -ge 3 ] || usage; MODE="same-words"; SAME_BEFORE="$2"; SAME_AFTER="$3"; shift 3 ;;
     --roadmap) MODE="roadmap"; shift
                if [ $# -gt 0 ] && [ "${1#-}" = "$1" ]; then ROADMAP_REF="$1"; shift; fi ;;
     -h|--help) usage ;;
@@ -461,6 +468,16 @@ if MODE == "lint":
     print(json.dumps(lint(parse(body)), ensure_ascii=False))
     sys.exit(0)
 
+def same_words(before_file, after_file):
+    def words(text):
+        return " ".join(text.replace("`", "").split())
+    before, after = open(before_file).read(), open(after_file).read()
+    return {"ok": words(before) == words(after), "lint": lint(parse(after))}
+
+if MODE == "same-words":
+    print(json.dumps(same_words(sys.argv[2], sys.argv[3]), ensure_ascii=False))
+    sys.exit(0)
+
 if MODE == "roadmap":
     print(json.dumps(roadmap_read(sys.argv[2]), ensure_ascii=False))
     sys.exit(0)
@@ -857,6 +874,7 @@ def check(n):
             die("cannot fetch %s from origin: %s" % (branch, fetch.stderr.strip()))
     # Before the base exists, it is going to be cut from the tip of <from>.
     ref = "origin/" + (base if base_exists else made_from)
+    history_unknown = run("git", "rev-parse", "--is-shallow-repository").stdout.strip() == "true"
 
     # A path is one in the issue's own file list, a blob at the root of ref, or one in a blocker's file list.
     # Directories are left out on purpose: `scripts` in a package.json entry is a real key and also a root directory.
@@ -910,7 +928,10 @@ def check(n):
                 for sym in ([] if is_document(f["path"]) else symbols(f, paths)):
                     found = exists and run("git", "grep", "-w", "-F", "-q", sym, ref, "--", f["path"]).returncode == 0
                     if not found and not any(sym in tokens[m] for m in namers):
-                        failures.append({"path": f["path"], "symbol": sym, "why": "symbol not found"})
+                        as_word = "(^|[^A-Za-z0-9_])" + sym.replace("$", "[$]") + "([^A-Za-z0-9_]|$)"
+                        held = history_unknown or (exists and run("git", "log", "--format=%H", "-n", "1", "--pickaxe-regex", "-S" + as_word, ref, "--", f["path"]).stdout.strip() != "")
+                        failures.append({"path": f["path"], "symbol": sym,
+                                         "why": "symbol not found" if held else "symbol never in the file"})
                 if roadmap_line and f["path"] == roadmap_line[0]:
                     shown_text = run("git", "show", "%s:%s" % (ref, f["path"]))
                     entries = roadmap_parse(shown_text.stdout)[0] if shown_text.returncode == 0 else []
@@ -963,6 +984,13 @@ if [ "$MODE" = "lint" ]; then
   [ -z "$PARENT" ] || die "--lint takes no parent"
   [ "$LINT_FILE" = "-" ] || [ -f "$LINT_FILE" ] || die "no such file: $LINT_FILE"
   exec python3 -c "$PY" lint "$LINT_FILE"
+fi
+
+if [ "$MODE" = "same-words" ]; then
+  [ -z "$PARENT" ] || die "--same-words takes no parent"
+  [ -f "$SAME_BEFORE" ] || die "no such file: $SAME_BEFORE"
+  [ -f "$SAME_AFTER" ] || die "no such file: $SAME_AFTER"
+  exec python3 -c "$PY" same-words "$SAME_BEFORE" "$SAME_AFTER"
 fi
 
 if [ "$MODE" = "roadmap" ]; then

@@ -277,7 +277,7 @@ option the design does not hold, two issues that disagree on a name, a missing b
 assumption the project changed, a change that breaks what a reader elsewhere relies on, an open decision a model can settle. One
 issue writer per issue with a finding redraws it, and a question only you can answer becomes a new decision to tick.
 The reviewer reads the rewrites again, and a finding left goes back to the writer; the reviewer reads at most five times in a run, and findings left on the fifth go to the next run. The doctor asks you only about a split, two boxes ticked in one decision, and the
-changes before it writes them. Then it rewrites the run order and labels `ready` every issue that came out
+changes before it writes them. A check that fails on the form of a body alone, such as backticks around a name the task adds, the doctor fixes once on the spot and runs again. Then it rewrites the run order and labels `ready` every issue that came out
 clear. While the project's branch does not exist yet, it may also change which projects this one waits on, after
 you approve. It keeps the roadmap task blocked by every issue filed later, so it stays last. Run it once after `pj2-issues`, tick the boxes it lists, and run it again.
 
@@ -293,7 +293,7 @@ person removes it to hand the project over. Each sub-issue gets a branch.
 [workflow](skills/workflow/README.md#driven-from-an-issue) first has a design session detail the issue against the
 code on the project's branch, which the issues before it have changed. It may redraw the issue's body and the order of
 the issues left, and when it finds a decision only you can make, the run adds it to the issue and stops, so you tick
-it. Then the issue runs as one or more commits, each reviewed, with an integration review when there is more than one.
+it. When a redrawn body fails a check on its form alone, the run fixes it on the spot and goes on. Then the issue runs as one or more commits, each reviewed, with an integration review when there is more than one.
 A draft pull request follows, with the work report as its body. Then the merge into the project's branch, by squash where the
 repository allows it. pj4-running then closes the issue itself, because GitHub closes nothing on a merge into a
 branch other than the default. Once every sub-issue is closed, it opens the pull request from the project's branch

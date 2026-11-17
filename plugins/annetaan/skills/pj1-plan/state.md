@@ -16,7 +16,7 @@ a parent's `Base:` and `Roadmap:` lines, of a pull request's head and of the roa
 Every mode that reads a parent fails with `project: #<P> has no Base: line` when the parent body has none, or has
 one that does not name both branches. It also fails with `project: #<P> is blocked by #<X>, which is no project` when
 an issue the parent is blocked by has no `Base:` line, for this parent and for every project a walk of `--order` or
-`--check` follows. `--lint` and `--roadmap` read no parent.
+`--check` follows. `--lint`, `--same-words` and `--roadmap` read no parent.
 
 ```bash
 project.sh <P>               # the whole project, as JSON
@@ -25,6 +25,7 @@ project.sh <P> --order-body  # the parent body with its ## Order list replaced, 
 project.sh <P> --next        # what to run next on the project, and a fingerprint (see What comes next)
 project.sh <P> --check <n>   # whether sub-issue <n>'s body still holds against the code and the project (see Is the body still current?)
 project.sh --lint <file>     # the lint of one body, from a file, or from standard input with -
+project.sh --same-words <before> <after>   # whether the two bodies differ in backticks and whitespace only
 project.sh --roadmap [<ref>] # the roadmap file, in the work tree or at <ref>, checked against the format (see format.md)
 ```
 
@@ -118,6 +119,10 @@ only once it exists, which moves local refs and nothing else, and prints:
  "breakage": {"unclosed": [{"issue", "check"}]}}
 ```
 
+When a name is missing from its file at the ref, `"why"` is `symbol not found` when the file's history held the name,
+which means the code moved, and `symbol never in the file` when it never did: a name the task is going to write, or a
+name of another file. A shallow clone has no history to ask, so it always says `symbol not found`.
+
 The `lint` here is not always the one in `issues[].lint`. It also counts as paths the files at the root of the ref it
 reads and the paths in the file lists of the issue's blockers, so a backticked file name there is no symbol, and it
 can be stricter than `issues[].lint`.
@@ -141,6 +146,11 @@ replaced by `list`: one `1. #<n>` per line, framed by blank lines. A body with n
 and the list before its first `## ` heading outside a code fence, or at the end. The lines above the first heading,
 `Base:` and `Roadmap:`, stay as they are. It fails like `--order` on a cycle.
 Its own read of the body is the re-read that **Writing to GitHub** (`between-skills.md`) asks for.
+
+`--same-words <before> <after>` reads two files, touches neither GitHub nor git, and exits 0 on two readable files. It
+prints `{"ok", "lint"}`. `ok` is true when the two files hold the same words once every backtick is gone and every
+run of whitespace is one space. `lint` is the lint of `<after>`. `between-skills.md` says what it is for, under
+**Format-only fixes**.
 
 ## When a project is merged
 
@@ -218,7 +228,8 @@ at the tip of `origin/<from>` while the base branch does not exist yet, since th
 issue runs.
 
 - **Premises.** Every `changed` and `deleted` path exists, and no `added` path does. Every symbol of a `changed` entry on a code file
-  is still found in its file. A document (`format.md`, **The file list**) is read for its path only. Three modes. `full`: every blocker in the transitive `blockedBy` is closed, and the
+  is still found in its file, and a name that is not found is told by why: `symbol not found` when the file's history
+  held the name, `symbol never in the file` when it never did. A document (`format.md`, **The file list**) is read for its path only. Three modes. `full`: every blocker in the transitive `blockedBy` is closed, and the
   files are read at the ref as they are. `early`: some of those blockers are open (the `excusers`), and the check
   reads their file lists and bodies too. A path an excuser lists as `added` counts as existing, and one it lists as
   `deleted` counts as gone. A symbol missing at the ref counts as present when it is named in the body of an

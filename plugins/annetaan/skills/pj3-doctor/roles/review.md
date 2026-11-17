@@ -44,6 +44,7 @@ the code. Then read the issues against each other.
 4. **A human comment the body does not answer yet**: an answer that is none of the options, a correction, or a
    comment that overturns an entry of `### Model decisions`.
 5. **What `--check` failed on**: each lint code other than `decisions-open` and each premise failure. An entry of `breakage.unclosed` is reported under kind 15, not here.
+   A `symbol never in the file` failure means this issue backticks a name the file has never held: a name the task adds, or a name from another file. The fix is to take the backticks off, or to move the name to its own file's entry.
    For a failure under `premises.mode` `early`, decide which body is wrong, using `excusers`. This issue: a wrong
    name, a backticked file name, or a wrong kind. An excuser: it adds the name without listing the file or naming it,
    or its file list contradicts this one (`an open blocker deletes it`, `adds it too`). That is a kind 7 finding on

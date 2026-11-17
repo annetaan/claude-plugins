@@ -26,8 +26,8 @@ Collapse the `..` in a path to a sibling skill, so that the command text names `
 **Read `$DOCTOR/../pj1-plan/format.md`, `$DOCTOR/../pj1-plan/state.md` and `$DOCTOR/../pj1-plan/between-skills.md`
 before anything else.** `format.md` is the only description of the parent issue, the run order, the sub-issue body,
 the decisions and the relationships. `state.md` is how `project.sh` reads a project and when an issue is ready.
-`between-skills.md` holds the labels, the blockers, the comments and picking the project. Everything below refers to
-them.
+`between-skills.md` holds the labels, the blockers, the comments, picking the project and the format-only fixes.
+Everything below refers to them.
 
 This skill uses these files:
 
@@ -214,7 +214,7 @@ The approval covers this run only (`between-skills.md`, **Principle**).
 
 **`ready` goes on an issue** when it is open and all of these hold:
 
-- the step 7 `--check` has a clear lint, no premise failure (`premises.mode` `none` has none) and no entry in `breakage.unclosed`
+- the step 7 `--check`, run again after a format-only fix when one was made, has a clear lint, no premise failure (`premises.mode` `none` has none) and no entry in `breakage.unclosed`
 - no review finding is left on it: the reviewer's last return lists it as clear
 
 `ready` stays on an issue that still meets this. **`ready` comes off** an issue that had it and no longer meets this.
@@ -314,7 +314,33 @@ the numbers.
    gh issue edit <k> --add-label ready --remove-label blocker
    ```
 
-   **An issue that carries `blocker` loses it in the same command.** A check whose lint or premises fail now, or
+   **When the check fails on `symbol never in the file`, or on a lint reason backticks and whitespace alone clear**,
+   fix the body as `between-skills.md` says under **Format-only fixes**, once, before `ready` goes on. Read the
+   body now. That read is the re-read **Writing to GitHub** asks for.
+
+   ```bash
+   gh issue view <k> --json body --jq .body > "$TMP/<k>.form-before.md"
+   ```
+
+   Read it with Read, and write the fixed body with Write to `$TMP/<k>.form.md`.
+
+   ```bash
+   $DOCTOR/../pj1-plan/scripts/project.sh --same-words "$TMP/<k>.form-before.md" "$TMP/<k>.form.md"
+   ```
+
+   Go on only when `ok` is true and `lint` has no reason. Then write the body and check again.
+
+   ```bash
+   gh issue edit <k> --body-file "$TMP/<k>.form.md"
+   ```
+
+   ```bash
+   $DOCTOR/../pj1-plan/scripts/project.sh <P> --check <k>
+   ```
+
+   A clear check prints `#<k> format fixed`, and `ready` goes on as above.
+
+   **An issue that carries `blocker` loses it in the same command.** A check whose lint or premises still fail, or
    whose `breakage.unclosed` is not empty, leaves `ready` off, and the report names the failures.
 
    **Whoever takes `ready` off leaves a comment** (`between-skills.md`, **Labels**). It starts with
@@ -348,6 +374,7 @@ the numbers.
 - **the model decisions added or changed in this run**, one line each, as `<issue URL>` and the decision. A comment on
   the issue overturns one, and the next run works the comment in. On an issue labelled `ready` in this run, the user
   also takes `ready` off, because `pj4-running` never reads comments
+- the format-only fixes made, by issue
 - the issues filed, the sub-issue and parent edges changed (the roadmap task's edges added among them), the blockers closed, the parents rewritten and the
   titles changed
 - the parent edges dropped before the approval, each with why
@@ -371,7 +398,7 @@ is needs-user too.
 
 - **You decide nothing.** The user decides, the reviewer finds, and the writer writes.
 - **Never ask a task decision in the conversation.** It goes into the issue as a box to tick.
-- **You never write a body yourself**, except the `## Order` list of the parent. Titles you write come from
+- **You never write a body yourself**, except the `## Order` list of the parent and a format-only fix. Titles you write come from
   `wantedTitle` or from a writer.
 - **Each writer writes its own issue only. Only you write to GitHub**, and only after the phase 4 approval. Every
   comment you post starts with `**[pj3-doctor]**`.

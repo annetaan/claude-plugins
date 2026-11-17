@@ -168,6 +168,7 @@ checked decisions. There is no `Breaking changes:` line.
 - **Detailing a task** for task 2 onward, and a redraw of the remaining plan, as for any run.
 - A worker's `Diverged:`, which the main session hands you. Answer with a redraw of the plan, a new `Body:`, or `Stop: ask`.
 - The JSON of a failed check from the main session. Return the body again, once.
+- The lines a format-only fix changed in the body, as old and new, from the main session. No answer is due. Every later `Body:` carries the new lines.
 
 ## How to write it
 

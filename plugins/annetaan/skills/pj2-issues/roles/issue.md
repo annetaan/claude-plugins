@@ -170,7 +170,10 @@ Each finding says what is wrong. Fix all of them in one body.
 - **A premise failure**: redraw the body
   against the code as it is now. Under `premises.mode` `early`, count what the `excusers` list and name. When the
   fault is an excuser's (it adds the name without listing the file or without naming it in its body, or its file list contradicts this one), say so under what you could
-  not fix and name the issue. Never drop a correct backtick to silence the check.
+  not fix and name the issue. A `symbol never in the file` failure names something the file has never held: take the
+  backticks off when the task adds the name, and move it to its own file's entry when it belongs to another file.
+  Never drop a correct backtick to silence a `symbol not found` failure, because the file held that name once, so
+  redraw the entry against the code as it is now.
 - **A `roadmap entry not found` premise failure**: no redraw fixes it, because the entry left the roadmap by another
   hand. Say so under "What you could not fix".
 - **A stub**: draw the full body as in **Drafting an issue**.

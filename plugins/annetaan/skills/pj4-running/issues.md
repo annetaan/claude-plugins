@@ -201,9 +201,24 @@ workflow hands over to this section by name, with the design session's `Body:`, 
 
 5. **Check the issue again.** Run `project.sh <P> --check <k>` and require `lint.ok`, an empty `premises.failures` and an
    empty `breakage.unclosed`. The last list is project-wide, so a redraw that drops a closer's criterion is caught here.
-6. **A failure** in step 1, 3 or 5 goes back to the design session once, with `SendMessage`, carrying the lint reasons,
-   the diff or the failing JSON. It returns a new `Body:` and `Order:`, and the steps run again. A second failure takes
-   the stop `detail`.
+6. **A failure.** A failure that is format-only you fix yourself first, as `between-skills.md` says under
+   **Format-only fixes**: a lint reason in step 1, or `symbol never in the file` or a lint reason in step 5. `<before>`
+   is `$TMP/<k>-redrawn.md` and `<after>` is `$TMP/<k>-form.md`.
+
+   ```bash
+   $RUNNING/../pj1-plan/scripts/project.sh --same-words "$TMP/<k>-redrawn.md" "$TMP/<k>-form.md"
+   ```
+
+   Go on when `ok` is true and `lint` is what step 1 accepts: `decisions-open` only under `Stop: ask`, no reason
+   otherwise. Write the fixed body with Write to `$TMP/<k>-redrawn.md`. A fix in step 1 goes on from step 1. A fix in
+   step 5 runs steps 1, 2 and 5 again, because steps 3 and 4 are already written. Tell the design session the lines
+   that changed, old and new, with `SendMessage`, and do not wait for an answer. **The fix counts against neither
+   return below**, and there is one fix per failure.
+
+   Any other failure in step 1, 3 or 5, and a failure that outlasts the fix, goes back to the design session once, with
+   `SendMessage`, carrying the lint reasons, the diff or the failing JSON. It returns a new `Body:` and `Order:`, and the
+   steps run again. A second failure takes the stop `detail`. A failure in step 3, the edges and `--order`, is never
+   format-only.
 
 Print `#<k> redrawn`. When `#<k>` has an open blocker after step 3 (read `project.sh <P>` again), answer `reordered`.
 Otherwise answer go on.
