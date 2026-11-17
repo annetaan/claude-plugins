@@ -67,7 +67,8 @@ Your prompt carries a line `Breaking changes: accepted` or `Breaking changes: no
    - the files it changes (added, changed, deleted, test files included)
 
    **How to split** (**Where to split** in `$FLOW/judgement.md`). One task is one commit, and **the tests pass at the
-   end of every task**. Split only where a reviewer can judge each part on its own. Work coupled in code (a schema
+   end of every task**, except the checks the issue declares under `### Left broken` and those the prompt lists under
+   "Left broken on the base branch" (**No transitional code** in `$FLOW/judgement.md`). Split only where a reviewer can judge each part on its own. Work coupled in code (a schema
    change and the code that uses it, a type change and its callers) is one task, however large. No task keeps an old
    path, an adapter or a shim so that the tests stay green, and a split that passes only with one is one task
    (**No transitional code** in `$FLOW/judgement.md`). Units that stand on

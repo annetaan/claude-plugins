@@ -387,7 +387,7 @@ section does not name never reads as done.
   origin.
 - **Close an issue or a parent only through `run.sh close` or `run.sh merge`, which refuse one that is not due, and
   close as completed**, or as completed after `nothing-left` in `issues.md`.
-- **Write a sub-issue's body, its edges and the parent's `## Order` only in **A redrawn issue** in `issues.md`, and a
-  sub-issue's title only on a `decision` stop.**
+- **Edit an existing sub-issue's body, the edges between existing sub-issues and the parent's `## Order` only in **A redrawn issue** in `issues.md`, and a
+  sub-issue's title only on a `decision` stop.** The one other write is a stub filed by **Unplanned work** or by a stop, with its `--blocking` edge.
 - An unattended run never calls `AskUserQuestion` and ends with one `unattended:` line.
 - After a context summary, take whether the run is unattended from the `project #<P>` line, `$TMP` from the `tmp` line, and rebuild the run from the progress lines and `project.sh <P>`. Read `issues.md` again when the run is in phases 1 to 4, and `project-pr.md` when it is in **The project's pull request**. A run inside a workflow entry takes **Before workflow runs** again for that entry.

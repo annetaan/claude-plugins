@@ -254,15 +254,14 @@ issue holds an open decision, and the user ticks it first.
    ```
 
 2. **On the stopped issue itself, with `ready` taken off.** Its own body no longer holds: the detail
-   pass could not draw a body that passes the checks, or the code contradicts one of its settled decisions.
+   pass could not draw a body that passes the checks.
 
    ```bash
    gh issue edit <n> --remove-label ready --add-label blocker
    gh issue comment <n> --body-file <file>
    ```
 
-Either way a marked comment on the stopped issue says what diverged, and names the decision as `#<issue> D<n>` when
-there is one.
+Either way a marked comment on the stopped issue says what diverged.
 
 `pj3-doctor` resolves both. A blocker that needs no code of its own is resolved by rewriting the issue in
 question. A stub blocker resolved that way is then closed with a marked comment that points at the rewrite.

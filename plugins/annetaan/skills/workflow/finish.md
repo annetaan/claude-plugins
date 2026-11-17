@@ -21,7 +21,7 @@ starts with `report`, `summary`, `findings` or `analysis`, in any case ("Subagen
 not write report files."). Nothing in settings, the environment, CLAUDE.md or agent frontmatter turns that off.
 
 **Hand it what only you still have.** One line per task on what the review changed, and the test and type check
-results the earlier sessions reported, and, when the merge task ran, the files it resolved, the design's Model decisions (from an issue, they are in the issue's `### Model decisions`), and the findings the reviewer resolved as unrun, and the `check wanted:` lines of the commit reports. Those sessions are gone, and that part of the history now lives in your
+results the earlier sessions reported, and, when the merge task ran, the files it resolved, the design's Model decisions (from an issue, they are the issue's `### Model decisions` plus the forks the design session settled in the detail pass and in later messages), and the findings the reviewer resolved as unrun, and the `check wanted:` lines of the commit reports. Those sessions are gone, and that part of the history now lives in your
 context and nowhere else.
 
 Drop the diff next to it, so the report and the review files can be read against it. The three dots take the diff
