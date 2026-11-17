@@ -68,7 +68,9 @@ Your prompt carries a line `Breaking changes: accepted` or `Breaking changes: no
 
    **How to split** (**Where to split** in `$FLOW/judgement.md`). One task is one commit, and **the tests pass at the
    end of every task**. Split only where a reviewer can judge each part on its own. Work coupled in code (a schema
-   change and the code that uses it, a type change and its callers) is one task, however large. Units that stand on
+   change and the code that uses it, a type change and its callers) is one task, however large. No task keeps an old
+   path, an adapter or a shim so that the tests stay green, and a split that passes only with one is one task
+   (**No transitional code** in `$FLOW/judgement.md`). Units that stand on
    their own stay apart. Order follows the dependencies, so a later task rests only on what earlier tasks produced.
    A task that removes goes before the task that builds on what is left. A request with nothing to gain from a
    split is a plan with one task.

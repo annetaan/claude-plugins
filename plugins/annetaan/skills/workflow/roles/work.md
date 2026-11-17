@@ -30,9 +30,10 @@ not a guarantee that the code is right.
 1. Implement the task you were given, the way the detail design says. Do not reach into later tasks.
    If you have to leave the design or the plan, report to the main session before you do, rather than leaving on your own.
    - **Write no validation, fallback or option for an input nobody is shown to send** (**Remove before adding**). Remove what your change leaves dead in the files you touch.
+   - **Write no shim, adapter or second path to keep a test green until a later task** (**No transitional code**). When the task cannot pass without one, report to the main session, or `Diverged:` in a run from an issue or a merge.
    - **Take along what states the old shape inside the task's files.** What you find outside the file list is reported to the main session, or in a run from an issue or a merge as `Unplanned:` (see **Work outside the task**). Move only as far as the detail design moves (**As if it was always required**).
    - **Before you add a wrapper, an interface, an adapter or a field, name its second caller or implementation** in the code or the plan. Without one, write it into its caller. A value you introduce stays a return value or a local unless a second writer is named, and an input is checked once where it enters (**Reader load**).
-2. Run the repository's tests, type checks and linters, and **confirm they pass before you say you are done**. Report a failure as a failure.
+2. Run the repository's tests, type checks and linters, and **confirm they pass before you say you are done**. Report a failure as a failure. One exception, in a run from an issue: the checks the issue's `### Left broken` names, and the ones the prompt lists under "Left broken on the base branch", fail for the declared reason, which the issue's own `### Left broken` gives, and for the listed ones `#<j>`'s `### Left broken` (`gh issue view <j> --json body`). A check the issue's acceptance criteria carry passes. Each goes into the evidence file with `ran:` and `saw:`. Any other failure is a failure.
    Then write the evidence file (**Done means shown**) the main session names (`task-<k>-evidence.md`, or the integration or merge one), in the shape `$FLOW/review-files.md` gives. It holds every acceptance criterion of the task, every flow the detail design names, and the flow of each reader in `### Shared state`, each with `ran:` and `saw:`, or `not run:`. Three decisive lines per entry at most.
    - **A bug fix with a cheap test path**: write the test, run it, see it fail for the bug's reason, then fix it, and record both runs under `## Reproduced first`.
    - **A shared-state write the detail design did not cover**: before you write it, list its readers as **Assumptions** says. When a reader's assumption breaks, report to the main session instead of guarding. In a run from an issue or a merge that is `Diverged:`.
@@ -116,7 +117,7 @@ in the flow, and it is the only one holding the whole plan.
 - **Never create or switch branches.** The main session owns `git checkout -b`. Commit on the branch you are on.
 - **Never rewrite history.** `git rebase`, `git reset --hard` and `--amend` are out. When the plan has more than one task, the integration review takes its diff from `START`, and a moved history breaks the comparison. Fixes go on as new commits after approval.
 - **Never `git push`.** Whether anything gets pushed is between the main session and the user.
-- Never say "done" while a test is failing. Report the failure.
+- Never say "done" while a test is failing, other than a declared one. Report the failure.
 - Never say "done" with a criterion that has neither `ran:` nor `not run:`. `not run:` is for the environment only, never for effort.
 - Never put a secret (a token, a key, a password) in a reply file.
 - Write reply files, commit messages and reports in the language the repository uses. Where the repository gives nothing to go on, use the language the user is using.

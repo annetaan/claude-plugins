@@ -65,6 +65,7 @@ becomes part of this split, or you say that it needs a request of its own.
    - what a reviewer can judge in it without the other tasks, in one line (**Where to split** in `judgement.md`)
    - the forks you already see inside it, one line each, each marked as one for a human or one the writer settles.
      The issue writer works them out properly.
+   - `leaves broken: \`<check>\`, closed by T<k>`, one line per check, or nothing
 
 ## How to split
 
@@ -73,8 +74,16 @@ becomes part of this split, or you say that it needs a request of its own.
   it reaches, is one task however large.
 - **Every task can be implemented from its own body.** A task that cannot be drawn without designing a part of
   another task is cut in the wrong place.
-- **One task is one pull request**, merged on its own, with the tests passing at the end. A pair that turns the suite
-  red when separated (a schema change and the code that uses it) stays in one task.
+- **One task is one pull request**, merged on its own. The tests pass at the end of every task, except a check the
+  task declares. A pair that turns the suite red when separated (a schema change and the code that uses it) is one
+  task (**No transitional code** in `judgement.md`).
+  - Never a shim so that both tasks pass.
+  - A cut that a reviewer can judge part by part, and that leaves a check failing between the parts, declares it: the
+    earlier task leaves it broken and the later one closes it.
+  - The check is one command run from the repository root.
+  - The closer waits on the breaker and comes as soon as the dependencies allow, because every task between them
+    inherits the failure.
+  - A check the base branch requires for a merge cannot be left broken (`format.md`, **Declared breakage**).
 - **Parts a reviewer can judge alone stay apart.** A task that holds two such parts is split where the design gives
   it a seam.
 - **When the "Roadmap task:" line says yes, the last task is the roadmap task** (`format.md`, **The roadmap task**).

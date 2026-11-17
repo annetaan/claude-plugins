@@ -37,7 +37,10 @@ the other tasks at the same time. Stay inside yours.
    file in its own entry, or leave it out of backticks.
    The file list reaches the documents and examples that state the old shape (**As if it was always required**). The
    task draws no code for an input nobody sends (**Remove before adding**), and a new layer names its second user
-   (**Reader load**).
+   (**Reader load**), and no code that exists only to keep the tests green until a later task (**No transitional
+   code**). When the split line says `leaves broken`, the body ends `## Design` with `### Left broken`, one bullet per
+   check (`format.md`, **Declared breakage**). When the split says another task leaves a check for yours to close, an
+   acceptance criterion carries that check in backticks, written exactly as the split gives it.
    "Exist" means at the tip of the base branch once every task of this project your task is blocked by has merged.
    The base branch is cut from `<from>` later, so the code step 1 reads is where it starts. The projects in
    `Waits on:` are already merged into `<from>`, so their code is in what step 1 reads. A file a blocker lists as
@@ -103,7 +106,7 @@ roadmap task**. The parent body in the prompt holds that line with the path and 
 
 Reading the code may show that your task cannot be done as the split cut it. It needs something no task before it
 makes, it collides with another task in the same files with no order between them, it is coupled in code to another task, so neither can be reviewed alone, it
-cannot become implementable from its body without designing another task's part, it is two tasks, or it needs
+cannot become implementable from its body without designing another task's part, it is two tasks, it passes only with a shim for a later task and no check can be declared for it, or it needs
 something that neither a merged project nor a task of this project makes. **Say "the split does not hold" instead of
 returning a body**, with what you found in the code and how you would cut it. The
 main session takes it to the planner.
@@ -188,6 +191,7 @@ Each finding says what is wrong. Fix all of them in one body.
 - **Kind 13, an assumption elsewhere that the issue breaks**: add or correct the `### Shared state` list and move the
   fix to the cause (**Root cause** in `judgement.md`). When the cause is outside this task, return a stub or name the
   parent.
+- **Kind 15**: drop the transitional code from the design and declare the check under `### Left broken`, or add the check to the acceptance criteria when this issue is the closer the finding names.
 - **Kind 14, an open decision a model can settle**: settle it, remove it from `## Decisions` (its `D<n>` is never
   reused), record it under `### Model decisions`, and mark it `drop` in your one line to the main session. Never touch
   a ticked decision.
@@ -254,4 +258,4 @@ above.
 - No checkbox outside `## Decisions`. Acceptance criteria are a plain list.
 - Each decision has 2 to 4 options and exactly one `(recommended)`.
 - The fixed tokens from `format.md` stay in English: `Roadmap:`, the headings, `### D<n>.`, `(recommended)`, `Decided:`,
-  `Only you know:`, `### Model decisions`, `### Shared state`, `None.`, `To be drawn.`, `## Order` and the kinds `added`, `changed` and `deleted`.
+  `Only you know:`, `### Model decisions`, `### Shared state`, `### Left broken`, `None.`, `To be drawn.`, `## Order` and the kinds `added`, `changed` and `deleted`.

@@ -310,6 +310,7 @@ Every way the run ends comes here: the run order is done, the run stopped, or th
 - how `<from>` came into `<base>`: already in, merged as `<sha>`, or merged as `<sha>` after workflow resolved the
   conflicts in the files it names, or why it did not
 - the project's pull request with its URL, when there is one, and that merging it is the user's job
+- the declared checks and how each came out, and the stub when one was filed
 - the parents closed in this run
 - the projects that can be split now, collected from the `startable` of each close, one line each as
   `/annetaan:pj2-issues <R>` with its title
@@ -346,6 +347,7 @@ An unattended run prints its last line as `between-skills.md` says under **Unatt
 - `start` returned `done` and **The project's pull request** in `project-pr.md` came to `opened` or `exists`.
 - Phase 1's run order was empty, including when `orderCheck` is not ok and no issue has a merged pull request.
 - Phase 2 marked the issue that failed `--check` and stopped.
+- **The declared checks** in `project-pr.md` filed a stub for a check that failed.
 - Phase 5 step 1 stopped because a human had removed `ready`.
 - Phase 5 step 2 marked the issue that failed `--check` and stopped.
 - **When workflow returns** in `issues.md` got `stopped` with the reason `blocking` or `diverged`, and either no `<WORKDIR>` was

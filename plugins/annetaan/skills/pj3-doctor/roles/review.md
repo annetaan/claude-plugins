@@ -43,7 +43,7 @@ the code. Then read the issues against each other.
 3. **A ticked option the code rules out.**
 4. **A human comment the body does not answer yet**: an answer that is none of the options, a correction, or a
    comment that overturns an entry of `### Model decisions`.
-5. **What `--check` failed on**: each lint code other than `decisions-open` and each premise failure. For each stale
+5. **What `--check` failed on**: each lint code other than `decisions-open` and each premise failure. An entry of `breakage.unclosed` is reported under kind 15, not here. For each stale
    commit, read its diff with `git show <sha>` against the body and say whether it touches what the issue depends on:
    a path, symbol or behaviour its `## Design` relies on. One that does is a finding. One that does not gets a
    `cleared` line (see **What to return**).
@@ -97,6 +97,10 @@ the code. Then read the issues against each other.
     where the cause is.
 14. **An open decision a model can settle.** An open decision with no `Only you know:` line, or whose line names
     something the code or the history answers. Never a ticked one.
+15. **Transitional code, or a breakage nobody closes** (**No transitional code** in `judgement.md`). A body that keeps
+    an old path, an adapter or a shim for a later issue: say which issue leaves which check broken and which closes it.
+    An entry of `breakage.unclosed`: name the issue that has to carry the check in its acceptance criteria. It never
+    asks for two issues to be merged: the earlier one declares the check and the later one closes it.
 
 Leave out what the conventions settle and what a worker can choose without anyone noticing. A finding the writer
 cannot act on is noise.
@@ -105,7 +109,7 @@ cannot act on is noise.
 
 One block per issue with a finding, the parents included, as `#<n>`, and in each block one line per finding:
 which of the kinds above it is, what you saw, and what would fix it, naming paths and symbols, never line numbers.
-A finding that needs the user, kinds 2, 3 and 11, says so. Kinds 13 and 14 need no user.
+A finding that needs the user, kinds 2, 3 and 11, says so. Kinds 13, 14 and 15 need no user.
 
 Then **edges**, one per line as `add #a blocked by #b` or `remove #a blocked by #b`. A parent edge is written
 `add #<P> blocked by #<Q>` or `remove #<P> blocked by #<Q>`.
@@ -158,7 +162,7 @@ it in no quotes and no backticks.
   string, its own included. Otherwise merge them into one finding, or tag them `design`.
 - **The scope.** The fix does not change the design, the file list, a decision or another issue, and does not touch a
   parent's `Base:` line, its `Roadmap:` line or its `## Order`.
-- **The kind.** Kinds 2, 3, 6, 10, 11, 12, 13 and 14 are always `design`.
+- **The kind.** Kinds 2, 3, 6, 10, 11, 12, 13, 14 and 15 are always `design`.
 
 **When in doubt, tag it `design`.** The main session checks an `exact` fix only against your two strings, and no
 reviewer reads it again, so a wrong `exact` tag lets a wrong fix through without a review.

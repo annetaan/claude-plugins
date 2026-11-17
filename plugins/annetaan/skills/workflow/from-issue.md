@@ -71,6 +71,7 @@ a line each.
 - The phase 3 prompt: "This run comes from issue #<n>. Follow **Work outside the task** in your role instruction."
 - The review prompt: "The design is issue #<n>. Its checked decisions bind."
 - Every prompt, implementation and review alike, carries **the worktree line** (**The worktree line** in SKILL.md).
+- Every prompt, implementation and review alike, carries "Left broken on the base branch:" with one line per entry of `parent.breakage` whose `state` is `open` and whose `closedBy` does not hold `#<n>`, as `` `<check>` (left by #<j>) ``, or "none". An entry this issue closes is left out, because its check has to pass here. The declared reason is in `#<j>`'s `### Left broken`, read with `gh issue view <j> --json body` (a body, not a comment). pj4-running has the `project.sh <P>` JSON from its re-read.
 - Every review request, the round 1 prompt and each "review it again" `SendMessage`, also carries the adaptations
   the implementation session has listed so far, under "Adaptations", or "none".
 

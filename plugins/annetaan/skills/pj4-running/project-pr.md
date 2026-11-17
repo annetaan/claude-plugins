@@ -7,7 +7,7 @@ merges it. Merging it is the user's job.
 
 Before it opens it, pj4-running merges `origin/<from>` into `<base>`, so that the pull request shows the project as it
 lands on `<from>` today, and a conflict with what `<from>` gained since `<base>` was cut is settled here, under review,
-instead of in the user's merge. Both steps run in `<WT>`.
+instead of in the user's merge. Three steps run in `<WT>` or from it: bringing `<from>` in, **The declared checks**, and opening the pull request.
 
 ## Bringing `<from>` in
 
@@ -45,11 +45,22 @@ $RUNNING/scripts/run.sh sync <P>
   to phase 6 step 2.
 - **`stop`** with `base-gone`, `merged`, `not-due` or `fetch-failed`: as for the pull request below.
 
+## The declared checks
+
+Read `project.sh <P>`. For each distinct `check` in `parent.breakage`, run it in `<WT>`, one command per Bash call, and keep `ran:` and `saw:`
+(`format.md`, **Declared breakage**, in the pj1-plan skill).
+
+- **Every check passes**: go on to the pull request.
+- **A check fails**: file a stub as **Unplanned work** in SKILL.md says, worded "found while verifying project #<P>:
+  `<check>` fails". Open no pull request and go to phase 6 step 2. The next step is `/annetaan:pj3-doctor`.
+- **A check cannot be run here** (a missing service, a command the run may not start): keep it as
+  `not run: <why>` and go on.
+
 ## Opening it
 
 Write `$TMP/<P>-pr.md`. Its first line is `Part of #<P>`. Below it, in the repository's language, it says that the
 pull request brings project `#<P>` into `<from>`, lists each sub-issue closed as completed as `#<k> <title>` with its
-pull request `#<m>` from `project.sh <P>`, names the stubs and the issues closed as not planned, and says that the
+pull request `#<m>` from `project.sh <P>`, names the stubs and the issues closed as not planned, lists each declared check with the issue that left it, its `closedBy` and its `ran:` and `saw:`, and lists the `not run:` ones under a heading of their own, and says that the
 parent closes as completed when a pj4-running run sees the merge, or when the user closes it after merging.
 
 ```bash

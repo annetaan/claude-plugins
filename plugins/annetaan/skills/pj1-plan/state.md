@@ -38,11 +38,12 @@ project.sh --roadmap [<ref>] # the roadmap file, in the work tree or at <ref>, c
             "order": [numbers],
             "orderCheck": {"ok", "unknown": [numbers], "duplicate": [numbers],
                            "early": [{"number", "blocker"}], "missing": [numbers]},
-            "roadmap": {"path", "entry", "tasks": [numbers], "task": number or null, "missing": [numbers]} or null},
+            "roadmap": {"path", "entry", "tasks": [numbers], "task": number or null, "missing": [numbers]} or null,
+            "breakage": [{"issue", "check", "closedBy": [numbers], "state"}]},
  "issues": [{"number", "title", "wantedTitle", "state", "stateReason", "updatedAt", "readyAt", "labels": [names],
              "blockedBy": [{"number", "state", "parent"}], "blocking": [numbers],
              "pr": {"number", "state", "isDraft", "url"} or null, "stub",
-             "designPaths": [paths],
+             "designPaths": [paths], "leftBroken": [checks],
              "decisions": {"total", "settled", "open", "contradictory"},
              "lint": {"ok", "reasons": [codes]}}]}
 ```
@@ -67,6 +68,11 @@ project.sh --roadmap [<ref>] # the roadmap file, in the work tree or at <ref>, c
   are open or closed as completed. `task` is that number when exactly one sub-issue is in `tasks`, else null: the
   roadmap task (`format.md`, **The roadmap task**). `missing` is, while `task` is open, the other open sub-issues it
   is not blocked by, and empty otherwise.
+- `breakage` is the declared breakage of the project (`format.md`, **Declared breakage**), one entry per check of each
+  issue that is open or closed as completed. `closedBy` is the other such issues that hold the breaker in their
+  transitive `blockedBy` and carry the check in their acceptance criteria. `state` is `unclosed` with no closer, else
+  `planned` while the breaker is open, else `closed` when a closer is closed, else `open`. `leftBroken` on an issue is
+  the checks its `### Left broken` names.
 - `wantedTitle` is the title with the decision count from `format.md` **The title**. Every sub-issue carries it, closed
   ones included. A skill edits an open issue's title when the two differ, and never retitles a closed one
   (`between-skills.md`, **Titles**).
@@ -112,14 +118,17 @@ only once it exists, which moves local refs and nothing else, and prints:
 {"number", "base", "from", "baseExists", "ok", "lint": {"ok", "reasons"},
  "premises": {"mode": "full" | "early" | "none", "excusers": [numbers],
               "failures": [{"path", "symbol" (when one is missing), "why"}]},
- "history": {"stale": [{"sha", "subject", "pr" or null}]}}
+ "history": {"stale": [{"sha", "subject", "pr" or null}]},
+ "breakage": {"unclosed": [{"issue", "check"}]}}
 ```
 
 The `lint` here is not always the one in `issues[].lint`. It also counts as paths the files at the root of the ref it
 reads and the paths in the file lists of the issue's blockers, so a backticked file name there is no symbol, and it
 can be stricter than `issues[].lint`.
 
-`ok` is true when the lint is clear, no premise failed and no commit is stale. A commit in `history.stale` keeps `ok`
+`breakage.unclosed` holds the `unclosed` entries of the whole project, not only this issue's, and is filled under
+every `premises.mode`. `ok` is true when the lint is clear, no premise failed, no commit is stale and no breakage of
+the project is unclosed. A commit in `history.stale` keeps `ok`
 false until `readyAt` moves past it. `pj3-doctor` moves it by putting `ready` on again once its review has returned the
 commit as cleared and the issue has nothing left on it. `premises.mode` is `none` while the base branch does not
 exist and a project in `waitsOn` is not `merged`, while an open blocker is outside the project, or while an open
@@ -253,6 +262,9 @@ at the tip of `origin/<from>` while the base branch does not exist yet, since th
   returns the commit as cleared and the issue has nothing left on it, `pj3-doctor` puts `ready` on, or takes it off
   and on again when the issue already carries it. The new `readyAt` drops the commit from the next `--check`
   (`pj3-doctor`, "`ready` goes on an issue").
+
+- **Breakage.** An issue that declares a check under `### Left broken` needs a closer in the project, or every
+  `--check` of the project fails. The rule is in `format.md`, **Declared breakage**.
 
 The design was written knowing its blockers would land first, and that the projects it waits on would be merged
 into `<from>` before its base branch was cut, so their commits were foreseen. A commit from anywhere else that

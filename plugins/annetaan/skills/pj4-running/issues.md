@@ -53,7 +53,7 @@ $RUNNING/../pj1-plan/scripts/project.sh <P> --check <k>
    ```
 
 3. Write `$TMP/<k>-check.md` and post it. It starts with `**[pj4-running]**`, then lists the lint codes, each premise
-   failure (path, symbol, why), with `premises.excusers` when it is not empty, and each stale commit (SHA, subject, pull request), and ends with "Settle it with
+   failure (path, symbol, why), with `premises.excusers` when it is not empty, each stale commit (SHA, subject, pull request) and each entry of `breakage.unclosed` (the issue and the check), and ends with "Settle it with
    /annetaan:pj3-doctor."
 
    ```bash

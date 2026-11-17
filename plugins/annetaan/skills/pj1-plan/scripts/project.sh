@@ -7,7 +7,8 @@
 # whether a project is merged into the branch it was made from, and whether a project with no sub-issue can be split
 # into tasks now (startable).
 # The shape it reads is described in ../format.md.
-# This script is the only place that parses a sub-issue body (## Design, ## Acceptance criteria, ## Decisions),
+# This script is the only place that parses a sub-issue body (## Design with its ### Left broken subsection,
+# ## Acceptance criteria, ## Decisions),
 # the parent's Base: line (the base branch and the branch it was made from), its Roadmap: line (the roadmap file and
 # the entry heading, on the one parent that carries the initiative) and its ## Order list, and the Implements
 # head of a pull request.
@@ -143,8 +144,9 @@ def implements(body):
     return None
 
 def shown(issue):
-    """An issue as it is printed: without its file list, which --check reads from the full object."""
-    return {k: v for k, v in issue.items() if k != "files"}
+    """An issue as it is printed: without its file list and its criteria spans, which --check and the breakage view read
+    from the full object."""
+    return {k: v for k, v in issue.items() if k not in ("files", "criteria")}
 
 def with_order(body, numbers):
     """body with CR removed and its ## Order section replaced by the numbered list of numbers, framed by blank lines.
@@ -385,6 +387,42 @@ def file_list(design):
         files.append({"path": path, "kind": m.group(2), "spans": spans_of(m.group(3))})
     return files, bad
 
+def left_broken(design):
+    """The checks of the ### Left broken subsection of ## Design, and whether it is malformed. The subsection runs from
+    its heading to the next ### heading. Bullets read as file_list reads them. A check is the first backticked span of
+    a bullet, stripped, without repeats. Malformed: the heading with no bullet, or a bullet with no span."""
+    lines, k = design.split("\n"), None
+    for n, line in enumerate(lines):
+        if re.match(r"^###\s+Left broken\s*$", line):
+            k = n
+            break
+    if k is None:
+        return [], False
+    bullets = []
+    for line in lines[k + 1:]:
+        if line.startswith("###"):
+            break
+        if re.match(r"^\s*[-*]\s", line):
+            bullets.append(line.strip())
+        elif bullets and line.strip() and line[0].isspace():
+            bullets[-1] += " " + line.strip()
+    checks, bad = [], not bullets
+    for b in bullets:
+        m = re.search(r"`([^`\n]+)`", b)
+        if not m or not m.group(1).strip():
+            bad = True
+        elif m.group(1).strip() not in checks:
+            checks.append(m.group(1).strip())
+    return checks, bad
+
+def criteria_spans(secs):
+    """Every backticked span in the bullets of ## Acceptance criteria, stripped."""
+    out = []
+    for line in secs.get("Acceptance criteria", "").split("\n"):
+        if re.match(r"^\s*[-*]\s", line):
+            out += [s.strip() for s in re.findall(r"`([^`\n]+)`", line)]
+    return out
+
 def decisions(text):
     """Each ### D<n>. decision as {checked, options, recommended}."""
     out = []
@@ -414,8 +452,10 @@ def parse(body):
     design = secs.get("Design", "")
     files, bad = file_list(design)
     decs = decisions("\n".join(unfenced(secs.get("Decisions", ""))))
+    broken, bad_broken = left_broken(design)
     return {
         "order": order, "secs": secs, "files": files, "bad_entries": bad, "decs": decs,
+        "broken": broken, "bad_broken": bad_broken, "criteria": criteria_spans(secs),
         "stub": design == "To be drawn.",
     }
 
@@ -437,6 +477,8 @@ def lint(p, paths=frozenset()):
     criteria = [l for l in p["secs"].get("Acceptance criteria", "").split("\n") if re.match(r"^\s*[-*]\s", l)]
     if not criteria or any("`" not in l for l in criteria):
         reasons.append("criteria")
+    if p["bad_broken"]:
+        reasons.append("breakage-entry")
     decs, dtext = p["decs"], p["secs"].get("Decisions", "")
     if (not decs and dtext != "None.") or any(not 2 <= d["options"] <= 4 or d["recommended"] != 1 for d in decs):
         reasons.append("decision-shape")
@@ -523,6 +565,8 @@ for node in parent["subIssues"]["nodes"]:
         "pr": pr_of.get(node["number"]),
         "stub": p["stub"],
         "files": p["files"],
+        "leftBroken": p["broken"],
+        "criteria": p["criteria"],
         "designPaths": [f["path"] for f in p["files"]],
         "decisions": counts,
         "lint": lint(p),
@@ -542,6 +586,29 @@ def transitive_blockers(issue):
         if m in by_number:
             todo.extend(b["number"] for b in by_number[m]["blockedBy"])
     return seen
+
+def breakage_view():
+    """The declared breakage of the project. An entry per check of each issue that is open or closed as completed.
+    closedBy: the other such issues that hold the breaker in their transitive blockers and carry the check as a
+    backticked span in their acceptance criteria. state: unclosed with no closer, else planned while the breaker is
+    open, else closed when a closer is closed, else open."""
+    live = [i for i in issues if i["state"] == "OPEN" or i["stateReason"] == "COMPLETED"]
+    out = []
+    for i in live:
+        for check_ in i["leftBroken"]:
+            closers = sorted(j["number"] for j in live
+                             if j["number"] != i["number"] and i["number"] in transitive_blockers(j)
+                             and check_ in j["criteria"])
+            if not closers:
+                state = "unclosed"
+            elif i["state"] == "OPEN":
+                state = "planned"
+            elif any(by_number[c]["state"] == "CLOSED" for c in closers):
+                state = "closed"
+            else:
+                state = "open"
+            out.append({"issue": i["number"], "check": check_, "closedBy": closers, "state": state})
+    return out
 
 # The run order: the open sub-issues, blockers first. Only edges between open sub-issues count.
 # A closed blocker is done, and a blocker outside the project is not this script's to order.
@@ -749,7 +816,8 @@ def project_view():
                                   and all(d["merged"] for d in waits_on_entries)),
                        order=written,
                        orderCheck=order_check(),
-                       roadmap=roadmap_view()),
+                       roadmap=roadmap_view(),
+                       breakage=breakage_view()),
         "issues": [shown(i) for i in issues],
     }
 
@@ -926,15 +994,18 @@ def check(n):
                            or pr["baseRefName"] in waited for pr in prs):
                     stale.append({"sha": sha, "subject": subject, "pr": prs[0]["number"] if prs else None})
 
+    unclosed = [{"issue": b["issue"], "check": b["check"]} for b in breakage_view() if b["state"] == "unclosed"]
+
     print(json.dumps({
         "number": n,
         "base": base,
         "from": made_from,
         "baseExists": base_exists,
-        "ok": check_lint["ok"] and not failures and not stale,
+        "ok": check_lint["ok"] and not failures and not stale and not unclosed,
         "lint": check_lint,
         "premises": {"mode": mode, "excusers": excusers, "failures": failures},
         "history": {"stale": stale},
+        "breakage": {"unclosed": unclosed},
     }, ensure_ascii=False))
 
 if MODE == "check":

@@ -156,7 +156,7 @@ requirement is drawn as if it had always been there, down to the types, document
 A new layer needs a named second user, state lives in the narrowest place, and the review asks of a diff where a value
 comes from and what can change it. When the same finding stands twice, the implementation session writes down what both
 answers took for granted and makes one observation that would come out differently if it were false, before the next fix. When the same lesson turns up a second time, it
-becomes a check instead of prose, and a check that has to live outside the task goes into the work report.
+becomes a check instead of prose, and a check that has to live outside the task goes into the work report. A task never keeps an old path, an adapter or a shim so that the tests stay green until a later task. A split that passes only with one is one task.
 
 The review rounds run through Markdown files in the run's work report directory. The review session writes one file
 per round, and the implementation session answers each finding in a reply file next to it. Nobody edits a file once
@@ -237,7 +237,7 @@ A project that waits on another is split into tasks, and gets its branch, only a
 that branch. Every
 sub-issue's pull request merges into its project's branch. Once every sub-issue is closed, `pj4-running` merges the
 branch it came from into it, with `workflow` resolving any conflict under review, then opens the pull request that
-takes that branch back into the branch it came from, and merging it is left to you. After that the parent is closed, by `pj-cleanup`, the next `pj4-running` run or you, and
+takes that branch back into the branch it came from, and merging it is left to you. A sub-issue may leave a named check failing on the project's branch when a later one closes it, and `pj4-running` runs every such check before it opens the project's pull request. After that the parent is closed, by `pj-cleanup`, the next `pj4-running` run or you, and
 a closed parent means its project is merged. [How the skills fit together](#how-the-skills-fit-together) says where
 the state lives. [format.md](skills/pj1-plan/format.md) describes the issues and their bodies,
 [state.md](skills/pj1-plan/state.md) how the state of a project is read, and

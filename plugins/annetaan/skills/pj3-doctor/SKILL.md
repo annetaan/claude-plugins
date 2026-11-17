@@ -246,7 +246,7 @@ The approval covers this run only (`between-skills.md`, **Principle**).
 
 **`ready` goes on an issue** when it is open and all of these hold:
 
-- the step 7 `--check` has a clear lint and no premise failure (`premises.mode` `none` has none)
+- the step 7 `--check` has a clear lint, no premise failure (`premises.mode` `none` has none) and no entry in `breakage.unclosed`
 - every SHA in its `history.stale` is carried as a `cleared` line in the reviewer's last return on that issue (the
   second return when it covers the issue, the first otherwise). A stale SHA with no `cleared` line keeps `ready` off.
   That covers a commit that landed after phase 1, and one that a redrawn file list now reaches. You hold nothing from
@@ -353,6 +353,7 @@ the numbers.
    ```
 
    **An issue that carries `blocker` loses it in the same command.** A check whose lint or premises fail now, or
+   whose `breakage.unclosed` is not empty, or
    whose `history.stale` holds a SHA with no `cleared` line, leaves `ready` off, and the report names the failures.
 
    **An issue that already carries `ready`, whose step 7 `history.stale` is not empty and fully cleared, gets `ready`

@@ -199,11 +199,15 @@ parent body keeps it too. The lines above `## Goal` belong to the main session, 
 
 <optional: see **Shared state and model decisions**>
 
+### Left broken
+
+<optional: see **Declared breakage**>
+
 ## Acceptance criteria
 
 - <what has to hold for this task to be done, with a backticked anchor: a test name, a command, or a file or symbol
   whose state is checked. One criterion per user flow the task touches and per reader in `### Shared state`. A bug fix
-  with a cheap test path names the test that fails first>
+  with a cheap test path names the test that fails first. A task that closes a declared breakage carries its check>
 
 ## Decisions
 
@@ -269,6 +273,30 @@ Both are optional subsections at the end of `## Design`, after the file list and
   remove the entry. On an issue that carries `ready`, the user also takes `ready` off, so that the next step is
   `pj3-doctor` and not `pj4-running`, which hands the worker the body and never reads comments.
 - Backticked names in these subsections are not looked up by `--check`.
+- `### Left broken` is the third optional subsection (see **Declared breakage**).
+
+### Declared breakage
+
+A task that a reviewer can judge alone may still leave a check of the repository failing on the project's base
+branch until a later task of the same project closes it (**No transitional code** in `judgement.md`). The task
+declares it as the last subsection of `## Design`:
+
+```markdown
+### Left broken
+
+- `<check>`: <what fails once this task is merged into the base branch, and why>
+```
+
+- **The check** is the first backticked span of the bullet. It is one command, run from the repository root, that
+  exits 0 when the check passes. It is compared as written.
+- **The closer** is a sub-issue of the same project whose transitive `blockedBy` holds the breaker, that is open or
+  closed as completed, and whose `## Acceptance criteria` has a bullet carrying the same backticked span.
+- **`project.sh`** reports each entry in `parent.breakage` with its closers and its state, and `--check` fails with
+  `breakage.unclosed` for an entry no closer carries (`state.md`, **Reading a project**).
+- **A check the base branch requires for a merge cannot be declared.** GitHub refuses the merge, and `run.sh merge`
+  never uses `--admin`, so the tasks are one task.
+- **`pj4-running` runs every declared check** in the project's worktree before it opens the project's pull request
+  (`pj4-running/project-pr.md`, **The declared checks**).
 
 ### The title
 
@@ -393,11 +421,12 @@ project**), and reads more than one such issue as no task, which the reviewer ra
 | `file-entry` | an entry has no kind or no description |
 | `no-symbols` | a `changed` entry other than the roadmap file's names no symbol |
 | `criteria` | there is no acceptance criterion, or a criterion has no backticked anchor |
+| `breakage-entry` | `### Left broken` has no bullet, or a bullet has no backticked check |
 | `decision-shape` | a decision does not have 2 to 4 options, or does not have exactly one `(recommended)` |
 | `decisions-open` | a decision is open |
 | `decisions-contradictory` | a decision is contradictory |
 
-The lint does not look at `Only you know:` or at the two subsections. The main sessions and the project reviewer do.
+The lint does not look at `Only you know:`, at `### Shared state` or at `### Model decisions`. The main sessions and the project reviewer do.
 
 ## Fixed tokens
 
@@ -405,7 +434,7 @@ These stay in English whatever language the repository uses, because the skills 
 
 - the section headings of both bodies, and `### D<n>.`
 - `(recommended)`, `Decided:`, `Only you know:`, `None.` and `To be drawn.`
-- `### Model decisions` and `### Shared state`
+- `### Model decisions`, `### Shared state` and `### Left broken`
 - the kinds in the file list: `added`, `changed` and `deleted`
 - the decision count ` (<settled>/<total>)` at the end of a sub-issue title (see **The title**)
 - the markers (`between-skills.md`, **Comments**)
