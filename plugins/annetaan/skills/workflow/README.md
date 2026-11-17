@@ -31,9 +31,10 @@ several sessions and adds commits.
 session reads it with one question: would we design it this way from a blank slate? It points out boundaries (the
 contracts, the types, the names) that fall short of their ideal shape, places where moving existing code would make
 the design cleaner, abstractions that are too many or too few, and behaviour the design keeps from existing code
-after the change altered what that behaviour relies on. Each finding says how far existing code moves.
-There is one round. The design session takes in what it agrees with, and what it does not agree with comes to you as
-open questions before the approval.
+after the change altered what that behaviour relies on, a shared-state change whose readers the design misses, and a
+bug fix that guards the symptom. Each finding says how far existing code moves.
+There is one round. What the design session does not take in, it settles by evidence and lists under model decisions.
+Only a point that turns on something only you know comes to you as an open question before the approval.
 
 **The review runs in every repository.** What differs is how far it may move existing code. The skill settles that
 before design starts, in `breaking-changes.md`: what `CLAUDE.md` or `AGENTS.md` says, then the memory Claude Code keeps
@@ -47,7 +48,13 @@ approval message says so.
 
 There is one approval point. You get the design summary and the **plan**, an ordered list of small tasks, and one
 question: proceed with this design and plan? The open questions come first, on every run: the design's own, and the
-design review's points the design session did not take in, marked `(from the design review)`.
+design review's points that turn on something only you know, marked `(from the design review)`. Each says what only you
+know. The approval also shows the model decisions, and "change something first" overturns any of them.
+
+Each task's implementation session shows every acceptance criterion by running it, on the tree under review, and writes
+the runs to an evidence file. A bug fix with a cheap test path starts with a failing test. The review session runs what it suspects and marks
+each correctness finding confirmed or unconfirmed. What neither side could run is listed in the pull request under its
+own heading.
 
 The approval message names the new branch and `base: <branch>`. Correct either one there. A base corrected at approval
 recreates the worktree on the new base and runs the design again. The design review does not run a second time.
@@ -143,16 +150,20 @@ Every run writes a work report. It lives under the worktree's `work-reports/` un
 work-reports/2026-09-19-1346-a1b2c3d/
   log.md         what changed, how it was verified, what the review changed, the screenshots
   changes.diff   the diff from the start commit to HEAD
-  review/        one file per review round, and the reply to each
+  review/        one file per review round, the reply to each, and the evidence files
+    task-1-evidence.md
     task-1-round-1.md
     task-1-round-1-reply.md
+    task-1-round-1-evidence.md  after a round that changed code
     integration-round-1.md      plans of two or more tasks
+  scratch/       throwaway scripts of the implementation and review sessions
   before.png     before and after, when the change shows on screen
   after.png
 ```
 
 The directory name is the local time the run started, plus the short SHA of the commit it started from. The newest
-run sorts last, so there is never a question about which report is the current one.
+run sorts last, so there is never a question about which report is the current one. The design session's throwaway
+experiments go in `work-reports/<stamp>-design/`, next to the report directory and not inside it.
 
 **These live inside the repository so that you see them.** A cleanup deletes the ones that have sat in your clone's
 `work-reports/` for 14 days. In a temp directory somewhere else they eat
@@ -196,6 +207,7 @@ screenshots it could not attach.
 | --- | --- |
 | `SKILL.md` | the procedure for the orchestrator, which is the main session: which file each entry reads, the worktree line, the agents, phases 2 to 4 and the rules every entry shares |
 | `standalone.md` | the standalone run: design, the design review and approval, the integration review and the finish |
+| `judgement.md` | the rules every role of workflow and the pj skills reads: what a human is asked, model decisions, experiments, assumptions, root cause, evidence |
 | `breaking-changes.md` | the check that settles whether the repository accepts breaking changes, for the standalone run and pj1-plan |
 | `from-pr.md` | resolving the conflicts of a pull request that is already open |
 | `from-issue.md` | one sub-issue as one task, for pj4-running |
@@ -208,7 +220,7 @@ screenshots it could not attach.
 | `roles/work.md` | the role for the implementation session |
 | `roles/review.md` | the role for the review session |
 | `scripts/worktree.sh` | creates the run's worktree and checks its ignore rules. `workflow-cleanup` uses it to clean up |
-| `review-files.md` | the shape of the review files, read by the review and implementation sessions |
+| `review-files.md` | the shape of the review files and the evidence files, read by the review and implementation sessions |
 
 The design, implementation and review sessions run on agents that ship with the plugin (`../../agents/`). Design is
 `annetaan:workflow-design` (fable / medium, opus when Fable cannot start). The design review is

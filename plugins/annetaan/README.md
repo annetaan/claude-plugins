@@ -145,9 +145,16 @@ welcome. An implementation session writes the code for one task. A review
 session reads it and writes its findings to a file. Those last two are new for every task. You approve once, near the start, and
 the approval message names the branch and the base. The run happens in `.claude/worktrees/wf-<stamp>`.
 
+The sessions follow [the judgement rules](skills/workflow/judgement.md). The design session settles what it can from
+the code, the history or a throwaway experiment, and lists those as model decisions, which the approval shows. You are
+asked only what turns on something only you know. The implementation session shows each acceptance criterion by running
+it and walks the flows the change touches. The review session runs what it suspects, marks each correctness finding
+confirmed or unconfirmed, and sends back a fix that guards the symptom.
+
 The review rounds run through Markdown files in the run's work report directory. The review session writes one file
 per round, and the implementation session answers each finding in a reply file next to it. Nobody edits a file once
-it is written, so the directory reads back as the whole review, in order.
+it is written, so the directory reads back as the whole review, in order. The directory also holds the evidence files,
+which record what the implementation session ran.
 
 ```mermaid
 flowchart TD
@@ -160,8 +167,8 @@ flowchart TD
     subgraph task["per task"]
         direction TB
         detail["design session<br/>details this task against<br/>the code as it now stands"]
-        impl["implementation session<br/>new for this task<br/>writes it, commits nothing"]
-        review["review session<br/>new for this task<br/>reads working tree vs HEAD,<br/>writes a round file"]
+        impl["implementation session<br/>new for this task<br/>writes it, evidence file,<br/>commits nothing"]
+        review["review session<br/>new for this task<br/>reads working tree vs HEAD,<br/>runs what it suspects,<br/>writes a round file"]
         respond["implementation session<br/>fixes, then writes a reply file"]
         commit["one commit<br/>plus 5 lines of handover notes"]
         detail --> impl --> review
@@ -209,8 +216,11 @@ between them run in parallel, and `pj1-plan` shows them as stages. The run order
 `1. #12`, `2. #13`, and GitHub shows each line with the issue's title and whether it is closed, so the list doubles as
 the progress. You may reorder it by hand.
 
-You decide by ticking boxes on GitHub. Every question a task raises is a decision in its sub-issue, a few options as
-checkboxes with one recommended, and each option says what it changes. No skill asks you a task's decision in the
+You decide by ticking boxes on GitHub. Every question only you can answer is a decision in its sub-issue, a few options
+as checkboxes with one recommended, and each option says what it changes. Each decision says what only you know. What a
+model can settle from the code, the history or an experiment is recorded under `### Model decisions` in the issue's
+design instead. You overturn one with a comment, and on an issue already labelled `ready` you also take `ready` off,
+because `pj4-running` does not read comments. No skill asks you a task's decision in the
 conversation. While a decision is open, the sub-issue's title ends with how many are settled, such as `(1/3)`, and the
 count goes away once every one is. Ticking a box leaves the title as it is until the next `pj3-doctor` run.
 
@@ -231,8 +241,8 @@ broad strokes and cuts it into projects of about 7 to 8 tasks, at most ten, with
 projects can run in parallel, so a chain of work that can only go one way stays one project unless it is too large. A design review
 session reads each project's design once and asks whether a blank slate would give the same design, including
 behaviour carried over from existing code. It moves existing code only where breaking changes are welcome, decided
-the same way as for `workflow`. The planner takes in what it agrees with, and the rest reaches you as plan-level
-questions before approval. You
+the same way as for `workflow`. The planner takes in what it agrees with, and the rest is settled by evidence and
+listed, or reaches you as a plan-level question before approval when only you can answer it. You
 answer the plan-level questions and see the projects in stages, with the reason for each wait. You approve them and
 pick the branch the projects start from. Nothing reaches GitHub before that. Then one parent issue per project is
 filed, blocked by the parents it waits on. When the request is a roadmap entry, one project of the last stage, the largest, carries a `Roadmap:` line naming the file and the entry. No sub-issue and no branch is created yet, and no issue is `ready` yet.
@@ -240,8 +250,10 @@ filed, blocked by the parents it waits on. When the request is a roadmap entry, 
 `/annetaan:pj2-issues` ([details](skills/pj2-issues/SKILL.md)) takes the project to split from a number given, or the only one it could split, and otherwise asks. It offers the
 projects with no sub-issue yet whose waited-on projects are all merged, and recommends the lowest-numbered one. A planner
 session splits the project against the code as it stands after those merges, and you answer the split-level
-questions. You approve the split, any change to the parent shown as a diff, and any change to its blocked-by. Then
-one issue writer per task, in parallel, draws its task against the code and picks out what you have to decide. The
+questions. You approve the split, any change to the parent shown as a diff, and any change to its blocked-by. The split
+gives two counts per task: the forks for you and the forks the writer settles. Then
+one issue writer per task, in parallel, draws its task against the code, picks out what you have to decide and records
+what it decided itself. The
 design is written so that it holds whichever box you tick. A writer that finds a consequence of the parent's design
 returns it to the planner instead of patching its own task, and so does the same workaround appearing in two or more
 drafts. The planner redraws the parent, and you approve the split again. The sub-issues, their blocked-by inside the project, the
@@ -255,7 +267,7 @@ ends with one more task, blocked by every other, that removes the entry from the
 project that has sub-issues, and otherwise asks which project to work on. A
 reviewer session reads the whole project against the boxes you ticked, the code, and each issue in it: a ticked
 option the design does not hold, two issues that disagree on a name, a missing blocked-by, a stub, a blocker, a parent that keeps behaviour whose
-assumption the project changed. One
+assumption the project changed, a change that breaks what a reader elsewhere relies on, an open decision a model can settle. One
 issue writer per issue with a finding redraws it, and a question only you can answer becomes a new decision to tick.
 The reviewer reads the rewrites once more. A finding it then tags as a pure text fix, one string for another, goes
 back to the writer and is checked against the reviewer's strings with no third review, so the issue can still be
@@ -561,16 +573,18 @@ design review cannot start, the skill spawns it again on opus at the same effort
 
 | Agent | Model | Effort | Role |
 | --- | --- | --- | --- |
-| `annetaan:workflow-design` | fable | medium | design. returns the design and the plan |
+| `annetaan:workflow-design` | fable | medium | design. returns the design and the plan, and tries a doubtful point in a throwaway experiment |
 | `annetaan:workflow-design-review` | fable | medium | design review for `workflow` and `pj1-plan`. once, before approval, in every repository. moves existing code only where breaking changes are welcome |
-| `annetaan:workflow-worker` | sonnet | medium | implementation, for every task |
-| `annetaan:workflow-reviewer` | opus | medium | review, for every task, and the integration review when the plan has more than one task |
-| `annetaan:pj-planner` | fable | medium | planning for `pj1-plan` and `pj2-issues`. the projects, their designs and the waits between them, then one project's split into tasks. answers the design review |
-| `annetaan:pj-issue-writer` | opus | medium | one sub-issue, drawn against the code. drafts it for `pj2-issues`, revises it for `pj3-doctor` |
+| `annetaan:workflow-worker` | sonnet | medium | implementation, for every task. shows each acceptance criterion by running it and writes the evidence file |
+| `annetaan:workflow-reviewer` | opus | medium | review, for every task, and the integration review when the plan has more than one task. runs what it suspects and marks each correctness finding confirmed or unconfirmed |
+| `annetaan:pj-planner` | fable | medium | planning for `pj1-plan` and `pj2-issues`. the projects, their designs and the waits between them, then one project's split into tasks. answers the design review, and tries a doubtful point in a throwaway experiment |
+| `annetaan:pj-issue-writer` | opus | medium | one sub-issue, drawn against the code. drafts it for `pj2-issues`, revises it for `pj3-doctor`, and tries a doubtful point in a throwaway experiment |
 | `annetaan:pj-reviewer` | fable | medium | project review for `pj3-doctor`. reads the whole project against the ticked boxes, the code and each issue |
 | `annetaan:experience-video-producer` | fable | medium | production for `experience-video`. fills in the cuts, fragments and music of a story, renders it, and checks its frames |
 | `annetaan:pr-humans-writer` | sonnet | medium | one comment for `pr-humans`. reads only the gathered files. drafts how people took part in one pull request |
 | `annetaan:doc-meta-overview` | opus | high | overview for `doc-meta`. finds what a per-sentence flag misses |
+
+`annetaan:workflow-design`, `annetaan:pj-planner` and `annetaan:pj-issue-writer` can write files, and their roles confine that to a scratch directory.
 
 `pj4-running` has no agents of its own. It runs workflow's.
 
@@ -578,6 +592,13 @@ design review cannot start, the skill spawns it again on opus at the same effort
 
 The agent definitions are thin. The substance of each role lives in the skill's `roles/*.md`, and an agent reads
 that path out of the prompt the main session hands it.
+
+## Credits
+
+Several of the judgement rules in [`skills/workflow/judgement.md`](skills/workflow/judgement.md) were learned from
+pstack in [cursor/plugins](https://github.com/cursor/plugins) (MIT): ask a person only what a person knows, show work
+by running it, and fix the cause and not the symptom. They are written here in our own words, and nothing of pstack is
+loaded at run time.
 
 ## Adding a skill
 
