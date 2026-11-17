@@ -279,19 +279,6 @@ export FX_PARENT_BODY="$HEAD_LINES"$'Roadmap: `roadmap.md`\n'"$TAIL"
 echo "ok: a malformed Roadmap: line reads as null (no backticked path; a path outside the six)"
 
 # 21
-body_with() {
-  printf '## Goal\n\nx\n\n## Design\n\n- `%s` (changed): %s\n\n## Acceptance criteria\n\n- `foo` is renamed.\n\n## Decisions\n\nNone.\n\n## Out of scope\n\nNothing.\n' "$1" "$2" > "$TMP/body.md"
-}
-body_with roadmap.md "delete the entry."
-[ "$(bash "$SCRIPT" --lint "$TMP/body.md" | python3 -c "import json,sys; print(json.load(sys.stdin)['ok'])")" = "True" ] \
-  || fail "lint of a roadmap entry: $(bash "$SCRIPT" --lint "$TMP/body.md")"
-body_with src/app.ts "delete the entry."
-bash "$SCRIPT" --lint "$TMP/body.md" | grep -q no-symbols || fail "lint passed a changed entry with no symbol"
-export FX_SUBS='[{"n":3,"state":"OPEN","files":["roadmap.md"]}]'
-[ "$(pj "d['issues'][0]['lint']['ok']")" = "True" ] || fail "issues[].lint: $(pj "d['issues'][0]['lint']")"
-echo "ok: --lint passes a changed entry on a roadmap path with no symbol"
-
-# 22
 export FX_PARENT_BODY="$HEAD_LINES$RM_LINE$TAIL"
 export FX_SUBS='[{"n":3,"state":"OPEN","files":["roadmap.md"]}]'
 chk() { bash "$SCRIPT" -R test/repo 1 --check 3 | python3 -c "import json,sys; d=json.load(sys.stdin); print($1)"; }
@@ -299,7 +286,7 @@ chk() { bash "$SCRIPT" -R test/repo 1 --check 3 | python3 -c "import json,sys; d
   || fail "check with the entry: $(chk "d['premises']")"
 echo "ok: --check passes the roadmap task while the entry stands at the ref"
 
-# 23
+# 22
 printf '## Other\n' > roadmap.md
 git commit -q -am "entry gone"
 git push -q origin main:refs/heads/pj/1

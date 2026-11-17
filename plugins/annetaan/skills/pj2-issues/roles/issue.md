@@ -32,7 +32,8 @@ the other tasks at the same time. Stay inside yours.
    says: in the working tree, or at `origin/<from>` through `git show`, `git grep` and `git ls-tree`. In
    `Mode: revise` there is no such line. Read where **Revising an issue** says.
 2. **Draw the task.** `## Design` opens with the file list from `format.md`, one entry per file, tests included. A
-   `changed` entry names the existing symbols it rides on, and only names that exist in that file go in backticks.
+   `changed` entry on a code file names the existing symbols it rides on, and only names that exist in that file go in
+   backticks. An entry on a document needs no symbol: say what the document says afterwards.
    A file name in backticks, including one at the root such as `package.json`, is a path and not a symbol: name that
    file in its own entry, or leave it out of backticks.
    The file list reaches the documents and examples that state the old shape (**As if it was always required**). The
@@ -90,8 +91,7 @@ the other tasks at the same time. Stay inside yours.
 This applies when your task's only path is the path on the parent body's `Roadmap:` line. Read `format.md`, **The
 roadmap task**. The parent body in the prompt holds that line with the path and the heading.
 
-- The file list is one `changed` entry, the roadmap file. It needs no symbol. Backtick only a stale name, as it stands
-  in the file.
+- The file list is one `changed` entry, the roadmap file.
 - `## Design` says which entry is deleted, by its heading, and gives each fix in the other entries as the old name and
   what replaces it, or the sentence to reword when the thing was removed.
 - The names come from what this parent's `## Design` and the other tasks of the split rename or remove, and from what

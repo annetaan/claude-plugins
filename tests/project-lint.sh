@@ -126,3 +126,18 @@ body x x "" '
 got="$(reasons "$TMP/nocheck.md")"
 [ "$got" = '["breakage-entry"]' ] || fail "a Left broken bullet with no check printed $got, wanted [\"breakage-entry\"]"
 echo "ok: a Left broken bullet with no backticked check fails breakage-entry"
+
+# Case 6: a changed entry on a document needs no symbol, and one on a code file does.
+body_one() {
+  printf '## Goal\n\nx\n\n## Design\n\n- `%s` (changed): %s\n\n## Acceptance criteria\n\n- `foo` is renamed.\n\n## Decisions\n\nNone.\n\n## Out of scope\n\nNothing.\n' "$1" "$2" >"$TMP/one.md"
+}
+for doc in docs/guide.md README.MD; do
+  body_one "$doc" "says the count comes from the settings"
+  [ "$(ok "$TMP/one.md")" = "True" ] || fail "a changed entry on $doc printed: $(lint "$TMP/one.md")"
+done
+echo "ok: a changed entry on a document passes with no symbol"
+for code in src/app.ts requirements.txt; do
+  body_one "$code" "says the count comes from the settings"
+  [ "$(reasons "$TMP/one.md")" = '["no-symbols"]' ] || fail "a changed entry on $code printed: $(lint "$TMP/one.md")"
+done
+echo "ok: a changed entry on a code file with no symbol fails no-symbols"

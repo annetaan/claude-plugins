@@ -234,8 +234,8 @@ at the tip of `origin/<from>` while the base branch does not exist yet, since th
 `pj3-doctor`'s review asks it to keep the bodies true to the code, and `pj4-running`'s detail pass asks it before an
 issue runs.
 
-- **Premises.** Every `changed` and `deleted` path exists, and no `added` path does. Every symbol of a `changed` entry
-  is still found in its file. Three modes. `full`: every blocker in the transitive `blockedBy` is closed, and the
+- **Premises.** Every `changed` and `deleted` path exists, and no `added` path does. Every symbol of a `changed` entry on a code file
+  is still found in its file. A document (`format.md`, **The file list**) is read for its path only. Three modes. `full`: every blocker in the transitive `blockedBy` is closed, and the
   files are read at the ref as they are. `early`: some of those blockers are open (the `excusers`), and the check
   reads their file lists and bodies too. A path an excuser lists as `added` counts as existing, and one it lists as
   `deleted` counts as gone. A symbol missing at the ref counts as present when it is named in the body of an

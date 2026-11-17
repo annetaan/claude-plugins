@@ -85,6 +85,7 @@ ORDER_RE = re.compile(r"^\s*\d+\.\s+#(\d+)\b")
 IMPLEMENTS_RE = re.compile(r"^Implements #(\d+)\s*$")
 COUNT_RE = re.compile(r"(\s*\(\d+/\d+\))+\s*$")
 ROADMAP_PATHS = ["roadmap.md", "ROADMAP.md", "doc/roadmap.md", "doc/ROADMAP.md", "docs/roadmap.md", "docs/ROADMAP.md"]
+DOCUMENT_SUFFIXES = (".md", ".mdx", ".markdown", ".rst", ".adoc")
 
 def die(msg):
     print("project: " + msg, file=sys.stderr)
@@ -350,6 +351,10 @@ def spans_of(desc):
             out.append(span)
     return out
 
+def is_document(path):
+    """A document is a path that ends in one of DOCUMENT_SUFFIXES, compared without case. Every other path is code."""
+    return path.lower().endswith(DOCUMENT_SUFFIXES)
+
 def symbols(entry, paths):
     """The symbols of a file entry: the last segment of each span that does not name a path in paths (A.b is b)."""
     out = []
@@ -472,7 +477,7 @@ def lint(p, paths=frozenset()):
     if p["bad_entries"]:
         reasons.append("file-entry")
     known = {f["path"] for f in p["files"]} | paths
-    if any(f["kind"] == "changed" and f["path"] not in ROADMAP_PATHS and not symbols(f, known) for f in p["files"]):
+    if any(f["kind"] == "changed" and not is_document(f["path"]) and not symbols(f, known) for f in p["files"]):
         reasons.append("no-symbols")
     criteria = [l for l in p["secs"].get("Acceptance criteria", "").split("\n") if re.match(r"^\s*[-*]\s", l)]
     if not criteria or any("`" not in l for l in criteria):
@@ -952,7 +957,7 @@ def check(n):
                 failures.append({"path": f["path"], "why": why})
             elif f["kind"] == "changed":
                 namers = lists({"added", "changed"}, f["path"])
-                for sym in symbols(f, paths):
+                for sym in ([] if is_document(f["path"]) else symbols(f, paths)):
                     found = exists and run("git", "grep", "-w", "-F", "-q", sym, ref, "--", f["path"]).returncode == 0
                     if not found and not any(sym in tokens[m] for m in namers):
                         failures.append({"path": f["path"], "symbol": sym, "why": "symbol not found"})

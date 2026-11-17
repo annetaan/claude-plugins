@@ -187,7 +187,7 @@ parent body keeps it too. The lines above `## Goal` belong to the main session, 
 
 ## Design
 
-- `<path>` (changed): <what changes, naming the existing symbols it rides on, such as `retryJob`>
+- `<path>` (changed): <what changes; on a code file, the existing symbols it rides on, such as `retryJob`; on a document, what it says afterwards>
 - `<path>` (added): <what it holds, naming the file or symbol it follows>
 
 <optional prose: how the pieces fit. Written as if every decision below were already made the way it is checked>
@@ -240,6 +240,7 @@ every existing decision stay as they are, and it may append one decision when on
 ```markdown
 - `src/retry.ts` (changed): replaces `RETRY_MAX` in `retryJob` with the count from the settings
 - `src/retry.test.ts` (changed): adds `retries as many times as settings say` beside the `retryJob` cases
+- `docs/retry.md` (changed): says the count comes from the settings
 - `src/settings/schema.ts` (added): follows `src/settings/flags.ts`, exports `RetrySettings`
 ```
 
@@ -249,14 +250,17 @@ every existing decision stay as they are, and it may append one decision when on
   and `A.b` as `b`. A backticked span with spaces, such as a test name, is no symbol. **A backticked span that names
   a file is a path and never a symbol**, whether the file is in this issue's file list, in the repository, or in a
   blocker's file list. That includes a file at the root: `package.json` in a `package.json` entry names no symbol.
-- **A `changed` entry names at least one symbol, and every symbol it names exists in that file at the tip of the
+- **A `changed` entry on a code file names at least one symbol, and every symbol it names exists in that file at the tip of the
   base branch once every issue in its `blockedBy` has merged.** `--check` looks each one up. A file a blocker lists
   as `added` counts as existing, so it is `changed` here, never `added`. A file a blocker lists as `deleted` is never
   `changed` or `deleted` here. A symbol a blocker adds counts as existing only when that blocker lists the file and
   names the symbol somewhere in its body. `--check` reads the open blockers' bodies for this while they are open. The projects this one waits on are
   merged into `<from>` before `pj2-issues` splits it, so their code is already there. A new name, or a name from
-  another file, goes without backticks or into its own file's entry. The one exception is a `changed` entry on the
-  roadmap file, which needs no symbol (see **The roadmap task**).
+  another file, goes without backticks or into its own file's entry.
+- **A document has no symbols.** A document is a path that ends in `.md`, `.mdx`, `.markdown`, `.rst` or `.adoc`,
+  compared without case. Every other path is a code file. A `changed` entry on a document needs no symbol, and
+  `--check` looks up none of the names in it: it reads only whether the path exists. No check stops on how a
+  document's entry is worded.
 - Each entry is one bullet. A long description may wrap onto indented lines, and blank lines between entries are
   allowed. The list ends at the first line that is neither a bullet nor indented.
 - Prose after the list is optional.
@@ -406,8 +410,7 @@ project**), and reads more than one such issue as no task, which the reviewer ra
   In the other entries it fixes each name of something this initiative renamed or removed, such as
   `retryJob` becoming `runWithRetry`. Nothing else in the roadmap changes, and no code.
 - **Its premise.** `--check` reads the roadmap file at the ref and fails with `roadmap entry not found` when no entry
-  carries the line's heading. Its `changed` entry on the roadmap file needs no symbol. A stale name it fixes is
-  backticked as it stands, and `--check` still looks it up.
+  carries the line's heading.
 - **Its acceptance criteria are commands**: `grep -Fxc '## <heading>' <path>` prints `0`, and
   `git grep -w -F <old name> -- <path>` finds nothing for each fixed name.
 - **`pj2-issues` leaves it out** when the roadmap at `origin/<from>` has no file, or has no entry with the heading.
@@ -425,7 +428,7 @@ project**), and reads more than one such issue as no task, which the reviewer ra
 | `sections` | the five headings are not all there, in order |
 | `no-files` | the file list is empty |
 | `file-entry` | an entry has no kind or no description |
-| `no-symbols` | a `changed` entry other than the roadmap file's names no symbol |
+| `no-symbols` | a `changed` entry on a code file names no symbol |
 | `criteria` | there is no acceptance criterion, or a criterion has no backticked anchor |
 | `breakage-entry` | `### Left broken` has no bullet, or a bullet has no backticked check |
 | `decision-shape` | a decision does not have 2 to 4 options, or does not have exactly one `(recommended)` |

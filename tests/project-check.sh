@@ -42,7 +42,7 @@ mkdir -p work/work-reports/run   # an untracked nested directory
 mkdir bin
 cat > bin/gh <<'PYEOF'
 #!/usr/bin/env python3
-import json, sys
+import json, os, sys
 args = sys.argv[1:]
 if args[:2] == ["pr", "list"]:
     print("[]")
@@ -51,7 +51,8 @@ if args[:2] == ["api", "graphql"]:
     query = next(a[len("query="):] for a in args if a.startswith("query="))
     if "updatedAt body" in query:
         body = ("## Goal\n\nRename foo.\n\n## Design\n\n"
-                "- `src/app.ts` (changed): rename `foo`, as `README.md` describes.\n\n"
+                "- `src/app.ts` (changed): rename `foo`, as `README.md` describes.\n"
+                + os.environ.get("FX_EXTRA_ENTRY", "") + "\n"
                 "## Acceptance criteria\n\n- `foo` is renamed.\n\n"
                 "## Decisions\n\nNone.\n\n## Out of scope\n\nNothing.\n")
         sub = {"number": 2, "title": "Rename foo", "state": "OPEN", "stateReason": None,
@@ -107,3 +108,30 @@ for dir in "$TMP/origin.git" "$TMP/work/.git"; do
   esac
 done
 echo "ok: check outside a work tree is refused"
+
+# From here on the fake gh adds the entries in FX_EXTRA_ENTRY (one bullet per line) to the file list.
+# chk_failures <extra entries> prints the premise failures of --check 2 as (path, symbol, why) tuples.
+chk_failures() {
+  (cd "$TMP/work" && FX_EXTRA_ENTRY="$1" bash "$SCRIPT" -R test/repo 1 --check 2) | python3 -c "
+import json, sys
+d = json.load(sys.stdin)
+print([(f['path'], f.get('symbol'), f['why']) for f in d['premises']['failures']])"
+}
+
+# Case 3: a name in a document entry is looked up in nothing.
+got="$(chk_failures '- `README.md` (changed): says `Temporal` is used
+')"
+[ "$got" = "[]" ] || fail "a document entry with a new name printed $got, wanted []"
+got="$(chk_failures '- `src/app.ts` (changed): uses `Temporal`
+')"
+case "$got" in
+  *"('src/app.ts', 'Temporal'"*) ;;
+  *) fail "a code entry with a new name printed $got, wanted a failure on Temporal" ;;
+esac
+echo "ok: --check looks up no name in a document entry"
+
+# Case 4: a document still has to exist.
+got="$(chk_failures '- `docs/none.md` (changed): says `Temporal` is used
+')"
+[ "$got" = "[('docs/none.md', None, 'changed, but does not exist')]" ] || fail "a missing document printed $got"
+echo "ok: --check fails a document entry whose path does not exist"
