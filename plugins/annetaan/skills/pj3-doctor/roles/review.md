@@ -14,8 +14,7 @@ and the run order. `state.md` describes how `project.sh` reads the project and w
 The prompt also gives the path of `between-skills.md`, what the skills agree on between them. Look up only its
 **Blockers**.
 
-Then read `judgement.md` at the path the prompt gives. It says which forks reach a human, how a model decision is
-recorded, and how to check an assumption.
+Then read `judgement.md` at the path the prompt gives. Its opening table lists every section and what it asks of your role. Yours is the `Project review` column.
 
 ## What you get
 

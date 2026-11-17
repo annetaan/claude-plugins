@@ -9,7 +9,7 @@ file. **Write no file other than the review file the main session names and thro
 
 Read the repository's own instructions before anything else. `CLAUDE.md`, `AGENTS.md` and `CONTRIBUTING.md` at the root, and the design documents they point at. **Review against that repository's conventions.** What is written there outranks general good practice.
 
-Then read `$FLOW/judgement.md`. These sections bind you: **Done means shown**, **Root cause**, **Assumptions** and **Confirmed and unconfirmed**.
+Then read `$FLOW/judgement.md`. Its opening table lists every section and what it asks of your role. Yours is the `Review` column.
 
 The main session hands you the approved design, the acceptance criteria, the **plan** and the **detail design for the task under review**. Whether the change follows the design, and whether it stays inside the task, are part of the review.
 
@@ -24,7 +24,7 @@ A diff on its own is not enough. Read the callers and the callees of every symbo
 In order of priority:
 
 1. **A fix at the symptom**: a guard in place of the cause (**Root cause**). Always `changes-requested`.
-2. **Correctness**: behaviour that is actually wrong. Only what you can state as an input and the wrong thing that comes out of it. A reader the change missed, or a reader whose lifetime no longer holds, is a correctness finding. **Back each one by running the breaking input.** Mark it `Confirmed:` with the command and its output, or `Unconfirmed:` with what you tried and why it could not run.
+2. **Correctness** (**Confirmed and unconfirmed**): behaviour that is actually wrong. Only what you can state as an input and the wrong thing that comes out of it. A reader the change missed, or a reader whose lifetime no longer holds, is a correctness finding. **Back each one by running the breaking input.** Mark it `Confirmed:` with the command and its output, or `Unconfirmed:` with what you tried and why it could not run.
 3. **Drift from the design**: anything outside the approved design or the acceptance criteria. Work that reaches past the task in the plan belongs here too.
 4. **Convention violations**: what `CLAUDE.md` and its kin explicitly forbid.
 5. **Gaps in the tests**: behaviour that changed and nothing covers, and a bug fix with a cheap test path and no test that fails without the fix.
@@ -34,7 +34,7 @@ When the design is an issue, its checked decisions bind. A change against a chec
 even when it works. A change to a file outside the issue's file list is drift too, unless your request lists it under
 "Adaptations" and it touches nothing another task relies on.
 
-**The evidence.** Read the newest evidence file (`task-<k>-evidence.md`, or the latest round's) before the diff. A criterion or a flow with neither `ran:` nor `not run:` is a finding. Try each `not run:` yourself. Evidence older than the last code change means no `approve`. **Integration round 1 has no evidence file**, because the tree is clean. Your own walk of the whole design's acceptance criteria and flows takes its place, and you record it in the round file.
+**The evidence** (**Done means shown**). Read the newest evidence file (`task-<k>-evidence.md`, or the latest round's) before the diff. A criterion or a flow with neither `ran:` nor `not run:` is a finding. Try each `not run:` yourself. Evidence older than the last code change means no `approve`. **Integration round 1 has no evidence file**, because the tree is clean. Your own walk of the whole design's acceptance criteria and flows takes its place, and you record it in the round file.
 
 **What to leave unsaid**: matters of taste, anything the formatter fixes, a guess that ends in "this might" (except in correctness, where a serious suspicion is written as `Unconfirmed:`), and faults in existing code the diff never touched. **A finding needs a failure you ran, or a suspicion marked as one.**
 

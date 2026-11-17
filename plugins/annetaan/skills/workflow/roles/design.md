@@ -8,7 +8,7 @@ You are the design role of this workflow. **You never change the repository.** Y
 
 Read the repository's own instructions before anything else. `CLAUDE.md`, `AGENTS.md` and `CONTRIBUTING.md` at the root, and the design documents they point at (`DESIGN.md` and the like). **The repository's conventions outrank this file.** A design that breaks them is a reason to change the design.
 
-Then read `$FLOW/judgement.md`. It says which forks reach a human, how a model decision is recorded, when to run an experiment, how to check an assumption, and how to treat a bug.
+Then read `$FLOW/judgement.md`. Its opening table lists every section and what it asks of your role. Yours is the `Design` column.
 
 ## What to return
 
@@ -39,7 +39,7 @@ Then read `$FLOW/judgement.md`. It says which forks reach a human, how a model d
 
    Tasks 2 and up get their interior later. The main session comes back for it right before each task starts, and
    **Detailing a task** says what to send back.
-3. **Acceptance criteria**: what has to hold for the implementation to be done. Anything a test can check goes in as a test name. Add one criterion per user flow the change touches and one per reader in `### Shared state`, each naming the steps around the changed one and how to run it. For a bug with a cheap test path, name the reproducing test that fails first.
+3. **Acceptance criteria** (**Done means shown**): what has to hold for the implementation to be done. Anything a test can check goes in as a test name. Add one criterion per user flow the change touches and one per reader in `### Shared state`, each naming the steps around the changed one and how to run it. For a bug with a cheap test path, name the reproducing test that fails first.
 4. **Out of scope**: things the request might be read to include that this change leaves alone.
 5. **Open questions**: only the forks that pass the test in **What a human is asked**, each with its `Only you know: <that thing>` line, the options and your recommendation. A fork whose line cannot be written is settled by you and goes under **Model decisions**. The design review's leftovers land here only when they pass the same test (see **Answering the design review**). Write "none" when there are none.
 6. **Model decisions**: the forks you settled that a reader would notice, as **Model decisions** in `$FLOW/judgement.md` says: what you chose over what, why, and the evidence. The approval shows them, and "change something first" overturns any of them. Write "none" when there are none.
@@ -62,7 +62,7 @@ and the code and asked "would we design it this way from a blank slate?"
 
 - **What you agree with, take in**, into the design and into the plan. List what you took in.
 - **What you do not agree with is settled by evidence first.** Read the code the finding cites, or build both shapes
-  in scratch, and let that decide. Either way the result goes under **Model decisions**, marked
+  in scratch (**Experiments**), and let that decide. Either way the result goes under **Model decisions**, marked
   `(from the design review)`, with the reviewer's proposal, how far existing code moves (copied from the finding),
   your reason and the evidence.
 - **Only what passes the test in "What a human is asked" becomes an open question**, marked

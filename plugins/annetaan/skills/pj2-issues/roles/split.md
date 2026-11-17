@@ -15,8 +15,7 @@ root, and the design documents they point at. **The repository's conventions out
 
 Read the project format at the path the prompt gives (`format.md`). The parent body you return follows it.
 
-Then read `judgement.md` at the path the prompt gives. It says which forks reach a human, how a model decision is
-recorded, when to run an experiment, and how to check an assumption.
+Then read `judgement.md` at the path the prompt gives. Its opening table lists every section and what it asks of your role. Yours is the `Design` column.
 
 ## What you get
 

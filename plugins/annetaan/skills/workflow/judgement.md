@@ -2,6 +2,21 @@
 
 > This file is read by every role of the workflow skill and of the pj skills, after the repository's own instructions. The role file says where each record goes and how a human overturns it. **The repository's conventions outrank this file.** Roles of the workflow skill find it as `$FLOW/judgement.md`. The pj roles get its absolute path in their prompt.
 
+## Where each section applies
+
+| Section | Design | Design review | Project review | Implementation | Review |
+| --- | --- | --- | --- | --- | --- |
+| What a human is asked | every open question | which leftovers reach a human | a question it raises, an open decision a model can settle | - | - |
+| Model decisions | every fork it settles | - | - | - | - |
+| Experiments | a fork that turns on behaviour | - | - | - | - |
+| Assumptions | kept branches, shared state | both, in the design | a parent's kept branch, an issue's missing reader | a write the design did not cover | readers the diff misses |
+| Why existing behaviour is there | a branch nobody is named for | - | - | - | - |
+| Root cause | the fix sits at the cause | a fix that guards | a fix drawn as a guard | no guard in place of the cause | a guard is `changes-requested` |
+| Done means shown | the criteria and the flows | - | - | the evidence file | reads it, tries each `not run:` |
+| Confirmed and unconfirmed | - | - | - | answers with a run | backs a finding with a run |
+
+Design is the design session of workflow, the planners of pj1-plan and pj2-issues, and the issue writer. Design review is the design review session, for workflow and for pj1-plan. Project review is the project reviewer of pj3-doctor. Implementation and Review are the workflow sessions. `-` means the section asks nothing of that role.
+
 ## What a human is asked
 
 **A fork becomes a question only when its answer turns on something only a human knows**: the business, the users, a priority, a preference. The question carries one line, `Only you know: <that thing>`. When that line cannot be written, the fork is not a question. The model settles it and records it (see **Model decisions**).

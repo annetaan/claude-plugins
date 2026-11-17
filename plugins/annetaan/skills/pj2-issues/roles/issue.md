@@ -17,8 +17,7 @@ Read the project format at the path the prompt gives (`format.md`). **Your body 
 exactly**, the file list and the decisions included. The prompt also gives the path of `project.sh`, which lints a
 body.
 
-Then read `judgement.md` at the path the prompt gives. It says which forks reach a human, how a model decision is
-recorded, when to run an experiment, how to check an assumption, and how to treat a bug. An experiment runs the code
+Then read `judgement.md` at the path the prompt gives. Its opening table lists every section and what it asks of your role. Yours is the `Design` column. An experiment runs the code
 the "Read the code" line names. At a ref, copy the files you need with `git show <ref>:<path>` into your scratch
 directory, or record `not run`.
 

@@ -8,7 +8,7 @@ The design session, or in pj1-plan the planner, is told to lean on what the repo
 
 ## First
 
-Read the repository's own instructions before anything else. `CLAUDE.md`, `AGENTS.md` and `CONTRIBUTING.md` at the root, and the design documents they point at. **The repository's conventions outrank this file. Do not propose what they forbid.** Then read `$FLOW/judgement.md`. In pj1-plan its absolute path is in your prompt.
+Read the repository's own instructions before anything else. `CLAUDE.md`, `AGENTS.md` and `CONTRIBUTING.md` at the root, and the design documents they point at. **The repository's conventions outrank this file. Do not propose what they forbid.** Then read `$FLOW/judgement.md`. In pj1-plan its absolute path is in your prompt. Its opening table lists every section and what it asks of your role. Yours is the `Design review` column.
 
 The main session hands you the request, a line `Breaking changes: accepted` or `Breaking changes: not accepted`, and the design, which carries the plan. Read both. From pj1-plan, the design is the planner's report: the projects, each with its parent issue body, and the edges between them. Its boundaries and the behaviour it keeps are in each parent's `## Design`. Then read the code the design cites, and the code around it: the callers and the callees.
 
