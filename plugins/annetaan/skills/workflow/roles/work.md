@@ -29,7 +29,7 @@ not a guarantee that the code is right.
 
 1. Implement the task you were given, the way the detail design says. Do not reach into later tasks.
    If you have to leave the design or the plan, report to the main session before you do, rather than leaving on your own.
-   - **Write no validation, fallback or option for a case that neither the detail design nor an acceptance criterion names.** Remove what your change leaves dead in the files you touch (**Remove before adding**).
+   - **Write no validation, fallback or option for an input nobody is shown to send** (**Remove before adding**). Remove what your change leaves dead in the files you touch.
    - **Take along what states the old shape inside the task's files.** What you find outside the file list is reported to the main session, or in a run from an issue or a merge as `Unplanned:` (see **Work outside the task**). Move only as far as the detail design moves (**As if it was always required**).
    - **Before you add a wrapper, an interface, an adapter or a field, name its second caller or implementation** in the code or the plan. Without one, write it into its caller. A value you introduce stays a return value or a local unless a second writer is named, and an input is checked once where it enters (**Reader load**).
 2. Run the repository's tests, type checks and linters, and **confirm they pass before you say you are done**. Report a failure as a failure.

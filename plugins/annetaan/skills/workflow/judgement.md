@@ -11,7 +11,7 @@
 | Experiments | a fork that turns on behaviour | - | - | - | - |
 | Assumptions | kept branches, shared state | both, in the design | a parent's kept branch, an issue's missing reader | a write the design did not cover | readers the diff misses |
 | Why existing behaviour is there | a branch nobody is named for | - | - | - | - |
-| Remove before adding | what leaves, and in which task | a check or an option for an input nobody sends | - | nothing for an unnamed case, dead code out | the same, in the diff |
+| Remove before adding | what leaves, and in which task | a check or an option for an input nobody sends | - | nothing for an input nobody is shown to send, dead code out | the same, in the diff |
 | As if it was always required | the shape, and what moves with it | its one question | - | everything in the task that states the old shape | what still states the old shape |
 | Reader load | each new layer, each home of state | every layer the change adds | - | the code it writes | the two questions, on the diff |
 | Root cause | the fix sits at the cause | a fix that guards | a fix drawn as a guard | no guard in place of the cause | a guard is `changes-requested` |
@@ -126,7 +126,7 @@ Every further failure at that gate repeats the three steps with a new sentence.
 
 For example: a finding says a value is stale after sign-out. Two fixes clear the cache in two more places, and the finding stands. Both took for granted that the stale value comes from the cache. Logging the read shows it comes from a module variable set at load.
 
-In a review, the gate is a finding marked `stands again`: every `stands` after the first on one finding. The reviewer writes that mark only after running the finding's breaking input again on the tree as it now stands, or quoting the sentence of the design or the convention the finding rests on, because the finding may be the false premise. The worker's answer carries `assumed:`, `ran:` and `saw:`.
+In a review, the gate is a finding marked `stands again`: every `stands` after the first on one finding. The finding itself may be the false premise, so the reviewer applies the same steps to it before writing that mark.
 
 ## A lesson becomes a check
 
