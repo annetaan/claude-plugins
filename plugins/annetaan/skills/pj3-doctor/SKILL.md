@@ -158,51 +158,21 @@ body that fails back to its writer with `SendMessage` and say what to fix.
 **When a writer could not fix something** that needs the user, ask it as phase 2 says, and send the answer back to
 the writer. An unattended run ends as needs-user instead and writes nothing.
 
-**When every writer has returned**, send the reviewer the rewritten bodies with `SendMessage`. Its second return is
-the last word for this run. **There is no third round.** Every finding in it starts with `exact` or `design`
-(`roles/review.md`). **A `design` finding stays open**: its issue goes into the report without `ready`, and the next
-run takes it up. **An `exact` finding is closed in this run**, as **Exact findings** below says.
+When every writer has returned, send the rewritten bodies to the reviewer with `SendMessage`. Its return is review 2.
 
-Print one line `#<k> rewritten` as each body is accepted, `review 2 done` when the reviewer returns, and
-`#<k> exact fixed` as each issue passes the check under **Exact findings**, so a context summary can find where the
-run stood.
+**The reviewer reads at most five times in a run** (phase 1 is the first). When review k (2 <= k < 5) has findings for a
+writer, send them to each issue's writer with `SendMessage` (start one with the `Agent` call above when there is none),
+lint the bodies that come back as above, and send **only the bodies changed since the reviewer last got them**, making
+review k+1.
 
-### Exact findings
+It ends on a return with no finding for a writer, or on the fifth return. **The fifth return is the last word for this
+run.** Findings left stay open; that issue goes into the Report without `ready`, and the next run picks it up.
 
-An `exact` finding is one string for another on one line. The writer applies it, and you only compare the body it
-returns with the reviewer's strings. **No reviewer reads it again, and there is no retry.**
+**A finding that needs the user (kinds 2, 3 and 11) in a later return is never sent to a writer.** It stays open and the
+next run's phase 2 asks it.
 
-1. **Send the findings.** Send each issue's `exact` findings to its writer with `SendMessage`, one message per issue,
-   the `old:` and `new:` lines exactly as the reviewer wrote them. Do this on an issue that also has a `design`
-   finding too. When the issue has no writer yet, start one as above, `Mode: revise`, with these findings as "The
-   review's findings".
-2. **Keep the body the reviewer read.** For an issue rewritten in this run, that body is `$TMP/<n>.md` as it stands,
-   and nothing is run. For any other issue:
-
-   ```bash
-   gh issue view <n> --json body --jq .body > "$TMP/<n>.before.md"
-   ```
-
-   `--exact` removes the CR itself.
-3. **Check the returned body.** Write the returned body to `$TMP/<n>.exact.md`. Write the reviewer's `old:` and `new:`
-   lines for that issue, as written, to `$TMP/<n>.findings.md`. Then run the check, with `<before>` the
-   `$TMP/<n>.md` or `$TMP/<n>.before.md` of step 2.
-
-   ```bash
-   $DOCTOR/../pj1-plan/scripts/project.sh --exact <before> "$TMP/<n>.exact.md" "$TMP/<n>.findings.md"
-   ```
-
-   `state.md` says what `--exact` checks. **The check passes** when `ok` is true and `lint` is clear or reports only
-   `decisions-open`. For a parent, ignore `lint` and read the body against the parent shape, as in phase 3.
-4. **On a pass**, make the returned body the one phase 4 writes, and print `#<n> exact fixed`.
-
-   ```bash
-   cp "$TMP/<n>.exact.md" "$TMP/<n>.md"
-   ```
-
-5. **On a failure**, an `--exact` that exits 1 (a malformed findings file) included, or when the writer applied none
-   of them, every `exact` finding on that issue counts as `design`.
-   `$TMP/<n>.md` stays as it was, or absent. Send nothing back to the writer.
+Print one line `#<k> rewritten` each time a body comes back (in the rounds after the first too), and `review <k> done`
+each time the reviewer returns (k from 2 to 5), so a context summary can find where the run stood.
 
 ## Phase 4: approval and writing
 
@@ -218,7 +188,7 @@ $DOCTOR/../pj1-plan/scripts/project.sh <Q>
 
 **Show the user what will be written**, then ask once.
 
-- each body to rewrite, as `#<n>`, with what changed in one line, an `exact` fix included
+- each body to rewrite, as `#<n>`, with what changed in one line
 - the new issues: the parts of a split and the stubs
 - the sub-issue edges to add and remove. When `parent.roadmap.task` is set and open, one line
   `#<task> blocked by #<k>` per `<k>` in `parent.roadmap.missing` of the phase 1 read, and one sentence that every
@@ -245,8 +215,7 @@ The approval covers this run only (`between-skills.md`, **Principle**).
 **`ready` goes on an issue** when it is open and all of these hold:
 
 - the step 7 `--check` has a clear lint, no premise failure (`premises.mode` `none` has none) and no entry in `breakage.unclosed`
-- no review finding is left on it: the reviewer's last return lists it as clear, or every finding it has there is
-  `exact` and the issue printed `#<k> exact fixed`
+- no review finding is left on it: the reviewer's last return lists it as clear
 
 `ready` stays on an issue that still meets this. **`ready` comes off** an issue that had it and no longer meets this.
 
@@ -373,7 +342,7 @@ the numbers.
 ## Report to the user
 
 - every open sub-issue, one line each, in the new run order: `ready`, or not
-  ready with why. An issue left without `ready` by the second review gives its `design` findings as the reason
+  ready with why. An issue left without `ready` gives the findings the last review left as the reason
 - **the decisions left for the user**, one line each, as `<issue URL> D<k> <question>`. This is the
   user's next step: tick them on GitHub, then run `/annetaan:pj3-doctor` again
 - **the model decisions added or changed in this run**, one line each, as `<issue URL>` and the decision. A comment on
@@ -382,9 +351,8 @@ the numbers.
 - the issues filed, the sub-issue and parent edges changed (the roadmap task's edges added among them), the blockers closed, the parents rewritten and the
   titles changed
 - the parent edges dropped before the approval, each with why
-- the `exact` fixes made after the second review, by issue
-- the `design` findings left, by issue
-- the next step: `/annetaan:pj3-doctor` again only when a decision or a `design` finding is left, never just to put
+- the findings left, by issue
+- the next step: `/annetaan:pj3-doctor` again only when a decision or a finding is left, never just to put
   `ready` on. `/annetaan:pj4-running` when the first open issue of the run order is `ready`. It works down the
   order and stops at the first issue that is not workable. When `parent.baseExists` is false and a project in
   `parent.waitsOn` is not `merged`, add one sentence: `pj4-running` starts this project after each such `#<Q>` is
@@ -404,7 +372,7 @@ is needs-user too.
 - **You decide nothing.** The user decides, the reviewer finds, and the writer writes.
 - **Never ask a task decision in the conversation.** It goes into the issue as a box to tick.
 - **You never write a body yourself**, except the `## Order` list of the parent. Titles you write come from
-  `wantedTitle` or from a writer. The writer applies an `exact` fix, and you only compare it.
+  `wantedTitle` or from a writer.
 - **Each writer writes its own issue only. Only you write to GitHub**, and only after the phase 4 approval. Every
   comment you post starts with `**[pj3-doctor]**`.
 - **The roadmap task's edges come from `parent.roadmap.missing` only.** You never judge them, nor does the reviewer.
@@ -415,4 +383,4 @@ is needs-user too.
 - **A sub-issue body goes out only after its lint passes**, and a parent's only after you read it against its shape.
 - An unattended run never calls `AskUserQuestion` and ends with one `unattended:` line.
 - After a context summary, take `<P>` and whether the run is unattended again from the `project #<P>` line, and `$TMP` from the `tmp` line, and rebuild where the run stood from the
-  progress lines and `project.sh <P>`. A writer or a reviewer whose handle is gone is started again.
+  progress lines (the review count is the largest k of `review <k> done`) and `project.sh <P>`. A writer or a reviewer whose handle is gone is started again.

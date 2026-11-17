@@ -16,7 +16,7 @@ a parent's `Base:` and `Roadmap:` lines, of a pull request's head and of the roa
 Every mode that reads a parent fails with `project: #<P> has no Base: line` when the parent body has none, or has
 one that does not name both branches. It also fails with `project: #<P> is blocked by #<X>, which is no project` when
 an issue the parent is blocked by has no `Base:` line, for this parent and for every project a walk of `--order` or
-`--check` follows. `--lint`, `--exact` and `--roadmap` read no parent.
+`--check` follows. `--lint` and `--roadmap` read no parent.
 
 ```bash
 project.sh <P>               # the whole project, as JSON
@@ -25,7 +25,6 @@ project.sh <P> --order-body  # the parent body with its ## Order list replaced, 
 project.sh <P> --next        # what to run next on the project, and a fingerprint (see What comes next)
 project.sh <P> --check <n>   # whether sub-issue <n>'s body still holds against the code and the project (see Is the body still current?)
 project.sh --lint <file>     # the lint of one body, from a file, or from standard input with -
-project.sh --exact <before> <after> <findings>   # whether <after> is <before> with the findings applied, and nothing else
 project.sh --roadmap [<ref>] # the roadmap file, in the work tree or at <ref>, checked against the format (see format.md)
 ```
 
@@ -142,22 +141,6 @@ replaced by `list`: one `1. #<n>` per line, framed by blank lines. A body with n
 and the list before its first `## ` heading outside a code fence, or at the end. The lines above the first heading,
 `Base:` and `Roadmap:`, stay as they are. It fails like `--order` on a cycle.
 Its own read of the body is the re-read that **Writing to GitHub** (`between-skills.md`) asks for.
-
-`--exact <before> <after> <findings>` touches neither GitHub nor git, and exits 0 whatever the result. `findings` holds
-a reviewer's `old: ` and `new: ` lines in pairs, as written, and ignores leading whitespace and blank lines. Anything
-else in it is malformed, and so is a missing file or a wrong usage: those exit 1. It removes every CR from both bodies,
-ignores a difference in the final newline only, and prints:
-
-```
-{"ok": true | false,
- "failures": [{"old" (absent for the whole-body failure), "why": "not once in before" | "still in after" |
-               "expected line missing" | "the body holds other changes"}],
- "lint": {"ok", "reasons": [codes]}}
-```
-
-`ok` is true when every `old` is in `before` exactly once and in `after` not at all, the line of `before` that held it
-with `new` put in its place is a line of `after`, and `after` is `before` with those replacements and nothing else.
-`lint` is the lint of `after`, which a caller reading a parent body ignores.
 
 ## When a project is merged
 

@@ -276,9 +276,7 @@ reviewer session reads the whole project against the boxes you ticked, the code,
 option the design does not hold, two issues that disagree on a name, a missing blocked-by, a stub, a blocker, a parent that keeps behaviour whose
 assumption the project changed, a change that breaks what a reader elsewhere relies on, an open decision a model can settle. One
 issue writer per issue with a finding redraws it, and a question only you can answer becomes a new decision to tick.
-The reviewer reads the rewrites once more. A finding it then tags as a pure text fix, one string for another, goes
-back to the writer and is checked against the reviewer's strings with no third review, so the issue can still be
-labelled `ready` in the same run. The doctor asks you only about a split, two boxes ticked in one decision, and the
+The reviewer reads the rewrites again, and a finding left goes back to the writer; the reviewer reads at most five times in a run, and findings left on the fifth go to the next run. The doctor asks you only about a split, two boxes ticked in one decision, and the
 changes before it writes them. Then it rewrites the run order and labels `ready` every issue that came out
 clear. While the project's branch does not exist yet, it may also change which projects this one waits on, after
 you approve. It keeps the roadmap task blocked by every issue filed later, so it stays last. Run it once after `pj2-issues`, tick the boxes it lists, and run it again.

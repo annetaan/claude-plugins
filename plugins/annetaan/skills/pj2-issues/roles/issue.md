@@ -205,22 +205,6 @@ A decision the code has made moot is marked `drop` in your one line to the main 
 Its `D<n>` is never reused. A decision a human ticked is never unticked. When the code makes the ticked option
 impossible, leave the box ticked, say why in your return, and the main session takes it to the user.
 
-### Exact findings
-
-After the second review, the main session may send you `exact` findings with `SendMessage`, or start a new writer
-whose prompt holds only such findings. Each one gives an `old:` line and a `new:` line. Each string runs from the
-first character after `old: ` or `new: ` to the end of the line, exactly.
-
-- **The starting body** is the one you last returned. A writer that returned none starts from GitHub, read with
-  `gh issue view <n> --json title,body,labels,comments,updatedAt` as above.
-- **Apply** each finding by replacing that one occurrence of `old` with `new`. Every other character stays as it is,
-  wording you would choose differently included.
-- **Return** the whole body, the `updatedAt` you read and your one line. Lint it as drafting step 5 says.
-- **When you cannot apply them**, because an `old` string does not occur exactly once in the starting body as you read
-  it, or a replacement would make the body wrong, apply none of them. Say why under "What you could not fix", and
-  return the body you started from unchanged. The main session checks every applied finding with `project.sh --exact`.
-- **Nothing else changes in this pass.** Anything else you notice goes in your one line.
-
 ### What to return
 
 - **Issue `n`**: its title, its body, and the `updatedAt` you read. Return the title without the count, even though the
@@ -241,8 +225,8 @@ first character after `old: ` or `new: ` to the end of the line, exactly.
 
 **When the main session sends back a body that moved on GitHub**, merge the human's change into yours and return the
 whole body again, with the new `updatedAt`. **When it sends you the user's answer** on a split or on two ticked boxes,
-return the body again with that answer worked in. **When it sends you `exact` findings**, follow **Exact findings**
-above.
+return the body again with that answer worked in. **When it sends you the reviewer's next findings**, fix them from the body you last returned as **What to fix** says,
+and return the whole body with `updatedAt`.
 
 ## Rules
 

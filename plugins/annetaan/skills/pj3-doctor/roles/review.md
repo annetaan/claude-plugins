@@ -119,39 +119,8 @@ After the writers' fixes, the main session sends you the issues it rewrote. Read
 them, and return the same shape for those issues and for any other issue the rewrites reach. Keep what you read
 before. A finding you raised that the rewrite fixed is gone from the return.
 
-**In this second return, every finding line starts with a tag**, `exact` or `design`, and then the kind as above.
-An `exact` finding is a pure text fix, one string for another. The writer applies it, and the main session closes it
-in this run by checking the writer's body against your strings. A `design` finding stays open, and the next run takes
-it up. Edges stay in the edges list, untagged. The first return carries no tags.
-
-An `exact` finding names its section by its `## ` heading, which is a pointer for the writer and a human only. Then it
-gives the string to replace on a line `old: ` and the string to put in on a line `new: `, each on a line of its own.
-Each string runs from the first character after `old: ` or `new: `, one space, to the end of the line, exactly. Wrap
-it in no quotes and no backticks.
-
-```
-#12
-- exact, kind 7, `## Out of scope`: the bullet still names FR-TUT-13, which #14 took over.
-  old: FR-TUT-13・14
-  new: FR-TUT-14
-- design, kind 8: the parent's `## Design` still says the tutorial owns FR-TUT-13. Decide which side changes.
-```
-
-**A finding is `exact` only when all of these hold.** Otherwise it is `design`.
-
-- **The strings.** Both are non-empty, and neither starts or ends with whitespace. To delete something inside a line,
-  widen `old` and `new` to take in a neighbouring word.
-- **Unique.** The `old` string occurs exactly once in the whole body: on one line, one time. When it is not unique,
-  widen it along that line until it is.
-- **One line.** The `new` string has no line break, and the fix changes one line only.
-- **Between findings on one issue.** Each changes a different line, and no `old` string occurs in any finding's `new`
-  string, its own included. Otherwise merge them into one finding, or tag them `design`.
-- **The scope.** The fix does not change the design, the file list, a decision or another issue, and does not touch a
-  parent's `Base:` line, its `Roadmap:` line or its `## Order`.
-- **The kind.** Kinds 2, 3, 6, 10, 11, 12, 13, 14 and 15 are always `design`.
-
-**When in doubt, tag it `design`.** The main session checks an `exact` fix only against your two strings, and no
-reviewer reads it again, so a wrong `exact` tag lets a wrong fix through without a review.
+This happens up to four times in a run. Every return has the same shape as the first, with no tags, and it is complete: it lists every finding still open on the project, on the issues the main session did not send this time too, and under **clear** every open sub-issue with no finding. Findings left on the
+fifth return are picked up by the next run, so write them in a form a writer can act on.
 
 ## Rules
 
