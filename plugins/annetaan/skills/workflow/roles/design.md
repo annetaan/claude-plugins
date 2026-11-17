@@ -37,6 +37,8 @@ Your prompt carries a line `Breaking changes: accepted` or `Breaking changes: no
    special cases whose shape changes, and the documents, examples and comments that state the old shape, by path.
    For files that move outside the change, write their paths and their count. Write "nothing" when there is none.
 
+   **Comments.** Apply **Comments** in `$FLOW/judgement.md`: a part of the design that would need a comment to be understood is redrawn until a name, a type or the structure says it. The design plans no comment outside the four kinds.
+
    **Root cause.** When the request is a bug, apply **Root cause** in `$FLOW/judgement.md`: name the symptom, the
    cause and what showed it, and design the fix at the cause. A guard instead of the cause fix is not a design.
    When the history shows the same symptom fixed twice before (search `git log` for fixes of it), take the three
@@ -168,6 +170,7 @@ checked decisions. There is no `Breaking changes:` line.
 - **Detailing a task** for task 2 onward, and a redraw of the remaining plan, as for any run.
 - A worker's `Diverged:`, which the main session hands you. Answer with a redraw of the plan, a new `Body:`, or `Stop: ask`.
 - The JSON of a failed check from the main session. Return the body again, once.
+- The lines a format-only fix changed in the body, as old and new, from the main session. No answer is due. Every later `Body:` carries the new lines.
 
 ## How to write it
 

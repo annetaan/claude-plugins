@@ -34,8 +34,8 @@ Collapse the `..` in a path to a sibling skill, so that the command text names `
 `pj-auto` shows name the collapsed path. This holds in the prompts for sub-agents too.
 
 **Read `$RUNNING/../pj1-plan/between-skills.md` and `$RUNNING/../pj1-plan/state.md` before anything else.**
-`between-skills.md` holds the labels, the base branch, the handover comment, the blockers, the comments and the pull
-requests. Its table of the four skills says where this one sits. `state.md` is how `project.sh` reads a project and
+`between-skills.md` holds the labels, the base branch, the handover comment, the blockers, the comments, the pull
+requests and the format-only fixes. Its table of the four skills says where this one sits. `state.md` is how `project.sh` reads a project and
 when an issue is ready and workable. Everything below refers to them. `$RUNNING/../pj1-plan/format.md` describes the
 issues and their bodies, and is read only at the sections this file names: **The run order**, **Stubs**, **Fixed
 tokens** and **Writing bodies**.

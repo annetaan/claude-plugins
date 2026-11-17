@@ -151,10 +151,13 @@ asked only what turns on something only you know. The implementation session sho
 it and walks the flows the change touches. The review session runs what it suspects, marks each correctness finding
 confirmed or unconfirmed, and sends back a fix that guards the symptom.
 
-Five rules shape the work. A design removes what the request makes unnecessary before it adds anything. A new
+These rules shape the work. A design removes what the request makes unnecessary before it adds anything. A new
 requirement is drawn as if it had always been there, down to the types, documents and examples that state the old shape.
-A new layer needs a named second user, state lives in the narrowest place, and the review asks of a diff where a value
-comes from and what can change it. When the same finding stands twice, the implementation session writes down what both
+The review always sends back a document that still states the old shape, and never one whose wording or format is the
+only fault in what it says. A new layer needs a named second user, state lives in the narrowest place, and the review
+asks of a diff where a value comes from and what can change it. Code speaks through names, types and structure, and the
+only comments that stay are a licence header, a constraint from outside, a doc comment on a public API, and a link to an
+issue or an RFC. When the same finding stands twice, the implementation session writes down what both
 answers took for granted and makes one observation that would come out differently if it were false, before the next fix. When the same lesson turns up a second time, it
 becomes a check instead of prose, and a check that has to live outside the task goes into the work report. A task never keeps an old path, an adapter or a shim so that the tests stay green until a later task. A split that passes only with one is one task.
 
@@ -276,10 +279,8 @@ reviewer session reads the whole project against the boxes you ticked, the code,
 option the design does not hold, two issues that disagree on a name, a missing blocked-by, a stub, a blocker, a parent that keeps behaviour whose
 assumption the project changed, a change that breaks what a reader elsewhere relies on, an open decision a model can settle. One
 issue writer per issue with a finding redraws it, and a question only you can answer becomes a new decision to tick.
-The reviewer reads the rewrites once more. A finding it then tags as a pure text fix, one string for another, goes
-back to the writer and is checked against the reviewer's strings with no third review, so the issue can still be
-labelled `ready` in the same run. The doctor asks you only about a split, two boxes ticked in one decision, and the
-changes before it writes them. Then it rewrites the run order and labels `ready` every issue that came out
+The reviewer reads the rewrites again, and a finding left goes back to the writer; the reviewer reads at most five times in a run, and findings left on the fifth go to the next run. The doctor asks you only about a split, two boxes ticked in one decision, and the
+changes before it writes them. A check that fails on the form of a body alone, such as backticks around a name the task adds, the doctor fixes once on the spot and runs again. Then it rewrites the run order and labels `ready` every issue that came out
 clear. While the project's branch does not exist yet, it may also change which projects this one waits on, after
 you approve. It keeps the roadmap task blocked by every issue filed later, so it stays last. Run it once after `pj2-issues`, tick the boxes it lists, and run it again.
 
@@ -295,7 +296,7 @@ person removes it to hand the project over. Each sub-issue gets a branch.
 [workflow](skills/workflow/README.md#driven-from-an-issue) first has a design session detail the issue against the
 code on the project's branch, which the issues before it have changed. It may redraw the issue's body and the order of
 the issues left, and when it finds a decision only you can make, the run adds it to the issue and stops, so you tick
-it. Then the issue runs as one or more commits, each reviewed, with an integration review when there is more than one.
+it. When a redrawn body fails a check on its form alone, the run fixes it on the spot and goes on. Then the issue runs as one or more commits, each reviewed, with an integration review when there is more than one.
 A draft pull request follows, with the work report as its body. Then the merge into the project's branch, by squash where the
 repository allows it. pj4-running then closes the issue itself, because GitHub closes nothing on a merge into a
 branch other than the default. Once every sub-issue is closed, it opens the pull request from the project's branch
@@ -608,7 +609,7 @@ that path out of the prompt the main session hands it.
 Several of the judgement rules in [`skills/workflow/judgement.md`](skills/workflow/judgement.md) were learned from
 pstack in [cursor/plugins](https://github.com/cursor/plugins) (MIT): ask a person only what a person knows, show work
 by running it, fix the cause and not the symptom, remove before adding, question what two failed fixes share, turn a
-repeated lesson into a check, design a requirement as if it was always there, and keep the reader's load low. Four more
+repeated lesson into a check, design a requirement as if it was always there, keep the reader's load low, and keep comments to what the code cannot say. Four more
 shape how work is split and carried through. Three are in `Where to split` and `No transitional code`: finish work that
 is coupled in code as one task with one owner, however large; move the callers and delete the old path in the same
 task, with no compatibility layer kept between tasks; and cut work only into units that can each be reviewed and

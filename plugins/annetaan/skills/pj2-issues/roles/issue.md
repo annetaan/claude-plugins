@@ -32,7 +32,8 @@ the other tasks at the same time. Stay inside yours.
    says: in the working tree, or at `origin/<from>` through `git show`, `git grep` and `git ls-tree`. In
    `Mode: revise` there is no such line. Read where **Revising an issue** says.
 2. **Draw the task.** `## Design` opens with the file list from `format.md`, one entry per file, tests included. A
-   `changed` entry names the existing symbols it rides on, and only names that exist in that file go in backticks.
+   `changed` entry on a code file names the existing symbols it rides on, and only names that exist in that file go in
+   backticks. An entry on a document needs no symbol: say what the document says afterwards.
    A file name in backticks, including one at the root such as `package.json`, is a path and not a symbol: name that
    file in its own entry, or leave it out of backticks.
    The file list reaches the documents and examples that state the old shape (**As if it was always required**). The
@@ -90,8 +91,7 @@ the other tasks at the same time. Stay inside yours.
 This applies when your task's only path is the path on the parent body's `Roadmap:` line. Read `format.md`, **The
 roadmap task**. The parent body in the prompt holds that line with the path and the heading.
 
-- The file list is one `changed` entry, the roadmap file. It needs no symbol. Backtick only a stale name, as it stands
-  in the file.
+- The file list is one `changed` entry, the roadmap file.
 - `## Design` says which entry is deleted, by its heading, and gives each fix in the other entries as the old name and
   what replaces it, or the sentence to reword when the thing was removed.
 - The names come from what this parent's `## Design` and the other tasks of the split rename or remove, and from what
@@ -170,7 +170,10 @@ Each finding says what is wrong. Fix all of them in one body.
 - **A premise failure**: redraw the body
   against the code as it is now. Under `premises.mode` `early`, count what the `excusers` list and name. When the
   fault is an excuser's (it adds the name without listing the file or without naming it in its body, or its file list contradicts this one), say so under what you could
-  not fix and name the issue. Never drop a correct backtick to silence the check.
+  not fix and name the issue. A `symbol never in the file` failure names something the file has never held: take the
+  backticks off when the task adds the name, and move it to its own file's entry when it belongs to another file.
+  Never drop a correct backtick to silence a `symbol not found` failure, because the file held that name once, so
+  redraw the entry against the code as it is now.
 - **A `roadmap entry not found` premise failure**: no redraw fixes it, because the entry left the roadmap by another
   hand. Say so under "What you could not fix".
 - **A stub**: draw the full body as in **Drafting an issue**.
@@ -205,22 +208,6 @@ A decision the code has made moot is marked `drop` in your one line to the main 
 Its `D<n>` is never reused. A decision a human ticked is never unticked. When the code makes the ticked option
 impossible, leave the box ticked, say why in your return, and the main session takes it to the user.
 
-### Exact findings
-
-After the second review, the main session may send you `exact` findings with `SendMessage`, or start a new writer
-whose prompt holds only such findings. Each one gives an `old:` line and a `new:` line. Each string runs from the
-first character after `old: ` or `new: ` to the end of the line, exactly.
-
-- **The starting body** is the one you last returned. A writer that returned none starts from GitHub, read with
-  `gh issue view <n> --json title,body,labels,comments,updatedAt` as above.
-- **Apply** each finding by replacing that one occurrence of `old` with `new`. Every other character stays as it is,
-  wording you would choose differently included.
-- **Return** the whole body, the `updatedAt` you read and your one line. Lint it as drafting step 5 says.
-- **When you cannot apply them**, because an `old` string does not occur exactly once in the starting body as you read
-  it, or a replacement would make the body wrong, apply none of them. Say why under "What you could not fix", and
-  return the body you started from unchanged. The main session checks every applied finding with `project.sh --exact`.
-- **Nothing else changes in this pass.** Anything else you notice goes in your one line.
-
 ### What to return
 
 - **Issue `n`**: its title, its body, and the `updatedAt` you read. Return the title without the count, even though the
@@ -241,8 +228,8 @@ first character after `old: ` or `new: ` to the end of the line, exactly.
 
 **When the main session sends back a body that moved on GitHub**, merge the human's change into yours and return the
 whole body again, with the new `updatedAt`. **When it sends you the user's answer** on a split or on two ticked boxes,
-return the body again with that answer worked in. **When it sends you `exact` findings**, follow **Exact findings**
-above.
+return the body again with that answer worked in. **When it sends you the reviewer's next findings**, fix them from the body you last returned as **What to fix** says,
+and return the whole body with `updatedAt`.
 
 ## Rules
 

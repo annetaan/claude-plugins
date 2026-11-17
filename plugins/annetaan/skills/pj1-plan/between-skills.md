@@ -365,6 +365,31 @@ stalls. The skills therefore keep to single commands.
 - **Writing files.** With Write, or with one command's own redirect (`> "$TMP/<name>"`).
 - **Reading plugin files.** With Read, not `cat`.
 
+## Format-only fixes
+
+A sub-issue body can fail `--check` on its form alone. **The main session fixes that on the spot and runs the check
+again.** The fix never goes back to a writer or to the design session, and it counts against no cap. It applies in
+`pj3-doctor` right before `ready` goes on, and in `pj4-running`'s detail pass.
+
+Two failures are format-only, and nothing else is:
+
+- **A premise failure `symbol never in the file`.** The entry backticks a name the file has never held. Take the
+  backticks off that name in that file's entry.
+- **A lint reason that backticks, spaces and line breaks alone clear**, such as a criterion whose anchor lost its
+  backticks, or an entry broken across lines without an indent.
+
+A premise failure `symbol not found` is never format-only: the file once held the name, so the code moved.
+
+1. Keep the failing body in a file, `<before>`, and write the fixed body to another, `<after>`. Change only backticks,
+   spaces and line breaks.
+2. Run `project.sh --same-words <before> <after>`. Go on only when `ok` is true and `lint` is what the step that
+   called for the fix accepts.
+3. Write `<after>` where the step writes the body, and run the check again.
+4. **One fix per failing check.** When `ok` is false, or the check still fails after the fix, what is left is not
+   format-only and goes the way the step gives for a failure.
+
+Print `#<k> format fixed`, and name the fix in the report.
+
 ## Writing to GitHub
 
 - **Always pass a body with `--body-file`.** A body passed with `--body` on the command line breaks on quotes and
