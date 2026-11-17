@@ -35,14 +35,14 @@ $RUNNING/scripts/run.sh sync <P>
     ```
 
     `merged`: print `<from> merged into <base> as <short sha>`. Go on to the pull request, unless the user said stop:
-    then go to phase 6 step 2. A `stop` is handled as below.
+    then go to phase 5 step 2. A `stop` is handled as below.
   - **`stopped`**: report the reason and the text of the `Unplanned:` or `Diverged:` report, and say whether
     uncommitted work stays in `<WT>`. There is no issue to comment on, so nothing goes to GitHub. The next run saves
-    the dirty `<WT>` to `stopped.diff`, discards it and redoes the merge. Go to phase 6 step 2.
+    the dirty `<WT>` to `stopped.diff`, discards it and redoes the merge. Go to phase 5 step 2.
 - **`stop`** with `push-rejected`: quote `message`. A rule on `<base>` refuses a direct push, or `<base>` moved since
-  the fetch. The merge commit stays at `<WT>`'s HEAD, and the next run redoes the merge. Go to phase 6 step 2.
+  the fetch. The merge commit stays at `<WT>`'s HEAD, and the next run redoes the merge. Go to phase 5 step 2.
 - **`stop`** with `dirty`, `unfinished` or `not-the-merge`: `<WT>` is not as `sync` expects. Quote `message` and go
-  to phase 6 step 2.
+  to phase 5 step 2.
 - **`stop`** with `base-gone`, `merged`, `not-due` or `fetch-failed`: as for the pull request below.
 
 ## The declared checks
@@ -52,7 +52,7 @@ Read `project.sh <P>`. For each distinct `check` in `parent.breakage`, run it in
 
 - **Every check passes**: go on to the pull request.
 - **A check fails**: file a stub as **Unplanned work** in SKILL.md says, worded "found while verifying project #<P>:
-  `<check>` fails". Open no pull request and go to phase 6 step 2. The next step is `/annetaan:pj3-doctor`.
+  `<check>` fails". Open no pull request and go to phase 5 step 2. The next step is `/annetaan:pj3-doctor`.
 - **A check cannot be run here** (a missing service, a command the run may not start): keep it as
   `not run: <why>` and go on.
 
@@ -60,7 +60,7 @@ Read `project.sh <P>`. For each distinct `check` in `parent.breakage`, run it in
 
 Write `$TMP/<P>-pr.md`. Its first line is `Part of #<P>`. Below it, in the repository's language, it says that the
 pull request brings project `#<P>` into `<from>`, lists each sub-issue closed as completed as `#<k> <title>` with its
-pull request `#<m>` from `project.sh <P>`, names the stubs and the issues closed as not planned, lists each declared check with the issue that left it, its `closedBy` and its `ran:` and `saw:`, and lists the `not run:` ones under a heading of their own, and says that the
+pull request `#<m>` from `project.sh <P>`, or "no pull request, it already held" for one closed after `nothing-left`, names the stubs and the issues closed as not planned, lists each declared check with the issue that left it, its `closedBy` and its `ran:` and `saw:`, and lists the `not run:` ones under a heading of their own, and says that the
 parent closes as completed when a pj4-running run sees the merge, or when the user closes it after merging.
 
 ```bash

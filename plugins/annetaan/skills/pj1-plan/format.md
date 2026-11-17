@@ -17,7 +17,7 @@ in `state.md`, and what the skills agree on between them is in `between-skills.m
 | The run order | the numbered list under the parent's **`## Order`** (see **The run order**). |
 | An order between projects | a native **blocked by** relationship between the two parents (see **Projects**). |
 | The initiative's roadmap entry | the **`Roadmap:`** line of one parent, and that project's **roadmap task** (see **The parent issue body** and **The roadmap task**) |
-| A task that can be implemented straight from its body | the **`ready`** label |
+| A task whose body is drawn and whose decisions are settled | the **`ready`** label |
 | Something `pj4-running` stopped on | the **`blocker`** label |
 
 ### Projects
@@ -159,7 +159,8 @@ issue's title and whether it is open or closed, so the list shows the progress w
 - **`pj2-issues` writes it when it files the sub-issues, and `pj3-doctor` rewrites it** from
   `project.sh <P> --order`, whose `list` keeps the human's order wherever the blockers allow it. The closed issues
   come first, then the open ones. An issue closed as not planned leaves the list.
-- **`pj4-running` never writes it.** A closed issue shows as closed where it stands.
+- **`pj4-running` rewrites it only after a detail pass changed the edges**, through `project.sh <P> --order-body`. A
+  closed issue shows as closed where it stands.
 
 `project.sh <P>` reads the list as `parent.order` and checks it as `parent.orderCheck`
 (`state.md`, **Reading a project**). An issue missing from the list, such as a stub filed during a run, waits for
@@ -229,6 +230,9 @@ Only you know: <the thing only a human can answer>
 
 A body has to meet the bar for `ready` (`state.md`, **When an issue is ready**).
 
+`pj4-running`'s detail pass may redraw the body before the issue runs, against the code as it then stands. `## Goal` and
+every existing decision stay as they are, and it may append one decision when only the user can settle what it found.
+
 ### The file list
 
 `## Design` opens with one bullet per file the task touches, tests included.
@@ -271,7 +275,7 @@ Both are optional subsections at the end of `## Design`, after the file list and
   and the evidence.
 - **A human overturns an entry** with a comment on the issue. `pj3-doctor` has the writer work the comment in and
   remove the entry. On an issue that carries `ready`, the user also takes `ready` off, so that the next step is
-  `pj3-doctor` and not `pj4-running`, which hands the worker the body and never reads comments.
+  `pj3-doctor` and not `pj4-running`, which reads the body and never the comments.
 - Backticked names in these subsections are not looked up by `--check`.
 - `### Left broken` is the third optional subsection (see **Declared breakage**).
 
@@ -312,7 +316,8 @@ read `Add retry settings (0/2)`, then `Add retry settings (1/2)`, then `Add retr
 - **Nobody writes the count by hand.** A writer returns a title without it. `project.sh` derives the title an issue
   should carry as `wantedTitle` (`state.md`, **Reading a project**), and the skills bring the titles in line with it
   (`between-skills.md`, **Titles**).
-- Ticking a box on GitHub leaves the title as it was until the next `pj3-doctor` run.
+- Ticking a box on GitHub leaves the title as it was until the next `pj3-doctor` run. `pj4-running` also writes the
+  count, when it appends a decision to an issue and stops.
 - A parent's title carries no count.
 
 ### Decisions
@@ -334,6 +339,7 @@ reason.
   issue. `pj3-doctor` has the writer work either into the body.
 - A line starting with `Decided:` may follow the options, with the reason in one or two sentences. A human may write
   it, and a writer that redraws the body keeps it.
+- A decision `pj4-running` appends is numbered after the highest `D<n>`, with no box checked.
 - `D<n>` is never renumbered, even when a decision is dropped. Elsewhere a decision is referred to as `#<issue> D<n>`.
 
 ```markdown

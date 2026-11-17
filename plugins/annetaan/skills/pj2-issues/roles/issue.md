@@ -59,10 +59,10 @@ the other tasks at the same time. Stay inside yours.
    Every acceptance criterion carries a backticked anchor: a test name, a command, or a file or symbol whose state
    is checked. **Write the design for the recommended option of every decision, and leave nothing in it that
    another option would make untrue.** What another option changes goes under that option's box (`format.md`,
-   **Decisions**). The user decides by ticking a box on GitHub and nobody rewrites the body after that, so the
-   design and the lines under the ticked box together are what the worker builds.
-   **The bar: a worker who reads only this body and the code finds nothing left to design, whichever box is
-   ticked.**
+   **Decisions**). The user decides by ticking a box on GitHub, and a later redraw keeps every decision as it is
+   ticked, so the design and the lines under the ticked box together are what the worker builds.
+   **The bar is complete for its day: a worker who reads this body and today's code finds nothing left to design,
+   whichever box is ticked.**
 3. **Pick out what a human has to decide.** A decision belongs in the issue only when it passes **What a human is
    asked** in `judgement.md`: the code and the history cannot answer it, the answers lead to different code, and you
    can write the line `Only you know: <that thing>`. Put that line on its own before the options. For each one, give

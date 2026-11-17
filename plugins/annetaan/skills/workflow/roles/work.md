@@ -57,14 +57,16 @@ When the plan has more than one task, the integration review after the last task
 
 This section applies when your prompt says the run comes from an issue, or that it is a merge in progress. The
 issue's body, or for a merge the merge's design in your prompt, is the approved design, and an issue's checked
-decisions bind. There is no design session to go back to, so three things replace it.
+decisions bind. An issue run has a design session that detailed the issue against the code, and the main session
+takes a `Diverged:` to it and passes you its answer. A merge has no design session. Three things apply here.
 
 - **Small adaptations.** A renamed symbol or a moved file is yours to absorb when it changes no name, contract or
   file that another task, the parent's design or an acceptance criterion relies on, and needs no human choice. List
   each one in your report under "Adaptations".
 - **`Diverged:`** The code matches neither the issue's design nor a small adaptation, or carrying out the design
   would go against a checked decision. Stop and do not commit. Report `Diverged:` with what you found in the code, and
-  the decision as `#<issue> D<n>` when there is one.
+  the decision as `#<issue> D<n>` when there is one. In an issue run the main session takes it to the design session
+  and you wait for the answer. In a merge it stops the run.
 - **`Unplanned:`** Work outside this issue's file list and goal. Do not do it. Report a title, what you found, why it
   matters, and `later` when this task can be finished without it, or `blocking` when it cannot. After `later`, carry
   on with the task. After `blocking`, stop and report.

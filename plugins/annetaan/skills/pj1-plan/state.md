@@ -23,7 +23,7 @@ project.sh <P>               # the whole project, as JSON
 project.sh <P> --order       # the run order, and the ## Order list to write
 project.sh <P> --order-body  # the parent body with its ## Order list replaced, as text
 project.sh <P> --next        # what to run next on the project, and a fingerprint (see What comes next)
-project.sh <P> --check <n>   # whether sub-issue <n> can be implemented from its body now (see When an issue is ready)
+project.sh <P> --check <n>   # whether sub-issue <n>'s body still holds against the code and the project (see Is the body still current?)
 project.sh --lint <file>     # the lint of one body, from a file, or from standard input with -
 project.sh --exact <before> <after> <findings>   # whether <after> is <before> with the findings applied, and nothing else
 project.sh --roadmap [<ref>] # the roadmap file, in the work tree or at <ref>, checked against the format (see format.md)
@@ -186,15 +186,15 @@ current?**).
 - `## Design` reads as the decisions say, with no "depending on D1" left in it
 - nothing in the body contradicts the parent's `## Design`, or another open issue
 - the project review found nothing left on it (see `pj3-doctor`)
-- **it can be implemented straight from its body.** A worker who reads only this body, the parent's `## Design`, the
-  `## Design` of every parent in `waitsOn` and the code finds nothing left to design. `project.sh` checks the part
-  of this a script can see, as a lint (`format.md`, **What the lint checks**).
+- **the body is complete for its day**: the goal, the boundary it has to match and every decision a human has to make,
+  with the lint clear (`format.md`, **What the lint checks**). `pj4-running` details it against the code before it
+  runs, so the body need not hold the interior of every file.
 
 ## When an issue is workable
 
-An issue is **workable** when it carries `ready`, every issue in its `blockedBy` is `CLOSED`, `--check` is clear, and
-its project has `baseExists`, or every project in `waitsOn` is `merged`. The roadmap task is workable only when
-`parent.roadmap.missing` is empty.
+An issue is **workable** when it carries `ready`, is no stub, has no open or contradictory decision, every issue in its
+`blockedBy` is `CLOSED`, and its project has `baseExists`, or every project in `waitsOn` is `merged`. `--check` is no
+part of it. The roadmap task is workable only when `parent.roadmap.missing` is empty.
 
 ## What comes next
 
@@ -226,8 +226,9 @@ only for `merge-project-pr`.
 | | k is `parent.roadmap.task` and `missing` is not empty | `doctor` / `roadmap-edges` | k |
 | | otherwise | `running` / `workable` | k |
 
-The rows under 8 run in the order shown. `--next` does not run `--check`. A `--check` failure that `pj4-running` finds
-gets the issue a `blocker` label, so the next `--next` sends the project to `doctor`.
+The rows under 8 run in the order shown. `--next` does not run `--check`. A `detail` stop of `pj4-running` leaves the
+`blocker` label, and a `decision` stop leaves an open decision and no `ready`, so the rows above send the project to
+the doctor or to the user.
 
 `fingerprint` is the sha256 of the parent's `updatedAt`, `state` and `labels`, each issue's `number`, `state`, `updatedAt` and
 `labels`, each issue's pull request `number` and `state`, and `projectPr`. A step that changes the project changes it.
@@ -237,6 +238,8 @@ Only `pj-auto` reads it, to tell that a step made no progress.
 
 A body is drawn against the code of its day. `--check` asks whether it still holds at the tip of the base branch, or
 at the tip of `origin/<from>` while the base branch does not exist yet, since that is where it will be cut from.
+`pj3-doctor`'s review asks it to keep the bodies true to the code, and `pj4-running`'s detail pass asks it before an
+issue runs.
 
 - **Premises.** Every `changed` and `deleted` path exists, and no `added` path does. Every symbol of a `changed` entry
   is still found in its file. Three modes. `full`: every blocker in the transitive `blockedBy` is closed, and the

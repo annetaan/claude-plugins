@@ -116,6 +116,58 @@ Leave the tasks after it alone. Their turn comes.
 split, or swap places with another one is the plan breaking. The main session will come back and ask you to redraw
 what is left.
 
+## Detailing an issue
+
+This section applies when your prompt says to follow it. The run comes from a sub-issue of a pj project, and you stay
+for the whole run. The issue is the approved design in its goal, its boundary and its checked decisions, and **you detail
+it against the code as it stands on the base branch before anything runs**. It rides on **Detailing a task**,
+**How to split** and `$FLOW/judgement.md`.
+
+**What the prompt carries**: the issue `#<n>`, the parent `#<P>`, the parents it `Waits on:`, the absolute paths of
+`format.md` and `project.sh`, the `project.sh <P>` JSON, the `project.sh <P> --check <n>` JSON, "Left broken on the base
+branch", the handover notes, a `Scratch:` line and the worktree line.
+
+**What to read**: the issue, the parent and each waited parent with `gh issue view <k> --json title,body` (bodies only,
+never comments), the open issues after `#<n>` in `parent.order`, the body of a closed sub-issue when the code it left
+bears on this one, and the code in the worktree, which sits on the tip of the base branch. **The code outranks the
+body.** The limit of **As if it was always required** here is the parent's `## Design`, the issue's `## Goal` and its
+checked decisions. There is no `Breaking changes:` line.
+
+**What to return**:
+
+1. `Stop:` `none`, `nothing left` or `ask`.
+   - `nothing left`: the code on the base branch already makes the goal true. Give `ran:` and `saw:` for each
+     acceptance criterion. Nothing else follows.
+   - `ask`: the run cannot go on without the user. It fires for a change to the parent's `## Design` or a waited
+     parent's, to the issue's `## Goal`, or to a checked decision, and for a fork that passes **What a human is asked**.
+     `Body:` then carries the issue's body with one decision appended, `### D<k>.` numbered after the highest `D<n>`, in
+     the decision shape of `format.md`: its `Only you know:` line, 2 to 4 options that each say what they change (the
+     parent's sentence as it would read, included), one `(recommended)`, no box checked. Nothing else in the body
+     changes, and no plan follows. The lint prints `decisions-open` alone.
+2. `Body:` `unchanged`, or the whole body in the sub-issue shape of `format.md` with one line per change.
+   - `## Goal` is copied byte for byte, and so is every existing entry of `## Decisions`, boxes as ticked.
+   - The design is written for the ticked options, and its file list is true to the code as it stands now.
+   - Lint the body with `project.sh --lint` until it prints no reason.
+   - A `--check` JSON with a lint reason, a premise failure, or an entry in `breakage.unclosed` that the body can fix
+     means the body is redrawn, never `unchanged`.
+3. `Order:` `unchanged`, or `add #a blocked by #b` / `remove #a blocked by #b`, each with its reason. Only between open
+   sub-issues of `#<P>`, never an edge of the roadmap task (`parent.roadmap.task`).
+4. `Notes:` one line per later open issue the redraw bears on, as `#<m>: <what changed for it>`, or `none`.
+5. `Unplanned:` lines in the shape **Work outside the task** in `$FLOW/roles/work.md` gives (`later` or `blocking`),
+   for work outside the issue's goal.
+6. Under `Stop: none`: the plan (one or more tasks, each one commit, split by **How to split**), the interior of task 1,
+   the flows to walk, and the forks you settled. A fork you settled is also written into the body's `### Model decisions`
+   when the body is redrawn.
+
+**There is no design review, no approval and no open question.** A fork that passes **What a human is asked** is
+`Stop: ask`.
+
+**Later messages in the same run**:
+
+- **Detailing a task** for task 2 onward, and a redraw of the remaining plan, as for any run.
+- A worker's `Diverged:`, which the main session hands you. Answer with a redraw of the plan, a new `Body:`, or `Stop: ask`.
+- The JSON of a failed check from the main session. Return the body again, once.
+
 ## How to write it
 
 - **Never point at a file by line number.** Point with a symbol name or a heading.

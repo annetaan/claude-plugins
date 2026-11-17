@@ -87,7 +87,7 @@ In short, from [format.md](skills/pj1-plan/format.md)'s The parts:
 | can run | `ready` label |
 | stopped on | `blocker` label |
 | where the work lands | branch `pj/12` |
-| one task's change | one pull request |
+| one sub-issue, run as a plan of one or more commits | one pull request |
 | what sessions learnt | the parent's handover comment |
 
 Only two pieces of a project's state live outside GitHub: your approval within one run, which the next run asks for
@@ -206,7 +206,7 @@ branch now conflicts with it, the finish step merges the base in and resolves th
 before it pushes. A pull request that conflicts later is resolved the same way when you ask for it in plain words,
 such as "コンフリクト解消して", with no skill named ([Conflicts](skills/workflow/README.md#conflicts)).
 
-`pj4-running` runs this flow once per task ([Driven from an issue](skills/workflow/README.md#driven-from-an-issue),
+`pj4-running` runs this flow once per sub-issue, from the detail on ([Driven from an issue](skills/workflow/README.md#driven-from-an-issue),
 [How the skills fit together](#how-the-skills-fit-together)).
 
 Every run leaves a work report behind, inside the repository under `work-reports/` so that you see them. The skill checks that git ignores `.claude/worktrees/` and `work-reports/` before it writes anything, and asks
@@ -287,14 +287,16 @@ you approve. It keeps the roadmap task blocked by every issue filed later, so it
 project's first run it creates the project's branch. When a project it waits on is not merged yet, it lists those
 projects and stops instead. It closes the parent of any project it finds merged, its own or one it waits on. Then it
 checks that you can merge your own pull request into the project's branch without an approving review. It walks the
-run order from the top and takes issues until the first one that is not workable, then checks every issue it took.
-Any issue that needs design again sends the run back to `pj3-doctor` before anything starts. After you approve the
-order, each task goes through the same steps in turn, in a git worktree of the project's own under
+run order from the top and takes issues until the first one that is not workable. After you approve the
+order, each sub-issue goes through the same steps in turn, in a git worktree of the project's own under
 `.claude/worktrees/`, so you can keep working in your clone while the run goes on. Before it starts work it assigns
 you to the parent, and it stops when someone else is assigned. The assignment stays for the life of the project, and a
-person removes it to hand the project over. Each task gets a branch.
-[workflow](skills/workflow/README.md#driven-from-an-issue) runs it as one task, with review rounds. A draft pull
-request follows, with the work report as its body. Then the merge into the project's branch, by squash where the
+person removes it to hand the project over. Each sub-issue gets a branch.
+[workflow](skills/workflow/README.md#driven-from-an-issue) first has a design session detail the issue against the
+code on the project's branch, which the issues before it have changed. It may redraw the issue's body and the order of
+the issues left, and when it finds a decision only you can make, the run adds it to the issue and stops, so you tick
+it. Then the issue runs as one or more commits, each reviewed, with an integration review when there is more than one.
+A draft pull request follows, with the work report as its body. Then the merge into the project's branch, by squash where the
 repository allows it. pj4-running then closes the issue itself, because GitHub closes nothing on a merge into a
 branch other than the default. Once every sub-issue is closed, it opens the pull request from the project's branch
 into the branch it came from, for you to merge. Work nobody planned becomes a new issue. Work that has to
@@ -321,13 +323,14 @@ flowchart TD
     plan --> approve(["you approve the projects and their stages"]) --> filed["a parent issue per project,<br/>labelled project,<br/>blocked-by between parents"]
     filed --> split["pj2-issues, per project<br/>once what it waits on is merged:<br/>planner splits it, issue writers draw each task,<br/>sub-issues, run order"]
     split --> doctor["pj3-doctor<br/>reviewer reads the whole project,<br/>writers redraw what does not hold,<br/>run order rewritten, ready on what is clear"]
-    doctor --> run["pj4-running, per project<br/>makes its branch on the first run,<br/>then down the run order: branch, workflow,<br/>draft pull request, merge<br/>into the project's branch"]
-    run -->|"stub or blocker"| doctor
+    doctor --> run["pj4-running, per project<br/>makes its branch on the first run,<br/>then down the run order: branch,<br/>detail against the code, workflow,<br/>draft pull request, merge<br/>into the project's branch"]
+    run -->|"stub, blocker or detail failed"| doctor
     run -->|"all merged"| pr["pj4-running merges the branch it came from<br/>into the project's branch, then opens<br/>the pull request back into it"]
     pr --> done(["you merge it"]) --> cleanup["pj-cleanup<br/>closes the parent,<br/>removes the worktree and the project's branch,<br/>brings your branch up to date"]
     cleanup -.->|"a project that waits on it"| split
 
     you(["you, on GitHub"]) -.->|"tick a box,<br/>reorder the run order"| split
+    run -->|"a decision only you can make"| you
     split -.->|"after ticking"| doctor
 
     classDef human fill:#fff,stroke:#888,stroke-dasharray: 5 5
@@ -580,7 +583,7 @@ design review cannot start, the skill spawns it again on opus at the same effort
 
 | Agent | Model | Effort | Role |
 | --- | --- | --- | --- |
-| `annetaan:workflow-design` | fable | medium | design. returns the design and the plan, and tries a doubtful point in a throwaway experiment |
+| `annetaan:workflow-design` | fable | medium | design. returns the design and the plan, and tries a doubtful point in a throwaway experiment. In a pj run it also details one sub-issue against the code and may return its body redrawn |
 | `annetaan:workflow-design-review` | fable | medium | design review for `workflow` and `pj1-plan`. once, before approval, in every repository. moves existing code only where breaking changes are welcome |
 | `annetaan:workflow-worker` | sonnet | medium | implementation, for every task. shows each acceptance criterion by running it and writes the evidence file |
 | `annetaan:workflow-reviewer` | opus | medium | review, for every task, and the integration review when the plan has more than one task. runs what it suspects and marks each correctness finding confirmed or unconfirmed |
