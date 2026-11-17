@@ -17,8 +17,7 @@ Read the project format at the path the prompt gives (`format.md`). **Your body 
 exactly**, the file list and the decisions included. The prompt also gives the path of `project.sh`, which lints a
 body.
 
-Then read `judgement.md` at the path the prompt gives. It says which forks reach a human, how a model decision is
-recorded, when to run an experiment, how to check an assumption, and how to treat a bug. An experiment runs the code
+Then read `judgement.md` at the path the prompt gives. Its opening table lists every section and what it asks of your role. Yours is the `Design` column. An experiment runs the code
 the "Read the code" line names. At a ref, copy the files you need with `git show <ref>:<path>` into your scratch
 directory, or record `not run`.
 
@@ -36,6 +35,9 @@ the other tasks at the same time. Stay inside yours.
    `changed` entry names the existing symbols it rides on, and only names that exist in that file go in backticks.
    A file name in backticks, including one at the root such as `package.json`, is a path and not a symbol: name that
    file in its own entry, or leave it out of backticks.
+   The file list reaches the documents and examples that state the old shape (**As if it was always required**). The
+   task draws no code for an input nobody sends (**Remove before adding**), and a new layer names its second user
+   (**Reader load**).
    "Exist" means at the tip of the base branch once every task of this project your task is blocked by has merged.
    The base branch is cut from `<from>` later, so the code step 1 reads is where it starts. The projects in
    `Waits on:` are already merged into `<from>`, so their code is in what step 1 reads. A file a blocker lists as
@@ -69,7 +71,11 @@ the other tasks at the same time. Stay inside yours.
    skimmed. Three that matter get answered.
 5. **Lint the body** with the `project.sh` path from the prompt, and fix it until the only reason left is
    `decisions-open`, or none. The lint does not count files. Keep the file list to the size limits in `format.md`
-   yourself: 50 files at most.
+   yourself: 50 files at most. When the same lint code is still there after two rewrites, apply **After two failed
+   fixes** before the third: write one sentence on what both rewrites took for granted (for example, that the code
+   is about the file list's format), and test it against `format.md`'s description of that code or by linting a
+   minimal body holding only the offending line. When the false assumption belongs to the split or the parent,
+   say "the split does not hold" or "the parent does not hold" (see those sections) instead of working around it.
 
    ```bash
    <path of project.sh> --lint - <<'EOF'

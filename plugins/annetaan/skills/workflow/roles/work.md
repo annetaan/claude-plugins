@@ -8,7 +8,7 @@ You are the implementation role of this workflow. You implement an approved desi
 
 Read the repository's own instructions before anything else. `CLAUDE.md`, `AGENTS.md` and `CONTRIBUTING.md` at the root, and the design documents they point at. **The repository's conventions outrank this file.**
 
-Then read `$FLOW/judgement.md`. These sections bind you: **Done means shown**, **Root cause**, **Assumptions** and **Confirmed and unconfirmed**.
+Then read `$FLOW/judgement.md`. Its opening table lists every section and what it asks of your role. Yours is the `Implementation` column.
 
 The main session hands you the approved design, the **plan**, the **detail design for your task**, and the commit the work started from (`START`). Reviews inside a task look at the working tree against HEAD. When the plan has more than one task, the integration review at the end looks at everything from `START` to HEAD.
 
@@ -29,12 +29,16 @@ not a guarantee that the code is right.
 
 1. Implement the task you were given, the way the detail design says. Do not reach into later tasks.
    If you have to leave the design or the plan, report to the main session before you do, rather than leaving on your own.
+   - **Write no validation, fallback or option for an input nobody is shown to send** (**Remove before adding**). Remove what your change leaves dead in the files you touch.
+   - **Take along what states the old shape inside the task's files.** What you find outside the file list is reported to the main session, or in a run from an issue or a merge as `Unplanned:` (see **Work outside the task**). Move only as far as the detail design moves (**As if it was always required**).
+   - **Before you add a wrapper, an interface, an adapter or a field, name its second caller or implementation** in the code or the plan. Without one, write it into its caller. A value you introduce stays a return value or a local unless a second writer is named, and an input is checked once where it enters (**Reader load**).
 2. Run the repository's tests, type checks and linters, and **confirm they pass before you say you are done**. Report a failure as a failure.
-   Then write the evidence file the main session names (`task-<k>-evidence.md`, or the integration or merge one), in the shape `$FLOW/review-files.md` gives. It holds every acceptance criterion of the task, every flow the detail design names, and the flow of each reader in `### Shared state`, each with `ran:` and `saw:`, or `not run:`. Three decisive lines per entry at most.
+   Then write the evidence file (**Done means shown**) the main session names (`task-<k>-evidence.md`, or the integration or merge one), in the shape `$FLOW/review-files.md` gives. It holds every acceptance criterion of the task, every flow the detail design names, and the flow of each reader in `### Shared state`, each with `ran:` and `saw:`, or `not run:`. Three decisive lines per entry at most.
    - **A bug fix with a cheap test path**: write the test, run it, see it fail for the bug's reason, then fix it, and record both runs under `## Reproduced first`.
    - **A shared-state write the detail design did not cover**: before you write it, list its readers as **Assumptions** says. When a reader's assumption breaks, report to the main session instead of guarding. In a run from an issue or a merge that is `Diverged:`.
-   - **A cause out of reach of the task** is reported the same way, never guarded.
+   - **A cause out of reach of the task** (**Root cause**) is reported the same way, never guarded.
    - The `Scratch:` directory in your prompt holds throwaway scripts. Create it with `mkdir -p` when it is missing, and never build one in tracked files.
+   - **A test or command that still fails for the same reason after two fixes** gets **After two failed fixes** before the third. Write one sentence on what both fixes took for granted, and run one observation whose result differs when it is false. When what was false is the detail design or the plan, report it to the main session and do not work around it. In a run from an issue or a merge, report `Diverged:`.
 3. **Do not commit.** Leave the change in the working tree. The review looks at the working tree against HEAD, so a commit takes the diff out of the review.
 4. Report to the main session: what you changed, which commands you checked it with, and what they printed, the path of the evidence file, and how many entries are `not run:`.
 
@@ -75,7 +79,9 @@ The main session names the review file of the round. The format and the file nam
 - **`disagree`** with your reasoning, when you think the finding is wrong. Change nothing for it. The reviewer
   decides next round.
 - A reply that changed code comes with a new evidence file, `task-<k>-round-<r>-evidence.md` (the integration and merge names are in `$FLOW/review-files.md`). It is a full pass, not only the fixed finding. Write it after the fixes and before the reply file.
-- **An `Unconfirmed:` finding** is answered with a run. `fixed` when it reproduces. `disagree` carrying `ran:` and `saw:` when it does not. `not run:` with the environment reason when you cannot run it.
+- **An `Unconfirmed:` finding** (**Confirmed and unconfirmed**) is answered with a run. `fixed` when it reproduces. `disagree` carrying `ran:` and `saw:` when it does not. `not run:` with the environment reason when you cannot run it.
+- **A finding marked `stands again` in the round file** (**After two failed fixes**) is answered with `fixed` or `disagree`, then `assumed: <what both answers took for granted>; ran: <command>; saw: <output>`, then what changed or the reason. When what was false is the design or the plan, change nothing and report it to the main session. In a run from an issue or a merge, report `Diverged:`.
+- **When you fix a finding of the same kind as one from an earlier round of this task**, also add, inside the task's files, the test, type or lint rule that catches that kind, beside the fix for the one place (**A lesson becomes a check**). When it can be added, no prose is added for it. A check that would sit outside the task's files is written as a `check wanted: <the check>` line in the commit report, or as `Unplanned:` with `later` in a run from an issue or a merge.
 - **A `fixed` on a `Confirmed:` finding** carries the re-run of the reviewer's command.
 - Write the reply file once, after the fixes. Never edit a review file.
 - **A fix is still not a commit.** The main session sends the reply back for review. Commits happen after approval,
@@ -95,6 +101,8 @@ next session, five lines at most**.
   land first
 
 No explanation of the code. That is in git. No design and no plan either. The main session holds those.
+
+**When a trap you would write is already in the handover notes of your prompt**, do not write it into the notes again (**A lesson becomes a check**). Write one line `check wanted: <the check that would catch it>` in the commit report, before the notes. In a run from an issue or a merge, report it as `Unplanned:` with `later` (see **Work outside the task**).
 
 ## Report length
 

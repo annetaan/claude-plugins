@@ -17,8 +17,9 @@ root, and the design documents they point at. **The repository's conventions out
 
 Read the project format at the path the prompt gives (`format.md`). The parent issue bodies you return follow it.
 
-Then read `judgement.md` at the path the prompt gives. It says which forks reach a human, how a model decision is
-recorded, when to run an experiment, and how to check an assumption.
+Then read `judgement.md` at the path the prompt gives. Its opening table lists every section and what it asks of your role. Yours is the `Design` column.
+
+Your prompt carries a line `Breaking changes: accepted` or `Breaking changes: not accepted`. That line is the limit **As if it was always required** speaks of.
 
 ## What to return
 
@@ -35,7 +36,7 @@ recorded, when to run an experiment, and how to check an assumption.
        tasks or the tasks of a later project have to match. A boundary is written only in the parent of the project
        that defines it, and never repeated in another (`format.md`, **The parent issue body**). This layer binds
        every task, so it gets settled here. If the project adds a new abstraction, say in one sentence why the
-       existing ones fall short. When the project changes an assumption existing behaviour relies on, `## Design`
+       existing ones fall short. It says what the project leaves without a user and removes, which existing types, names and special cases change shape, and the files outside the project that move, by path and count, or "nothing" (**Remove before adding** and **As if it was always required** in `judgement.md`). A new abstraction names its second user, and each value the project stores says where it lives and what writes it (**Reader load**). When the project changes an assumption existing behaviour relies on, `## Design`
        follows `format.md`, **Behaviour kept under a changed assumption**, and **Assumptions** in `judgement.md`.
        Add the `### Shared state` list (`format.md`, **Shared state and model decisions**) when the outward rule fires
        at the level of a boundary, and `### Model decisions` for the forks you settled in this project.

@@ -140,8 +140,8 @@ request is the exception: asking to resolve the conflicts of a pull request, in 
 
 Runs one implementation through sessions with different jobs. A design session writes the plan, then details each
 task as its turn comes. A design review session pushes the design toward its ideal shape once, before approval, and
-checks the behaviour the design keeps from existing code. It moves existing code only where breaking changes are
-welcome. An implementation session writes the code for one task. A review
+checks the behaviour the design keeps from existing code. The design and the design review move existing code only
+where breaking changes are welcome. An implementation session writes the code for one task. A review
 session reads it and writes its findings to a file. Those last two are new for every task. You approve once, near the start, and
 the approval message names the branch and the base. The run happens in `.claude/worktrees/wf-<stamp>`.
 
@@ -150,6 +150,13 @@ the code, the history or a throwaway experiment, and lists those as model decisi
 asked only what turns on something only you know. The implementation session shows each acceptance criterion by running
 it and walks the flows the change touches. The review session runs what it suspects, marks each correctness finding
 confirmed or unconfirmed, and sends back a fix that guards the symptom.
+
+Five rules shape the work. A design removes what the request makes unnecessary before it adds anything. A new
+requirement is drawn as if it had always been there, down to the types, documents and examples that state the old shape.
+A new layer needs a named second user, state lives in the narrowest place, and the review asks of a diff where a value
+comes from and what can change it. When the same finding stands twice, the implementation session writes down what both
+answers took for granted and makes one observation that would come out differently if it were false, before the next fix. When the same lesson turns up a second time, it
+becomes a check instead of prose, and a check that has to live outside the task goes into the work report.
 
 The review rounds run through Markdown files in the run's work report directory. The review session writes one file
 per round, and the implementation session answers each finding in a reply file next to it. Nobody edits a file once
@@ -240,8 +247,8 @@ the state lives. [format.md](skills/pj1-plan/format.md) describes the issues and
 broad strokes and cuts it into projects of about 7 to 8 tasks, at most ten, with the dependencies between them. It cuts only where the work does not fit one project or where the
 projects can run in parallel, so a chain of work that can only go one way stays one project unless it is too large. A design review
 session reads each project's design once and asks whether a blank slate would give the same design, including
-behaviour carried over from existing code. It moves existing code only where breaking changes are welcome, decided
-the same way as for `workflow`. The planner takes in what it agrees with, and the rest is settled by evidence and
+behaviour carried over from existing code. The planner and the design review move existing code only where breaking
+changes are welcome, decided the same way as for `workflow`. The planner takes in what it agrees with, and the rest is settled by evidence and
 listed, or reaches you as a plan-level question before approval when only you can answer it. You
 answer the plan-level questions and see the projects in stages, with the reason for each wait. You approve them and
 pick the branch the projects start from. Nothing reaches GitHub before that. Then one parent issue per project is
@@ -597,8 +604,9 @@ that path out of the prompt the main session hands it.
 
 Several of the judgement rules in [`skills/workflow/judgement.md`](skills/workflow/judgement.md) were learned from
 pstack in [cursor/plugins](https://github.com/cursor/plugins) (MIT): ask a person only what a person knows, show work
-by running it, and fix the cause and not the symptom. They are written here in our own words, and nothing of pstack is
-loaded at run time.
+by running it, fix the cause and not the symptom, remove before adding, question what two failed fixes share, turn a
+repeated lesson into a check, design a requirement as if it was always there, and keep the reader's load low. They are
+written here in our own words, and nothing of pstack is loaded at run time.
 
 ## Adding a skill
 

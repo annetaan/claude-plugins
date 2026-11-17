@@ -6,8 +6,8 @@ Read `worktree.md` and run **The start check** first. Then decide **Does this re
 
 ## Does this repository accept breaking changes?
 
-Decide this before **The worktree** in `worktree.md`. It decides how far the design review may move existing code
-(see **The design review**). **The answer is a sentence you keep**, not a shell variable. The review prompt and the
+Decide this before **The worktree** in `worktree.md`. It decides how far the design and the design review may move existing code
+(see **The design review**). **The answer is a sentence you keep**, not a shell variable. The design prompt, the review prompt and the
 approval message need it.
 
 **When the request asks for a minimal change** (an urgent fix, a hotfix, "just make it work"), skip this check and ask
@@ -23,8 +23,10 @@ Hand the user's request to the design session as it was written, with the worktr
 
 ```
 Agent(subagent_type: "annetaan:workflow-design", description: "design",
-      prompt: "Read $FLOW/roles/design.md first and follow the role it describes.\n\nThe request:\n<the user's request, verbatim>\n\n<the worktree line>\n\nScratch: <WT>/work-reports/<stamp>-design")
+      prompt: "Read $FLOW/roles/design.md first and follow the role it describes.\n\nThe request:\n<the user's request, verbatim>\n\nBreaking changes: <accepted | not accepted>\n\n<the worktree line>\n\nScratch: <WT>/work-reports/<stamp>-design")
 ```
+
+A run for a minimal change sends `Breaking changes: not accepted`.
 
 `annetaan:workflow-design` ships with this plugin and is pinned to Fable at medium effort. It is told never to change the repository and to write only under its `Scratch:` directory, by instruction.
 **When it cannot start** (a weekly limit, a rate limit, the model is unavailable), spawn it again with the same

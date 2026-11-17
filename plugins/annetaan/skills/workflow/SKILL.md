@@ -178,7 +178,7 @@ Read the verdict at the end of the round file yourself. `approve` goes to (d). A
 
 `SendMessage` to the implementation session.
 
-> The review is `<WORKDIR>/review/task-<k>-round-<r>.md`. Fix what needs fixing, and write your answer to every open finding in `task-<k>-round-<r>-reply.md` next to it. Answer `disagree` with your reasoning when you disagree. A reply that changes code comes with `task-<k>-round-<r>-evidence.md`, a full pass. **Do not commit yet.** Report back once the tests pass.
+> The review is `<WORKDIR>/review/task-<k>-round-<r>.md`. Fix what needs fixing, and write your answer to every open finding in `task-<k>-round-<r>-reply.md` next to it. Answer `disagree` with your reasoning when you disagree. Answer a finding marked `stands again` as **After two failed fixes** in `$FLOW/judgement.md` says. A reply that changes code comes with `task-<k>-round-<r>-evidence.md`, a full pass. **Do not commit yet.** Report back once the tests pass.
 
 Go back to (b). Count one round.
 
@@ -194,7 +194,9 @@ Check it yourself with `git log -1 --oneline`, `git status --porcelain`, and `gi
 fifteen lines, drop the oldest. The next task's implementation prompt carries this, and it is the only thing that
 outlives a session.
 
-**Give the user a one-line progress report**: `task k/N done: <short SHA> <commit subject> (commit k since START <short SHA>)`. A long context can be summarised away, and the plan, `START` and the progress all rebuild from that line.
+**When the commit report has a `check wanted:` line** (a task's, or the fix commit of the integration review in `standalone.md`), keep it out of the handover notes and hold it separately for the work report (`finish.md`).
+
+**Give the user a one-line progress report**: `task k/N done: <short SHA> <commit subject> (commit k since START <short SHA>)`. A long context can be summarised away, and the plan, `START` and the progress all rebuild from that line. When the commit report had a `check wanted:` line (task or integration fix commit), pass it on to the user as a line of its own after the progress line, word for word, so that a summary still leaves a copy.
 
 **This task's implementation and review sessions are finished here.** Do not send them anything after this. The next
 task starts a new pair. After the last task's commit, the entry's file says what comes next, and whether that task's implementation session stays alive. Its review session ends here either way.

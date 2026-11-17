@@ -36,7 +36,7 @@ bug fix that guards the symptom. Each finding says how far existing code moves.
 There is one round. What the design session does not take in, it settles by evidence and lists under model decisions.
 Only a point that turns on something only you know comes to you as an open question before the approval.
 
-**The review runs in every repository.** What differs is how far it may move existing code. The skill settles that
+**The review runs in every repository.** What differs is how far the design and the design review may move existing code. The skill settles that
 before design starts, in `breaking-changes.md`: what `CLAUDE.md` or `AGENTS.md` says, then the memory Claude Code keeps
 for this repository, then a question whose answer it saves to memory. Where breaking changes are accepted, such as a
 pre-release product or a library you control, the review reports everything it finds. Where they are not, it reports
@@ -55,6 +55,14 @@ Each task's implementation session shows every acceptance criterion by running i
 the runs to an evidence file. A bug fix with a cheap test path starts with a failing test. The review session runs what it suspects and marks
 each correctness finding confirmed or unconfirmed. What neither side could run is listed in the pull request under its
 own heading.
+
+Five more rules apply across the roles. The design removes what the request makes unnecessary before it adds anything,
+and draws a new requirement as if it had always been there, down to the types, documents and examples that state the
+old shape. A new layer needs a named second user and state lives in the narrowest place; the review asks of a diff where
+a value comes from and what can change it. A finding the reviewer marks `stands again` is answered with `assumed:`, what
+both answers took for granted, before the next fix. A lesson that turns up a second time becomes a check inside the
+task. A check that belongs outside the task is reported as `check wanted:`, and those lines get a heading of their own
+in `log.md`, so they reach the pull request body.
 
 The approval message names the new branch and `base: <branch>`. Correct either one there. A base corrected at approval
 recreates the worktree on the new base and runs the design again. The design review does not run a second time.
@@ -148,7 +156,7 @@ Every run writes a work report. It lives under the worktree's `work-reports/` un
 
 ```
 work-reports/2026-09-19-1346-a1b2c3d/
-  log.md         what changed, how it was verified, what the review changed, the screenshots
+  log.md         what changed, how it was verified, the checks wanted, what the review changed, the screenshots
   changes.diff   the diff from the start commit to HEAD
   review/        one file per review round, the reply to each, and the evidence files
     task-1-evidence.md
@@ -207,7 +215,7 @@ screenshots it could not attach.
 | --- | --- |
 | `SKILL.md` | the procedure for the orchestrator, which is the main session: which file each entry reads, the worktree line, the agents, phases 2 to 4 and the rules every entry shares |
 | `standalone.md` | the standalone run: design, the design review and approval, the integration review and the finish |
-| `judgement.md` | the rules every role of workflow and the pj skills reads: what a human is asked, model decisions, experiments, assumptions, root cause, evidence |
+| `judgement.md` | the rules every role of workflow and the pj skills reads. It opens with a table that maps each section to the roles that apply it, and holds what a human is asked, model decisions, experiments, assumptions, root cause, evidence, removing before adding, designing as if always required, reader load, what two failed fixes share, and turning a repeated lesson into a check |
 | `breaking-changes.md` | the check that settles whether the repository accepts breaking changes, for the standalone run and pj1-plan |
 | `from-pr.md` | resolving the conflicts of a pull request that is already open |
 | `from-issue.md` | one sub-issue as one task, for pj4-running |

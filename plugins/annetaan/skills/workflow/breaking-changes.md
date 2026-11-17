@@ -2,9 +2,9 @@
 
 > This file is read by the main session of a skill that runs the design review: the workflow skill and pj1-plan. The caller says when to run it.
 
-The design review runs in every repository. What the answer decides is how far the review may move existing code. Where
+The design review runs in every repository. What the answer decides is how far the design and the review may move existing code. Where
 breaking changes are accepted, the review reports every finding. Where they are not, it reports only the findings
-that move no existing code. **The answer is a sentence you keep**, not a shell variable. The review prompt and the
+that move no existing code. **The answer is a sentence you keep**, not a shell variable. The design prompt, the review prompt and the
 approval message need it.
 
 Go down this list and stop at the first one that answers.

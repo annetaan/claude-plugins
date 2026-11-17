@@ -68,8 +68,8 @@ $PLAN/scripts/project.sh --roadmap
 ### Does this repository accept breaking changes?
 
 Read `<skills>/workflow/breaking-changes.md` and follow it before phase 1. Its "before design starts" line means
-before phase 1 here. **The answer is a sentence you keep**, not a shell variable. The review prompt in phase 1 and
-the approval message in phase 2 both carry it. pj1-plan never skips this as a minimal change.
+before phase 1 here. **The answer is a sentence you keep**, not a shell variable. The planner prompt and the review prompt in phase 1 and
+the approval message in phase 2 all carry it. pj1-plan never skips this as a minimal change.
 
 ## Phase 1: the overall design
 
@@ -77,7 +77,7 @@ Hand the user's request to the planner as it was written.
 
 ```
 Agent(subagent_type: "annetaan:pj-planner", description: "project plan",
-      prompt: "Read $PLAN/roles/plan.md first and follow the role it describes. The project format is in $PLAN/format.md. The judgement rules are in <skills>/workflow/judgement.md.\n\nThe request:\n<the user's request, verbatim>\n\nThe roadmap:\n<the --roadmap JSON | none>\n\nScratch: $TMP/scratch/plan")
+      prompt: "Read $PLAN/roles/plan.md first and follow the role it describes. The project format is in $PLAN/format.md. The judgement rules are in <skills>/workflow/judgement.md.\n\nThe request:\n<the user's request, verbatim>\n\nBreaking changes: <accepted | not accepted>\n\nThe roadmap:\n<the --roadmap JSON | none>\n\nScratch: $TMP/scratch/plan")
 ```
 
 `annetaan:pj-planner` ships with this plugin and is pinned to Fable at medium effort. It is told never to change the repository and to write only under its `Scratch:` directory, by instruction.
