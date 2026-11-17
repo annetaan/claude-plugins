@@ -51,7 +51,7 @@ Keep these names. Claude Code refuses a Write from a sub-agent when the name of 
 ```
 
 - `## Reproduced first` is for a bug fix only. `saw:` holds three lines at most.
-- The newest evidence file of a task is the one for the latest round. The review reads it first, and `log.md` reads only that one.
+- The newest evidence file of a task is the one for the latest round. The review reads it first, and `log.md` reads only that one. `log.md` also reads the newest `integration-round-<r>-evidence.md` and the newest merge evidence file (`merge-evidence.md` or `merge-round-<r>-evidence.md`), which belong to no task.
 
 ## A review round
 
