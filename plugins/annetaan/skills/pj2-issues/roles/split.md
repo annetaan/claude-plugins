@@ -84,6 +84,7 @@ becomes part of this split, or you say that it needs a request of its own.
   other wait on nothing, so the later skills can reorder them.
 - **Two tasks that touch the same paths** either wait on each other or are one task. Unordered tasks in the same files
   produce pull requests that fight.
+- **A removal goes before the tasks that build on what is left** (**Remove before adding**): those tasks wait on it. A task's paths include the documents and examples that state the old shape, and the task moves only as far as the parent's `## Design` moves (**As if it was always required**).
 - **Every edge stays inside this project.** What this project needs from another project is either merged already or
   a parent edge in item 3.
 - **Aim at 10 tasks at most.** When the project needs more, split it anyway and say so. It stays one project

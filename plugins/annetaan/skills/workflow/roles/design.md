@@ -10,6 +10,8 @@ Read the repository's own instructions before anything else. `CLAUDE.md`, `AGENT
 
 Then read `$FLOW/judgement.md`. Its opening table lists every section and what it asks of your role. Yours is the `Design` column.
 
+Your prompt carries a line `Breaking changes: accepted` or `Breaking changes: not accepted`. That line is the limit **As if it was always required** speaks of.
+
 ## What to return
 
 1. **Feasibility**: `yes`, `conditional` or `no`. For `conditional` or `no`, write what is missing, concretely.
@@ -18,7 +20,7 @@ Then read `$FLOW/judgement.md`. Its opening table lists every section and what i
    **The boundaries, for the whole change.** Everything that crosses from one task into another: the contracts, types,
    schemas and names a later task has to match, and the order they have to land in. This layer binds every task that
    follows it, so it gets settled here. If the change adds a new abstraction, say in one sentence why the existing
-   ones fall short.
+   ones fall short, and name its second caller or second implementation (**Reader load**). For each value the change stores, say where it lives and what writes it (**Reader load**).
 
    **Behaviour carried over.** A carried-over branch is a branch, case or step the design keeps from existing code,
    and it is a decision, not a default. Apply **Assumptions** in `$FLOW/judgement.md`: for every kept branch whose
@@ -30,6 +32,11 @@ Then read `$FLOW/judgement.md`. Its opening table lists every section and what i
    Write nothing when it does not fire, and say "not triggered" with the reason when you are unsure a reader would
    expect it.
 
+   **What leaves and what moves.** Apply **Remove before adding** and **As if it was always required** in
+   `$FLOW/judgement.md`. List three things: what the request leaves without a user, the existing types, names and
+   special cases whose shape changes, and the documents, examples and comments that state the old shape, by path.
+   For files that move outside the change, write their paths and their count. Write "nothing" when there is none.
+
    **Root cause.** When the request is a bug, apply **Root cause** in `$FLOW/judgement.md`: name the symptom, the
    cause and what showed it, and design the fix at the cause. A guard instead of the cause fix is not a design.
 
@@ -39,7 +46,7 @@ Then read `$FLOW/judgement.md`. Its opening table lists every section and what i
 
    Tasks 2 and up get their interior later. The main session comes back for it right before each task starts, and
    **Detailing a task** says what to send back.
-3. **Acceptance criteria** (**Done means shown**): what has to hold for the implementation to be done. Anything a test can check goes in as a test name. Add one criterion per user flow the change touches and one per reader in `### Shared state`, each naming the steps around the changed one and how to run it. For a bug with a cheap test path, name the reproducing test that fails first.
+3. **Acceptance criteria** (**Done means shown**): what has to hold for the implementation to be done. Anything a test can check goes in as a test name. Add one criterion per user flow the change touches and one per reader in `### Shared state`, each naming the steps around the changed one and how to run it. For a bug with a cheap test path, name the reproducing test that fails first. For each name or shape the change retires, add one criterion: the search for it prints nothing.
 4. **Out of scope**: things the request might be read to include that this change leaves alone.
 5. **Open questions**: only the forks that pass the test in **What a human is asked**, each with its `Only you know: <that thing>` line, the options and your recommendation. A fork whose line cannot be written is settled by you and goes under **Model decisions**. The design review's leftovers land here only when they pass the same test (see **Answering the design review**). Write "none" when there are none.
 6. **Model decisions**: the forks you settled that a reader would notice, as **Model decisions** in `$FLOW/judgement.md` says: what you chose over what, why, and the evidence. The approval shows them, and "change something first" overturns any of them. Write "none" when there are none.
@@ -51,7 +58,8 @@ Then read `$FLOW/judgement.md`. Its opening table lists every section and what i
    **How to split.** One task is one commit, and **the tests pass at the end of every task**. A pair that turns
    the suite red when separated (a schema change and the code that uses it, a type change and its callers) stays
    in one task. Units that stand on their own stay apart. Order follows the dependencies, so a later task rests
-   only on what earlier tasks produced. A small request with no natural boundary gets a plan with one task.
+   only on what earlier tasks produced. Where the suite passes, a task that removes goes before the task that builds
+   on what is left. A small request with no natural boundary gets a plan with one task.
 
 ## Answering the design review
 
@@ -85,6 +93,7 @@ Send back, for that one task:
 - the existing functions, types and patterns it rides on, by name, as they are now
 - what has to hold for the task to be done, as test names where a test can check it
 - the shared state the task writes, with its readers as the code now stands, and the flows to walk
+- what the task removes, and the documents and examples that go with it
 - anything the approved design got wrong about this area, said plainly
 
 Leave the tasks after it alone. Their turn comes.
@@ -98,7 +107,7 @@ what is left.
 - **Never point at a file by line number.** Point with a symbol name or a heading.
 - Never design without reading the existing code. Read it, then write using the names that are actually there.
 - Cite what a judgement rests on as `path/to/file.ts`, `functionName`.
-- When in doubt, lean on what the repository already does.
+- Names, patterns and conventions follow what the repository already does. The shape of what the request changes is decided by **As if it was always required**.
 
 ## Working with the main session
 

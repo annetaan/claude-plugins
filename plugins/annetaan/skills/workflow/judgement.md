@@ -11,6 +11,9 @@
 | Experiments | a fork that turns on behaviour | - | - | - | - |
 | Assumptions | kept branches, shared state | both, in the design | a parent's kept branch, an issue's missing reader | a write the design did not cover | readers the diff misses |
 | Why existing behaviour is there | a branch nobody is named for | - | - | - | - |
+| Remove before adding | what leaves, and in which task | a check or an option for an input nobody sends | - | nothing for an unnamed case, dead code out | the same, in the diff |
+| As if it was always required | the shape, and what moves with it | its one question | - | everything in the task that states the old shape | what still states the old shape |
+| Reader load | each new layer, each home of state | every layer the change adds | - | the code it writes | the two questions, on the diff |
 | Root cause | the fix sits at the cause | a fix that guards | a fix drawn as a guard | no guard in place of the cause | a guard is `changes-requested` |
 | Done means shown | the criteria and the flows | - | - | the evidence file | reads it, tries each `not run:` |
 | Confirmed and unconfirmed | - | - | - | answers with a run | backs a finding with a run |
@@ -70,6 +73,38 @@ The section applies to a diff as well as to a design.
 - A reason that is gone: drop the branch and cite the reason.
 
 Both are model decisions. Only a silent history makes it a question, with `Only you know: whether anyone still relies on <branch>`.
+
+## Remove before adding
+
+**Before a change adds anything, name what it makes unnecessary, and take that out first.** A branch, an option, a layer or a file the request leaves without a user goes in the same change, and in the plan the removal comes before the build that rests on what is left. Existing code leaves through **Why existing behaviour is there**, never on a guess.
+
+**Build for the callers and the inputs that can be shown**: a call site, a test, the request, a recorded input. A validation, a parser, a fallback or an option for an input nobody is shown to send is not written, unless an acceptance criterion or the repository's conventions ask for it.
+
+What the change leaves dead (a function whose last caller left, an import, a flag nobody sets) leaves in the same task. A task removes only inside the files it already changes. Anything wider is the design's to plan.
+
+A layer the change itself adds is measured under **Reader load**, not here.
+
+## As if it was always required
+
+**A new requirement is drawn as the code would look had it been required from the first day**, not attached to the shape that was there. Ask what in the existing shape is there only because the requirement was absent: a type that cannot say the new case, a name that now says too little, a special case beside the general path. The design changes those.
+
+**How far existing code moves has a limit, and the role file names it.** A role told whether the repository accepts breaking changes follows that answer: where it does not, a contract that code outside the change relies on stays, and the shape it would have had is recorded under **Model decisions**. A role working under an approved design (a parent's `## Design`, an issue body, a detail design) moves what that design moves and no more.
+
+**The change then reaches everything that states the old shape**: the callers, the types, the tests, the documents, the examples, and the comments and records that give the reason. Find them by search and read each one. One that still describes the old shape after the change is unfinished work, not a follow-up.
+
+The design holds the whole shape, and the plan delivers it in tasks that each pass. The design review asks the same question of the finished design.
+
+## Reader load
+
+Reading costs two things: **the layers between a question and its answer**, and **the hidden or changing state held in mind on the way**.
+
+- **A layer that only forwards is folded into its caller**: a wrapper with one caller, an interface or an adapter with one implementation, a method that passes its arguments on. A layer stays when its second caller or second implementation can be named, in the code or in the plan.
+- **State lives in the narrowest place that works**: a return value over a mutation, a local over a field, a module over a global, a value derived when read over a copy kept in sync.
+- **An invariant is checked and named once, where the data crosses in.** Code inside that boundary relies on it and does not check again.
+
+**The test: a reader new to the code answers "where does X come from?" and "what can change X?" in thirty seconds each**, for each value X the change introduces or moves. A finding or a decision under this section names X and lists the hops or the writers, found by search. Without that list it is taste.
+
+The section applies to what the change writes. Existing code is measured only where the design moves it.
 
 ## Root cause
 
