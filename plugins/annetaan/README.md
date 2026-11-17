@@ -608,8 +608,13 @@ that path out of the prompt the main session hands it.
 Several of the judgement rules in [`skills/workflow/judgement.md`](skills/workflow/judgement.md) were learned from
 pstack in [cursor/plugins](https://github.com/cursor/plugins) (MIT): ask a person only what a person knows, show work
 by running it, fix the cause and not the symptom, remove before adding, question what two failed fixes share, turn a
-repeated lesson into a check, design a requirement as if it was always there, and keep the reader's load low. They are
-written here in our own words, and nothing of pstack is loaded at run time.
+repeated lesson into a check, design a requirement as if it was always there, and keep the reader's load low. Four more
+shape how work is split and carried through. Three are in `Where to split` and `No transitional code`: finish work that
+is coupled in code as one task with one owner, however large; move the callers and delete the old path in the same
+task, with no compatibility layer kept between tasks; and cut work only into units that can each be reviewed and
+verified on their own. The fourth is in the detail pass of pj4-running: carry the work through to the outcome, so what
+an earlier step learned reaches the steps after it. They are written here in our own words, and nothing of pstack is
+loaded at run time.
 
 ## Adding a skill
 
