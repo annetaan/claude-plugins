@@ -163,14 +163,14 @@ git checkout -q roadmap.md
 mkdir "$TMP/bin"
 cat > "$TMP/bin/gh" <<'PYEOF'
 #!/usr/bin/env python3
-import json, os, re, sys
+import json, os, sys
 args = sys.argv[1:]
 if args[:2] == ["pr", "list"]:
     print("[]")
     sys.exit(0)
 if args[:2] == ["api", "graphql"]:
     query = next(a[len("query="):] for a in args if a.startswith("query="))
-    if "timelineItems" in query:
+    if "updatedAt body" in query:
         specs = json.loads(os.environ["FX_SUBS"])
         state_of = {s["n"]: s["state"] for s in specs}
         nodes = []
@@ -186,7 +186,7 @@ if args[:2] == ["api", "graphql"]:
                           "labels": {"nodes": [{"name": "ready"}]},
                           "blockedBy": {"nodes": [{"number": b, "state": state_of[b], "parent": None}
                                                   for b in s.get("blockedBy", [])]},
-                          "blocking": {"nodes": []}, "timelineItems": {"nodes": []}})
+                          "blocking": {"nodes": []}})
         parent = {"number": 1, "title": "Project", "state": "OPEN", "stateReason": None,
                   "updatedAt": "2000-01-01T00:00:00Z", "body": os.environ["FX_PARENT_BODY"],
                   "labels": {"nodes": []}, "blockedBy": {"nodes": []}, "blocking": {"nodes": []},
@@ -195,9 +195,6 @@ if args[:2] == ["api", "graphql"]:
     elif "ro: ref(" in query:
         print(json.dumps({"data": {"repository": {"ro": {"compare": {"status": "IDENTICAL"}},
                                                   "mo": {"totalCount": 0}, "po": {"nodes": []}}}}))
-    elif "object(oid:" in query:
-        repo = {k: {"associatedPullRequests": {"nodes": []}} for k in re.findall(r"\b(c\d+):", query)}
-        print(json.dumps({"data": {"repository": repo}}))
     else:
         sys.stderr.write("fake gh: unexpected query\n")
         sys.exit(1)

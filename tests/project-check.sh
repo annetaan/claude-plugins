@@ -42,14 +42,14 @@ mkdir -p work/work-reports/run   # an untracked nested directory
 mkdir bin
 cat > bin/gh <<'PYEOF'
 #!/usr/bin/env python3
-import json, re, sys
+import json, sys
 args = sys.argv[1:]
 if args[:2] == ["pr", "list"]:
     print("[]")
     sys.exit(0)
 if args[:2] == ["api", "graphql"]:
     query = next(a[len("query="):] for a in args if a.startswith("query="))
-    if "timelineItems" in query:
+    if "updatedAt body" in query:
         body = ("## Goal\n\nRename foo.\n\n## Design\n\n"
                 "- `src/app.ts` (changed): rename `foo`, as `README.md` describes.\n\n"
                 "## Acceptance criteria\n\n- `foo` is renamed.\n\n"
@@ -57,8 +57,7 @@ if args[:2] == ["api", "graphql"]:
         sub = {"number": 2, "title": "Rename foo", "state": "OPEN", "stateReason": None,
                "updatedAt": "2000-01-01T00:00:00Z", "body": body,
                "labels": {"nodes": [{"name": "ready"}]},
-               "blockedBy": {"nodes": []}, "blocking": {"nodes": []},
-               "timelineItems": {"nodes": [{"createdAt": "2000-01-01T00:00:00Z", "label": {"name": "ready"}}]}}
+               "blockedBy": {"nodes": []}, "blocking": {"nodes": []}}
         parent = {"number": 1, "title": "Project", "state": "OPEN", "stateReason": None,
                   "updatedAt": "2000-01-01T00:00:00Z",
                   "body": "Base: `pj/1` from `main`\n\n## Goal\n\nx\n",
@@ -68,9 +67,6 @@ if args[:2] == ["api", "graphql"]:
     elif "ro: ref(" in query:
         print(json.dumps({"data": {"repository": {"ro": {"compare": {"status": "IDENTICAL"}},
                                                   "mo": {"totalCount": 0}, "po": {"nodes": []}}}}))
-    elif "object(oid:" in query:
-        repo = {k: {"associatedPullRequests": {"nodes": []}} for k in re.findall(r"\b(c\d+):", query)}
-        print(json.dumps({"data": {"repository": repo}}))
     else:
         sys.stderr.write("fake gh: unexpected query\n")
         sys.exit(1)
@@ -80,14 +76,6 @@ sys.exit(1)
 PYEOF
 chmod +x bin/gh
 export PATH="$TMP/bin:$PATH"
-
-# A commit touching src/app.ts after the issue went ready, with no pull request behind it.
-(
-  cd work
-  echo 'export function foo() { return 1 }' > src/app.ts
-  git commit -q -am "touch app"
-  git push -q origin main:refs/heads/pj/1
-)
 
 check() { (cd "$1" && bash "$SCRIPT" -R test/repo 1 --check 2); }
 
@@ -103,7 +91,8 @@ d = json.load(sys.stdin)
 assert d["lint"]["ok"] is True, d["lint"]
 assert d["premises"]["mode"] == "full", d["premises"]
 assert d["premises"]["failures"] == [], d["premises"]
-assert len(d["history"]["stale"]) == 1, d["history"]
+assert "history" not in d
+assert d["ok"] is True, d
 ' || fail "check from the root gave an unexpected result: $root_out"
 echo "ok: check from a subdirectory matches check from the root"
 

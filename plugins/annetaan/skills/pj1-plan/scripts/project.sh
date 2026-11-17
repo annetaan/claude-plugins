@@ -548,8 +548,6 @@ for node in parent["subIssues"]["nodes"]:
     body_of[node["number"]] = node["body"]
     p = parse(node["body"])
     counts = decision_counts(p["decs"])
-    ready_events = [e["createdAt"] for e in node["timelineItems"]["nodes"]
-                    if e and (e.get("label") or {}).get("name") == "ready"]
     issues.append({
         "number": node["number"],
         "title": node["title"],
@@ -557,7 +555,6 @@ for node in parent["subIssues"]["nodes"]:
         "state": node["state"],
         "stateReason": node.get("stateReason"),
         "updatedAt": node["updatedAt"],
-        "readyAt": max(ready_events) if ready_events else None,
         "labels": [l["name"] for l in node["labels"]["nodes"]],
         "blockedBy": [{"number": b["number"], "state": b["state"], "parent": (b.get("parent") or {}).get("number")}
                       for b in node["blockedBy"]["nodes"]],
@@ -732,7 +729,7 @@ def project_deps(n):
     return {m: project_bases[m] for m in deps_of[n]}
 
 def walk_projects(start):
-    """The base branches of every project start waits on, directly or not. Dies on a cycle between projects."""
+    """Walks the projects start waits on, directly or not. Dies on a cycle between projects."""
     done, path = set(), []
     def visit(n):
         path.append(n)
@@ -745,7 +742,6 @@ def walk_projects(start):
         path.pop()
         done.add(n)
     visit(start)
-    return {project_bases[n] for n in done if n != start}
 
 def branches(own, deps):
     """One query for where the branches stand. own is (base, from) of this project, deps a list of
@@ -966,34 +962,6 @@ def check(n):
                     if not any(e["heading"] == roadmap_line[1] for e in entries):
                         failures.append({"path": f["path"], "why": "roadmap entry not found"})
 
-    # history: commits on the base branch that touched these files after ready went on, except the ones a blocker's
-    # pull request brought, the merge of a project this one waits on, directly or not, or a pull request into that
-    # project's base branch, which reaches <from> when the base branch is fast-forwarded into it. No base, no history.
-    stale = []
-    if base_exists and issue["readyAt"] and issue["designPaths"]:
-        log = run("git", "log", "--first-parent", "--format=%H%x09%s", "--since=" + issue["readyAt"], ref,
-                  "--", *issue["designPaths"])
-        if log.returncode != 0:
-            die("git log failed: " + log.stderr.strip())
-        commits = [l.split("\t", 1) for l in log.stdout.splitlines() if l]
-        anticipated = transitive_blockers(issue)
-        # The projects this issue's work was drawn against: the ones this project waits on, directly or not.
-        waited = walk_projects(parent["number"]) if commits else set()
-        for start in range(0, len(commits), 100):
-            chunk = commits[start:start + 100]
-            fields = " ".join(
-                'c%d: object(oid: "%s") { ... on Commit { associatedPullRequests(first: 5) '
-                '{ nodes { number merged body headRefName baseRefName } } } }' % (k, sha)
-                for k, (sha, _) in enumerate(chunk))
-            repo_data = graphql(fields, what="read the pull requests of the commits")
-            for k, (sha, subject) in enumerate(chunk):
-                prs = [pr for pr in ((repo_data.get("c%d" % k) or {}).get("associatedPullRequests") or {}).get("nodes", [])
-                       if pr["merged"]]
-                if not any(implements(pr["body"]) in anticipated
-                           or (pr["headRefName"] in waited and pr["baseRefName"] == made_from)
-                           or pr["baseRefName"] in waited for pr in prs):
-                    stale.append({"sha": sha, "subject": subject, "pr": prs[0]["number"] if prs else None})
-
     unclosed = [{"issue": b["issue"], "check": b["check"]} for b in breakage_view() if b["state"] == "unclosed"]
 
     print(json.dumps({
@@ -1001,10 +969,9 @@ def check(n):
         "base": base,
         "from": made_from,
         "baseExists": base_exists,
-        "ok": check_lint["ok"] and not failures and not stale and not unclosed,
+        "ok": check_lint["ok"] and not failures and not unclosed,
         "lint": check_lint,
         "premises": {"mode": mode, "excusers": excusers, "failures": failures},
-        "history": {"stale": stale},
         "breakage": {"unclosed": unclosed},
     }, ensure_ascii=False))
 
@@ -1086,9 +1053,6 @@ query($owner: String!, $name: String!, $n: Int!) {
           labels(first: 50) { nodes { name } }
           blockedBy(first: 50) { nodes { number state parent { number } } }
           blocking(first: 50) { nodes { number } }
-          timelineItems(itemTypes: [LABELED_EVENT], last: 100) {
-            nodes { ... on LabeledEvent { createdAt label { name } } }
-          }
         }
       }
     }

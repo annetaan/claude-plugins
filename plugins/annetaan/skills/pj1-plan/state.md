@@ -9,8 +9,8 @@ agree on between them is in `between-skills.md`, both next to this file.
 
 `project.sh` sits next to this file, in `scripts/project.sh`. It reads the parent and every sub-issue in one GraphQL
 query, the pull requests into the base branch in one `gh pr list`, and where the branches of this project and the
-projects it waits on stand in one more GraphQL query. `--order` and the history of `--check` also read one query per
-project they follow through `waitsOn`. It writes nothing to GitHub. **It is the only parser of a sub-issue body, of
+projects it waits on stand in one more GraphQL query. `--order` also reads one query per
+project it follows through `waitsOn`. It writes nothing to GitHub. **It is the only parser of a sub-issue body, of
 a parent's `Base:` and `Roadmap:` lines, of a pull request's head and of the roadmap file.** Every skill and the issue writer go through it. Pass `-R <owner/repo>` to read a repository other than the current one.
 
 Every mode that reads a parent fails with `project: #<P> has no Base: line` when the parent body has none, or has
@@ -40,7 +40,7 @@ project.sh --roadmap [<ref>] # the roadmap file, in the work tree or at <ref>, c
                            "early": [{"number", "blocker"}], "missing": [numbers]},
             "roadmap": {"path", "entry", "tasks": [numbers], "task": number or null, "missing": [numbers]} or null,
             "breakage": [{"issue", "check", "closedBy": [numbers], "state"}]},
- "issues": [{"number", "title", "wantedTitle", "state", "stateReason", "updatedAt", "readyAt", "labels": [names],
+ "issues": [{"number", "title", "wantedTitle", "state", "stateReason", "updatedAt", "labels": [names],
              "blockedBy": [{"number", "state", "parent"}], "blocking": [numbers],
              "pr": {"number", "state", "isDraft", "url"} or null, "stub",
              "designPaths": [paths], "leftBroken": [checks],
@@ -77,8 +77,6 @@ project.sh --roadmap [<ref>] # the roadmap file, in the work tree or at <ref>, c
   ones included. A skill edits an open issue's title when the two differ, and never retitles a closed one
   (`between-skills.md`, **Titles**).
 - `parent` in `blockedBy` is the number of the blocker's parent issue, or null.
-- `readyAt` is the time of the last `ready` labelled event on the issue, or null. It marks the last time a
-  `pj3-doctor` review read the body against the code (see **Is the body still current?**).
 - `pr` is the issue's pull request, open or merged (see **The pull request of an issue** below), or null. Its `state`
   is `OPEN` or `MERGED`.
 - `stub` is true when `## Design` reads `To be drawn.`.
@@ -118,7 +116,6 @@ only once it exists, which moves local refs and nothing else, and prints:
 {"number", "base", "from", "baseExists", "ok", "lint": {"ok", "reasons"},
  "premises": {"mode": "full" | "early" | "none", "excusers": [numbers],
               "failures": [{"path", "symbol" (when one is missing), "why"}]},
- "history": {"stale": [{"sha", "subject", "pr" or null}]},
  "breakage": {"unclosed": [{"issue", "check"}]}}
 ```
 
@@ -127,10 +124,8 @@ reads and the paths in the file lists of the issue's blockers, so a backticked f
 can be stricter than `issues[].lint`.
 
 `breakage.unclosed` holds the `unclosed` entries of the whole project, not only this issue's, and is filled under
-every `premises.mode`. `ok` is true when the lint is clear, no premise failed, no commit is stale and no breakage of
-the project is unclosed. A commit in `history.stale` keeps `ok`
-false until `readyAt` moves past it. `pj3-doctor` moves it by putting `ready` on again once its review has returned the
-commit as cleared and the issue has nothing left on it. `premises.mode` is `none` while the base branch does not
+every `premises.mode`. `ok` is true when the lint is clear, no premise failed and no breakage of
+the project is unclosed. `premises.mode` is `none` while the base branch does not
 exist and a project in `waitsOn` is not `merged`, while an open blocker is outside the project, or while an open
 issue in the transitive `blockedBy` is a stub. `excusers` names the open blockers the check read (see **Is the body
 still current?**).
@@ -174,9 +169,7 @@ with `new` put in its place is a line of `after`, and `after` is `before` with t
   as base was merged, or `<from>` on origin contains the base branch.
 
 The sub-issues have to be there and closed because a fresh base branch is identical to `<from>`. A parent closed as
-not planned is a project given up on, and is not merged. A merge made without a pull request, such as a local merge
-commit, can leave commits that `--check` reads as stale for a project waiting on this one (see **Is the body still
-current?**).
+not planned is a project given up on, and is not merged.
 
 ## When an issue is ready
 
@@ -252,23 +245,5 @@ issue runs.
   the project, or while an open issue in the transitive `blockedBy` is a stub, because there is no body to read.
   A `changed` entry on the parent's roadmap path also needs the entry of the `Roadmap:` line to stand in that file at
   the ref, and fails with `roadmap entry not found` otherwise. Under mode `none` nothing is checked.
-- **History.** Every commit on the base branch's first-parent line since `readyAt` that touched a path in the file
-  list is a candidate. A candidate is **anticipated** when a merged pull request it came from has `Implements #<x>`
-  as its head with x in this issue's transitive `blockedBy`, has `pj/<Q>` as head and `<from>` as base, or has
-  `pj/<Q>` as base, with Q in the waited projects. The last case covers a `pj/<Q>` fast-forwarded into `<from>`,
-  which brings the commits of Q's sub-issues along without a merge pull request. The waited projects are the projects
-  this project waits on, directly or not. The transitive `blockedBy` is its blockers, their blockers, and so on
-  through the project, closed issues included.
-  Every other candidate is **stale**. With no `readyAt`, or no base branch, there is no history.
-
-  `readyAt` is the acknowledgment: a stale commit is one that no review has read yet. When a `pj3-doctor` review
-  returns the commit as cleared and the issue has nothing left on it, `pj3-doctor` puts `ready` on, or takes it off
-  and on again when the issue already carries it. The new `readyAt` drops the commit from the next `--check`
-  (`pj3-doctor`, "`ready` goes on an issue").
-
 - **Breakage.** An issue that declares a check under `### Left broken` needs a closer in the project, or every
   `--check` of the project fails. The rule is in `format.md`, **Declared breakage**.
-
-The design was written knowing its blockers would land first, and that the projects it waits on would be merged
-into `<from>` before its base branch was cut, so their commits were foreseen. A commit from anywhere else that
-touched these files was not.

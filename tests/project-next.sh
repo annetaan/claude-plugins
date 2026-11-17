@@ -51,7 +51,7 @@ if args[:2] == ["pr", "list"]:
     sys.exit(0)
 if args[:2] == ["api", "graphql"]:
     query = next(a[len("query="):] for a in args if a.startswith("query="))
-    if "timelineItems" in query:
+    if "updatedAt body" in query:
         subs = json.load(open(os.environ["ISSUES_JSON"]))
         parent = {"number": 1, "title": "Project", "state": "OPEN", "stateReason": None,
                   "updatedAt": "2000-01-01T00:00:00Z",
@@ -103,7 +103,7 @@ print(json.dumps({"number": number, "title": "Task %d" % number, "state": "OPEN"
                   "updatedAt": "2000-01-01T00:00:00Z", "body": body,
                   "labels": {"nodes": [{"name": l} for l in labels.split(",") if l != "none"]},
                   "blockedBy": {"nodes": [{"number": b, "state": "OPEN", "parent": {"number": 1}} for b in blockers]},
-                  "blocking": {"nodes": []}, "timelineItems": {"nodes": []}}))
+                  "blocking": {"nodes": []}}))
 PY
 }
 

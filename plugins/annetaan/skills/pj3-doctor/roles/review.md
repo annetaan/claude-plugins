@@ -43,10 +43,7 @@ the code. Then read the issues against each other.
 3. **A ticked option the code rules out.**
 4. **A human comment the body does not answer yet**: an answer that is none of the options, a correction, or a
    comment that overturns an entry of `### Model decisions`.
-5. **What `--check` failed on**: each lint code other than `decisions-open` and each premise failure. An entry of `breakage.unclosed` is reported under kind 15, not here. For each stale
-   commit, read its diff with `git show <sha>` against the body and say whether it touches what the issue depends on:
-   a path, symbol or behaviour its `## Design` relies on. One that does is a finding. One that does not gets a
-   `cleared` line (see **What to return**).
+5. **What `--check` failed on**: each lint code other than `decisions-open` and each premise failure. An entry of `breakage.unclosed` is reported under kind 15, not here.
    For a failure under `premises.mode` `early`, decide which body is wrong, using `excusers`. This issue: a wrong
    name, a backticked file name, or a wrong kind. An excuser: it adds the name without listing the file or naming it,
    or its file list contradicts this one (`an open blocker deletes it`, `adds it too`). That is a kind 7 finding on
@@ -116,27 +113,16 @@ Then **edges**, one per line as `add #a blocked by #b` or `remove #a blocked by 
 
 Then **clear**: the open sub-issues with no finding, by number.
 
-**Every SHA in an issue's `history.stale` appears exactly once**, as a kind 5 finding or as a line
-
-```
-cleared <short sha>: <why it touches nothing #<n> depends on>
-```
-
-A `cleared` line is not a finding. It sits after the issue's number under **clear** when the issue has no finding,
-and in the issue's block otherwise.
-
 ### When the main session sends rewritten bodies
 
 After the writers' fixes, the main session sends you the issues it rewrote. Read them again, with the issues next to
 them, and return the same shape for those issues and for any other issue the rewrites reach. Keep what you read
-before. A finding you raised that the rewrite fixed is gone from the return, with one exception: a kind 5 finding on
-a stale commit comes back as a `cleared` line, such as `cleared 64b8c56: the body is redrawn against it`. Every stale
-SHA of each issue this return covers appears exactly once here too, as a finding or a `cleared` line.
+before. A finding you raised that the rewrite fixed is gone from the return.
 
 **In this second return, every finding line starts with a tag**, `exact` or `design`, and then the kind as above.
 An `exact` finding is a pure text fix, one string for another. The writer applies it, and the main session closes it
 in this run by checking the writer's body against your strings. A `design` finding stays open, and the next run takes
-it up. Edges stay in the edges list, untagged, and so are `cleared` lines. The first return carries no tags.
+it up. Edges stay in the edges list, untagged. The first return carries no tags.
 
 An `exact` finding names its section by its `## ` heading, which is a pointer for the writer and a human only. Then it
 gives the string to replace on a line `old: ` and the string to put in on a line `new: `, each on a line of its own.

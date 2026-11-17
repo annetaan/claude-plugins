@@ -146,15 +146,17 @@ workflow hands over to this section by name, with the design session's `Body:`, 
    ```
 
    Lint it, with `decisions-open` as the only reason allowed under `Stop: ask` and no reason allowed otherwise, then
-   `diff -u` it against the body on GitHub.
+   compare it with the body on GitHub.
 
    ```bash
    $RUNNING/../pj1-plan/scripts/project.sh --lint - < "$TMP/<k>-redrawn.md"
    ```
 
    ```bash
-   diff -u "$TMP/<k>-before.md" "$TMP/<k>-redrawn.md"
+   git diff --no-index -- "$TMP/<k>-before.md" "$TMP/<k>-redrawn.md"
    ```
+
+   The command exits 1 when the two differ, which is the usual case, and that is no failure.
 
    `## Goal` and every existing decision, boxes as ticked, are untouched in the diff. Under `Stop: ask` the one change
    to `## Decisions` is the decision appended after the highest `D<n>`, with no box checked. A user ticking boxes and

@@ -154,8 +154,7 @@ gh issue view <Q> --json title,body,labels,comments,updatedAt
 
 `<Q>` is each parent in `parent.waitsOn` of the `project.sh <P>` JSON. Their `## Design` holds the boundaries those
 projects define, which this project matches (`format.md`, **The parent issue body**). Read the sibling issues the
-findings name the same way. A marked comment says why `ready` came off, or which stale commits a review cleared
-and why. **A comment with no marker is a human speaking.** An answer written there, or an option line a human added and ticked, is worked into the body.
+findings name the same way. A marked comment says why `ready` came off. **A comment with no marker is a human speaking.** An answer written there, or an option line a human added and ticked, is worked into the body.
 
 **Read the code where `--check` read it.** It fetched both branches it needs. When `baseExists` in the JSON is true,
 read at `origin/<base>`. When it is false, read at `origin/<from>`. The base branch will be cut from there, so count
@@ -168,7 +167,7 @@ Each finding says what is wrong. Fix all of them in one body.
 - **A box ticked to another option than the recommended one, whose lines change the file list or reach past this
   task**: redraw `## Design` and the file list for the ticked option. The ticked option becomes the one the body is
   written for. Keep the boxes as the human ticked them.
-- **A premise failure, or a stale commit the review says touches what the issue depends on**: redraw the body
+- **A premise failure**: redraw the body
   against the code as it is now. Under `premises.mode` `early`, count what the `excusers` list and name. When the
   fault is an excuser's (it adds the name without listing the file or without naming it in its body, or its file list contradicts this one), say so under what you could
   not fix and name the issue. Never drop a correct backtick to silence the check.
