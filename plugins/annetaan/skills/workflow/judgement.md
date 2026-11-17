@@ -14,6 +14,7 @@
 | Remove before adding | what leaves, and in which task | a check or an option for an input nobody sends | - | nothing for an input nobody is shown to send, dead code out | the same, in the diff |
 | As if it was always required | the shape, and what moves with it | its one question | - | everything in the task that states the old shape | what still states the old shape |
 | Reader load | each new layer, each home of state | every layer the change adds | - | the code it writes | the two questions, on the diff |
+| Where to split | the plan, the split into tasks, the cut into projects | - | an issue that is two tasks | - | - |
 | Root cause | the fix sits at the cause | a fix that guards | a fix drawn as a guard | no guard in place of the cause | a guard is `changes-requested` |
 | After two failed fixes | a symptom fixed twice before, a lint failing after two fixes | - | - | a test failing after two fixes, `stands again` | before writing `stands again` |
 | A lesson becomes a check | a repeated fix, a rule in the request | - | - | a second finding of one kind, a repeated note | a second finding of one kind |
@@ -107,6 +108,16 @@ Reading costs two things: **the layers between a question and its answer**, and 
 **The test: a reader new to the code answers "where does X come from?" and "what can change X?" in thirty seconds each**, for each value X the change introduces or moves. A finding or a decision under this section names X and lists the hops or the writers, found by search. Without that list it is taste.
 
 The section applies to what the change writes. Existing code is measured only where the design moves it.
+
+## Where to split
+
+Work is split only where the split is expected to make the review more accurate: a reviewer can judge each part on its own, without reading the others. **Size is never a reason.** No count of tasks or files is a limit or a target.
+
+- **Work coupled in code is one task with one owner, however large**: a schema and its readers, a type and its callers, an API and every caller that moves to it.
+- **Parts that a reviewer can judge alone stay apart**, each with its own check that it holds.
+- **A split is shown by one line per part**: what a reviewer can judge in it without the others. A part with no such line is not a part.
+
+Getting it wrong: a rename that reaches 80 files, cut into four tasks "to keep the diffs small". Each diff passes on its own, and no reviewer sees that the callers in task 3 no longer match the name task 1 chose. It is one task, because the callers cannot be judged without the name.
 
 ## Root cause
 

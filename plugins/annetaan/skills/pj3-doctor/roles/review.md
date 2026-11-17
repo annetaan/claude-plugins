@@ -78,7 +78,7 @@ the code. Then read the issues against each other.
 10. **A question only a human can answer**, raised by a ticked option or by the code, that is no decision yet. It
     passes **What a human is asked** in `judgement.md`, and the finding gives the `Only you know:` line. A question
     that does not pass is no finding, or kind 14 when it already stands as an open decision.
-11. **An issue that is two tasks.**
+11. **An issue that is two tasks**: a reviewer could judge each of two parts without the other (**Where to split** in `judgement.md`). Size alone is no finding, and neither is a long file list.
 12. **A parent assumption that no longer holds.**
     - **Triggers.** The parent's `## Design` keeps a branch whose assumption the project changes and names no one it
       serves (**Assumptions** in `judgement.md`). Or two or more issues carry the same

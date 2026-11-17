@@ -46,7 +46,7 @@ gone stale. A request for a minimal change, such as an urgent fix, skips the rev
 nothing to memory. When Fable cannot start, because of the weekly limit for example, the review is skipped and the
 approval message says so.
 
-There is one approval point. You get the design summary and the **plan**, an ordered list of small tasks, and one
+There is one approval point. You get the design summary and the **plan**, an ordered list of tasks, and one
 question: proceed with this design and plan? The open questions come first, on every run: the design's own, and the
 design review's points that turn on something only you know, marked `(from the design review)`. Each says what only you
 know. The approval also shows the model decisions, and "change something first" overturns any of them.

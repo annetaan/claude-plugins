@@ -22,7 +22,7 @@ GitHub until the finish step pushes and opens a pull request. It works in a work
 
 ### The pj skills drive workflow
 
-The pj skills are for work too large for one pull request, and they write no code themselves. `pj1-plan` cuts the
+The pj skills are for work a reviewer cannot judge as one pull request, and they write no code themselves. `pj1-plan` cuts the
 work into projects, each a parent issue. A parent is blocked by the parents of the projects it waits on. `pj2-issues`
 splits one project into sub-issues once every project it waits on is merged. You tick the decisions on GitHub.
 `pj3-doctor` makes the issues ready. `pj4-running` runs `workflow` once per sub-issue, merges each pull request into
@@ -34,19 +34,19 @@ format the pj skills read, through a pull request.
 
 Which skill to start with:
 
-- A change that fits one pull request: `/annetaan:workflow`.
-- Anything larger, usually one initiative from your roadmap file ([Task, project, initiative](#task-project-initiative)): `/annetaan:pj1-plan`.
+- A change a reviewer can judge as one pull request: `/annetaan:workflow`.
+- Anything that needs several pull requests, usually one initiative from your roadmap file ([Task, project, initiative](#task-project-initiative)): `/annetaan:pj1-plan`.
 
 The doc skills are a separate family, for writing and revising documents, and do not use either of these. `experience-video` stands alone too. It touches neither GitHub nor your code. `pr-humans` looks back at pull requests either family opened, or any other, and records on each how people took part.
 
 ### Task, project, initiative
 
-The pj skills size work at three levels, from fine to coarse.
+The pj skills split work at three levels, from fine to coarse.
 
 | Level | What it is | Where it lives |
 | --- | --- | --- |
 | task | one implement, review and commit unit, which becomes one commit | a sub-issue, which becomes one pull request into the project's branch |
-| project | tasks aimed at 7 to 8, 10 at most, on the base branch `pj/<n>`, which reaches the branch it was made from in one pull request | a parent issue labelled `project` |
+| project | tasks on the base branch `pj/<n>`, which reaches the branch it was made from in one pull request | a parent issue labelled `project` |
 | initiative | the input of one `pj1-plan` run, which cuts it into one or more projects | an entry in the roadmap file, a `## ` section. On GitHub only as the `Roadmap:` line of one of its projects |
 
 A standalone `workflow` run has tasks too: each item of its plan is one, and the whole run becomes one pull request.
@@ -165,7 +165,7 @@ which record what the implementation session ran.
 
 ```mermaid
 flowchart TD
-    req(["your request"]) --> wt["worktree on the tip of the base<br/>work-reports/ and .claude/worktrees/ ignored?"] --> design["design session<br/>boundaries, acceptance criteria,<br/>plan of small tasks"]
+    req(["your request"]) --> wt["worktree on the tip of the base<br/>work-reports/ and .claude/worktrees/ ignored?"] --> design["design session<br/>boundaries, acceptance criteria,<br/>plan of tasks"]
     design --> dreview["design review session<br/>once, in every repo<br/>existing code moves only<br/>where breaking changes<br/>are welcome"] --> ask["one approval<br/>proceed with this plan?<br/>branch and base named"]
     ask -->|rework| redo["design session<br/>revises, no second review"] --> ask
     ask -->|approved| setup["branch in the worktree<br/>record START"]
@@ -215,9 +215,9 @@ never edited. `/annetaan:workflow-cleanup` moves the report into your clone's `w
 
 ### pj1-plan, pj2-issues, pj3-doctor, pj4-running
 
-These four skills run an initiative, a piece of work too large for one pull request, as one or more projects on GitHub. A project is
-a parent issue labelled `project`, which holds that project's design and its run order, plus one sub-issue per task,
-at most ten tasks per project. A task is aimed at thirty files at most, tests included, and fifty are accepted when the code needs them. A project that waits on another is blocked by it, parent to parent, through GitHub's
+These four skills run an initiative, a piece of work a reviewer cannot judge as one pull request, as one or more projects on GitHub. A project is
+a parent issue labelled `project`, which holds that project's design and its run order, plus one sub-issue per task.
+No count of tasks is a limit. A task holds what is coupled in code, however many files that is. A project that waits on another is blocked by it, parent to parent, through GitHub's
 own blocked-by relationship. Blocked-by between sub-issues stays inside one project. Projects that wait on nothing
 between them run in parallel, and `pj1-plan` shows them as stages. The run order is a numbered list in the parent,
 `1. #12`, `2. #13`, and GitHub shows each line with the issue's title and whether it is closed, so the list doubles as
@@ -244,15 +244,15 @@ the state lives. [format.md](skills/pj1-plan/format.md) describes the issues and
 [between-skills.md](skills/pj1-plan/between-skills.md) how the four skills work together.
 
 `/annetaan:pj1-plan` ([details](skills/pj1-plan/SKILL.md)) starts with a planner session. Its input is usually one initiative from your roadmap file, by heading or quoted. It draws the whole in
-broad strokes and cuts it into projects of about 7 to 8 tasks, at most ten, with the dependencies between them. It cuts only where the work does not fit one project or where the
-projects can run in parallel, so a chain of work that can only go one way stays one project unless it is too large. A design review
+broad strokes and cuts it into projects, with the dependencies between them. It cuts only where a reviewer can judge each project on its own, where the
+projects can run in parallel, or where a part is worth landing first, so a chain of work that can only go one way stays one project. Size alone is never a reason. A design review
 session reads each project's design once and asks whether a blank slate would give the same design, including
 behaviour carried over from existing code. The planner and the design review move existing code only where breaking
 changes are welcome, decided the same way as for `workflow`. The planner takes in what it agrees with, and the rest is settled by evidence and
 listed, or reaches you as a plan-level question before approval when only you can answer it. You
 answer the plan-level questions and see the projects in stages, with the reason for each wait. You approve them and
 pick the branch the projects start from. Nothing reaches GitHub before that. Then one parent issue per project is
-filed, blocked by the parents it waits on. When the request is a roadmap entry, one project of the last stage, the largest, carries a `Roadmap:` line naming the file and the entry. No sub-issue and no branch is created yet, and no issue is `ready` yet.
+filed, blocked by the parents it waits on. When the request is a roadmap entry, one project of the last stage, the one with the lowest number, carries a `Roadmap:` line naming the file and the entry. No sub-issue and no branch is created yet, and no issue is `ready` yet.
 
 `/annetaan:pj2-issues` ([details](skills/pj2-issues/SKILL.md)) takes the project to split from a number given, or the only one it could split, and otherwise asks. It offers the
 projects with no sub-issue yet whose waited-on projects are all merged, and recommends the lowest-numbered one. A planner
@@ -317,7 +317,7 @@ again from `/annetaan:pj2-issues` once the projects it waits on are merged.
 
 ```mermaid
 flowchart TD
-    req(["your request"]) --> plan["pj1-plan<br/>planner cuts the work into<br/>projects of up to ten tasks,<br/>with the waits between them<br/>design review: from a blank slate?"]
+    req(["your request"]) --> plan["pj1-plan<br/>planner cuts the work into<br/>projects, each one<br/>a reviewer can judge,<br/>with the waits between them<br/>design review: from a blank slate?"]
     plan --> approve(["you approve the projects and their stages"]) --> filed["a parent issue per project,<br/>labelled project,<br/>blocked-by between parents"]
     filed --> split["pj2-issues, per project<br/>once what it waits on is merged:<br/>planner splits it, issue writers draw each task,<br/>sub-issues, run order"]
     split --> doctor["pj3-doctor<br/>reviewer reads the whole project,<br/>writers redraw what does not hold,<br/>run order rewritten, ready on what is clear"]

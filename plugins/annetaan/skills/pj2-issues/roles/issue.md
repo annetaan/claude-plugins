@@ -70,8 +70,7 @@ the other tasks at the same time. Stay inside yours.
    What the repository's conventions settle, or what nobody would notice, gets nothing. A list of ten decisions gets
    skimmed. Three that matter get answered.
 5. **Lint the body** with the `project.sh` path from the prompt, and fix it until the only reason left is
-   `decisions-open`, or none. The lint does not count files. Keep the file list to the size limits in `format.md`
-   yourself: 50 files at most. When the same lint code is still there after two rewrites, apply **After two failed
+   `decisions-open`, or none. When the same lint code is still there after two rewrites, apply **After two failed
    fixes** before the third: write one sentence on what both rewrites took for granted (for example, that the code
    is about the file list's format), and test it against `format.md`'s description of that code or by linting a
    minimal body holding only the offending line. When the false assumption belongs to the split or the parent,
@@ -103,7 +102,7 @@ roadmap task**. The parent body in the prompt holds that line with the path and 
 ### When the split does not hold
 
 Reading the code may show that your task cannot be done as the split cut it. It needs something no task before it
-makes, it collides with another task in the same files with no order between them, it names more than 50 files, it
+makes, it collides with another task in the same files with no order between them, it is coupled in code to another task, so neither can be reviewed alone, it
 cannot become implementable from its body without designing another task's part, it is two tasks, or it needs
 something that neither a merged project nor a task of this project makes. **Say "the split does not hold" instead of
 returning a body**, with what you found in the code and how you would cut it. The
@@ -225,7 +224,7 @@ first character after `old: ` or `new: ` to the end of the line, exactly.
   title read from GitHub carries one. Lint the body as drafting step 5 says.
   `decisions-open` is allowed when a decision is still open.
 - **A split**, instead, when the issue is two tasks: each part's title, without the count, and body, part 1 keeping
-  `n`'s number, and how the edges move. **A file list past 30 is no reason to split.** The main session asks the user
+  `n`'s number, and how the edges move. **Return a split only where a reviewer can judge each part on its own** (**Where to split** in `judgement.md`). The main session asks the user
   before anything is filed.
 - **Edges to add or remove**, one per line as `#a blocked by #b`, with `part k` for a new part, only between
   sub-issues of this project. When the project needs another project's work and `baseExists` is false, return

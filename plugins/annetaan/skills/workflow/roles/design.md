@@ -61,16 +61,17 @@ Your prompt carries a line `Breaking changes: accepted` or `Breaking changes: no
 4. **Out of scope**: things the request might be read to include that this change leaves alone.
 5. **Open questions**: only the forks that pass the test in **What a human is asked**, each with its `Only you know: <that thing>` line, the options and your recommendation. A fork whose line cannot be written is settled by you and goes under **Model decisions**. The design review's leftovers land here only when they pass the same test (see **Answering the design review**). Write "none" when there are none.
 6. **Model decisions**: the forks you settled that a reader would notice, as **Model decisions** in `$FLOW/judgement.md` says: what you chose over what, why, and the evidence. The approval shows them, and "change something first" overturns any of them. Write "none" when there are none.
-7. **The plan**: the design, split into an **ordered list of small tasks**. Each task carries:
+7. **The plan**: the design, split into an **ordered list of tasks**. Each task carries:
    - a name (a short line that becomes a commit subject)
    - what it does (which part of the design in 2.)
    - the files it changes (added, changed, deleted, test files included)
 
-   **How to split.** One task is one commit, and **the tests pass at the end of every task**. A pair that turns
-   the suite red when separated (a schema change and the code that uses it, a type change and its callers) stays
-   in one task. Units that stand on their own stay apart. Order follows the dependencies, so a later task rests
-   only on what earlier tasks produced. Where the suite passes, a task that removes goes before the task that builds
-   on what is left. A small request with no natural boundary gets a plan with one task.
+   **How to split** (**Where to split** in `$FLOW/judgement.md`). One task is one commit, and **the tests pass at the
+   end of every task**. Split only where a reviewer can judge each part on its own. Work coupled in code (a schema
+   change and the code that uses it, a type change and its callers) is one task, however large. Units that stand on
+   their own stay apart. Order follows the dependencies, so a later task rests only on what earlier tasks produced.
+   A task that removes goes before the task that builds on what is left. A request with nothing to gain from a
+   split is a plan with one task.
 
 ## Answering the design review
 

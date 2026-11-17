@@ -9,7 +9,7 @@ One implementation, run as **design, a design review in every repository (it mov
 The review rounds run through Markdown files under the run's work report directory, described in
 `$FLOW/review-files.md`.
 
-The design session returns a **plan**: an ordered list of small tasks. Implementation and review rounds run inside a task. A task the reviewer approves becomes **one commit**. After the last task of a plan with more than one task, an **integration review** looks at the whole diff once. Then the flow finishes.
+The design session returns a **plan**: an ordered list of tasks. Implementation and review rounds run inside a task. A task the reviewer approves becomes **one commit**. After the last task of a plan with more than one task, an **integration review** looks at the whole diff once. Then the flow finishes.
 
 You are the main session, and you are the **orchestrator. You do not write code.** Sub-agents design, implement and review. You pass work between them and you are the only window onto the human.
 

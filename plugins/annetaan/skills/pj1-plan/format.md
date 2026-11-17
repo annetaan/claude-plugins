@@ -25,19 +25,15 @@ in `state.md`, and what the skills agree on between them is in `between-skills.m
 One request to `pj1-plan`, usually one initiative, can become several projects, `PJ1, PJ2, …` while `pj1-plan` plans them, each a parent issue of its own.
 `pj2-issues` numbers the tasks of one project `T1…Tn`. Every project from one request is made from the same branch.
 
-**A project holds at most 10 tasks.** Like the file limits, it is a rule of the cut. `pj1-plan` cuts the request so
-that each project is estimated at 7 to 8 tasks, and never more than ten. When `pj2-issues` or `pj3-doctor` later takes
-a project past ten, it stays one project, and nobody asks whether to split it.
-
-**A request becomes several projects for two reasons only.** It does not fit in 10 tasks, or the projects it becomes
-can run in parallel. Work that can only go one way, each part waiting on the one before it, stays one project: a cut
-there runs nothing in parallel, and it costs a pull request into `<from>` and a merge to wait for before the next
-project can even be split into tasks. A chain past 10 tasks is cut only where a merge into `<from>` is worth
-something: the part before the cut is of value on its own, or a project outside the chain can start once that part is
-merged.
+**A request becomes several projects for three reasons only.** The split raises review accuracy (a reviewer can judge
+each project on its own, **Where to split** in `judgement.md`), the projects can run in parallel, or a part is worth
+landing in `<from>` first, because it is of value on its own or because another project waits on it. **Size alone is
+never a reason**, and no count of tasks is a limit. Work that can only go one way, each part waiting on the one before
+it, stays one project unless one of those reasons holds: a cut there runs nothing in parallel, and it costs a pull
+request into `<from>` and a merge to wait for before the next project can even be split into tasks.
 
 **A request that is a roadmap entry leaves the roadmap through one project, the last of its stages.** `pj1-plan`
-picks it among the projects of the last stage: the one with the largest estimate, then the lowest PJ id. With several
+picks it among the projects of the last stage: the one with the lowest PJ id. With several
 projects in the last stage, the entry may leave `<from>` before a sibling merges. That is accepted.
 
 **Project P waits on project Q when parent P is blocked by parent Q.** That relationship is the only record of it.
@@ -257,12 +253,8 @@ A body has to meet the bar for `ready` (`state.md`, **When an issue is ready**).
   allowed. The list ends at the first line that is neither a bullet nor indented.
 - Prose after the list is optional.
 
-**The size limits count every file in the list, tests included, and they belong to the split.** The split aims at
-30 files at most per task, and the issue writer accepts up to 50 when the code turns out to need more. The count is a
-guard, not the reason to cut: the split cuts where the design gives it a seam and where a reviewer can read one pull
-request in one sitting, so a rename that reaches many files stays one task. They are planning rules, not conditions
-on the task. When `pj3-doctor` or the implementation later takes a file list past 50, the task stays one task, one
-sub-issue and one pull request, and nobody asks whether to split it.
+**The list is not bounded by size.** A task holds what is coupled in code (**Where to split** in `judgement.md`), so a
+rename that reaches many files stays one task.
 
 ### Shared state and model decisions
 
@@ -387,7 +379,6 @@ project**), and reads more than one such issue as no task, which the reviewer ra
 - **`pj2-issues` leaves it out** when the roadmap at `origin/<from>` has no file, or has no entry with the heading.
   When the entry leaves by another hand after the line was filed, `--check` fails on it, and a human closes the task
   as not planned.
-- **It counts toward the limits** of 7 to 8 tasks and 10.
 
 ### What the lint checks
 
