@@ -136,12 +136,12 @@ working tree, so later rounds see them in the same diff.
 
 ```
 Agent(subagent_type: "annetaan:workflow-reviewer", description: "integration review",
-      prompt: "Read $FLOW/roles/review.md first and follow the role it describes.\n\nApproved design and acceptance criteria:\n<the full design>\n\nPlan, with the commit that closed each task:\n<the plan plus the matching `git log --oneline` lines>\n\nReview files: <absolute path of WORKDIR>/review\n\n<the request below>\n\n<the worktree line>")
+      prompt: "Read $FLOW/roles/review.md first and follow the role it describes.\n\nApproved design and acceptance criteria:\n<the full design>\n\nPlan, with the commit that closed each task:\n<the plan plus the matching `git log --oneline` lines>\n\nReview files: <absolute path of WORKDIR>/review\nScratch: <absolute path of WORKDIR>/scratch/review\n\n<the request below>\n\n<the worktree line>")
 ```
 
-> Every task is committed. This is the integration review. The target is `git diff <START>` plus untracked files. Write round 1 as `integration-round-1.md`. The tasks were reviewed one at a time, so look at **the boundaries**: types and contracts between functions that call each other across tasks, names that do not match, duplicated implementations, and acceptance criteria for the whole design that are still unmet.
+> Every task is committed. This is the integration review. The target is `git diff <START>` plus untracked files. Write round 1 as `integration-round-1.md`. The tasks were reviewed one at a time, so look at **the boundaries**: types and contracts between functions that call each other across tasks, names that do not match, duplicated implementations, and acceptance criteria for the whole design that are still unmet. No evidence file exists before round 1, because the tree is clean, so walk the acceptance criteria and the flows of the whole design yourself.
 
-**`changes-requested` starts a new implementation session as well**, with the phase 3 prompt. The progress is every task, the handover notes are everything you have collected, and the request is to
+**`changes-requested` starts a new implementation session as well**, with the phase 3 prompt, its `Scratch:` line included, and each reply that changes code comes with `integration-round-<r>-evidence.md`. The progress is every task, the handover notes are everything you have collected, and the request is to
 answer the integration review. From there the (b), (c) loop is the same as phase 4, with the `integration-round-<r>`
 files, and the cap is the same
 **five rounds**. Neither session gets rebuilt during those rounds. Fixes become **one commit** after approval, with a

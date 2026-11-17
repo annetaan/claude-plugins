@@ -121,7 +121,7 @@ where you make it.
 
 ```
 Agent(subagent_type: "annetaan:workflow-worker", description: "implementation, task k",
-      prompt: "Read $FLOW/roles/work.md first and follow the role it describes.\n\nApproved design:\n<the full design>\n\nPlan:\n<the full plan>\n\nDetail design for this task:\n<what the design session returned for task k. For task 1, the part of the approved design that covers it>\n\nStart point START: <the SHA>\nBranch: <branch name>\nReview files: <absolute path of WORKDIR>/review\n\nProgress:\n<the tasks already done and the commit that closed each, as the matching `git log --oneline` lines. \"none\" for task 1>\n\nHandover notes from the earlier sessions:\n<the notes you have been accumulating. \"none\" for task 1>\n\nImplement task k, \"<task name>\", of the plan. **Do not commit yet.** Report back once the tests pass.\n\n<the worktree line>")
+      prompt: "Read $FLOW/roles/work.md first and follow the role it describes.\n\nApproved design:\n<the full design>\n\nPlan:\n<the full plan>\n\nDetail design for this task:\n<what the design session returned for task k. For task 1, the part of the approved design that covers it>\n\nStart point START: <the SHA>\nBranch: <branch name>\nReview files: <absolute path of WORKDIR>/review\nScratch: <absolute path of WORKDIR>/scratch/work\n\nProgress:\n<the tasks already done and the commit that closed each, as the matching `git log --oneline` lines. \"none\" for task 1>\n\nHandover notes from the earlier sessions:\n<the notes you have been accumulating. \"none\" for task 1>\n\nImplement task k, \"<task name>\", of the plan. **Do not commit yet.** Write `task-<k>-evidence.md` under the review files. Report back once the tests pass.\n\n<the worktree line>")
 ```
 
 ### Screenshots
@@ -157,7 +157,7 @@ longer holds goes to **When the plan breaks**.
 
 Then start a new implementation session with the phase 3 prompt.
 
-Check that the tests pass before you send anything to review. `git status --porcelain` shows the change sitting in the working tree, and `git log -1` shows HEAD has not moved.
+Check that the tests pass before you send anything to review, and that the evidence file the phase 3 prompt named exists under `<WORKDIR>/review/` (`task-<k>-evidence.md`, or `merge-evidence.md` in a merge). When it is missing, `SendMessage` the implementation session for it. `git status --porcelain` shows the change sitting in the working tree, and `git log -1` shows HEAD has not moved.
 
 **(b) Review**
 
@@ -165,11 +165,11 @@ Check that the tests pass before you send anything to review. `git status --porc
 
 ```
 Agent(subagent_type: "annetaan:workflow-reviewer", description: "review, task k",
-      prompt: "Read $FLOW/roles/review.md first and follow the role it describes.\n\nApproved design and acceptance criteria:\n<the full design>\n\nPlan:\n<the full plan>\n\nDetail design for this task:\n<the same one the implementation session got>\n\nProgress:\n<the tasks already done and the commit that closed each. \"none\" for task 1>\n\nReview files: <absolute path of WORKDIR>/review\n\nUnder review: task k, \"<task name>\". The diff sits between the working tree and HEAD (`git diff HEAD` plus untracked files). Write round 1 as `task-<k>-round-1.md`.\n\n<the worktree line>")
+      prompt: "Read $FLOW/roles/review.md first and follow the role it describes.\n\nApproved design and acceptance criteria:\n<the full design>\n\nPlan:\n<the full plan>\n\nDetail design for this task:\n<the same one the implementation session got>\n\nProgress:\n<the tasks already done and the commit that closed each. \"none\" for task 1>\n\nReview files: <absolute path of WORKDIR>/review\nScratch: <absolute path of WORKDIR>/scratch/review\n\nUnder review: task k, \"<task name>\". The diff sits between the working tree and HEAD (`git diff HEAD` plus untracked files). The evidence is `task-<k>-evidence.md`. Write round 1 as `task-<k>-round-1.md`.\n\n<the worktree line>")
 ```
 
 Every round after that goes to the same session with `SendMessage`, as "the diff has been updated, and the reply is
-`task-<k>-round-<r>-reply.md`. Review it again as round `<r+1>`". A reviewer has to remember what it asked for and
+`task-<k>-round-<r>-reply.md`, with the evidence in `task-<k>-round-<r>-evidence.md` when the reply changed code. Review it again as round `<r+1>`". A reviewer has to remember what it asked for and
 what the implementation side answered back. The session ends with the task, at (d).
 
 Read the verdict at the end of the round file yourself. `approve` goes to (d). Anything else goes to (c).
@@ -178,7 +178,7 @@ Read the verdict at the end of the round file yourself. `approve` goes to (d). A
 
 `SendMessage` to the implementation session.
 
-> The review is `<WORKDIR>/review/task-<k>-round-<r>.md`. Fix what needs fixing, and write your answer to every open finding in `task-<k>-round-<r>-reply.md` next to it. Answer `disagree` with your reasoning when you disagree. **Do not commit yet.** Report back once the tests pass.
+> The review is `<WORKDIR>/review/task-<k>-round-<r>.md`. Fix what needs fixing, and write your answer to every open finding in `task-<k>-round-<r>-reply.md` next to it. Answer `disagree` with your reasoning when you disagree. A reply that changes code comes with `task-<k>-round-<r>-evidence.md`, a full pass. **Do not commit yet.** Report back once the tests pass.
 
 Go back to (b). Count one round.
 
@@ -215,9 +215,9 @@ If round five does not come back `approve`, stop as the entry's file says. Do no
 ## Rules for the whole flow
 
 - **You do not write code.** The implementation session implements and the review session reviews. Code you write yourself never passes through a review.
-- **The review session never changes code.** It writes findings. The implementation session fixes them.
+- **The review session never changes code.** It runs what it suspects and writes its findings to the review file, and nothing else outside its scratch directory. The implementation session fixes them.
 - **The design review session never changes code and sends one report.** It runs once, before approval, never on task detailing or a plan redraw, and the flow goes on without it when it cannot start.
-- **The review files are written once.** Each round and each reply is a new file under `<WORKDIR>/review/`, in the shape `$FLOW/review-files.md` gives. Nobody edits one after it is written.
+- **The review files are written once.** Each round and each reply is a new file under `<WORKDIR>/review/`, in the shape `$FLOW/review-files.md` gives. The evidence files are written once too. Nobody edits one after it is written.
 - **The design session lives for the whole flow. An implementation session and a review session live for one task.** Inside a task they continue through `SendMessage`, because throwing the context away between rounds repeats arguments that were already settled. At the commit they are finished, and the next task starts a new pair. The implementation session of a one-task plan also writes the work report.
 - **Keep the reports from the sub-agents short.** The role instructions cap them. A report that pastes a diff or a log fills the one context that holds the whole plan, which is yours. When a long one arrives, say so, and ask for the gist next time.
 - **One task is one commit, and a commit happens only after approval.** A commit mid-round drops the diff out of the working-tree view the review reads.
