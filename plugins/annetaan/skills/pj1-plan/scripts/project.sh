@@ -313,7 +313,6 @@ def spans_of(desc):
     return out
 
 def is_document(path):
-    """A document is a path that ends in one of DOCUMENT_SUFFIXES, compared without case. Every other path is code."""
     return path.lower().endswith(DOCUMENT_SUFFIXES)
 
 def symbols(entry, paths):

@@ -112,16 +112,14 @@ for dir in "$TMP/origin.git" "$TMP/work/.git"; do
 done
 echo "ok: check outside a work tree is refused"
 
-# From here on the fake gh adds the entries in FX_EXTRA_ENTRY (one bullet per line) to the file list.
-# chk_failures <extra entries> [<work tree>] prints the premise failures of --check 2 as (path, symbol, why) tuples.
 chk_failures() {
-  (cd "${2:-$TMP/work}" && FX_EXTRA_ENTRY="$1" bash "$SCRIPT" -R test/repo 1 --check 2) | python3 -c "
+  local entries="$1" tree="${2:-$TMP/work}"
+  (cd "$tree" && FX_EXTRA_ENTRY="$entries" bash "$SCRIPT" -R test/repo 1 --check 2) | python3 -c "
 import json, sys
 d = json.load(sys.stdin)
 print([(f['path'], f.get('symbol'), f['why']) for f in d['premises']['failures']])"
 }
 
-# Case 3: a name in a document entry is looked up in nothing.
 got="$(chk_failures '- `README.md` (changed): says `Temporal` is used
 ')"
 [ "$got" = "[]" ] || fail "a document entry with a new name printed $got, wanted []"
@@ -133,13 +131,11 @@ case "$got" in
 esac
 echo "ok: --check looks up no name in a document entry"
 
-# Case 4: a document still has to exist.
 got="$(chk_failures '- `docs/none.md` (changed): says `Temporal` is used
 ')"
 [ "$got" = "[('docs/none.md', None, 'changed, but does not exist')]" ] || fail "a missing document printed $got"
 echo "ok: --check fails a document entry whose path does not exist"
 
-# Case 5: a name the file never held and a name it once held are told apart. A shallow clone cannot tell them apart.
 got="$(chk_failures '- `src/app.ts` (changed): uses `Temporal`
 ')"
 [ "$got" = "[('src/app.ts', 'Temporal', 'symbol never in the file')]" ] || fail "a name the file never held printed $got"
@@ -150,13 +146,11 @@ got="$(chk_failures '- `src/app.ts` (changed): uses `oldName`
 [ "$got" = "[('src/app.ts', 'oldName', 'symbol not found')]" ] || fail "a name the file once held printed $got"
 echo "ok: --check reads a name the file once held as symbol not found"
 
-# A name with a $, held once, is read as held: the $ is a literal in the history lookup.
 got="$(chk_failures '- `src/app.ts` (changed): uses `$el`
 ')"
 [ "$got" = "[('src/app.ts', '\$el', 'symbol not found')]" ] || fail "a held name with a dollar sign printed $got"
 echo "ok: --check reads a held name with a $ as symbol not found"
 
-# A name that is only part of a longer name the file once held was never held itself.
 got="$(chk_failures '- `src/app.ts` (changed): uses `parse`
 ')"
 [ "$got" = "[('src/app.ts', 'parse', 'symbol never in the file')]" ] || fail "a name inside a longer held name printed $got"

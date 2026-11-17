@@ -127,7 +127,6 @@ got="$(reasons "$TMP/nocheck.md")"
 [ "$got" = '["breakage-entry"]' ] || fail "a Left broken bullet with no check printed $got, wanted [\"breakage-entry\"]"
 echo "ok: a Left broken bullet with no backticked check fails breakage-entry"
 
-# Case 6: a changed entry on a document needs no symbol, and one on a code file does.
 body_one() {
   printf '## Goal\n\nx\n\n## Design\n\n- `%s` (changed): %s\n\n## Acceptance criteria\n\n- `foo` is renamed.\n\n## Decisions\n\nNone.\n\n## Out of scope\n\nNothing.\n' "$1" "$2" >"$TMP/one.md"
 }

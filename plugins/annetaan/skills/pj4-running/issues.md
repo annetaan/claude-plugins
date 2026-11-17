@@ -210,8 +210,10 @@ workflow hands over to this section by name, with the design session's `Body:`, 
    ```
 
    Go on when `ok` is true and `lint` is what step 1 accepts: `decisions-open` only under `Stop: ask`, no reason
-   otherwise. Write the fixed body with Write to `$TMP/<k>-redrawn.md`. A fix in step 1 goes on from step 1. A fix in
-   step 5 runs steps 1, 2 and 5 again, because steps 3 and 4 are already written. Tell the design session the lines
+   otherwise. Write the fixed body with Write to `$TMP/<k>-redrawn.md`. A fix in step 1 goes on from step 1's
+   lint of that file. A fix in step 5 runs steps 1, 2 and 5 again, because steps 3 and 4 are already written. The rerun
+   reads `updatedAt` and the body afresh and lints and compares `$TMP/<k>-redrawn.md` as it now stands, and does not
+   write `Body:` to it again. Tell the design session the lines
    that changed, old and new, with `SendMessage`, and do not wait for an answer. **The fix counts against neither
    return below**, and there is one fix per failure.
 
