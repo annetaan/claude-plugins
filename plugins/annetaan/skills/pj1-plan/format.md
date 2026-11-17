@@ -1,8 +1,8 @@
 # The issues of a project
 
 This file holds how a project is laid out as issues: the parent body, the sub-issue body, the decisions and the run
-order, and the format of the roadmap file. The planners and the issue writer read only this file. The project reviewer, `pj1-plan`, `pj2-issues` and
-`pj3-doctor` read it first too, and `pj4-running` and the `workflow` skill look up sections of it. How `project.sh` judges a project is
+order, and the format of the roadmap file. The planners and the issue writer read this file and `judgement.md` of the `workflow` skill, whose path their prompt gives. The project reviewer, `pj1-plan`, `pj2-issues` and
+`pj3-doctor` read this file first too, and `pj4-running` and the `workflow` skill look up sections of it. How `project.sh` judges a project is
 in `state.md`, and what the skills agree on between them is in `between-skills.md`, both next to this file.
 
 ## The parts
@@ -121,6 +121,14 @@ Roadmap: `<path>` <entry heading>
 abstraction is needed if one is added, and, when the project changes an assumption existing behaviour relies on, who
 each branch kept from existing code still serves>
 
+### Shared state
+
+<optional: see **Shared state and model decisions**>
+
+### Model decisions
+
+<optional: see **Shared state and model decisions**>
+
 ## Decisions
 
 <the answers the user gave to pj1-plan and pj2-issues, each one settled, in the shape of a sub-issue decision. None. when there were none>
@@ -138,13 +146,10 @@ Before that, the lines above are followed by `## Goal`.
 project's parent. Whoever reads the parent's `## Design`, the issue writer and the `workflow` skill alike, also reads
 the `## Design` of every parent in `waitsOn`.
 
-**Behaviour kept under a changed assumption.** An assumption is something existing behaviour relies on: who knows a
-value, who acts, which states a record can be in, what happens in which order. A carried-over branch is a branch, case
-or step the project keeps from existing code. Keeping one is a decision, not a default. When the project changes an
-assumption, `## Design` names it and, for each kept branch that relied on it, says who the branch still serves. A
-branch nobody can be named for is dropped or becomes a decision. For example: before, the admin chose the temporary
-password, so resetting a disabled user and telling them the password later was harmless. After, nobody knows the
-temporary password, so "create, disable, re-send after enabling" leaves a user who can never log in. A line that a
+**Behaviour kept under a changed assumption.** For each kept branch whose assumption the project changes, `## Design`
+names the assumption and says who the branch still serves. For a change to shared state it holds the `### Shared state`
+list. The rules are **Assumptions** and **Why existing behaviour is there** in `judgement.md`. A branch nobody can be
+named for goes through the history lookup first, and becomes a decision only when history is silent. A line that a
 human fork replaced reads `decided in #<n> D<k>`, which keeps the boundary in the parent.
 
 ### The run order
@@ -190,16 +195,27 @@ parent body keeps it too. The lines above `## Goal` belong to the main session, 
 
 <optional prose: how the pieces fit. Written as if every decision below were already made the way it is checked>
 
+### Shared state
+
+<optional: see **Shared state and model decisions**>
+
+### Model decisions
+
+<optional: see **Shared state and model decisions**>
+
 ## Acceptance criteria
 
 - <what has to hold for this task to be done, with a backticked anchor: a test name, a command, or a file or symbol
-  whose state is checked>
+  whose state is checked. One criterion per user flow the task touches and per reader in `### Shared state`. A bug fix
+  with a cheap test path names the test that fails first>
 
 ## Decisions
 
 ### D1. <the question, as a question>
 
 <why it matters here: what each choice changes in the code, and what else it reaches>
+
+Only you know: <the thing only a human can answer>
 
 - [ ] <option A>
 - [ ] <option B> (recommended)
@@ -248,6 +264,20 @@ request in one sitting, so a rename that reaches many files stays one task. They
 on the task. When `pj3-doctor` or the implementation later takes a file list past 50, the task stays one task, one
 sub-issue and one pull request, and nobody asks whether to split it.
 
+### Shared state and model decisions
+
+Both are optional subsections at the end of `## Design`, after the file list and the prose.
+
+- **`### Shared state`** appears when the change fires the outward rule of **Assumptions** in `judgement.md`. An entry
+  is the state and the write. One indented line per reader follows it: the `symbol` in `path`, the lifetime it assumes,
+  and whether that still holds.
+- **`### Model decisions`** holds each fork a model settled and a reader would notice: what was chosen over what, why,
+  and the evidence.
+- **A human overturns an entry** with a comment on the issue. `pj3-doctor` has the writer work the comment in and
+  remove the entry. On an issue that carries `ready`, the user also takes `ready` off, so that the next step is
+  `pj3-doctor` and not `pj4-running`, which hands the worker the body and never reads comments.
+- Backticked names in these subsections are not looked up by `--check`.
+
 ### The title
 
 A sub-issue title is one short line in the repository's language. While any of its decisions is not settled, it ends
@@ -271,6 +301,8 @@ read `Add retry settings (0/2)`, then `Add retry settings (1/2)`, then `Add retr
 ("1 of 3 tasks"), so that count reads as how many decisions are settled. Acceptance criteria are a plain list for that
 reason.
 
+- **A decision exists only when it passes **What a human is asked** in `judgement.md`**, and it carries
+  `Only you know: <that thing>` on a line of its own before the options.
 - Each decision is `### D<n>. <question>`, then why it matters, then **2 to 4 options** as `- [ ]` lines.
 - **An option says what it changes** on indented lines under its box: the behaviour, the names, the files. The
   user decides from the body alone, with no one to ask.
@@ -288,6 +320,8 @@ reason.
 ### D1. Where does the retry count live?
 
 The worker reads it on every job, and the admin screen writes it.
+
+Only you know: whether the people who run the admin screen can wait for a deploy.
 
 - [ ] An environment variable
   `RetrySettings` reads `RETRY_MAX`. Changing it needs a deploy.
@@ -372,12 +406,15 @@ project**), and reads more than one such issue as no task, which the reviewer ra
 | `decisions-open` | a decision is open |
 | `decisions-contradictory` | a decision is contradictory |
 
+The lint does not look at `Only you know:` or at the two subsections. The main sessions and the project reviewer do.
+
 ## Fixed tokens
 
 These stay in English whatever language the repository uses, because the skills and `project.sh` match on them:
 
 - the section headings of both bodies, and `### D<n>.`
-- `(recommended)`, `Decided:`, `None.` and `To be drawn.`
+- `(recommended)`, `Decided:`, `Only you know:`, `None.` and `To be drawn.`
+- `### Model decisions` and `### Shared state`
 - the kinds in the file list: `added`, `changed` and `deleted`
 - the decision count ` (<settled>/<total>)` at the end of a sub-issue title (see **The title**)
 - the markers (`between-skills.md`, **Comments**)

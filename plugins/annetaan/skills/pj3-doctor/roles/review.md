@@ -14,6 +14,9 @@ and the run order. `state.md` describes how `project.sh` reads the project and w
 The prompt also gives the path of `between-skills.md`, what the skills agree on between them. Look up only its
 **Blockers**.
 
+Then read `judgement.md` at the path the prompt gives. It says which forks reach a human, how a model decision is
+recorded, and how to check an assumption.
+
 ## What you get
 
 The prompt carries the parent number `P`, the `project.sh <P>` JSON, and the `project.sh <P> --check <n>` JSON of
@@ -39,7 +42,8 @@ the code. Then read the issues against each other.
    the file list or reach past this task, or the design says something the ticked option makes untrue.
 2. **Two boxes ticked in one decision.** Name it. Only the user can settle it.
 3. **A ticked option the code rules out.**
-4. **A human comment the body does not answer yet**: an answer that is none of the options, or a correction.
+4. **A human comment the body does not answer yet**: an answer that is none of the options, a correction, or a
+   comment that overturns an entry of `### Model decisions`.
 5. **What `--check` failed on**: each lint code other than `decisions-open` and each premise failure. For each stale
    commit, read its diff with `git show <sha>` against the body and say whether it touches what the issue depends on:
    a path, symbol or behaviour its `## Design` relies on. One that does is a finding. One that does not gets a
@@ -72,11 +76,13 @@ the code. Then read the issues against each other.
      `parent.waitsOn` entry is `CLOSED` and not `merged`, closed as not planned: that is always
      `remove #P blocked by #Q`, and what `P` needed from it becomes a finding on the issues that use it, a change to
      their design or a stub in `P`. Report these only while `parent.baseExists` is false.
-10. **A question only a human can answer**, raised by a ticked option or by the code, that is no decision yet.
+10. **A question only a human can answer**, raised by a ticked option or by the code, that is no decision yet. It
+    passes **What a human is asked** in `judgement.md`, and the finding gives the `Only you know:` line. A question
+    that does not pass is no finding, or kind 14 when it already stands as an open decision.
 11. **An issue that is two tasks.**
 12. **A parent assumption that no longer holds.**
     - **Triggers.** The parent's `## Design` keeps a branch whose assumption the project changes and names no one it
-      serves (`format.md`, **Behaviour kept under a changed assumption**). Or two or more issues carry the same
+      serves (**Assumptions** in `judgement.md`). Or two or more issues carry the same
       workaround for one consequence of the parent's design.
     - **Report.** A finding in the parent's block that gives the sentence the parent's `## Design` will carry
       instead. Each issue that carries the workaround gets a kind 8 line that repeats that sentence and says to drop
@@ -86,6 +92,12 @@ the code. Then read the issues against each other.
       counting the other kind 10 findings you raise on the same issue in order. The parent's sentence becomes
       `decided in #<n> D<k>` with that same `D<k>`.
     - **Follow-up.** Once that decision is settled, kind 8 carries the ticked answer into the parent.
+13. **An assumption elsewhere that an issue breaks.** The issue or the parent makes a write the outward rule of
+    **Assumptions** fires on and lists no readers. Or the code shows a reader the list misses, or a lifetime that does
+    not hold. Or a bug fix is drawn as a guard where the failure surfaces (**Root cause**). Say which readers, and
+    where the cause is.
+14. **An open decision a model can settle.** An open decision with no `Only you know:` line, or whose line names
+    something the code or the history answers. Never a ticked one.
 
 Leave out what the conventions settle and what a worker can choose without anyone noticing. A finding the writer
 cannot act on is noise.
@@ -94,7 +106,7 @@ cannot act on is noise.
 
 One block per issue with a finding, the parents included, as `#<n>`, and in each block one line per finding:
 which of the kinds above it is, what you saw, and what would fix it, naming paths and symbols, never line numbers.
-A finding that needs the user, kinds 2, 3 and 11, says so.
+A finding that needs the user, kinds 2, 3 and 11, says so. Kinds 13 and 14 need no user.
 
 Then **edges**, one per line as `add #a blocked by #b` or `remove #a blocked by #b`. A parent edge is written
 `add #<P> blocked by #<Q>` or `remove #<P> blocked by #<Q>`.
@@ -147,7 +159,7 @@ it in no quotes and no backticks.
   string, its own included. Otherwise merge them into one finding, or tag them `design`.
 - **The scope.** The fix does not change the design, the file list, a decision or another issue, and does not touch a
   parent's `Base:` line, its `Roadmap:` line or its `## Order`.
-- **The kind.** Kinds 2, 3, 6, 10, 11 and 12 are always `design`.
+- **The kind.** Kinds 2, 3, 6, 10, 11, 12, 13 and 14 are always `design`.
 
 **When in doubt, tag it `design`.** The main session checks an `exact` fix only against your two strings, and no
 reviewer reads it again, so a wrong `exact` tag lets a wrong fix through without a review.

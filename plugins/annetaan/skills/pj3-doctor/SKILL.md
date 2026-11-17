@@ -34,6 +34,9 @@ This skill uses these files:
 - the script `$DOCTOR/../pj1-plan/scripts/project.sh`, written `project.sh` below
 - the reviewer's role file `$DOCTOR/roles/review.md`
 - the issue writer's role file `$DOCTOR/../pj2-issues/roles/issue.md`
+- the judgement rules `$DOCTOR/../workflow/judgement.md`, which the reviewer and the writers read (written
+  `<skills>/workflow/judgement.md` in their prompts, with `<skills>` the directory that holds `$DOCTOR`, as the real
+  absolute path)
 
 **Language**: talk to the user in the user's language. Write issue text in the repository's language, as `format.md`
 says.
@@ -88,7 +91,7 @@ not outlive one command, so write the path in full each time.
 
    ```
    Agent(subagent_type: "annetaan:pj-reviewer", description: "review #<P>",
-         prompt: "Read $DOCTOR/roles/review.md first and follow the role it describes. The project format is in $DOCTOR/../pj1-plan/format.md. The state of a project is in $DOCTOR/../pj1-plan/state.md. The agreements between the skills are in $DOCTOR/../pj1-plan/between-skills.md.\n\nParent: #<P>\n\nproject.sh <P>:\n<the JSON>\n\nproject.sh <P> --check, per issue:\n<each JSON>")
+         prompt: "Read $DOCTOR/roles/review.md first and follow the role it describes. The project format is in $DOCTOR/../pj1-plan/format.md. The state of a project is in $DOCTOR/../pj1-plan/state.md. The agreements between the skills are in $DOCTOR/../pj1-plan/between-skills.md. The judgement rules are in <skills>/workflow/judgement.md.\n\nParent: #<P>\n\nproject.sh <P>:\n<the JSON>\n\nproject.sh <P> --check, per issue:\n<each JSON>")
    ```
 
    `annetaan:pj-reviewer` ships with this plugin and is pinned to Fable at medium effort with code changes disabled.
@@ -112,8 +115,9 @@ the roadmap task's edges and the run order may still change.
 An unattended run asks none of these. When any is due, it writes nothing and ends as needs-user, naming the questions.
 
 Ask the user only what is not a task decision. **Never ask a task decision in the conversation.** An open decision
-is ticked on GitHub, and a question the reviewer raised becomes a new decision in the issue (kind 10 in
-`roles/review.md`).
+is ticked on GitHub, and a question the reviewer raised that passes **What a human is asked** in `judgement.md`
+becomes a new decision in the issue (kind 10 in `roles/review.md`). A question a model can settle is settled by the
+writer (kind 14) and never asked.
 
 Ask with `AskUserQuestion`, at most four questions per call, one issue per question, header `#<n>`:
 
@@ -133,10 +137,10 @@ An answer here is the user's decision, so the writer of that issue works it into
 
 ```
 Agent(subagent_type: "annetaan:pj-issue-writer", description: "revise #<n>", run_in_background: true,
-      prompt: "Read $DOCTOR/../pj2-issues/roles/issue.md first and follow the role it describes. The project format is in $DOCTOR/../pj1-plan/format.md. project.sh is $DOCTOR/../pj1-plan/scripts/project.sh.\n\nMode: revise\n\nParent: #<P>\nIssue: #<n>\n\nproject.sh <P>:\n<the JSON>\n\nproject.sh <P> --check <n>:\n<the JSON, or none for a parent>\n\nThe review's findings on #<n>:\n<the findings>\n\nThe user's answers:\n<the phase 2 answers on #<n>, or none>")
+      prompt: "Read $DOCTOR/../pj2-issues/roles/issue.md first and follow the role it describes. The project format is in $DOCTOR/../pj1-plan/format.md. project.sh is $DOCTOR/../pj1-plan/scripts/project.sh. The judgement rules are in <skills>/workflow/judgement.md.\n\nMode: revise\n\nParent: #<P>\nIssue: #<n>\n\nproject.sh <P>:\n<the JSON>\n\nproject.sh <P> --check <n>:\n<the JSON, or none for a parent>\n\nThe review's findings on #<n>:\n<the findings>\n\nThe user's answers:\n<the phase 2 answers on #<n>, or none>\n\nScratch: $TMP/scratch/<n>")
 ```
 
-`annetaan:pj-issue-writer` ships with this plugin and is pinned to opus at medium effort with code changes disabled.
+`annetaan:pj-issue-writer` ships with this plugin and is pinned to opus at medium effort. It is told never to change the repository and to write only under its `Scratch:` directory, by instruction.
 **Keep each writer alive until phase 4 ends.**
 
 **Each writer writes its own issue only.** A finding a writer says belongs to another issue goes to that issue's
@@ -397,6 +401,9 @@ the numbers.
   one left without it by a stale commit with no `cleared` line names that commit
 - **the decisions left for the user**, one line each, as `<issue URL> D<k> <question>`. This is the
   user's next step: tick them on GitHub, then run `/annetaan:pj3-doctor` again
+- **the model decisions added or changed in this run**, one line each, as `<issue URL>` and the decision. A comment on
+  the issue overturns one, and the next run works the comment in. On an issue labelled `ready` in this run, the user
+  also takes `ready` off, because `pj4-running` never reads comments
 - the issues filed, the sub-issue and parent edges changed (the roadmap task's edges added among them), the blockers closed, the parents rewritten and the
   titles changed
 - the parent edges dropped before the approval, each with why

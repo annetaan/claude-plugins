@@ -20,8 +20,10 @@ this file.
 The roadmap file, its line and its task are in `format.md` under **The roadmap file**, **The parent issue body** and
 **The roadmap task**.
 
-**The user decides by ticking boxes on GitHub.** Every question a task raises is a decision in its sub-issue
-(`format.md`, **Decisions**). No skill asks a task's decision in the conversation. `pj1-plan` and `pj2-issues` ask
+**The user decides by ticking boxes on GitHub.** Every question a task raises that only the user can answer is a
+decision in its sub-issue (`format.md`, **Decisions**). What a model can settle, it settles and records under
+`### Model decisions` in `## Design`, and the user overturns one with a comment on the issue (on an issue that carries `ready`, also taking `ready` off,
+because `pj4-running` never reads comments). No skill asks a task's decision in the conversation. `pj1-plan` and `pj2-issues` ask
 only the questions that change the cut into projects, the split into tasks, or a parent's `## Design`. `pj3-doctor`
 talks with the user about everything else: a split, two boxes ticked in one decision, and its changes before they are
 written.

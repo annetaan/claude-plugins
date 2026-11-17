@@ -21,8 +21,8 @@ nothing.
 Collapse the `..` in a path to a sibling skill, so that the command text names `<skills>/workflow/roles/design-review.md` and not
 `<skills>/pj1-plan/../workflow/roles/design-review.md`. A permission rule matches the text of the command. This holds in the prompts for
 sub-agents too. `<skills>` means the directory that holds `$PLAN`. Like `$PLAN`, write it as the real absolute path, never
-literally. Two files of the `workflow` skill are read from here: `<skills>/workflow/breaking-changes.md` and
-`<skills>/workflow/roles/design-review.md`.
+literally. Three files of the `workflow` skill are read from here: `<skills>/workflow/breaking-changes.md`,
+`<skills>/workflow/judgement.md` and `<skills>/workflow/roles/design-review.md`.
 
 **Read `$PLAN/format.md` and `$PLAN/between-skills.md` before anything else.** `format.md` is the only description
 of the parent issue, the sub-issue body, the decisions and the relationships. `between-skills.md` holds the labels,
@@ -50,6 +50,9 @@ git branch --show-current
   branch.
 - A dirty working tree does not matter. This skill reads the code and changes nothing in it. It creates no branch
   either: `pj4-running` creates each project's base branch (`between-skills.md`, **The base branch**).
+- Run `mktemp -d` once. `$TMP` below is the directory it printed. A shell variable does not outlive one command, so
+  write the path in full each time.
+- Run `git status --porcelain` and keep its output. Phase 1 compares against it.
 
 ### The roadmap
 
@@ -74,20 +77,24 @@ Hand the user's request to the planner as it was written.
 
 ```
 Agent(subagent_type: "annetaan:pj-planner", description: "project plan",
-      prompt: "Read $PLAN/roles/plan.md first and follow the role it describes. The project format is in $PLAN/format.md.\n\nThe request:\n<the user's request, verbatim>\n\nThe roadmap:\n<the --roadmap JSON | none>")
+      prompt: "Read $PLAN/roles/plan.md first and follow the role it describes. The project format is in $PLAN/format.md. The judgement rules are in <skills>/workflow/judgement.md.\n\nThe request:\n<the user's request, verbatim>\n\nThe roadmap:\n<the --roadmap JSON | none>\n\nScratch: $TMP/scratch/plan")
 ```
 
-`annetaan:pj-planner` ships with this plugin and is pinned to Fable at medium effort with code changes disabled.
+`annetaan:pj-planner` ships with this plugin and is pinned to Fable at medium effort. It is told never to change the repository and to write only under its `Scratch:` directory, by instruction.
 **When it cannot start** (a weekly limit, a rate limit, the model is unavailable), spawn it again with the same
 prompt and `model: "opus"`. The effort stays medium.
 
 When the plan comes back:
 
+- **Run `git status --porcelain` again.** When it differs from the output kept before you started, stop and name the
+  paths. A planner that changed the repository broke its role.
 - **If feasibility is "no" or "conditional"**, hand that to the user and wait.
 - **When the plan comes back with `Roadmap: <heading>` and no entry of the kept JSON has that heading**, send it back
   with `SendMessage` before the design review, saying the heading is no entry of the roadmap.
 - **Run the design review** (see **The design review** below) the first time the planner returns `yes`, before any
   open question is asked.
+- **An open question with no `Only you know:` line** goes back with `SendMessage`, to be decided and recorded under
+  `### Model decisions` (`judgement.md`, **What a human is asked**).
 - **Ask the open questions now**, with `AskUserQuestion`, **four to a call**, in as many calls as it takes: the
   planner's own first, then those marked `(from the design review)`, in the order the reviewer ranked them. These are
   the plan-level questions, the ones that change the cut into projects, an edge between projects, or a parent's
@@ -102,7 +109,7 @@ the request as it was written, whether breaking changes are accepted, and the pl
 
 ```
 Agent(subagent_type: "annetaan:workflow-design-review", description: "design review",
-      prompt: "Read <skills>/workflow/roles/design-review.md first and follow the role it describes.\n\nBreaking changes: <accepted | not accepted>\n\nThe request:\n<the user's request, verbatim>\n\nThe design:\n<the planner's full report>")
+      prompt: "Read <skills>/workflow/roles/design-review.md first and follow the role it describes. The judgement rules are in <skills>/workflow/judgement.md.\n\nBreaking changes: <accepted | not accepted>\n\nThe request:\n<the user's request, verbatim>\n\nThe design:\n<the planner's full report>")
 ```
 
 The prompt carries no worktree line, because the reviewer reads the working tree this skill runs in.
@@ -117,8 +124,8 @@ When the report comes back, `SendMessage` it to the planner.
 > Follow **Answering the design review** in your role instruction. Return the whole revised report.
 
 The revised report replaces the plan. **It does not go back to the reviewer**, and neither does a rework the user asks
-for at approval. Never `SendMessage` the reviewer. The points the planner did not take in reach the user as open
-questions.
+for at approval. Never `SendMessage` the reviewer. The points the planner did not settle by evidence reach the user as open
+questions only when they carry an `Only you know:` line.
 
 **Keep the planner alive until phase 3 ends.**
 
@@ -141,8 +148,10 @@ Show:
 
 - the goal of the whole request, in a few lines
 - the plan-level decisions the user settled in phase 1, one line each
+- the model decisions of every parent's `### Model decisions`, one line each with the project it belongs to, and one
+  line saying that "Change something first" overturns any of them
 - what happened to the design review, in one line. When it ran: whether breaking changes are accepted, N findings
-  taken in, M decided by the user in phase 1. When it did not run, the reason: Fable could not start
+  taken in, K settled by the planner, M decided by the user in phase 1. When it did not run, the reason: Fable could not start
 - each project as `PJ<j> <title>  (about N tasks)` and its goal in one line
 - the stages, in this shape, each edge with the planner's reason:
 
@@ -200,8 +209,7 @@ codes. Keep `path` from this output.
 
 ## Phase 3: filing
 
-Run `mktemp -d` once. `$TMP` below is the directory it printed. A shell variable does not outlive one command, so
-write the path in full each time. Write the planner's parent body of each project there as `$TMP/PJ<j>.md`. Then
+`$TMP` is the directory from **Before you start**. Write the planner's parent body of each project there as `$TMP/PJ<j>.md`. Then
 file the parents in the file order from phase 2.
 
 ```bash

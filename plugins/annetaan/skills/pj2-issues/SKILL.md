@@ -32,6 +32,9 @@ This skill uses these files:
 - the script `$ISSUES/../pj1-plan/scripts/project.sh`, written `project.sh` below
 - the planner's role file `$ISSUES/roles/split.md`
 - the issue writer's role file `$ISSUES/roles/issue.md`
+- the judgement rules `$ISSUES/../workflow/judgement.md`, which the planner and the writers read (written
+  `<skills>/workflow/judgement.md` in their prompts, with `<skills>` the directory that holds `$ISSUES`, as the real
+  absolute path)
 
 **Language**: talk to the user in the user's language. Write issue text in the repository's language, as `format.md`
 says.
@@ -60,7 +63,7 @@ git branch --show-current
 1. Pick it as `between-skills.md` says under **Picking the project**. The project picked is `<P>`. Print
    `project #<P>` once, so that a context summary can find it again. Run `mktemp -d` once for the whole run. `$TMP`
    below is the directory it printed. A shell variable does not outlive one command, so write the path in full each
-   time.
+   time. Run `git status --porcelain` once and keep its output. The checks in phases 1 and 3 compare against it.
 2. Read the project.
 
    ```bash
@@ -121,21 +124,25 @@ $ISSUES/../pj1-plan/scripts/project.sh --roadmap origin/<from>
 
 ```
 Agent(subagent_type: "annetaan:pj-planner", description: "split #<P>",
-      prompt: "Read $ISSUES/roles/split.md first and follow the role it describes. The project format is in $ISSUES/../pj1-plan/format.md.\n\nParent: #<P>\n\nproject.sh <P>:\n<the JSON>\n\nRemoved waits: <#Q, #R | none>\n\nRoadmap task: <yes, the entry \"<heading>\" of <path> | none, <why> | none>\n\nRead the code: <the working tree | at origin/<from>>")
+      prompt: "Read $ISSUES/roles/split.md first and follow the role it describes. The project format is in $ISSUES/../pj1-plan/format.md. The judgement rules are in <skills>/workflow/judgement.md.\n\nParent: #<P>\n\nproject.sh <P>:\n<the JSON>\n\nRemoved waits: <#Q, #R | none>\n\nRoadmap task: <yes, the entry \"<heading>\" of <path> | none, <why> | none>\n\nRead the code: <the working tree | at origin/<from>>\n\nScratch: $TMP/scratch/split")
 ```
 
 `Removed waits:` names the projects whose edges **The project** step 2 removed in this run. `Roadmap task:` carries
 the first form, with `parent.roadmap.path` as `<path>`, when the split ends with the roadmap task, the second with the line kept above, and `none` for a parent
 with no `Roadmap:` line.
 
-`annetaan:pj-planner` ships with this plugin and is pinned to Fable at medium effort with code changes disabled.
+`annetaan:pj-planner` ships with this plugin and is pinned to Fable at medium effort. It is told never to change the repository and to write only under its `Scratch:` directory, by instruction.
 **When it cannot start** (a weekly limit, a rate limit, the model is unavailable), spawn it again with the same
 prompt and `model: "opus"`. The effort stays medium.
 
 When the split comes back:
 
+- **Run `git status --porcelain` again.** When it differs from the output kept in **The project**, stop and name the
+  paths. A planner that changed the repository broke its role.
 - **If feasibility is "no"**, hand that to the user and stop. **If it is "conditional"** with `#<P> blocked by #<Q>`,
   go to phase 2 and ask the question for that case.
+- **An open question with no `Only you know:` line** goes back with `SendMessage`, to be decided and recorded under
+  `### Model decisions` of the parent (`judgement.md`, **What a human is asked**).
 - **Ask the open questions now**, with `AskUserQuestion`, **four to a call**, in as many calls as it takes. These are
   the split-level questions, the ones that change the split or the parent's `## Design`. Send the answers back with
   `SendMessage`. The revised report carries each answer as a settled decision in the parent's `## Decisions`.
@@ -160,8 +167,9 @@ Show:
 
 - `#<P> <title>` and its goal, in a few lines
 - the split-level decisions the user settled in phase 1, one line each
-- each task as `T<k> <title>  (after T2, T5)`, followed by the number of decisions the planner already sees in it
+- each task as `T<k> <title>  (after T2, T5)`, followed by the number of forks the planner already sees in it that are for a human, and the number the writer settles, counted apart (the filed title's `(0/<m>)` counts only the first)
 - the change to the parent body as the `diff -u` above, or "unchanged"
+- the parent's model decisions that the split added or changed, one line each
 - the changes to the parent's edges, each with the planner's reason, or "none"
 - one line saying every task is aimed at 30 files at most, tests included. When the split is past 10 tasks, say that it
   stays one project (`format.md`, **Projects**)
@@ -226,11 +234,12 @@ and none of them touches GitHub.
 
 ```
 Agent(subagent_type: "annetaan:pj-issue-writer", description: "issue T<k>",
-      prompt: "Read $ISSUES/roles/issue.md first and follow the role it describes. The project format is in $ISSUES/../pj1-plan/format.md. Lint a body with $ISSUES/../pj1-plan/scripts/project.sh.\n\nMode: draft\n\nParent: #<P>\nWaits on: <#Q, #R | none>\n\nThe parent body:\n<the approved body>\n\nThe split:\n<the full report from the planner>\n\nRead the code: <the working tree | at origin/<from>>\n\nYour task: T<k>, \"<title>\".")
+      prompt: "Read $ISSUES/roles/issue.md first and follow the role it describes. The project format is in $ISSUES/../pj1-plan/format.md. Lint a body with $ISSUES/../pj1-plan/scripts/project.sh. The judgement rules are in <skills>/workflow/judgement.md.\n\nMode: draft\n\nParent: #<P>\nWaits on: <#Q, #R | none>\n\nThe parent body:\n<the approved body>\n\nThe split:\n<the full report from the planner>\n\nRead the code: <the working tree | at origin/<from>>\n\nYour task: T<k>, \"<title>\".\n\nScratch: $TMP/scratch/T<k>")
 ```
 
 `Waits on:` names the parents in `parent.waitsOn`. `annetaan:pj-issue-writer` ships with this plugin and is pinned to
-opus at medium effort with code changes disabled.
+opus at medium effort. It is told never to change the repository and to write only under its `Scratch:` directory, by
+instruction.
 
 Each writer sends back a title and a body in the shape `format.md` gives a sub-issue, or a statement that the split
 or the parent does not hold.
@@ -257,10 +266,13 @@ $ISSUES/../pj1-plan/scripts/project.sh --lint "$TMP/T<k>.md"
 
 Accept a body only when the lint reports no reason, or `decisions-open` alone. Then read it for what the lint cannot
 see: a file list of 8 entries at most (`format.md`, **The file list**), no line numbers, no checkbox outside
-`## Decisions`, no dependencies written into the body, and lines under every option saying what it changes. Send a
+`## Decisions`, no dependencies written into the body, lines under every option saying what it changes, an
+`Only you know:` line on every decision, and a `### Shared state` list in a body whose task writes shared state
+(**Assumptions** in `judgement.md`). Send a
 body that fails back to its writer with `SendMessage` and say what to fix. Write the fixed body over the same file.
 
-Once every writer has returned, read the bodies against each other. Two or more bodies that carry the same workaround
+Once every writer has returned, run `git status --porcelain` once more. When it differs from the output kept in **The
+project**, stop and name the paths. Then read the bodies against each other. Two or more bodies that carry the same workaround
 (the same caveat, toast, user-facing note or special case for one state) for one consequence of the parent's design
 are the parent not holding, even though no writer said so. Treat it as above, naming the issues and the passages to
 the planner. You only route this, and the planner decides the fix.
@@ -348,7 +360,11 @@ Every sub-issue's `title` equals its `wantedTitle`. `parent.orderCheck.ok` is tr
 ## Report to the user
 
 - the parent issue URL, and that it carries the `doing` label
-- one line per sub-issue: its URL, title, the issues it waits on as `#<n>`, and the open decisions by count
+- one line per sub-issue: its URL, title, the issues it waits on as `#<n>`, the open decisions by count and the model
+  decisions by count
+- one line saying that a comment on an issue overturns a model decision at the next `pj3-doctor` run, and that on an
+  issue `pj3-doctor` has since labelled `ready` the user also takes `ready` off, because `pj4-running` never reads
+  comments
 - the changes to the parent body and to its edges, or that there were none
 
 Then the next steps, in this order:
