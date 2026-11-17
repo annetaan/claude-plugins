@@ -219,7 +219,7 @@ screenshots it could not attach.
 | --- | --- |
 | `SKILL.md` | the procedure for the orchestrator, which is the main session: which file each entry reads, the worktree line, the agents, phases 2 to 4 and the rules every entry shares |
 | `standalone.md` | the standalone run: design, the design review and approval, the integration review and the finish |
-| `judgement.md` | the rules every role of workflow and the pj skills reads. It opens with a table that maps each section to the roles that apply it, and holds what a human is asked, model decisions, experiments, assumptions, root cause, evidence, removing before adding, designing as if always required, reader load, what two failed fixes share, and turning a repeated lesson into a check |
+| `judgement.md` | the rules every role of workflow and the pj skills reads. It opens with a table that maps each section to the roles that apply it, and holds what a human is asked, model decisions, experiments, assumptions, root cause, evidence, removing before adding, designing as if always required, reader load, comments, what two failed fixes share, and turning a repeated lesson into a check |
 | `breaking-changes.md` | the check that settles whether the repository accepts breaking changes, for the standalone run and pj1-plan |
 | `from-pr.md` | resolving the conflicts of a pull request that is already open |
 | `from-issue.md` | one sub-issue, detailed against the code and run as a plan of one or more commits, for pj4-running |

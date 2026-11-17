@@ -14,6 +14,7 @@
 | Remove before adding | what leaves, and in which task | a check or an option for an input nobody sends | - | nothing for an input nobody is shown to send, dead code out | the same, in the diff |
 | As if it was always required | the shape, and what moves with it | its one question | - | everything in the task that states the old shape | what still states the old shape |
 | Reader load | each new layer, each home of state | every layer the change adds | - | the code it writes | the two questions, on the diff |
+| Comments | a design that needs one is redrawn | - | - | writes none outside the four kinds | one outside the four kinds is `changes-requested` |
 | Where to split | the plan, the split into tasks, the cut into projects | - | an issue that is two tasks | - | - |
 | No transitional code | a split that stays green only with it is one task; breakage a project declares | - | a shim in a body, a breakage nobody closes | no shim to stay green | a shim beside the new path, a check failing undeclared |
 | Root cause | the fix sits at the cause | a fix that guards | a fix drawn as a guard | no guard in place of the cause | a guard is `changes-requested` |
@@ -109,6 +110,23 @@ Reading costs two things: **the layers between a question and its answer**, and 
 **The test: a reader new to the code answers "where does X come from?" and "what can change X?" in thirty seconds each**, for each value X the change introduces or moves. A finding or a decision under this section names X and lists the hops or the writers, found by search. Without that list it is taste.
 
 The section applies to what the change writes. Existing code is measured only where the design moves it.
+
+## Comments
+
+**Our own code explains itself through names, types and structure, never through a comment.** A comment stays only when it is one of four:
+
+- a licence header
+- a constraint from outside that the code cannot change: a vendor, a platform, a protocol
+- a doc comment on a public API
+- a link to an issue or an RFC that explains a constraint the code cannot express
+
+**A comment that explains our own code marks code that is unclear.** Rename, give it a type or restructure until the comment says nothing new, then leave it out. A design that needs one to be understood is redrawn.
+
+**A "do not remove" or "keep in sync" comment is a rule written down**, and it goes through **A lesson becomes a check**: a test, a type or an assertion holds it, and the comment leaves.
+
+Getting it wrong: `// keep in sync with PLAN_LIMITS` above a second table of the same limits. One table is derived from the other, or a test compares them, and the comment goes.
+
+The section applies to what the change writes. **An existing comment the change makes false is corrected when it is one of the four kinds, and removed otherwise.** No other existing comment is touched. A repository whose conventions ask for comments keeps them.
 
 ## Where to split
 

@@ -151,10 +151,13 @@ asked only what turns on something only you know. The implementation session sho
 it and walks the flows the change touches. The review session runs what it suspects, marks each correctness finding
 confirmed or unconfirmed, and sends back a fix that guards the symptom.
 
-Five rules shape the work. A design removes what the request makes unnecessary before it adds anything. A new
+These rules shape the work. A design removes what the request makes unnecessary before it adds anything. A new
 requirement is drawn as if it had always been there, down to the types, documents and examples that state the old shape.
-A new layer needs a named second user, state lives in the narrowest place, and the review asks of a diff where a value
-comes from and what can change it. When the same finding stands twice, the implementation session writes down what both
+The review always sends back a document that still states the old shape, and never one whose wording or format is the
+only fault in what it says. A new layer needs a named second user, state lives in the narrowest place, and the review
+asks of a diff where a value comes from and what can change it. Code speaks through names, types and structure, and the
+only comments that stay are a licence header, a constraint from outside, a doc comment on a public API, and a link to an
+issue or an RFC. When the same finding stands twice, the implementation session writes down what both
 answers took for granted and makes one observation that would come out differently if it were false, before the next fix. When the same lesson turns up a second time, it
 becomes a check instead of prose, and a check that has to live outside the task goes into the work report. A task never keeps an old path, an adapter or a shim so that the tests stay green until a later task. A split that passes only with one is one task.
 
@@ -606,7 +609,7 @@ that path out of the prompt the main session hands it.
 Several of the judgement rules in [`skills/workflow/judgement.md`](skills/workflow/judgement.md) were learned from
 pstack in [cursor/plugins](https://github.com/cursor/plugins) (MIT): ask a person only what a person knows, show work
 by running it, fix the cause and not the symptom, remove before adding, question what two failed fixes share, turn a
-repeated lesson into a check, design a requirement as if it was always there, and keep the reader's load low. Four more
+repeated lesson into a check, design a requirement as if it was always there, keep the reader's load low, and keep comments to what the code cannot say. Four more
 shape how work is split and carried through. Three are in `Where to split` and `No transitional code`: finish work that
 is coupled in code as one task with one owner, however large; move the callers and delete the old path in the same
 task, with no compatibility layer kept between tasks; and cut work only into units that can each be reviewed and
