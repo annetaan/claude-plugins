@@ -39,6 +39,17 @@ Your prompt carries a line `Breaking changes: accepted` or `Breaking changes: no
 
    **Root cause.** When the request is a bug, apply **Root cause** in `$FLOW/judgement.md`: name the symptom, the
    cause and what showed it, and design the fix at the cause. A guard instead of the cause fix is not a design.
+   When the history shows the same symptom fixed twice before (search `git log` for fixes of it), take the three
+   steps of **After two failed fixes** before you name the cause: write one sentence on what both fixes took for
+   granted, run in scratch an observation whose result differs when that sentence is false, and put its `ran:` and
+   `saw:` in the design's Root cause.
+
+   **A repeated lesson.** When the request is a rule ("always do X", "never forget Y"), or the history shows fixes of
+   one kind, apply **A lesson becomes a check**: decide first whether a type, a lint rule, a test, a runtime
+   assertion or a script can hold it. When one can, that check is a task of the plan, no prose saying the same thing
+   is added, and the prose it replaces goes under **What leaves and what moves**. When the rule takes judgement and
+   no check can hold it, write where the prose goes and one example of getting it wrong in the design. Record which
+   you chose under Model decisions. When neither applies, write nothing.
 
    **The interior of task 1.** The files it changes and what happens in each. Name the existing functions, types and
    patterns it rides on. Task 1 starts from the repository in the state you just read it in, so nothing here can go

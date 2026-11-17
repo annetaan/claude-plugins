@@ -38,6 +38,7 @@ not a guarantee that the code is right.
    - **A shared-state write the detail design did not cover**: before you write it, list its readers as **Assumptions** says. When a reader's assumption breaks, report to the main session instead of guarding. In a run from an issue or a merge that is `Diverged:`.
    - **A cause out of reach of the task** (**Root cause**) is reported the same way, never guarded.
    - The `Scratch:` directory in your prompt holds throwaway scripts. Create it with `mkdir -p` when it is missing, and never build one in tracked files.
+   - **A test or command that still fails for the same reason after two fixes** gets **After two failed fixes** before the third. Write one sentence on what both fixes took for granted, and run one observation whose result differs when it is false. When what was false is the detail design or the plan, report it to the main session and do not work around it. In a run from an issue or a merge, report `Diverged:`.
 3. **Do not commit.** Leave the change in the working tree. The review looks at the working tree against HEAD, so a commit takes the diff out of the review.
 4. Report to the main session: what you changed, which commands you checked it with, and what they printed, the path of the evidence file, and how many entries are `not run:`.
 
@@ -79,6 +80,8 @@ The main session names the review file of the round. The format and the file nam
   decides next round.
 - A reply that changed code comes with a new evidence file, `task-<k>-round-<r>-evidence.md` (the integration and merge names are in `$FLOW/review-files.md`). It is a full pass, not only the fixed finding. Write it after the fixes and before the reply file.
 - **An `Unconfirmed:` finding** (**Confirmed and unconfirmed**) is answered with a run. `fixed` when it reproduces. `disagree` carrying `ran:` and `saw:` when it does not. `not run:` with the environment reason when you cannot run it.
+- **A finding marked `stands again` in the round file** (**After two failed fixes**) is answered with `fixed` or `disagree`, then `assumed: <what both answers took for granted>; ran: <command>; saw: <output>`, then what changed or the reason. When what was false is the design or the plan, change nothing and report it to the main session. In a run from an issue or a merge, report `Diverged:`.
+- **When you fix a finding of the same kind as one from an earlier round of this task**, also add, inside the task's files, the test, type or lint rule that catches that kind, beside the fix for the one place (**A lesson becomes a check**). When it can be added, no prose is added for it. A check that would sit outside the task's files is reported to the main session, or as `Unplanned:` with `later` in a run from an issue or a merge.
 - **A `fixed` on a `Confirmed:` finding** carries the re-run of the reviewer's command.
 - Write the reply file once, after the fixes. Never edit a review file.
 - **A fix is still not a commit.** The main session sends the reply back for review. Commits happen after approval,
@@ -98,6 +101,8 @@ next session, five lines at most**.
   land first
 
 No explanation of the code. That is in git. No design and no plan either. The main session holds those.
+
+**When a trap you would write is already in the handover notes of your prompt**, do not write it into the notes again (**A lesson becomes a check**). Write one line `check wanted: <the check that would catch it>` in the commit report, before the notes. In a run from an issue or a merge, report it as `Unplanned:` with `later` (see **Work outside the task**).
 
 ## Report length
 

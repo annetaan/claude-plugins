@@ -85,7 +85,7 @@ changes-requested
 - A finding's id is `R<round>.<n>`, and it never changes. A finding points with a path and a symbol, never a line
   number.
 - From round 2 on, `## Earlier findings` lists every finding still open after the last reply, each `resolved`,
-  `resolved (unrun)` or `stands` with the reason. `resolved (unrun)` is for an `Unconfirmed:` finding that neither side could run.
+  `resolved (unrun)`, `stands` or `stands again` with the reason. `resolved (unrun)` is for an `Unconfirmed:` finding that neither side could run. The second and every later `stands` on one finding is written `stands again`, and carries the output of the breaking input run again on the current tree, or a quote of the sentence it rests on, for example `- R1.2 stands again: ran: <command>; saw: <output>; <the reason>`.
 - `## New findings` reads `None.` when there are none.
 - The verdict is `approve` or `changes-requested`. **`approve` needs every finding resolved, no new one, and evidence newer than the last code change (for integration round 1, the reviewer's own walk recorded in the round file).**
 
@@ -100,4 +100,4 @@ changes-requested
 ```
 
 One line per finding the round left open: `fixed` with what changed, or `disagree` with the reason. A reply that changed code has a new evidence file beside it. A finding with
-`disagree` stays open, and the review session decides in the next round.
+`disagree` stays open, and the review session decides in the next round. The line for a `stands again` finding is `fixed` or `disagree`, then `assumed:`, `ran:` and `saw:`, then what changed or the reason, for example `- R1.2 fixed: assumed: both fixes took the stale value to come from the cache; ran: <command>; saw: <output>; <what changed>`.

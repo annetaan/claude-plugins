@@ -15,6 +15,8 @@
 | As if it was always required | the shape, and what moves with it | its one question | - | everything in the task that states the old shape | what still states the old shape |
 | Reader load | each new layer, each home of state | every layer the change adds | - | the code it writes | the two questions, on the diff |
 | Root cause | the fix sits at the cause | a fix that guards | a fix drawn as a guard | no guard in place of the cause | a guard is `changes-requested` |
+| After two failed fixes | a symptom fixed twice before, a lint failing after two fixes | - | - | a test failing after two fixes, `stands again` | before writing `stands again` |
+| A lesson becomes a check | a repeated fix, a rule in the request | - | - | a second finding of one kind, a repeated note | a second finding of one kind |
 | Done means shown | the criteria and the flows | - | - | the evidence file | reads it, tries each `not run:` |
 | Confirmed and unconfirmed | - | - | - | answers with a run | backs a finding with a run |
 
@@ -111,6 +113,29 @@ The section applies to what the change writes. Existing code is measured only wh
 **A bug fix names three things**: the symptom, the cause (the write or the assumption that produces the bad state), and what showed it. The fix goes at the cause.
 
 A guard is a check where the failure surfaces: a null check, a retry, a refetch on a miss, a caught error, a default. The cause stays. A guard beside the cause fix is fine. A guard instead of it is never done. A cause out of reach is reported, not guarded.
+
+## After two failed fixes
+
+A gate is what an answer has to pass: a test, a lint, a check, a review finding. An answer is a fix, or in a review a reply that disagrees. **When two answers to one failure have failed at the same gate, the next one is not written yet.**
+
+1. Write one sentence saying what both answers took for granted.
+2. Make one observation whose result differs when that sentence is false. Run it, and record `ran:` and `saw:`.
+3. When the sentence is false, the answer goes where it was wrong. When what was wrong is the design or the plan, report it and do not work around it. When the sentence holds, say so and go on.
+
+Every further failure at that gate repeats the three steps with a new sentence.
+
+For example: a finding says a value is stale after sign-out. Two fixes clear the cache in two more places, and the finding stands. Both took for granted that the stale value comes from the cache. Logging the read shows it comes from a module variable set at load.
+
+In a review, the gate is a finding marked `stands again`: every `stands` after the first on one finding. The reviewer writes that mark only after running the finding's breaking input again on the tree as it now stands, or quoting the sentence of the design or the convention the finding rests on, because the finding may be the false premise. The worker's answer carries `assumed:`, `ran:` and `saw:`.
+
+## A lesson becomes a check
+
+**A rule about to be written down a second time becomes something that runs**: a type, a lint rule, a test, a runtime assertion, a script. The second time is a fix of a kind the history already shows, a finding of a kind the task already had, or a note the handover notes already carry.
+
+- **When a check can hold the rule, the check is the whole fix.** Prose that says the same thing is not added, and prose the check replaces is removed.
+- **When the rule takes judgement, it stays prose**: placed where its reader starts, made to stand out, with one example of getting it wrong.
+
+A check outside the task's files is not built on the side. The role file says how it is reported.
 
 ## Done means shown
 

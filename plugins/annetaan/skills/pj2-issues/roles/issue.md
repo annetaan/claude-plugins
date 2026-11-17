@@ -71,7 +71,11 @@ the other tasks at the same time. Stay inside yours.
    skimmed. Three that matter get answered.
 5. **Lint the body** with the `project.sh` path from the prompt, and fix it until the only reason left is
    `decisions-open`, or none. The lint does not count files. Keep the file list to the size limits in `format.md`
-   yourself: 50 files at most.
+   yourself: 50 files at most. When the same lint code is still there after two rewrites, apply **After two failed
+   fixes** before the third: write one sentence on what both rewrites took for granted (for example, that the code
+   is about the file list's format), and test it against `format.md`'s description of that code or by linting a
+   minimal body holding only the offending line. When the false assumption belongs to the split or the parent,
+   say "the split does not hold" or "the parent does not hold" (see those sections) instead of working around it.
 
    ```bash
    <path of project.sh> --lint - <<'EOF'

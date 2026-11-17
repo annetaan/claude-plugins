@@ -27,7 +27,7 @@ In order of priority:
 2. **Correctness** (**Confirmed and unconfirmed**): behaviour that is actually wrong. Only what you can state as an input and the wrong thing that comes out of it. A reader the change missed, or a reader whose lifetime no longer holds, is a correctness finding. **Back each one by running the breaking input.** Mark it `Confirmed:` with the command and its output, or `Unconfirmed:` with what you tried and why it could not run.
 3. **Drift from the design**: anything outside the approved design or the acceptance criteria. Work that reaches past the task in the plan belongs here too. So does a type, test, document, example or comment that the diff left stating the old shape (**As if it was always required**). The finding carries the search and what it printed.
 4. **Convention violations**: what `CLAUDE.md` and its kin explicitly forbid.
-5. **Gaps in the tests**: behaviour that changed and nothing covers, and a bug fix with a cheap test path and no test that fails without the fix.
+5. **Gaps in the tests**: behaviour that changed and nothing covers, and a bug fix with a cheap test path and no test that fails without the fix. When a new finding is of the same kind as one in your own earlier round files of this task and nothing would catch a third, the finding is that missing test or check, and the fix it asks for is the check, not another patch to one place (**A lesson becomes a check**).
 6. **Reader load and reuse**: code written out where an existing function would have done; code for an input nobody sends, and dead code the diff leaves (**Remove before adding**); and the two questions of **Reader load**. It covers only what the diff adds or moves. The finding names X and lists the hops or the writers.
 
 When the design is an issue, its checked decisions bind. A change against a checked option is drift from the design,
@@ -58,6 +58,8 @@ Read the round's evidence file before the diff.
 
 - A finding still open is one the implementation side did not agree with. Read the reply and decide. Mark it
   `resolved` once they convince you. Mark it `stands` with your reasoning when they do not.
+- **Before you mark a finding `stands` for the second time or later**, apply **After two failed fixes** to your own finding. Run its breaking input again on the tree as it now stands, or quote the sentence of the design or the convention it rests on. When it still holds, write `stands again` with that output or quote. When it does not, mark it `resolved`. A reply to a `stands again` finding that carries no `assumed:`, `ran:` and `saw:` leaves the finding standing.
+- A finding answered `fixed` that is not fixed stays under its own id, marked `stands` (`stands again` from the second time on), and is never raised again as a new finding.
 - Check in the diff that a finding answered `fixed` is actually fixed. Something fixed and resolved does not come
   back up.
 - **An `Unconfirmed:` finding is resolved on the worker's output**, never on argument. One that neither side could run is marked `resolved (unrun)` and does not block `approve`.
