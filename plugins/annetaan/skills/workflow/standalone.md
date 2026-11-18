@@ -28,9 +28,9 @@ Agent(subagent_type: "annetaan:workflow-design", description: "design",
 
 A run for a minimal change sends `Breaking changes: not accepted`.
 
-`annetaan:workflow-design` ships with this plugin and is pinned to Fable at medium effort. It is told never to change the repository and to write only under its `Scratch:` directory, by instruction.
+`annetaan:workflow-design` ships with this plugin and has its model and effort pinned in `agents/*.md`. It is told never to change the repository and to write only under its `Scratch:` directory, by instruction.
 **When it cannot start** (a weekly limit, a rate limit, the model is unavailable), spawn it again with the same
-prompt and `model: "opus"`. The effort stays medium.
+prompt and `model: "opus"`.
 
 When the design comes back:
 
@@ -54,8 +54,8 @@ Agent(subagent_type: "annetaan:workflow-design-review", description: "design rev
       prompt: "Read $FLOW/roles/design-review.md first and follow the role it describes.\n\nThe request:\n<the user's request, verbatim>\n\nBreaking changes: <accepted | not accepted>\n\nThe design:\n<the full design report>\n\n<the worktree line>")
 ```
 
-`annetaan:workflow-design-review` ships with this plugin and is pinned to Fable at medium effort and cannot edit
-files.
+`annetaan:workflow-design-review` ships with this plugin and has its model and effort pinned in `agents/*.md` and cannot edit
+files. It is pinned to another model than the design session.
 
 **When it cannot start** (a weekly limit, a rate limit, the model is unavailable), skip the review and go on. **Do not
 substitute another agent.** Keep the reason for the approval message.
@@ -97,7 +97,7 @@ The approval message states:
 
 **Say what happened to the design review, in one line of the approval message.** When it ran: whether breaking
 changes are accepted, N findings taken in, K settled by the design session, M decided by you in the open questions above. When it did not run, the
-reason: Fable could not start, or the request asks for a minimal change.
+reason: the design review session could not start, or the request asks for a minimal change.
 
 **When the user corrects the base at approval**, the design was written against the wrong code:
 

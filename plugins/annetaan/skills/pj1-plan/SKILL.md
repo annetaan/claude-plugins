@@ -80,9 +80,9 @@ Agent(subagent_type: "annetaan:pj-planner", description: "project plan",
       prompt: "Read $PLAN/roles/plan.md first and follow the role it describes. The project format is in $PLAN/format.md. The judgement rules are in <skills>/workflow/judgement.md.\n\nThe request:\n<the user's request, verbatim>\n\nBreaking changes: <accepted | not accepted>\n\nThe roadmap:\n<the --roadmap JSON | none>\n\nScratch: $TMP/scratch/plan")
 ```
 
-`annetaan:pj-planner` ships with this plugin and is pinned to Fable at medium effort. It is told never to change the repository and to write only under its `Scratch:` directory, by instruction.
+`annetaan:pj-planner` ships with this plugin and has its model and effort pinned in `agents/*.md`. It is told never to change the repository and to write only under its `Scratch:` directory, by instruction.
 **When it cannot start** (a weekly limit, a rate limit, the model is unavailable), spawn it again with the same
-prompt and `model: "opus"`. The effort stays medium.
+prompt and `model: "opus"`.
 
 When the plan comes back:
 
@@ -150,7 +150,7 @@ Show:
 - the model decisions of every parent's `### Model decisions`, one line each with the project it belongs to, and one
   line saying that "Change something first" overturns any of them
 - what happened to the design review, in one line. When it ran: whether breaking changes are accepted, N findings
-  taken in, K settled by the planner, M decided by the user in phase 1. When it did not run, the reason: Fable could not start
+  taken in, K settled by the planner, M decided by the user in phase 1. When it did not run, the reason: the design review session could not start
 - each project as `PJ<j> <title>`, its goal in one line, and why it is a project of its own, in one line
 - the stages, in this shape, each edge with the planner's reason:
 

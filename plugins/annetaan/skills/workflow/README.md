@@ -43,7 +43,7 @@ pre-release product or a library you control, the review reports everything it f
 only the findings that move no existing code. The skill never edits `CLAUDE.md` or `AGENTS.md`. When one of those
 files or memory decides, you get one line saying so before design starts, and that is where you stop a memory that has
 gone stale. A request for a minimal change, such as an urgent fix, skips the review and the question, and writes
-nothing to memory. When Fable cannot start, because of the weekly limit for example, the review is skipped and the
+nothing to memory. When the design review session cannot start, because of the weekly limit for example, the review is skipped and the
 approval message says so.
 
 There is one approval point. You get the design summary and the **plan**, an ordered list of tasks, and one
@@ -91,8 +91,8 @@ produced. A plan that turns out to be wrong surfaces there, before anybody write
 **Five review rounds per task, fixed.** A task that does not settle in five comes back to you with the open points
 laid out, and its changes stay uncommitted in the run's worktree. Saying "stop" partway through the rounds works too.
 
-The implementation and review sessions **start fresh for every task**, implementation on sonnet and review on opus,
-both at medium effort, whatever the task. A task boundary is a cheap place to
+The implementation and review sessions **start fresh for every task**, implementation and review each on their own agent,
+whatever the task. A task boundary is a cheap place to
 start over. The code is in git, the plan is with the orchestrator, and every review finding is resolved. What is left
 is how this repository wants to be worked in, and that rides along as **handover notes**: five lines from each
 session, folded together, capped at fifteen.
@@ -235,6 +235,6 @@ screenshots it could not attach.
 | `review-files.md` | the shape of the review files and the evidence files, read by the review and implementation sessions |
 
 The design, implementation and review sessions run on agents that ship with the plugin (`../../agents/`). Design is
-`annetaan:workflow-design` (fable / medium, opus when Fable cannot start). The design review is
-`annetaan:workflow-design-review` (fable / medium), once before approval. Implementation is `annetaan:workflow-worker`
-(sonnet / medium) and review is `annetaan:workflow-reviewer` (opus / medium). The full list is in [the plugin README](../../README.md).
+`annetaan:workflow-design`. The design review is
+`annetaan:workflow-design-review`, once before approval. Implementation is `annetaan:workflow-worker`
+and review is `annetaan:workflow-reviewer`. The models and efforts are in the agent table of [the plugin README](../../README.md).

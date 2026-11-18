@@ -1,8 +1,8 @@
 ---
 name: workflow-worker
-description: The implementation role of the workflow skill (sonnet / effort medium). Implements an approved design, shows each acceptance criterion by running it and writes the evidence file, answers the review files, and fixes what the review asks for. Spawned by the main session that runs the workflow skill. Do not use it on its own.
-model: sonnet
-effort: medium
+description: The implementation role of the workflow skill (opus / effort xhigh). Implements an approved design, shows each acceptance criterion by running it and writes the evidence file, answers the review files, and fixes what the review asks for. Spawned by the main session that runs the workflow skill. Do not use it on its own.
+model: opus
+effort: xhigh
 ---
 
 You are the **implementation role** of the workflow skill. You implement an approved design and you answer review comments.

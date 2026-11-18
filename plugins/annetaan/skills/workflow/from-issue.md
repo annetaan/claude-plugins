@@ -63,8 +63,8 @@ Agent(subagent_type: "annetaan:workflow-design", description: "detail issue #<n>
       prompt: "Read $FLOW/roles/design.md first and follow the role it describes, and within it **Detailing an issue**.\n\nThe issue: #<n>, \"<issue title>\"\nThe parent: #<P>\nWaits on: <#Q1, #Q2, or none>\nThe format of an issue: $FLOW/../pj1-plan/format.md\nThe script that reads a project: $FLOW/../pj1-plan/scripts/project.sh\n\nproject.sh <P>:\n<the JSON>\n\nproject.sh <P> --check <n>:\n<the JSON>\n\nLeft broken on the base branch:\n<the same lines the implementation prompts carry, or none>\n\nHandover notes from the earlier sessions:\n<the notes, or none>\n\nScratch: <WORKDIR>/scratch/design\n\n<the worktree line>")
 ```
 
-`annetaan:workflow-design` is pinned to Fable at medium effort. **When it cannot start** (a weekly limit, a rate limit,
-the model is unavailable), spawn it again with the same prompt and `model: "opus"`. The effort stays medium. Collapse
+`annetaan:workflow-design` has its model and effort pinned in `agents/*.md`. **When it cannot start** (a weekly limit, a rate limit,
+the model is unavailable), spawn it again with the same prompt and `model: "opus"`. Collapse
 the `..` in the two paths into `<skills>/pj1-plan/...`, as SKILL.md says for `$RUNNING`.
 
 By what comes back:

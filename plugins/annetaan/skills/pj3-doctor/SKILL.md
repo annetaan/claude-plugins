@@ -96,9 +96,9 @@ not outlive one command, so write the path in full each time.
          prompt: "Read $DOCTOR/roles/review.md first and follow the role it describes. The project format is in $DOCTOR/../pj1-plan/format.md. The state of a project is in $DOCTOR/../pj1-plan/state.md. The agreements between the skills are in $DOCTOR/../pj1-plan/between-skills.md. The judgement rules are in <skills>/workflow/judgement.md.\n\nParent: #<P>\n\nproject.sh <P>:\n<the JSON>\n\nproject.sh <P> --check, per issue:\n<each JSON>")
    ```
 
-   `annetaan:pj-reviewer` ships with this plugin and is pinned to Fable at medium effort with code changes disabled.
+   `annetaan:pj-reviewer` ships with this plugin and ships its model and effort in `agents/*.md` and has code changes disabled.
    **When it cannot start** (a weekly limit, a rate limit, the model is unavailable), spawn it again with the same
-   prompt and `model: "opus"`. The effort stays medium.
+   prompt and `model: "opus"`.
    **Keep it alive until phase 4 ends.** Phase 3 sends it the rewritten bodies.
 4. **Show the user the diagnosis**, one line per open sub-issue, in `--order` order:
    - number and title, and `ready`, `blocker` or `stub` when it is one
@@ -141,7 +141,7 @@ Agent(subagent_type: "annetaan:pj-issue-writer", description: "revise #<n>", run
       prompt: "Read $DOCTOR/../pj2-issues/roles/issue.md first and follow the role it describes. The project format is in $DOCTOR/../pj1-plan/format.md. project.sh is $DOCTOR/../pj1-plan/scripts/project.sh. The judgement rules are in <skills>/workflow/judgement.md.\n\nMode: revise\n\nParent: #<P>\nIssue: #<n>\n\nproject.sh <P>:\n<the JSON>\n\nproject.sh <P> --check <n>:\n<the JSON, or none for a parent>\n\nThe review's findings on #<n>:\n<the findings>\n\nThe user's answers:\n<the phase 2 answers on #<n>, or none>\n\nScratch: $TMP/scratch/<n>")
 ```
 
-`annetaan:pj-issue-writer` ships with this plugin and is pinned to opus at medium effort. It is told never to change the repository and to write only under its `Scratch:` directory, by instruction.
+`annetaan:pj-issue-writer` ships with this plugin and has its model and effort pinned in `agents/*.md`. It is told never to change the repository and to write only under its `Scratch:` directory, by instruction.
 **Keep each writer alive until phase 4 ends.**
 
 **Each writer writes its own issue only.** A finding a writer says belongs to another issue goes to that issue's

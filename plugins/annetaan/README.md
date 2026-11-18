@@ -580,17 +580,18 @@ report has since gone. A pull request that another account has recorded is left 
 ## Agents
 
 These are the sub-agents the skills spawn. Anything under `agents/` becomes callable as `annetaan:<name>`.
-The model and the effort are pinned here, and a skill selects one by name alone. When a Fable agent other than the
-design review cannot start, the skill spawns it again on opus at the same effort.
+The model and the effort are pinned here, and a skill selects one by name alone. When a Fable agent cannot start, the
+skill spawns it again on opus at the same effort. The design review is pinned to another model than the design and the
+planner, and is skipped when it cannot start.
 
 | Agent | Model | Effort | Role |
 | --- | --- | --- | --- |
 | `annetaan:workflow-design` | fable | medium | design. returns the design and the plan, and tries a doubtful point in a throwaway experiment. In a pj run it also details one sub-issue against the code and may return its body redrawn |
-| `annetaan:workflow-design-review` | fable | medium | design review for `workflow` and `pj1-plan`. once, before approval, in every repository. moves existing code only where breaking changes are welcome |
-| `annetaan:workflow-worker` | sonnet | medium | implementation, for every task. shows each acceptance criterion by running it and writes the evidence file |
+| `annetaan:workflow-design-review` | opus | high | design review for `workflow` and `pj1-plan`. once, before approval, in every repository. moves existing code only where breaking changes are welcome |
+| `annetaan:workflow-worker` | opus | xhigh | implementation, for every task. shows each acceptance criterion by running it and writes the evidence file |
 | `annetaan:workflow-reviewer` | opus | medium | review, for every task, and the integration review when the plan has more than one task. runs what it suspects and marks each correctness finding confirmed or unconfirmed |
 | `annetaan:pj-planner` | fable | medium | planning for `pj1-plan` and `pj2-issues`. the projects, their designs and the waits between them, then one project's split into tasks. answers the design review, and tries a doubtful point in a throwaway experiment |
-| `annetaan:pj-issue-writer` | opus | medium | one sub-issue, drawn against the code. drafts it for `pj2-issues`, revises it for `pj3-doctor`, and tries a doubtful point in a throwaway experiment |
+| `annetaan:pj-issue-writer` | opus | xhigh | one sub-issue, drawn against the code. drafts it for `pj2-issues`, revises it for `pj3-doctor`, and tries a doubtful point in a throwaway experiment |
 | `annetaan:pj-reviewer` | fable | medium | project review for `pj3-doctor`. reads the whole project against the ticked boxes, the code and each issue |
 | `annetaan:experience-video-producer` | fable | medium | production for `experience-video`. fills in the cuts, fragments and music of a story, renders it, and checks its frames |
 | `annetaan:pr-humans-writer` | sonnet | medium | one comment for `pr-humans`. reads only the gathered files. drafts how people took part in one pull request |
