@@ -232,6 +232,7 @@ screenshots it could not attach.
 | `roles/work.md` | the role for the implementation session |
 | `roles/review.md` | the role for the review session |
 | `scripts/worktree.sh` | creates the run's worktree and checks its ignore rules. `workflow-cleanup` uses it to clean up |
+| `scripts/worktree.py` | the code `worktree.sh` runs |
 | `review-files.md` | the shape of the review files and the evidence files, read by the review and implementation sessions |
 
 The design, implementation and review sessions run on agents that ship with the plugin (`../../agents/`). Design is

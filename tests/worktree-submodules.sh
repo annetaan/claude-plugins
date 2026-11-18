@@ -67,7 +67,9 @@ setup_pj() {
   rm -rf "$TMP/pj" "$TMP/subsrc"
   mkdir -p "$TMP/pj/skills/pj-cleanup/scripts" "$TMP/pj/skills/workflow/scripts" "$TMP/pj/skills/pj1-plan/scripts"
   cp "$CLEANUP_SRC" "$TMP/pj/skills/pj-cleanup/scripts/cleanup.sh"
+  cp "${CLEANUP_SRC%.sh}.py" "$TMP/pj/skills/pj-cleanup/scripts/cleanup.py"
   cp "$SCRIPT" "$TMP/pj/skills/workflow/scripts/worktree.sh"
+  cp "${SCRIPT%.sh}.py" "$TMP/pj/skills/workflow/scripts/worktree.py"
   cat > "$TMP/pj/skills/pj1-plan/scripts/project.sh" <<'FAKE'
 #!/usr/bin/env bash
 echo '{"parent":{"number":1,"title":"P","state":"CLOSED","base":"pj/1","from":"main","merged":true}}'
