@@ -65,7 +65,7 @@ user** says for that reason, and end.
 Runs only when a step would run. The runs cannot ask, so show the user what their settings lack before the question.
 
 1. The rules every drive needs and what the settings hold: run `$AUTO/scripts/auto.sh --rules` and read the output
-   whole. `main` is `<MAIN>`. `base` lists the five rules, each with the files whose `allow` list holds that exact
+   whole. `main` is `<MAIN>`. `base` lists the six rules, each with the files whose `allow` list holds that exact
    string, and `settings` lists the three settings files with their `allow`, `deny` and `ask` rules.
 2. The repository's own commands: install, tests, type checks, lint, build. Find them with Read and Glob in `<MAIN>`:
    `CLAUDE.md`, `AGENTS.md` and `CONTRIBUTING.md`; the root manifest and lockfile that name the package manager
@@ -74,7 +74,7 @@ Runs only when a step would run. The runs cannot ask, so show the user what thei
    comment, read with the command in `between-skills.md`, **The handover comment**. Each command becomes
    `Bash(<program>:*)`, such as `Bash(pnpm:*)` for `pnpm install`. Write a narrower `Bash(<program> <subcommand>:*)`
    only when the user's rules are already written that way.
-3. Judge each rule, the five base rules and those of step 2, against the lists of every file:
+3. Judge each rule, the six base rules and those of step 2, against the lists of every file:
    - **covered**: an `allow` rule matches. It is the same string; a `:*` rule whose prefix starts the command; the
      space form `Bash(gh *)`, which counts as `Bash(gh:*)`; the tool name alone (`Bash`, `Bash(*)`, `Read`); or, for a
      `Read` rule, a path glob that contains the needed path (expand `~/`, and read `//` as an absolute path). Note

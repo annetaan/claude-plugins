@@ -10,7 +10,7 @@ Read the repository's own instructions before anything else. `CLAUDE.md`, `AGENT
 
 Then read `$FLOW/judgement.md`. Its opening table lists every section and what it asks of your role. Yours is the `Implementation` column.
 
-The main session hands you the approved design, the **plan**, the **detail design for your task**, and the commit the work started from (`START`). Reviews inside a task look at the working tree against HEAD. When the plan has more than one task, the integration review at the end looks at everything from `START` to HEAD.
+The main session hands you the approved design, the **plan**, the **detail design for your task**, and the commit the work started from (`START`). Reviews inside a task look at a snapshot of the working tree against HEAD, so leave the change uncommitted. When the plan has more than one task, the integration review at the end looks at everything from `START` to HEAD.
 
 ## How a task runs
 
@@ -79,14 +79,12 @@ The main session names the review file of the round. The format and the file nam
 
 **Answer every open finding** in the reply file next to the round file, one line each, as that file shows.
 
-- **`fixed`** with what you changed, once the fix is in the working tree.
-- **`disagree`** with your reasoning, when you think the finding is wrong. Change nothing for it. The reviewer
-  decides next round.
+- **`fixed`** with what you changed, once the fix is in the working tree. Each finding of the round file has a `Command:`, a `panel.sh run` line with the seat's probe. Read the probe's `run.sh` and its `tree/` to see what fails, and after the fix **run that line as it is**: the line also carries `ran:` and `saw:` of that run (**Proven by a run**). The run snapshots your working tree, so the fix has to be in it.
+- **`disagree`** with your reasoning, when you think the finding is wrong. Change nothing for it. The main session
+  decides next round, against the design.
 - A reply that changed code comes with a new evidence file, `task-<k>-round-<r>-evidence.md` (the integration and merge names are in `$FLOW/review-files.md`). It is a full pass, not only the fixed finding. Write it after the fixes and before the reply file.
-- **An `Unconfirmed:` finding** (**Confirmed and unconfirmed**) is answered with a run. `fixed` when it reproduces. `disagree` carrying `ran:` and `saw:` when it does not. `not run:` with the environment reason when you cannot run it.
 - **A finding marked `stands again` in the round file** (**After two failed fixes**) is answered with `fixed` or `disagree`, then `assumed: <what both answers took for granted>; ran: <command>; saw: <output>`, then what changed or the reason. When what was false is the design or the plan, change nothing and report it to the main session. In a run from an issue or a merge, report `Diverged:`.
 - **When you fix a finding of the same kind as one from an earlier round of this task**, also add, inside the task's files, the test, type or lint rule that catches that kind, beside the fix for the one place (**A lesson becomes a check**). When it can be added, no prose is added for it. A check that would sit outside the task's files is written as a `check wanted: <the check>` line in the commit report, or as `Unplanned:` with `later` in a run from an issue or a merge.
-- **A `fixed` on a `Confirmed:` finding** carries the re-run of the reviewer's command.
 - Write the reply file once, after the fixes. Never edit a review file.
 - **A fix is still not a commit.** The main session sends the reply back for review. Commits happen after approval,
   on the main session's word.

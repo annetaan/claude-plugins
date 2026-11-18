@@ -131,9 +131,9 @@ Agent(subagent_type: "annetaan:pj-planner", description: "split #<P>",
 the first form, with `parent.roadmap.path` as `<path>`, when the split ends with the roadmap task, the second with the line kept above, and `none` for a parent
 with no `Roadmap:` line.
 
-`annetaan:pj-planner` ships with this plugin and is pinned to Fable at medium effort. It is told never to change the repository and to write only under its `Scratch:` directory, by instruction.
+`annetaan:pj-planner` ships with this plugin and has its model and effort pinned in `agents/*.md`. It is told never to change the repository and to write only under its `Scratch:` directory, by instruction.
 **When it cannot start** (a weekly limit, a rate limit, the model is unavailable), spawn it again with the same
-prompt and `model: "opus"`. The effort stays medium.
+prompt and `model: "opus"`.
 
 When the split comes back:
 
@@ -236,8 +236,8 @@ Agent(subagent_type: "annetaan:pj-issue-writer", description: "issue T<k>",
       prompt: "Read $ISSUES/roles/issue.md first and follow the role it describes. The project format is in $ISSUES/../pj1-plan/format.md. Lint a body with $ISSUES/../pj1-plan/scripts/project.sh. The judgement rules are in <skills>/workflow/judgement.md.\n\nMode: draft\n\nParent: #<P>\nWaits on: <#Q, #R | none>\n\nThe parent body:\n<the approved body>\n\nThe split:\n<the full report from the planner>\n\nRead the code: <the working tree | at origin/<from>>\n\nYour task: T<k>, \"<title>\".\n\nScratch: $TMP/scratch/T<k>")
 ```
 
-`Waits on:` names the parents in `parent.waitsOn`. `annetaan:pj-issue-writer` ships with this plugin and is pinned to
-opus at medium effort. It is told never to change the repository and to write only under its `Scratch:` directory, by
+`Waits on:` names the parents in `parent.waitsOn`. `annetaan:pj-issue-writer` ships with this plugin and has its model and
+effort pinned in `agents/*.md`. It is told never to change the repository and to write only under its `Scratch:` directory, by
 instruction.
 
 Each writer sends back a title and a body in the shape `format.md` gives a sub-issue, or a statement that the split

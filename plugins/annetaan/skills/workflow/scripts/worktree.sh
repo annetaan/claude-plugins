@@ -5,7 +5,8 @@
 # Writes on GitHub: cleanup deletes the run's branch on origin. Writes in git: create fetches the base branch into
 # origin/<base>, check and cleanup fetch the base of a merged pull request and, when the clone lacks it, the pull
 # request's head (refs/pull/<n>/head, object only, no ref), create adds the detached worktree, ignore --add appends to the clone's info/exclude, and cleanup
-# moves the work reports into <MAIN>/work-reports/, removes the worktree, deletes the run's branch locally and on
+# moves the work reports into <MAIN>/work-reports/, removes the review seats beside the worktree with panel.sh close,
+# removes the worktree, deletes the run's branch locally and on
 # origin, and fast-forwards the local base branch when the pull request merged. It never switches a branch, stashes,
 # commits or resets in the main working tree. list, old-reports without --delete and submodules only read. cleanup and old-reports --delete delete the work reports in
 # <MAIN>/work-reports/ that arrived there 14 days ago or more. sync fetches origin/<base> and, on a conflict, starts a merge in the
@@ -51,11 +52,14 @@ esac
 
 command -v python3 >/dev/null 2>&1 || die "python3 is not installed"
 
+PANEL_SH="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/panel.sh"
+
 read -r -d '' PY <<'PY' || true
 import json, os, re, shutil, subprocess, sys, time
 
-SUB = sys.argv[1]
-ARGS = sys.argv[2:]
+PANEL_SH = sys.argv[1]
+SUB = sys.argv[2]
+ARGS = sys.argv[3:]
 
 def run(*cmd, cwd=None):
     return subprocess.run(cmd, capture_output=True, text=True, cwd=cwd)
@@ -456,6 +460,15 @@ def cleanup():
             k: v for k, v in out.items()})
     tree, errors, br = out["worktree"], [], out["branch"]
 
+    r = run(PANEL_SH, "close", tree["path"], cwd=main)
+    try:
+        tree["seats"] = json.loads(r.stdout)["removed"] if r.returncode == 0 else []
+    except (ValueError, KeyError):
+        tree["seats"] = []
+        r.returncode = 1
+    if r.returncode != 0:
+        errors.append({"step": "seats", "message": r.stderr.strip() or r.stdout.strip()})
+
     if tree["state"] == "prunable":
         git(main, "worktree", "prune")
         tree["action"] = "pruned"
@@ -586,4 +599,4 @@ def pr():
  "old-reports": old_reports_cmd, "submodules": submodules_cmd}[SUB]()
 PY
 
-exec python3 -c "$PY" "$@"
+exec python3 -c "$PY" "$PANEL_SH" "$@"

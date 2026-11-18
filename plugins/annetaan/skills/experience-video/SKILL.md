@@ -72,7 +72,7 @@ Agent(subagent_type: "annetaan:experience-video-producer", description: "produce
       prompt: "Read $VIDEO/roles/produce.md first and follow the section for your mode.\n\nSkill: $VIDEO\nDeps: $DEPS\nStory: <absolute path of story.md>\n\nMode: produce")
 ```
 
-`annetaan:experience-video-producer` ships with this plugin and is pinned to Fable at medium effort. **When it cannot start** (a weekly limit, a rate limit, the model is unavailable), spawn it again with the same prompt and `model: "opus"`. The effort stays medium.
+`annetaan:experience-video-producer` ships with this plugin and has its model and effort pinned in `agents/*.md`. **When it cannot start** (a weekly limit, a rate limit, the model is unavailable), spawn it again with the same prompt and `model: "opus"`.
 
 The producer comes back with the path of a preview, what it fixed and what it could not fix.
 

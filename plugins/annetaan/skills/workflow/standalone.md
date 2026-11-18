@@ -28,9 +28,9 @@ Agent(subagent_type: "annetaan:workflow-design", description: "design",
 
 A run for a minimal change sends `Breaking changes: not accepted`.
 
-`annetaan:workflow-design` ships with this plugin and is pinned to Fable at medium effort. It is told never to change the repository and to write only under its `Scratch:` directory, by instruction.
+`annetaan:workflow-design` ships with this plugin and has its model and effort pinned in `agents/*.md`. It is told never to change the repository and to write only under its `Scratch:` directory, by instruction.
 **When it cannot start** (a weekly limit, a rate limit, the model is unavailable), spawn it again with the same
-prompt and `model: "opus"`. The effort stays medium.
+prompt and `model: "opus"`.
 
 When the design comes back:
 
@@ -54,8 +54,8 @@ Agent(subagent_type: "annetaan:workflow-design-review", description: "design rev
       prompt: "Read $FLOW/roles/design-review.md first and follow the role it describes.\n\nThe request:\n<the user's request, verbatim>\n\nBreaking changes: <accepted | not accepted>\n\nThe design:\n<the full design report>\n\n<the worktree line>")
 ```
 
-`annetaan:workflow-design-review` ships with this plugin and is pinned to Fable at medium effort and cannot edit
-files.
+`annetaan:workflow-design-review` ships with this plugin and has its model and effort pinned in `agents/*.md` and cannot edit
+files. It is pinned to another model than the design session.
 
 **When it cannot start** (a weekly limit, a rate limit, the model is unavailable), skip the review and go on. **Do not
 substitute another agent.** Keep the reason for the approval message.
@@ -97,7 +97,7 @@ The approval message states:
 
 **Say what happened to the design review, in one line of the approval message.** When it ran: whether breaking
 changes are accepted, N findings taken in, K settled by the design session, M decided by you in the open questions above. When it did not run, the
-reason: Fable could not start, or the request asks for a minimal change.
+reason: the design review session could not start, or the request asks for a minimal change.
 
 **When the user corrects the base at approval**, the design was written against the wrong code:
 
@@ -114,7 +114,7 @@ A corrected branch name just replaces the name.
 Phases 2 to 4 in SKILL.md run as written, with these settled here.
 
 - **Phase 2** starts after approval and runs all four steps, (a) to (d). Exit 1 in (b): stop and report, because **The worktree** step 4 in `worktree.md` should have settled it.
-- **After the last task's commit in phase 4 (d)**: when phase 5 does not run (see **Phase 5**), keep that task's implementation session alive, because it writes the work report in phase 6. Its review session ends as usual. After the last task, go to phase 5, or to phase 6 when the plan has one task (see **Phase 5**).
+- **After the last task's commit in phase 4 (d)**: when phase 5 does not run (see **Phase 5**), keep that task's implementation session alive, because it writes the work report in phase 6. Its seat sessions end as usual. After the last task, go to phase 5, or to phase 6 when the plan has one task (see **Phase 5**).
 - **The round cap**: if round five does not come back `approve`, stop and report to the user. Lay out what is still open and what each side said, and ask for a decision. **That task's changes are sitting uncommitted in `<WT>`.** Say that, say that the worktree stays as it is, and say that `/annetaan:workflow-cleanup` removes it, discarding the work, once the user decides. If the user says keep going after the cap, keep going.
 - **When the user says stop** at any point, stop and report.
 
@@ -136,19 +136,14 @@ The target is the working tree against `START` (`git diff <START>` plus untracke
 together. The working tree should be empty at this point. Fixes from the integration review land uncommitted in the
 working tree, so later rounds see them in the same diff.
 
-**The integration review starts a new review session.**
+**The integration review starts two new seats**, with the steps of phase 4 (b) in SKILL.md: both seats in one message, the rerun of each command, the round file. `<scope>` is `integration`, so the files are `integration-round-<r>-<seat>.md` and `integration-round-<r>.md`. The prompt is the phase 4 (b) prompt with the plan carrying the commit that closed each task (the matching `git log --oneline` lines) in place of the task detail, and this request in place of "Under review":
 
-```
-Agent(subagent_type: "annetaan:workflow-reviewer", description: "integration review",
-      prompt: "Read $FLOW/roles/review.md first and follow the role it describes.\n\nApproved design and acceptance criteria:\n<the full design>\n\nPlan, with the commit that closed each task:\n<the plan plus the matching `git log --oneline` lines>\n\nReview files: <absolute path of WORKDIR>/review\nScratch: <absolute path of WORKDIR>/scratch/review\n\n<the request below>\n\n<the worktree line>")
-```
-
-> Every task is committed. This is the integration review. The target is `git diff <START>` plus untracked files. Write round 1 as `integration-round-1.md`. The tasks were reviewed one at a time, so look at **the boundaries**: types and contracts between functions that call each other across tasks, names that do not match, duplicated implementations, and acceptance criteria for the whole design that are still unmet. No evidence file exists before round 1, because the tree is clean, so walk the acceptance criteria and the flows of the whole design yourself.
+> Every task is committed. This is the integration review. The target is `git diff <START>` plus untracked files, read in `<WT>`. Write round 1 as `integration-round-1-<seat>.md`. The tasks were reviewed one at a time, so look at **the boundaries**: types and contracts between functions that call each other across tasks, names that do not match, duplicated implementations, and acceptance criteria for the whole design that are still unmet. No evidence file exists before round 1, because the tree is clean. Record the walk of every acceptance criterion and every flow of the whole design under `## Walk`, each run as a probe, with `ran:` and `saw:`, or `not run:`.
 
 **`changes-requested` starts a new implementation session as well**, with the phase 3 prompt, its `Scratch:` line included, and each reply that changes code comes with `integration-round-<r>-evidence.md`. The progress is every task, the handover notes are everything you have collected, and the request is to
 answer the integration review. From there the (b), (c) loop is the same as phase 4, with the `integration-round-<r>`
 files, and the cap is the same
-**five rounds**. Neither session gets rebuilt during those rounds. Fixes become **one commit** after approval, with a
+**five rounds**. No session gets rebuilt during those rounds. Fixes become **one commit** after approval, with a
 subject that says what it is, such as "integration review fixes". No fixes means no commit.
 
 Review says `approve`, every finding is resolved, tests pass. Phase 6 starts when all three hold.
@@ -191,7 +186,7 @@ Every standalone run that got past approval ends here, finished or stopped (roun
 - **how the base came in**: already in, merging cleanly, or merged after the merge task resolved the files it names, or why it did not
 
 - **the pull request URL**, when one was opened
-- **the worktree `<WT>`**, and that the work report lives under it until cleanup
+- **the worktree `<WT>`**, and that the work report lives under it until cleanup, and the two review seat worktrees beside it, `review-<name of WT>-a` and `-b`, which the same cleanup removes. The probes of the seats are under `<WORKDIR>/seats/`
 - **the path of the work report** (`<WORKDIR>/log.md`), which opens in an editor with the screenshots inline
 - the review files, under `<WORKDIR>/review/`
 - the screenshot paths, when the change shows on screen
