@@ -106,7 +106,7 @@ Seats: a on opus, b on fable
 ## Earlier findings
 
 - R1.1 resolved
-- R1.2 stands: ran: `npm test -- retry-zero`; saw: `expected 0 calls, got 1`. `retryJob` has to check it before the first call.
+- R1.2 stands: ran: `/abs/skills/workflow/scripts/panel.sh run /abs/wt a /abs/wt/work-reports/2026-09-19-1346-a1b2c3d/seats/a/retry-zero`; saw: `expected 0 calls, got 1`. `retryJob` has to check it before the first call.
 
 ## New findings
 
