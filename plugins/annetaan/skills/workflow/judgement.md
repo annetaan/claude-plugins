@@ -119,7 +119,7 @@ The section applies to what the change writes. Existing code is measured only wh
 
 - a licence header
 - a comment in a configuration file that says how to use it
-- an instruction to a tool: a shebang, `// @ts-expect-error`, `# frozen_string_literal: true`
+- an instruction to a tool: a shebang, `# frozen_string_literal: true`, `// @ts-expect-error` in a type test to assert that a type error occurs (`comments.py` passes it, the reviewer reads the use)
 - a doc comment on the public API of a library published for others
 
 An instruction that silences a check is not one of them: it is a guard (**Root cause**). A doc comment anywhere else is not one either.

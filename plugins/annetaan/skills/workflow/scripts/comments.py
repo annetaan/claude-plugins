@@ -4,8 +4,10 @@ import io
 import json
 import os
 import re
+import shutil
 import subprocess
 import sys
+import tempfile
 import tokenize
 from collections import namedtuple
 
@@ -91,7 +93,7 @@ def die(msg, code=2):
 
 
 def run(args, check=True):
-    p = subprocess.run(args, capture_output=True, text=True)
+    p = subprocess.run(args, capture_output=True, text=True, errors="replace")
     if check and p.returncode != 0:
         die(f"{' '.join(args[:4])}: {p.stderr.strip()}", 2)
     return p
@@ -732,8 +734,37 @@ def read_text(path):
         return handle.read().decode("utf-8").removeprefix("﻿")
 
 
-def added_lines(top, ref, path):
-    diff = run(["git", "--literal-pathspecs", "-C", top, "diff", "-U0", "--no-color", "--no-ext-diff", ref, "--", path]).stdout
+def scratch_index(top, untracked, scratch):
+    index = os.path.join(scratch, "index")
+    real = os.path.join(top, run(["git", "-C", top, "rev-parse", "--git-path", "index"]).stdout.strip())
+    if os.path.exists(real):
+        shutil.copyfile(real, index)
+    os.environ["GIT_INDEX_FILE"] = index
+    if untracked:
+        listing = subprocess.run(
+            ["git", "--literal-pathspecs", "-C", top, "add", "-N", "--pathspec-from-file=-", "--pathspec-file-nul"],
+            input="\0".join(sorted(untracked)) + "\0", capture_output=True, text=True,
+        )
+        if listing.returncode != 0:
+            die(f"git add -N: {listing.stderr.strip()}", 2)
+
+
+def changed_paths(top, ref):
+    parts = [p for p in run(["git", "-C", top, "diff", "-z", "--name-status", "-M", "--diff-filter=d", ref, "--"]).stdout.split("\0") if p]
+    changed = {}
+    i = 0
+    while i < len(parts):
+        if parts[i][0] in "RC":
+            changed[parts[i + 2]] = parts[i + 1]
+            i += 3
+        else:
+            changed[parts[i + 1]] = parts[i + 1]
+            i += 2
+    return changed
+
+
+def added_lines(top, ref, old, path):
+    diff = run(["git", "--literal-pathspecs", "-C", top, "diff", "-U0", "-M", "--no-color", "--no-ext-diff", ref, "--", old, path]).stdout
     lines = set()
     for m in HUNK.finditer(diff):
         start = int(m.group(1))
@@ -765,19 +796,26 @@ def parse(argv):
 
 
 def main():
-    library, every, ref = parse(sys.argv[1:])
+    with tempfile.TemporaryDirectory() as scratch:
+        report(scratch, *parse(sys.argv[1:]))
+
+
+def report(scratch, library, every, ref):
     top_run = run(["git", "rev-parse", "--show-toplevel"], check=False)
     if top_run.returncode != 0:
         die("not inside a git work tree")
     top = top_run.stdout.strip()
     untracked = set(git_names(top, "ls-files", "-z", "--others", "--exclude-standard"))
+    origins = {}
     if every:
         ref = None
         names = git_names(top, "ls-files", "-z") + sorted(untracked)
     else:
         if run(["git", "-C", top, "rev-parse", "--verify", "--quiet", ref + "^{commit}"], check=False).returncode != 0:
             die(f"unknown ref: {ref}")
-        names = git_names(top, "diff", "-z", "--name-only", "--diff-filter=d", ref, "--") + sorted(untracked)
+        scratch_index(top, untracked, scratch)
+        origins = changed_paths(top, ref)
+        names = list(origins)
     fix, docs, existing, unread = [], [], [], []
     scanned = 0
     for path in sorted(set(names)):
@@ -786,7 +824,7 @@ def main():
         full = os.path.join(top, path)
         if not language or ".config." in base or base.startswith(".") or os.path.islink(full) or not os.path.isfile(full):
             continue
-        added = None if every or path in untracked else added_lines(top, ref, path)
+        added = None if every else added_lines(top, ref, origins.get(path, path), path)
         try:
             entries = judge(language, read_text(full))
         except READ_ERRORS:

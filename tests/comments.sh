@@ -383,6 +383,30 @@ check
 expect_rc "block suppression" 0
 expect "block suppression" '[e["line"] for e in d["existing"]]' "[1]"
 fresh
+cat > c.py <<'EOF'
+import os  # noqa
+a = 1
+b = 2
+c = 3
+d = 4
+EOF
+commit_all rename
+git mv c.py d.py
+check
+expect_rc "renamed suppression" 0
+expect "renamed suppression" '[(e["path"], e["line"]) for e in d["existing"]]' "[('d.py', 1)]"
+echo 'import sys  # noqa' >> d.py
+check
+expect_rc "renamed and edited" 1
+expect "renamed and edited" '[(e["path"], e["line"]) for e in d["fix"]]' "[('d.py', 6)]"
+expect "renamed and edited" '[(e["path"], e["line"]) for e in d["existing"]]' "[('d.py', 1)]"
+git reset -q --hard
+mv c.py e.py
+check
+expect_rc "moved without git" 0
+expect "moved without git" '[(e["path"], e["line"]) for e in d["existing"]]' "[('e.py', 1)]"
+git diff --cached --quiet || fail "moved without git: the index was changed"
+fresh
 cat > a.tsx <<'EOF'
 const f = <T = unknown,>(x: T) => x;
 const g = <const T,>(x: T) => x;
