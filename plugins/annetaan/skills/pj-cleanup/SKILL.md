@@ -21,7 +21,7 @@ the user. Collapse the `..` in a path to a sibling skill, so that the command te
 
 **Read these before anything else:**
 
-- `$CLEANUP/../pj1-plan/between-skills.md`: **Principle**, **The base branch**, **Comments**, **Issues in a report**
+- `$CLEANUP/../pj1-plan/between-skills.md`: **Principle**, **The base branch**, **Picking the project**, **Comments**, **Issues in a report**
 - `$CLEANUP/../pj1-plan/state.md`: **When a project is merged**
 
 This skill uses these files:
@@ -57,11 +57,13 @@ $CLEANUP/scripts/cleanup.sh list
 Each entry of `projects` is a worktree `.claude/worktrees/pj-<n>` with its parent's `number`, `title`, `state` and
 `merged`, or an `error` when `project.sh` could not read it. The options are the entries whose `merged` is true.
 
-- **One option**: take it and ask nothing. Say `#<P> <title> (the only candidate)`.
-- **Several**: print every entry in one line, `#<n> <title> (merged)` or `#<n> <title> (not merged)`, then ask with
-  the header `Project`, at most 4 options, the lowest number first and marked `(Recommended)`.
+The line of an entry is `#<n> <title> (merged)` or `#<n> <title> (not merged)`. The recommended option is the
+lowest-numbered one.
+
 - **None**: print the entries, say that no project with a worktree here is merged, and stop. A project with no
   worktree is cleaned up by giving its number.
+
+Otherwise, for a run given no number, decide as `between-skills.md` says under **Picking the project**.
 
 Print `project #<P>` once.
 

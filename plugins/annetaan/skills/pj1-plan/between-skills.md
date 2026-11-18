@@ -170,6 +170,9 @@ The candidates differ by skill.
   project) gets one line saying so, and the question has no recommendation. The line of a
   candidate is `#<P> <title> (<completed> of <total> sub-issues closed)`. The free-text answer accepts any `#<P>` from the
   list.
+- **`pj-auto`** takes the candidates of `pj3-doctor` and `pj4-running`. **`pj-cleanup`** names its candidates and
+  options in its own SKILL.md, takes any number given, stops as its SKILL.md says when no entry is merged, and decides by the rules below
+  when none was.
 
 Then decide, the first rule that fits:
 
