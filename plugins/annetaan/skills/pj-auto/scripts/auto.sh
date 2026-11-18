@@ -6,6 +6,8 @@
 # ../../pj1-plan/scripts/project.sh --next. It never reads a child's report beyond the last line of its result.
 # It writes the files of one drive into the log directory: drive.jsonl (every line it prints, with a "begin" line
 # before each step), <i>-<run>.json and <i>-<run>.err of each child, and the directory <i>-<run>/ of each child. It reads <dir>/stop before every step, and ends when the file exists.
+# While it runs it holds `caffeinate -i` when that command exists, because a sleeping machine freezes the runs, and
+# each run may wait up to 60 minutes on its background tasks after its last turn.
 # It never kills a child, and it always ends with an "ended" line and exit 0, once it has started.
 # `auto.sh --rules` reads no project, writes nothing, and prints what the drive's runs need from the user's settings.
 set -uo pipefail
@@ -135,6 +137,9 @@ fi
 
 emit status=started log="$LOG" main="$MAIN" project:="$P"
 
+# Keep the machine from idle sleep until this script exits.
+command -v caffeinate >/dev/null 2>&1 && caffeinate -i -w $$ >/dev/null 2>&1 &
+
 # next_step sets NEXT_JSON, or ends the drive when project.sh fails.
 next_step() {
   local err
@@ -182,7 +187,7 @@ while :; do
   DIR="$LOG/$I-$RUN"
   mkdir "$DIR" || end child-failed "$CUR" "cannot create $DIR"
   emit status=begin i:="$I" run="$RUN" why="$WHY" issue:="${ISSUE:-null}" at="$(now)" dir="$DIR" out="$OUT" err="$ERR" log="$LOG"
-  (cd "$MAIN" && claude -p "/annetaan:$SKILL $P unattended tmp=$DIR" --permission-mode acceptEdits --add-dir "$DIR" --output-format json < /dev/null > "$OUT" 2> "$ERR")
+  (cd "$MAIN" && CLAUDE_CODE_PRINT_BG_WAIT_CEILING_MS=3600000 claude -p "/annetaan:$SKILL $P unattended tmp=$DIR" --permission-mode acceptEdits --add-dir "$DIR" --output-format json < /dev/null > "$OUT" 2> "$ERR")
   CODE=$?
 
   VERDICT="$(python3 -I -c '

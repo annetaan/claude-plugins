@@ -105,6 +105,9 @@ Otherwise a step would run. Show a summary first:
 - when the drive stops: the project needs the user (`user`), the project is done (`done`), a run ends as needs-user,
   the state does not change after a run (`no-progress`), `pj3-doctor` has run twice on the same key (`doctor-cap`), a
   run fails (`child-failed`), or the stop file appears
+- that the drive keeps the Mac from idle sleep until it ends, and that closing the lid still sleeps it, and the drive
+  then stalls
+- that a run may wait up to 60 minutes after its last turn for its background work
 - that merges into the project's base branch happen, and the project's own pull request is never merged
 - that no other session may run on the same project while the drive runs: a dirty worktree is taken for a dead run's
   and discarded
