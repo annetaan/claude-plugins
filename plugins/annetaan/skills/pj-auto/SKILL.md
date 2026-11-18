@@ -104,7 +104,11 @@ Otherwise a step would run. Show a summary first:
   `<MAIN>/.claude/worktrees/pj-<P>`, and a directory of the run's own in the drive's log directory
 - when the drive stops: the project needs the user (`user`), the project is done (`done`), a run ends as needs-user,
   the state does not change after a run (`no-progress`), `pj3-doctor` has run twice on the same key (`doctor-cap`), a
-  run fails (`child-failed`), or the stop file appears
+  run fails (`child-failed`), `claude -p` stops a run's background tasks after the 60 minute wait and the run printed no
+  last line (`bg-killed`), or the stop file appears
+- that the drive keeps the Mac from idle sleep until it ends, and that closing the lid still sleeps it, and the drive
+  then stalls
+- that a run may wait up to 60 minutes after its last turn for its background work
 - that merges into the project's base branch happen, and the project's own pull request is never merged
 - that no other session may run on the same project while the drive runs: a dirty worktree is taken for a dead run's
   and discarded
@@ -145,7 +149,7 @@ or the script.**
 Read the `ended` line of `<LOG>/drive.jsonl`, then list the steps from the `step` lines, one per line as
 `<i> <run> <why> <issue URL>`, and the reason. When `ended.i` is not null, the drive ended on that step: add it as one
 more line from its `begin` line, with the reason. For `child-failed`, give the `out` and `err` paths from that `begin`
-line. Name the next action from the reason:
+line, and for `bg-killed`, the `err` path. Name the next action from the reason:
 
 - `user`, or a first `--next` of `user`: split by `why`.
   - `split`: `/annetaan:pj2-issues <P>`
@@ -159,6 +163,10 @@ line. Name the next action from the reason:
   `/annetaan:pj4-running <P>`. When the reason is a missing permission, name it as the rule to add, in the form **The permissions** uses.
 - `no-progress` and `doctor-cap`: run `/annetaan:pj3-doctor <P>` by hand.
 - `child-failed`: give the `out` and `err` paths from the `begin` line of step `ended.i`.
+- `bg-killed`: quote the message, which names the tasks that were stopped, and give the `err` path from the `begin` line
+  of step `ended.i`. Say that the wait is counted in wall-clock time, so a machine that slept (a closed lid) does this.
+  Next action: `/annetaan:pj-auto <P>` again. When the same task is stopped a second time, run the matching skill by
+  hand, `/annetaan:pj3-doctor <P>` or `/annetaan:pj4-running <P>`, by the run of that `begin` line.
 - `stop-requested`: the drive stopped at the user's word.
 - `project`, `not-a-repo`, `no-claude`: quote the message.
 

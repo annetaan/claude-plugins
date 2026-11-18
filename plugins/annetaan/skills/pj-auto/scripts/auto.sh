@@ -119,6 +119,8 @@ fi
 
 emit status=started log="$LOG" main="$MAIN" project:="$P"
 
+command -v caffeinate >/dev/null 2>&1 && caffeinate -i -w $$ >/dev/null 2>&1 &
+
 next_step() {
   local err
   NEXT_JSON="$(cd "$MAIN" && "$PROJECT" "$P" --next 2>"$LOG/project.err")"
@@ -165,7 +167,7 @@ while :; do
   DIR="$LOG/$I-$RUN"
   mkdir "$DIR" || end child-failed "$CUR" "cannot create $DIR"
   emit status=begin i:="$I" run="$RUN" why="$WHY" issue:="${ISSUE:-null}" at="$(now)" dir="$DIR" out="$OUT" err="$ERR" log="$LOG"
-  (cd "$MAIN" && claude -p "/annetaan:$SKILL $P unattended tmp=$DIR" --permission-mode acceptEdits --add-dir "$DIR" --output-format json < /dev/null > "$OUT" 2> "$ERR")
+  (cd "$MAIN" && CLAUDE_CODE_PRINT_BG_WAIT_CEILING_MS=3600000 claude -p "/annetaan:$SKILL $P unattended tmp=$DIR" --permission-mode acceptEdits --add-dir "$DIR" --output-format json < /dev/null > "$OUT" 2> "$ERR")
   CODE=$?
 
   VERDICT="$(python3 -I -c '
@@ -192,11 +194,27 @@ else:
     end child-failed "$CUR" "$SKILL failed: see $ERR and $OUT"
   fi
 
+  BG="$(python3 -I -c '
+import re, sys
+found = ""
+try:
+    with open(sys.argv[1], errors="replace") as f:
+        for line in f:
+            m = re.match(r"Background tasks still running .+ after the last turn \((.*)\); stopping them\.", line)
+            if m:
+                found = m.group(1)
+except Exception:
+    found = ""
+print(found)
+' "$ERR")"
+
   case "$VERDICT" in
     needs-user*)
       end needs-user "$CUR" "${VERDICT#needs-user	}" ;;
     done) RESULT=done ;;
-    *) RESULT=no-line; NOLINE="$NOLINE $I" ;;
+    *)
+      [ -n "$BG" ] && end bg-killed "$CUR" "claude -p stopped the background tasks of step $I, still running after its wait: $BG"
+      RESULT=no-line; NOLINE="$NOLINE $I" ;;
   esac
   emit status=step i:="$I" run="$RUN" why="$WHY" issue:="${ISSUE:-null}" at="$(now)" log="$LOG" result="$RESULT"
   STEP_I=null

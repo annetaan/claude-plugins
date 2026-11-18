@@ -8,7 +8,9 @@ usage() {
 usage: project.sh [-R <owner/repo>] <parent>               the whole project, as JSON
        project.sh [-R <owner/repo>] <parent> --order       the run order, and the ## Order list to write, as JSON
        project.sh [-R <owner/repo>] <parent> --next        what to run next on the project, as JSON
-       project.sh [-R <owner/repo>] <parent> --check <n>   whether sub-issue <n> can be implemented from its body now
+       project.sh [-R <owner/repo>] <parent> --check <n> [<n>...]
+                                                           whether each sub-issue can be implemented from its body now,
+                                                           one JSON object per line
        project.sh [-R <owner/repo>] <parent> --order-body  the parent body with its ## Order list replaced, as text
        project.sh --lint <file|->                          lint one sub-issue body, read from a file or standard input
        project.sh --same-words <before> <after>            whether two bodies differ in backticks and whitespace only
@@ -18,7 +20,8 @@ usage: project.sh [-R <owner/repo>] <parent>               the whole project, as
         or when the projects wait on each other.
 --next reads only. It prints what to run next (doctor, running, user or done), why, and a fingerprint of the state.
 --check runs inside a work tree of a clone of the repository, from any directory in it. It fetches the branch the base was made from,
-        and the base branch once it exists.
+        and the base branch once it exists. The parent comes before --check. It reads GitHub and fetches once whatever
+        the count, and dies before printing anything when a number is no sub-issue.
 --order-body prints the parent body as GitHub has it now, with the lines under ## Order replaced by the list --order
         writes. It fails like --order when the blocked-by relationships have a cycle.
 --lint touches neither GitHub nor git and always exits 0.
@@ -31,7 +34,7 @@ USAGE
   exit 1
 }
 
-REPO=""; MODE="project"; PARENT=""; TARGET=""; LINT_FILE=""
+REPO=""; MODE="project"; PARENT=""; TARGETS=""; LINT_FILE=""
 SAME_BEFORE=""; SAME_AFTER=""
 ROADMAP_REF=""
 while [ $# -gt 0 ]; do
@@ -40,7 +43,9 @@ while [ $# -gt 0 ]; do
     --order)   MODE="order"; shift ;;
     --order-body) MODE="order-body"; shift ;;
     --next)    MODE="next"; shift ;;
-    --check)   [ $# -ge 2 ] || usage; MODE="check"; TARGET="$2"; shift 2 ;;
+    --check)   MODE="check"; shift
+               while [ $# -gt 0 ] && [ -n "$1" ] && [ -z "${1//[0-9]/}" ]; do TARGETS="$TARGETS $1"; shift; done
+               [ -n "$TARGETS" ] || die "--check takes issue numbers" ;;
     --lint)    [ $# -ge 2 ] || usage; MODE="lint"; LINT_FILE="$2"; shift 2 ;;
     --same-words) [ $# -ge 3 ] || usage; MODE="same-words"; SAME_BEFORE="$2"; SAME_AFTER="$3"; shift 3 ;;
     --roadmap) MODE="roadmap"; shift
@@ -75,7 +80,6 @@ fi
 
 [ -n "$PARENT" ] || usage
 case "$PARENT" in *[!0-9]*) die "the parent must be an issue number: $PARENT" ;; esac
-case "$TARGET" in *[!0-9]*) die "--check takes an issue number: $TARGET" ;; esac
 
 command -v gh >/dev/null 2>&1 || die "gh is not installed"
 
@@ -109,7 +113,7 @@ query($owner: String!, $name: String!, $n: Int!) {
 }' > "$TMP/issues.json" || die "cannot read issue #$PARENT in $REPO"
 
 if [ "$MODE" = "check" ]; then
-  python3 "$PY_FILE" check "$TMP/issues.json" "$REPO" "$TARGET"
+  python3 "$PY_FILE" check "$TMP/issues.json" "$REPO" $TARGETS
   exit 0
 fi
 
