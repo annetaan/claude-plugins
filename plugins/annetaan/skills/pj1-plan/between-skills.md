@@ -56,6 +56,9 @@ Two things live outside GitHub, and only these two:
   or a stopped merge of `<from>`. It is local. The next run saves it to `work-reports/<stamp>-discarded/stopped.diff`
   in the worktree and discards it, without asking, and never uses it. The work is redone.
 
+The conversation supplies which project a run goes on with when no number is given, and never anything about that
+project (**Picking the project**).
+
 The work of a stopped issue, commits included, is saved to `stopped.diff` in its work report. Like the work report, it is a record, not
 state.
 
@@ -170,6 +173,9 @@ The candidates differ by skill.
   project) gets one line saying so, and the question has no recommendation. The line of a
   candidate is `#<P> <title> (<completed> of <total> sub-issues closed)`. The free-text answer accepts any `#<P>` from the
   list.
+- **`pj-auto`** takes the candidates of `pj3-doctor` and `pj4-running`. **`pj-cleanup`** names its candidates and
+  options in its own SKILL.md, takes any number given, stops as its SKILL.md says when no entry is merged, and decides by the rules below
+  when none was.
 
 Then decide, the first rule that fits:
 
@@ -177,11 +183,22 @@ Then decide, the first rule that fits:
    `pj4-running`, a sub-issue's number points at its parent and a number labelled `project` at itself. For
    `pj2-issues`, a number points at a startable or pickable candidate. A number that points at a candidate that is
    neither is taken too, and the check of `pj2-issues` refuses it.
-2. **No number was given and there is exactly one option.** Take it and ask nothing.
-3. **Otherwise** print every candidate in its line form, then ask, as below.
+2. **No number was given and the project of this conversation is an option.** Take it and ask nothing. The project of
+   this conversation is the `<P>` of the most recent `project #<P>` line that a pj skill printed earlier in this
+   conversation, before this run, and whose project is an option now. A line counts with or without ` unattended`
+   after it. Whether a project is an option is read from the candidates gathered now, never from the conversation. For
+   `pj2-issues`, an option is a startable or pickable candidate, so a candidate that waits is not taken here.
+3. **No number was given and there is exactly one option.** Take it and ask nothing.
+4. **Otherwise** print every candidate in its line form, then ask, as below.
 
-When a rule decides without asking, say why on the line of the project picked: `#<P> <title> (the number given)` or
-`#<P> <title> (the only candidate)`. Print no candidate list. Rely on no project picked earlier in the conversation.
+When a rule decides without asking, say why on the line of the project picked: `#<P> <title> (the number given)`,
+`#<P> <title> (the project of this conversation)` or `#<P> <title> (the only candidate)`. Print no candidate list. The
+conversation supplies the project of rule 2 and nothing else. A candidate list, an option or a recommendation
+remembered from an earlier run is never used.
+
+Once the project is decided, the skill prints `project #<P>` on a line of its own, once per run, with ` unattended`
+after it in an unattended run. The line has two readers: rule 2 of a later run in this conversation, and the run's own
+rule for after a context summary.
 
 The question has the header `Project` and at most 4 options: the recommended project first, marked `(Recommended)`,
 then the rest by number. With one option only, the second option is `Stop`. When the list of candidates is empty, stop.
@@ -199,7 +216,7 @@ A `pj3-doctor` or `pj4-running` run is unattended when its args carry the word `
   project's worktree and that directory. Outside them, a shell write is refused, so a run writes its files to `$TMP`
   or the worktree, never under `.git/` or a system temp directory.
 - **The project.** Only rule 1 of **Picking the project** applies. No number, or a number that points at no option,
-  ends the run as needs-user without asking. Rules 2 and 3 do not apply.
+  ends the run as needs-user without asking. Rules 2 to 4 do not apply.
 - **Questions.** An unattended run never calls `AskUserQuestion`. The approval question (`pj3-doctor` phase 4,
   `pj4-running` phase 2, in `pj4-running/issues.md`) is skipped, and the summary it would have shown is printed as usual. Any other question that
   comes due ends the run without asking, the way choosing stop on that question would, as needs-user.
@@ -346,7 +363,7 @@ space between them, as in `(waits on https://github.com/<owner>/<repo>/issues/7 
 gh repo view --json url --jq .url    # once per run; append /issues/<n> or /pull/<n>
 ```
 
-The progress lines a run prints for a context summary, such as `project #<P>` or `#<k> rewritten`, the headers of
+The progress lines a run prints, such as `project #<P>` or `#<k> rewritten`, the headers of
 `AskUserQuestion` and everything written to GitHub keep `#<n>`. GitHub draws a link from `#<n>` on its own pages.
 
 ## Commands
