@@ -738,7 +738,7 @@ def scratch_index(top, untracked, scratch):
     index = os.path.join(scratch, "index")
     real = os.path.join(top, run(["git", "-C", top, "rev-parse", "--git-path", "index"]).stdout.strip())
     if os.path.exists(real):
-        shutil.copyfile(real, index)
+        shutil.copy2(real, index)
     os.environ["GIT_INDEX_FILE"] = index
     if untracked:
         listing = subprocess.run(

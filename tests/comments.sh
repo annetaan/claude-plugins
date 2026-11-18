@@ -481,6 +481,22 @@ expect "untracked" 'd["scanned"]' 1
 echo "ok: an untracked file is touched"
 
 fresh
+git config core.checkStat minimal
+git config core.trustctime false
+echo 'const x = 1;' > a.js
+touch -t 202001010000.00 a.js
+commit_all racy
+touch -r a.js "$(git rev-parse --git-path index)"
+echo '// note 1234' > a.js
+[ "$(wc -c < a.js | tr -d " ")" = 13 ] || fail "racy: the rewrite changed the size"
+touch -t 202001010000.00 a.js
+git diff --quiet HEAD -- a.js && fail "racy: git itself misses the rewrite after the mtime is reset"
+check
+expect_rc "racy clean file" 1
+expect "racy clean file" '[e["path"] for e in d["fix"]]' "['a.js']"
+echo "ok: a file rewritten within the timestamp of the index is seen"
+
+fresh
 base="$(git rev-parse HEAD)"
 echo '// one' > a.js
 commit_all one
