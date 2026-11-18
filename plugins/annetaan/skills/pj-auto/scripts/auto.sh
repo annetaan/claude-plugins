@@ -8,6 +8,8 @@
 # before each step), <i>-<run>.json and <i>-<run>.err of each child, and the directory <i>-<run>/ of each child. It reads <dir>/stop before every step, and ends when the file exists.
 # While it runs it holds `caffeinate -i` when that command exists, because a sleeping machine freezes the runs, and
 # each run may wait up to 60 minutes on its background tasks after its last turn.
+# When `claude -p` stops a run's background tasks at that wait and the run printed no last line, the drive ends as
+# `bg-killed` and names the tasks.
 # It never kills a child, and it always ends with an "ended" line and exit 0, once it has started.
 # `auto.sh --rules` reads no project, writes nothing, and prints what the drive's runs need from the user's settings.
 set -uo pipefail
@@ -214,11 +216,27 @@ else:
     end child-failed "$CUR" "$SKILL failed: see $ERR and $OUT"
   fi
 
+  BG="$(python3 -I -c '
+import re, sys
+found = ""
+try:
+    with open(sys.argv[1], errors="replace") as f:
+        for line in f:
+            m = re.match(r"Background tasks still running .+ after the last turn \((.*)\); stopping them\.", line)
+            if m:
+                found = m.group(1)
+except Exception:
+    found = ""
+print(found)
+' "$ERR")"
+
   case "$VERDICT" in
     needs-user*)
       end needs-user "$CUR" "${VERDICT#needs-user	}" ;;
     done) RESULT=done ;;
-    *) RESULT=no-line; NOLINE="$NOLINE $I" ;;
+    *)
+      [ -n "$BG" ] && end bg-killed "$CUR" "claude -p stopped the background tasks of step $I, still running after its wait: $BG"
+      RESULT=no-line; NOLINE="$NOLINE $I" ;;
   esac
   emit status=step i:="$I" run="$RUN" why="$WHY" issue:="${ISSUE:-null}" at="$(now)" log="$LOG" result="$RESULT"
   STEP_I=null

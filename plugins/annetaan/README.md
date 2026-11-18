@@ -374,7 +374,7 @@ until it ends (closing the lid still sleeps it), and a run may wait up to 60 min
 
 The drive stops when the project needs you (a split, a wait, a decision to tick, the project's pull request to merge),
 when it is done, when a run ends needing you, when a run changes nothing, when `pj3-doctor` has run twice on the same
-issue, when a run fails, or when you say stop in the conversation. It then names what you do next. Every step writes a
+issue, when a run fails, when a run's background work outlasts the 60 minute wait, or when you say stop in the conversation. It then names what you do next. Every step writes a
 line in `drive.jsonl` in the log directory it prints when it starts, with the time and the files it writes, and another
 when it ends, so the `tail -f` command it shows tells what is running and since when. Each step is a
 whole session, so a long project costs many.
