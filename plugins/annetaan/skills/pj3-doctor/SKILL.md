@@ -80,12 +80,14 @@ not outlive one command, so write the path in full each time.
    GitHub. **When `--order`
    fails on a cycle**, within the project or between projects, show the user the cycle it names and stop. Nothing
    can be ordered until a human removes an edge.
-2. **Check every open sub-issue** whose `pr` is not merged. An open issue whose pull request merged is waiting for
-   `pj4-running` to close it. Leave it alone.
+2. **Check every open sub-issue** whose `pr` is not merged, in one call with every such number. An open issue whose
+   pull request merged is waiting for `pj4-running` to close it. Leave it alone.
 
    ```bash
-   $DOCTOR/../pj1-plan/scripts/project.sh <P> --check <k>
+   $DOCTOR/../pj1-plan/scripts/project.sh <P> --check <k1> <k2> ...
    ```
+
+   It prints one JSON object per line, in that order.
 
 3. **Start the reviewer.**
 
@@ -306,10 +308,15 @@ the numbers.
    gh issue edit <P> --add-label doing
    ```
 
-   Check each issue again right before it gets `ready`, because the bodies and the edges just changed.
+   Check all the open issues again in one call before any label goes on, because the bodies and the edges just changed.
 
    ```bash
-   $DOCTOR/../pj1-plan/scripts/project.sh <P> --check <k>
+   $DOCTOR/../pj1-plan/scripts/project.sh <P> --check <k1> <k2> ...
+   ```
+
+   Then, for each issue whose check is clear:
+
+   ```bash
    gh issue edit <k> --add-label ready
    gh issue edit <k> --add-label ready --remove-label blocker
    ```

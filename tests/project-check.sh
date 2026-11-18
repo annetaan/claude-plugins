@@ -47,6 +47,9 @@ cat > bin/gh <<'PYEOF'
 #!/usr/bin/env python3
 import json, os, sys
 args = sys.argv[1:]
+if os.environ.get("FX_GH_LOG"):
+    with open(os.environ["FX_GH_LOG"], "a") as log:
+        log.write(" ".join(args[:2]) + "\n")
 if args[:2] == ["pr", "list"]:
     print("[]")
     sys.exit(0)
@@ -62,11 +65,14 @@ if args[:2] == ["api", "graphql"]:
                "updatedAt": "2000-01-01T00:00:00Z", "body": body,
                "labels": {"nodes": [{"name": "ready"}]},
                "blockedBy": {"nodes": []}, "blocking": {"nodes": []}}
+        subs = [sub]
+        if os.environ.get("FX_TWO"):
+            subs.append(dict(sub, number=3, title="Rename foo again"))
         parent = {"number": 1, "title": "Project", "state": "OPEN", "stateReason": None,
                   "updatedAt": "2000-01-01T00:00:00Z",
                   "body": "Base: `pj/1` from `main`\n\n## Goal\n\nx\n",
                   "labels": {"nodes": []}, "blockedBy": {"nodes": []}, "blocking": {"nodes": []},
-                  "subIssues": {"totalCount": 1, "nodes": [sub]}}
+                  "subIssues": {"totalCount": len(subs), "nodes": subs}}
         print(json.dumps({"data": {"repository": {"issue": parent}}}))
     elif "ro: ref(" in query:
         print(json.dumps({"data": {"repository": {"ro": {"compare": {"status": "IDENTICAL"}},
@@ -79,6 +85,14 @@ sys.stderr.write("fake gh: unexpected call: %s\n" % " ".join(args))
 sys.exit(1)
 PYEOF
 chmod +x bin/gh
+# A wrapper that logs its arguments, then runs the real git (resolved before PATH changes).
+REAL_GIT="$(command -v git)"
+cat > bin/git <<GITEOF
+#!/usr/bin/env bash
+[ -z "\${FX_GIT_LOG:-}" ] || echo "\$*" >> "\$FX_GIT_LOG"
+exec "$REAL_GIT" "\$@"
+GITEOF
+chmod +x bin/git
 export PATH="$TMP/bin:$PATH"
 
 check() { (cd "$1" && bash "$SCRIPT" -R test/repo 1 --check 2); }
@@ -163,3 +177,32 @@ for name in Temporal oldName; do
   [ "$got" = "[('src/app.ts', '$name', 'symbol not found')]" ] || fail "a shallow clone printed $got for $name"
 done
 echo "ok: --check in a shallow clone reads every missing name as symbol not found"
+
+# Several numbers in one call. FX_TWO adds sub-issue #3 to the fake project.
+multi() { (cd "$TMP/work" && FX_TWO=1 bash "$SCRIPT" -R test/repo 1 --check "$@"); }
+two_out="$(multi 3 2)" || fail "--check 3 2 exited non-zero"
+[ "$(printf '%s\n' "$two_out" | wc -l | tr -d ' ')" = 2 ] || fail "--check 3 2 printed: $two_out"
+order="$(printf '%s\n' "$two_out" | python3 -c '
+import json, sys
+print([json.loads(l)["number"] for l in sys.stdin])')"
+[ "$order" = "[3, 2]" ] || fail "--check 3 2 printed numbers $order, wanted [3, 2]"
+[ "$(printf '%s\n' "$two_out" | sed -n 2p)" = "$(multi 2)" ] || fail "the #2 line of --check 3 2 differs from --check 2 alone"
+echo "ok: --check with several numbers prints one line each, in the order given"
+
+count_calls() {
+  rm -f "$TMP/gh.log" "$TMP/call.log"
+  (cd "$TMP/work" && FX_TWO=1 FX_GH_LOG="$TMP/gh.log" FX_GIT_LOG="$TMP/call.log" bash "$SCRIPT" -R test/repo 1 --check "$@" >/dev/null)
+  echo "gh: $(sort "$TMP/gh.log" | uniq -c | tr -s ' ' | tr '\n' ';') fetches: $(grep -c '^fetch' "$TMP/call.log" || true)"
+}
+one_calls="$(count_calls 2)"
+many_calls="$(count_calls 2 3)"
+case "$one_calls" in *"api graphql"*"fetches: "[1-9]*) ;; *) fail "--check 2 made unexpected calls: $one_calls" ;; esac
+[ "$one_calls" = "$many_calls" ] || fail "--check 2 3 called '$many_calls', --check 2 called '$one_calls'"
+echo "ok: --check with several numbers reads GitHub and fetches once"
+
+rc=0
+out="$(multi 2 99 2>"$TMP/err")" || rc=$?
+[ "$rc" -ne 0 ] || fail "--check 2 99 exited 0"
+[ -z "$out" ] || fail "--check 2 99 printed on stdout: $out"
+grep -q '#99 is not a sub-issue of #1' "$TMP/err" || fail "--check 2 99 said: $(cat "$TMP/err")"
+echo "ok: --check dies before printing when one number is no sub-issue"
