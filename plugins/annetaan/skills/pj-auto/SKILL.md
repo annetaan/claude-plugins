@@ -51,7 +51,7 @@ command -v claude
 Any of these failing stops the skill. Say which one and stop.
 
 **The project.** Pick it as `between-skills.md` says under **Picking the project**, with the candidates of `pj3-doctor`
-and `pj4-running`. The project picked is `<P>`. Print `project #<P>` once.
+and `pj4-running`. The project picked is `<P>`. Print `project #<P>` once, as that section says.
 
 ## The next step
 
@@ -179,4 +179,4 @@ When `noLine` is not empty, add one line naming the steps that ended without a l
 - You write nothing to GitHub yourself, and you never kill a run.
 - You never write the user's settings. You show the rules, and the user adds them.
 - The next action comes only from `project.sh --next` and the `ended` line.
-- After a context summary, resume from the `project #<P>` and `drive <LOG>` lines.
+- After a context summary, resume from the last `project #<P>` line and the last `drive <LOG>` line.

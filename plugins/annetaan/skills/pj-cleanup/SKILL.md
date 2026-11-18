@@ -65,7 +65,7 @@ lowest-numbered one.
 
 Otherwise, for a run given no number, decide as `between-skills.md` says under **Picking the project**.
 
-Print `project #<P>` once.
+Print `project #<P>` once, as that section says.
 
 ## The check
 

@@ -27,7 +27,7 @@ work into projects, each a parent issue. A parent is blocked by the parents of t
 splits one project into sub-issues once every project it waits on is merged. You tick the decisions on GitHub.
 `pj3-doctor` makes the issues ready. `pj4-running` runs `workflow` once per sub-issue, merges each pull request into
 the project's branch and closes the issue, and at the end opens the pull request that takes the project's branch
-back. The four pass nothing to each other through the conversation. Each one reads the project from GitHub afresh.
+back. The pj skills pass one thing through the conversation, which project it is on, so a run started without a number goes on with that project. Everything else each one reads from GitHub afresh.
 `pj-auto` drives the doctor and the runner and stops where you are needed. `pj-cleanup` tidies up once you have merged
 a project. `workflow-cleanup` does the same for a workflow run. `pj-roadmap` brings an existing roadmap file into the
 format the pj skills read, through a pull request.
@@ -257,7 +257,7 @@ answer the plan-level questions and see the projects in stages, with the reason 
 pick the branch the projects start from. Nothing reaches GitHub before that. Then one parent issue per project is
 filed, blocked by the parents it waits on. When the request is a roadmap entry, one project of the last stage, the one with the lowest number, carries a `Roadmap:` line naming the file and the entry. No sub-issue and no branch is created yet, and no issue is `ready` yet.
 
-`/annetaan:pj2-issues` ([details](skills/pj2-issues/SKILL.md)) takes the project to split from a number given, or the only one it could split, and otherwise asks. It offers the
+`/annetaan:pj2-issues` ([details](skills/pj2-issues/SKILL.md)) takes the project to split from a number given, the project this conversation is on when it can be split, or the only one it could split, and otherwise asks. It offers the
 projects with no sub-issue yet whose waited-on projects are all merged, and recommends the lowest-numbered one. A planner
 session splits the project against the code as it stands after those merges, and you answer the split-level
 questions. You approve the split, any change to the parent shown as a diff, and any change to its blocked-by. The split
@@ -273,7 +273,7 @@ another project that is not merged yet, `pj2-issues` asks whether to add that wa
 between the two parents and stops without filing anything else. For the project carrying the `Roadmap:` line, the split
 ends with one more task, blocked by every other, that removes the entry from the roadmap.
 
-`/annetaan:pj3-doctor` ([details](skills/pj3-doctor/SKILL.md)) takes the project from a number given or the only
+`/annetaan:pj3-doctor` ([details](skills/pj3-doctor/SKILL.md)) takes the project from a number given, the project this conversation is on or the only
 project that has sub-issues, and otherwise asks which project to work on. A
 reviewer session reads the whole project against the boxes you ticked, the code, and each issue in it: a ticked
 option the design does not hold, two issues that disagree on a name, a missing blocked-by, a stub, a blocker, a parent that keeps behaviour whose
@@ -366,7 +366,7 @@ next and starts that step as a fresh `claude -p` run in unattended mode, one pro
 report to decide, only the project on GitHub.
 
 It asks one approval question per drive, and only when a step would run (the question which project comes before it, when
-the project is not given or the only candidate): a summary of the project, what the steps do and which of the
+the project is not given, not the one this conversation is on and not the only candidate): a summary of the project, what the steps do and which of the
 permissions they need your settings lack, then start or not. That approval covers the whole drive, and the runs ask nothing. Each run starts in Claude Code's acceptEdits mode,
 so it edits and writes files inside your clone, the project's worktree and a directory of its own without asking. The merges
 into the project's branch happen. The project's own pull request is never merged. The drive keeps the Mac from idle sleep
@@ -399,7 +399,7 @@ What it needs:
 ### pj-cleanup
 
 `/annetaan:pj-cleanup` ([details](skills/pj-cleanup/SKILL.md)) cleans up after you merge a project's pull request.
-Without a number, it takes the merged project whose worktree is in your clone, and asks when there are several. It
+Without a number, it takes the project this conversation is on when that one is merged and has its worktree in your clone, otherwise the only merged project with a worktree there, and asks when there are several. It
 shows what it will do and asks once. Then it closes the parent when it is still open, moves the work reports out of
 the project's worktree into `work-reports/` in your clone, removes the worktree, deletes the project's branch on
 origin and locally, fast-forwards your local copy of the branch the project merged into, usually `main`, and deletes the work reports in `work-reports/` that have been there for 14 days or more.

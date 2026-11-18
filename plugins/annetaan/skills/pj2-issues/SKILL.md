@@ -1,6 +1,6 @@
 ---
 name: pj2-issues
-description: Takes the project to split from a number given, or the only one it could split, and otherwise asks, offering the projects with no sub-issue whose waited-on projects are all merged or closed without a merge, with the lowest-numbered one as the recommended one. Refuses a project that waits on one not yet merged. Has a planner split the project into tasks against the code as it stands after those merges, and asks the split-level questions. Shows the split, a diff of any change to the parent, and any change to its blocked-by relationships for approval. Has one issue writer per task draw that task in parallel, then files the sub-issues with the blocked-by relationships inside the project, the run order in the parent's Order list, and the titles, and labels the parent doing. The second of four skills, after pj1-plan and before pj3-doctor and pj4-running. Use it only when the user names this skill or invokes /annetaan:pj2-issues, because it creates and edits issues, relationships and labels on GitHub.
+description: Takes the project to split from a number given, the project this conversation is on when it can be split, or the only one it could split, and otherwise asks, offering the projects with no sub-issue whose waited-on projects are all merged or closed without a merge, with the lowest-numbered one as the recommended one. Refuses a project that waits on one not yet merged. Has a planner split the project into tasks against the code as it stands after those merges, and asks the split-level questions. Shows the split, a diff of any change to the parent, and any change to its blocked-by relationships for approval. Has one issue writer per task draw that task in parallel, then files the sub-issues with the blocked-by relationships inside the project, the run order in the parent's Order list, and the titles, and labels the parent doing. The second of four skills, after pj1-plan and before pj3-doctor and pj4-running. Use it only when the user names this skill or invokes /annetaan:pj2-issues, because it creates and edits issues, relationships and labels on GitHub.
 ---
 
 # pj2-issues
@@ -61,7 +61,7 @@ git branch --show-current
 ## The project
 
 1. Pick it as `between-skills.md` says under **Picking the project**. The project picked is `<P>`. Print
-   `project #<P>` once, so that a context summary can find it again. Run `mktemp -d` once for the whole run. `$TMP`
+   `project #<P>` once, as **Picking the project** says. Run `mktemp -d` once for the whole run. `$TMP`
    below is the directory it printed. A shell variable does not outlive one command, so write the path in full each
    time. Run `git status --porcelain` once and keep its output. The checks in phases 1 and 3 compare against it.
 2. Read the project.
@@ -389,5 +389,5 @@ Then the next steps, in this order:
   **Projects**).
 - **Always pass a body with `--body-file`.**
 - **Re-read `updatedAt` before every edit.**
-- After a context summary, take `<P>` again from the `project #<P>` line, and rebuild where the run stood from
+- After a context summary, take `<P>` again from the last `project #<P>` line, and rebuild where the run stood from
   `project.sh <P>`. A planner or a writer whose handle is gone is started again.

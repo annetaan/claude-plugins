@@ -1,6 +1,6 @@
 ---
 name: pj3-doctor
-description: Takes the project from a number given, a sub-issue's number naming its parent, or the only project with sub-issues, and otherwise asks which project to work on, then reviews the whole project against the boxes the user ticked on GitHub, against the code and against each issue in it. Has one issue writer per issue redraw what no longer holds, draws the stubs, resolves the blockers, rewrites the run order in the parent's Order list, and labels the issues ready. Asks the user no task decision, because the user ticks those on GitHub. Asks only about a split, two boxes ticked in one decision, and its changes before they are written. Run it again after ticking. The third of four skills, after pj1-plan and pj2-issues and before pj4-running. Use it only when the user names this skill or invokes /annetaan:pj3-doctor, because it edits, files and closes issues and changes labels on GitHub.
+description: Takes the project from a number given, a sub-issue's number naming its parent, the project this conversation is on, or the only project with sub-issues, and otherwise asks which project to work on, then reviews the whole project against the boxes the user ticked on GitHub, against the code and against each issue in it. Has one issue writer per issue redraw what no longer holds, draws the stubs, resolves the blockers, rewrites the run order in the parent's Order list, and labels the issues ready. Asks the user no task decision, because the user ticks those on GitHub. Asks only about a split, two boxes ticked in one decision, and its changes before they are written. Run it again after ticking. The third of four skills, after pj1-plan and pj2-issues and before pj4-running. Use it only when the user names this skill or invokes /annetaan:pj3-doctor, because it edits, files and closes issues and changes labels on GitHub.
 ---
 
 # pj3-doctor
@@ -58,7 +58,7 @@ gh repo view --json nameWithOwner,hasIssuesEnabled,defaultBranchRef
 - A dirty working tree does not matter. This skill reads the code and changes nothing in it.
 
 **The project.** Pick it as `between-skills.md` says under **Picking the project**. The project picked is `<P>`. In an unattended run, only rule 1 of **Picking the project** applies (`between-skills.md`, **Unattended runs**). Print
-`project #<P>` once, with ` unattended` after it in an unattended run, so that a context summary can find both again.
+`project #<P>` once, with ` unattended` after it in an unattended run, as **Picking the project** says.
 
 When the args carry `tmp=<dir>`, `$TMP` below is that directory. Otherwise run `mktemp -d` once and use the
 directory it printed. Print `tmp <dir>` once, so that a context summary can find it again. A shell variable does
@@ -418,5 +418,5 @@ is needs-user too.
 - **Re-read `updatedAt` before every edit. Never edit a closed issue.**
 - **A sub-issue body goes out only after its lint passes**, and a parent's only after you read it against its shape.
 - An unattended run never calls `AskUserQuestion` and ends with one `unattended:` line.
-- After a context summary, take `<P>` and whether the run is unattended again from the `project #<P>` line, and `$TMP` from the `tmp` line, and rebuild where the run stood from the
+- After a context summary, take `<P>` and whether the run is unattended again from the last `project #<P>` line, and `$TMP` from the last `tmp` line, and rebuild where the run stood from the
   progress lines (the review count is the largest k of `review <k> done`) and `project.sh <P>`. A writer or a reviewer whose handle is gone is started again.
