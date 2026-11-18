@@ -7,7 +7,8 @@
 # run also deletes the work reports in <MAIN>/work-reports/ that arrived there 14 days ago or more, by calling
 # ../../workflow/scripts/worktree.sh old-reports --delete, and check lists them with old-reports.
 # It reads the project with ../../pj1-plan/scripts/project.sh, the old reports and the submodules that hold work of
-# their own through ../../workflow/scripts/worktree.sh old-reports and submodules, and refuses a project that is not
+# their own through ../../workflow/scripts/worktree.sh old-reports and submodules, removes the review seats beside the
+# worktree with ../../workflow/scripts/panel.sh close, and refuses a project that is not
 # merged.
 set -euo pipefail
 
@@ -42,13 +43,14 @@ command -v python3 >/dev/null 2>&1 || die "python3 is not installed"
 
 PROJECT_SH="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/../../pj1-plan/scripts/project.sh"
 WORKTREE_SH="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/../../workflow/scripts/worktree.sh"
+PANEL_SH="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/../../workflow/scripts/panel.sh"
 
 read -r -d '' PY <<'PY' || true
 import json, os, re, shutil, subprocess, sys
 
-PROJECT_SH, WORKTREE_SH, SUB = sys.argv[1:4]
-P = int(sys.argv[4]) if len(sys.argv) > 4 else None
-ARGS = sys.argv[5:]
+PROJECT_SH, WORKTREE_SH, PANEL_SH, SUB = sys.argv[1:5]
+P = int(sys.argv[5]) if len(sys.argv) > 5 else None
+ARGS = sys.argv[6:]
 
 def run(*cmd, cwd=None):
     return subprocess.run(cmd, capture_output=True, text=True, cwd=cwd)
@@ -285,6 +287,15 @@ def cleanup():
     if out["loses"] and "--discard" not in ARGS:
         stop("discard", "%s holds work that nothing else holds: %s" % (tree["path"], ", ".join(out["loses"])), **out)
 
+    r = run(PANEL_SH, "close", tree["path"], cwd=main)
+    try:
+        tree["seats"] = json.loads(r.stdout)["removed"] if r.returncode == 0 else []
+    except (ValueError, KeyError):
+        tree["seats"] = []
+        r.returncode = 1
+    if r.returncode != 0:
+        errors.append({"step": "seats", "message": r.stderr.strip() or r.stdout.strip()})
+
     if tree["state"] in ("clean", "dirty"):
         tree["moved"] = move_reports(main, tree["path"])
         # The work reports are ignored files, which git worktree remove deletes without --force. Uncommitted and
@@ -340,4 +351,4 @@ def cleanup():
 {"list": list_projects, "check": check, "run": cleanup}[SUB]()
 PY
 
-exec python3 -c "$PY" "$PROJECT_SH" "$WORKTREE_SH" "$@"
+exec python3 -c "$PY" "$PROJECT_SH" "$WORKTREE_SH" "$PANEL_SH" "$@"

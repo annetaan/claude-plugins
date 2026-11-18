@@ -5,13 +5,16 @@
 # Run: bash tests/old-reports.sh   (exit 0 is success, anything else is failure)
 # Runs offline: the worktree.sh clone has no remote, and the worktree is detached, so worktree.sh calls neither gh nor
 # origin. The cleanup.sh clone has a bare origin in the temp dir and a fake project.sh.
-# WORKTREE_SH=<path> tests another copy of worktree.sh, CLEANUP_SH=<path> another copy of cleanup.sh.
+# WORKTREE_SH=<path> tests another copy of worktree.sh, CLEANUP_SH=<path> another copy of cleanup.sh, PANEL_SH=<path>
+# another copy of panel.sh, which cleanup.sh calls to remove the review seats.
 set -euo pipefail
 
 SCRIPT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)/plugins/annetaan/skills/workflow/scripts/worktree.sh"
 SCRIPT="${WORKTREE_SH:-$SCRIPT}"
 CLEANUP_SRC="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)/plugins/annetaan/skills/pj-cleanup/scripts/cleanup.sh"
 CLEANUP_SRC="${CLEANUP_SH:-$CLEANUP_SRC}"
+PANEL_SRC="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)/plugins/annetaan/skills/workflow/scripts/panel.sh"
+PANEL_SRC="${PANEL_SH:-$PANEL_SRC}"
 
 TMP="$(mktemp -d)"
 trap 'chmod -R u+rwx "$TMP" 2>/dev/null || true; rm -rf "$TMP"' EXIT
@@ -80,11 +83,12 @@ setup_pj() {
   mkdir -p "$TMP/pj/skills/pj-cleanup/scripts" "$TMP/pj/skills/workflow/scripts" "$TMP/pj/skills/pj1-plan/scripts"
   cp "$CLEANUP_SRC" "$TMP/pj/skills/pj-cleanup/scripts/cleanup.sh"
   cp "$SCRIPT" "$TMP/pj/skills/workflow/scripts/worktree.sh"
+  cp "$PANEL_SRC" "$TMP/pj/skills/workflow/scripts/panel.sh"
   cat > "$TMP/pj/skills/pj1-plan/scripts/project.sh" <<'FAKE'
 #!/usr/bin/env bash
 echo '{"parent":{"number":1,"title":"P","state":"CLOSED","base":"pj/1","from":"main","merged":true}}'
 FAKE
-  chmod +x "$TMP/pj/skills/pj-cleanup/scripts/cleanup.sh" "$TMP/pj/skills/workflow/scripts/worktree.sh" \
+  chmod +x "$TMP/pj/skills/pj-cleanup/scripts/cleanup.sh" "$TMP/pj/skills/workflow/scripts/worktree.sh" "$TMP/pj/skills/workflow/scripts/panel.sh" \
            "$TMP/pj/skills/pj1-plan/scripts/project.sh"
   CLEANUP="$TMP/pj/skills/pj-cleanup/scripts/cleanup.sh"
   git init -q --bare "$TMP/pj/origin.git"

@@ -7,13 +7,16 @@
 # Runs offline: the worktree.sh cases use a clone with no remote, the cleanup.sh cases a bare temp origin, and the
 # worktree is detached, so neither script calls gh. cleanup.sh gets a fake project.sh.
 # The submodule is a second temp repository added by path.
-# WORKTREE_SH=<path> and CLEANUP_SH=<path> test other copies of the scripts.
+# The cleanup cases also open the review seats with panel.sh and check that the cleanup removes them.
+# WORKTREE_SH=<path>, CLEANUP_SH=<path> and PANEL_SH=<path> test other copies of the scripts.
 set -euo pipefail
 
 SCRIPT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)/plugins/annetaan/skills/workflow/scripts/worktree.sh"
 SCRIPT="${WORKTREE_SH:-$SCRIPT}"
 CLEANUP_SRC="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)/plugins/annetaan/skills/pj-cleanup/scripts/cleanup.sh"
 CLEANUP_SRC="${CLEANUP_SH:-$CLEANUP_SRC}"
+PANEL_SRC="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)/plugins/annetaan/skills/workflow/scripts/panel.sh"
+PANEL_SRC="${PANEL_SH:-$PANEL_SRC}"
 
 TMP="$(mktemp -d)"
 trap 'chmod -R u+rwx "$TMP" 2>/dev/null || true; rm -rf "$TMP"' EXIT
@@ -68,11 +71,12 @@ setup_pj() {
   mkdir -p "$TMP/pj/skills/pj-cleanup/scripts" "$TMP/pj/skills/workflow/scripts" "$TMP/pj/skills/pj1-plan/scripts"
   cp "$CLEANUP_SRC" "$TMP/pj/skills/pj-cleanup/scripts/cleanup.sh"
   cp "$SCRIPT" "$TMP/pj/skills/workflow/scripts/worktree.sh"
+  cp "$PANEL_SRC" "$TMP/pj/skills/workflow/scripts/panel.sh"
   cat > "$TMP/pj/skills/pj1-plan/scripts/project.sh" <<'FAKE'
 #!/usr/bin/env bash
 echo '{"parent":{"number":1,"title":"P","state":"CLOSED","base":"pj/1","from":"main","merged":true}}'
 FAKE
-  chmod +x "$TMP/pj/skills/pj-cleanup/scripts/cleanup.sh" "$TMP/pj/skills/workflow/scripts/worktree.sh" \
+  chmod +x "$TMP/pj/skills/pj-cleanup/scripts/cleanup.sh" "$TMP/pj/skills/workflow/scripts/worktree.sh" "$TMP/pj/skills/workflow/scripts/panel.sh" \
            "$TMP/pj/skills/pj1-plan/scripts/project.sh"
   CLEANUP="$TMP/pj/skills/pj-cleanup/scripts/cleanup.sh"
   git init -q "$TMP/subsrc"
@@ -108,7 +112,26 @@ commit_in_sub() {
   git -C "$WT" commit -q -m bump
 }
 
+seats_gone() {
+  local s
+  for s in a b; do
+    exists "$MAIN/.claude/worktrees/review-$1-$s" && return 1
+    exists "$MAIN/.git/worktrees/review-$1-$s" && return 1
+  done
+  return 0
+}
+
 gone() { ! exists "$WT" && ! exists "$MAIN/.git/worktrees/${1:-wf-test}"; }
+
+setup init
+"$PANEL_SRC" open "$WT" > /dev/null
+echo repro > "$MAIN/.claude/worktrees/review-wf-test-a/repro.sh"
+out="$("$SCRIPT" cleanup wf-test)"
+[ "$(echo "$out" | json 'd["status"]')" = done ] || fail "seats cleanup status: $out"
+[ "$(echo "$out" | json 'd["errors"]')" = "[]" ] || fail "seats cleanup errors: $out"
+gone || fail "seats cleanup left the worktree"
+seats_gone wf-test || fail "worktree.sh cleanup left a seat"
+echo "ok: worktree.sh cleanup removes the seats beside a worktree with a submodule"
 
 setup init
 out="$("$SCRIPT" check wf-test)"
@@ -212,3 +235,16 @@ out="$("$CLEANUP" run 1 --discard)"
 [ "$(echo "$out" | json 'd["status"]')" = done ] || fail "pj discard status: $out"
 gone pj-1 || fail "pj discard left the worktree"
 echo "ok: cleanup.sh run --discard removes a worktree whose submodule holds work"
+
+setup_pj init
+"$PANEL_SRC" open "$WT" > /dev/null
+echo repro > "$MAIN/.claude/worktrees/review-pj-1-b/repro.sh"
+before="$("$CLEANUP" check 1)"
+[ "$(echo "$before" | json 'd["status"]')" = ok ] || fail "pj seats check status: $before"
+[ "$(echo "$before" | json 'd["loses"]')" = "[]" ] || fail "pj seats check loses: $before"
+out="$("$CLEANUP" run 1)"
+[ "$(echo "$out" | json 'd["status"]')" = done ] || fail "pj seats run status: $out"
+[ "$(echo "$out" | json 'd["errors"]')" = "[]" ] || fail "pj seats run errors: $out"
+gone pj-1 || fail "pj seats run left the worktree"
+seats_gone pj-1 || fail "cleanup.sh run left a seat"
+echo "ok: cleanup.sh run removes the seats beside a worktree with a submodule"
