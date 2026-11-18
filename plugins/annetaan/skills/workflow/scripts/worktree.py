@@ -18,20 +18,16 @@ def die(msg):
     sys.exit(1)
 
 def git(where, *args):
-    """Run git in where, and die when it fails."""
     r = run("git", "-C", where, *args)
     if r.returncode != 0:
         die("git %s failed: %s" % (" ".join(args), r.stderr.strip()))
     return r.stdout
 
 def fetch(main, base):
-    """Move origin/<base> in main and nothing else. The explicit refspec works in a single-branch clone too."""
     return run("git", "-C", main, "fetch", "--quiet", "origin",
                "+refs/heads/%s:refs/remotes/origin/%s" % (base, base)).returncode == 0
 
 def worktrees(main):
-    """The worktrees of the clone as [(path, prunable, branch)]. branch is None on a detached HEAD.
-    The first one is the main working tree."""
     out = []
     for block in git(main, "worktree", "list", "--porcelain").split("\n\n"):
         lines = block.splitlines()
@@ -42,7 +38,6 @@ def worktrees(main):
     return out
 
 def locate():
-    """The main working tree, the path on the first worktree line. None outside a clone."""
     r = run("git", "worktree", "list", "--porcelain")
     if r.returncode != 0:
         return None
@@ -58,7 +53,6 @@ def located():
     return main
 
 def listed(main, wt):
-    """None when wt is no worktree of the clone, otherwise whether it is prunable."""
     real = os.path.realpath(wt)
     for path, prunable, _ in worktrees(main):
         if os.path.realpath(path) == real:
@@ -66,7 +60,6 @@ def listed(main, wt):
     return None
 
 def checked_out_in(main, branch):
-    """The path of the worktree that has branch checked out, or None."""
     for path, _, head in worktrees(main):
         if head == branch:
             return path
@@ -82,12 +75,9 @@ def sha(main, ref):
     return git(main, "rev-parse", ref).strip()
 
 def contains(main, ancestor, ref):
-    """Whether ref contains ancestor."""
     return run("git", "-C", main, "merge-base", "--is-ancestor", ancestor, ref).returncode == 0
 
 def head_contains(main, tip, pr):
-    """Whether the pull request's head contains tip. The head can have moved on GitHub after the run pushed, so
-    the clone may lack it: fetch the object GitHub keeps for every pull request, and stop when that fails."""
     head = pr["headSha"]
     if run("git", "-C", main, "cat-file", "-e", head + "^{commit}").returncode != 0:
         r = run("git", "-C", main, "fetch", "--quiet", "origin", "refs/pull/%d/head" % pr["number"])
@@ -96,14 +86,12 @@ def head_contains(main, tip, pr):
     return contains(main, tip, head)
 
 def on_origin(main, branch):
-    """Whether origin has branch, or None when origin cannot be read."""
     r = run("git", "-C", main, "ls-remote", "--exit-code", "--heads", "origin", "refs/heads/" + branch)
     if r.returncode == 0:
         return True
     return False if r.returncode == 2 else None
 
 def reports(wt):
-    """The work report directories in the worktree."""
     root = os.path.join(wt, "work-reports")
     if not os.path.isdir(root):
         return []
@@ -112,8 +100,6 @@ def reports(wt):
 REPORT_DAYS = 14
 
 def old_reports(main):
-    """The names of the work reports in <main>/work-reports/ that arrived REPORT_DAYS days ago or more, sorted.
-    A report is a real directory whose name starts with a timestamp. Its own mtime is the clock."""
     root = os.path.join(main, "work-reports")
     if not os.path.isdir(root):
         return []
@@ -130,7 +116,6 @@ def old_reports(main):
     return sorted(found)
 
 def delete_reports(main, names, errors):
-    """Remove each named report from <main>/work-reports/. A failure goes into errors and the rest go on."""
     deleted = []
     for n in names:
         try:
@@ -154,7 +139,6 @@ def wt_root(main):
     return os.path.join(main, ".claude/worktrees")
 
 def wf_names(main):
-    """The names of the wf-* worktrees of the clone, prunable ones included, sorted."""
     root = os.path.realpath(wt_root(main))
     found = []
     for path, _, _ in worktrees(main)[1:]:
@@ -164,15 +148,11 @@ def wf_names(main):
     return sorted(found)
 
 def resolve(main, name):
-    """The path of the wf worktree called name, or a stop when the clone has none."""
     if not re.fullmatch(r"wf-[A-Za-z0-9._-]+", name) or name not in wf_names(main):
         stop("unknown", "%s is no wf-* worktree of this clone" % name)
     return os.path.join(wt_root(main), name)
 
 def submodules(wt):
-    """The initialized submodules of wt, at any depth, that hold something of their own: [{path, changes, commits}].
-    A submodule holds something when its working tree has changes, or when a branch, HEAD or the stash has a commit
-    that no ref of its own remote and no tag reaches. A submodule that holds nothing is not listed."""
     r = run("git", "-C", wt, "submodule", "--quiet", "foreach", "--recursive", "echo $displaypath")
     if r.returncode != 0:
         die("git submodule foreach failed: %s" % r.stderr.strip())
@@ -187,15 +167,12 @@ def submodules(wt):
     return found
 
 def has_submodules(wt):
-    """Whether git sees submodules in wt: a gitlink in the index, or a modules directory in the worktree's git dir.
-    git worktree remove refuses either one without --force."""
     if any(l.startswith("160000 ") for l in git(wt, "ls-files", "--stage").splitlines()):
         return True
     gitdir = git(wt, "rev-parse", "--absolute-git-dir").strip()
     return os.path.isdir(os.path.join(gitdir, "modules"))
 
 def pull_request(main, branch):
-    """The pull request of branch as (pr, error): open wins, else the highest number. (None, None) when it has none."""
     r = run("gh", "pr", "list", "--head", branch, "--state", "all", "--json",
             "number,state,url,title,baseRefName,headRefOid", cwd=main)
     if r.returncode != 0:
@@ -256,8 +233,6 @@ def ignore():
     main = located()
     wt = resolve(main, ARGS[0])
     def missing():
-        # The trailing slashes stay: a pattern that ends in / matches only a directory, and work-reports/ may not
-        # exist yet.
         return [path for where, path in ((main, ".claude/worktrees/"), (wt, "work-reports/"))
                 if run("git", "-C", where, "check-ignore", "-q", path).returncode != 0]
     not_ignored = missing()
@@ -265,7 +240,6 @@ def ignore():
         emit(status="ok", notIgnored=[], added=[])
     if "--add" not in ARGS:
         emit(status="ask", notIgnored=not_ignored)
-    # The exclude file git resolves. Every worktree of a clone shares it, so a line written here holds in main too.
     exclude = git(wt, "rev-parse", "--path-format=absolute", "--git-path", "info/exclude").strip()
     os.makedirs(os.path.dirname(exclude), exist_ok=True)
     text = open(exclude).read() if os.path.exists(exclude) else ""
@@ -298,7 +272,6 @@ def list_runs():
     emit(status="ok", main=main, worktrees=runs)
 
 def plan(name):
-    """Everything check prints and cleanup acts on. Returns (main, out)."""
     main = located()
     wt = resolve(main, name)
     prunable = listed(main, wt)
@@ -343,7 +316,6 @@ def plan(name):
         if state == "closed":
             loses.append("commits")
         elif state == "no-pr" and tip:
-            # cleanup deletes origin/<branch>, so a commit counts as kept only when another remote ref holds the tip.
             held = run("git", "-C", main, "for-each-ref", "--format=%(refname)", "--contains", tip,
                        "refs/remotes/origin").stdout.split()
             if not [h for h in held if h != "refs/remotes/origin/" + branch]:
@@ -378,7 +350,6 @@ def check():
     emit(status="ok", **out)
 
 def move_reports(main, wt, name):
-    """Move each work report out of wt into <main>/work-reports/. A name taken there gets -<name> on the end."""
     moved = []
     dest_root = os.path.join(main, "work-reports")
     for report in reports(wt):
@@ -407,10 +378,6 @@ def cleanup():
         tree["action"] = "pruned"
     else:
         tree["moved"] = move_reports(main, tree["path"], name)
-        # The work reports are ignored files, which git worktree remove deletes without --force. Uncommitted and
-        # untracked files need it, and --discard is the user's word for that. git also refuses a worktree with
-        # submodules outright, whatever its state, so plan() is the check there and --force is passed without
-        # the user's word.
         force = ["--force"] if (discard and tree["state"] == "dirty") or tree["hasSubmodules"] else []
         git(main, "worktree", "remove", *force, tree["path"])
         tree["action"] = "removed"
@@ -435,7 +402,6 @@ def cleanup():
     if update["action"] == "fast-forward":
         base = out["base"]
         if update["worktree"]:
-            # merge --ff-only refuses, and changes nothing, when it would overwrite a local change.
             r = run("git", "-C", update["worktree"], "merge", "--ff-only", "--quiet", "origin/" + base)
         else:
             r = run("git", "-C", main, "update-ref", "refs/heads/" + base, update["to"], update["from"])
@@ -478,13 +444,11 @@ def sync():
     incoming = "refs/remotes/origin/" + base
     if contains(wt, incoming, "HEAD"):
         emit(status="current", sha=head, **out)
-    # merge-tree merges in memory and touches neither the index nor the working tree: exit 0 is clean, 1 conflicts.
     r = run("git", "-C", wt, "merge-tree", "--write-tree", "--name-only", "HEAD", incoming)
     if r.returncode not in (0, 1):
         die("git merge-tree failed: %s" % r.stderr.strip())
     behind = int(git(wt, "rev-list", "--count", "HEAD.." + incoming).strip())
     if r.returncode == 0:
-        # A clean merge is left to GitHub. The branch gets no merge commit it does not need.
         emit(status="clean", sha=head, behind=behind, **out)
     r = run("git", "-C", wt, "merge", "--no-ff", "origin/" + base)
     files = git(wt, "diff", "--name-only", "--diff-filter=U").splitlines()

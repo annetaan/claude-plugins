@@ -3,7 +3,6 @@ import assert from 'node:assert/strict';
 import { lintStory } from '../src/lint.js';
 import { FRONT, scene, timelineOf } from './helpers.js';
 
-// 120 bpm: a beat is 0.5 s and a bar is 2 s.
 const lint = (text, opts) => lintStory(timelineOf(FRONT + text), opts);
 const has = (list, code) => list.some((x) => x.code === code);
 

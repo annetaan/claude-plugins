@@ -1,23 +1,4 @@
 #!/usr/bin/env bash
-# Reads one project (a parent issue and its sub-issues) from GitHub and prints it as JSON.
-# Read-only on GitHub. --check also fetches the branch the base was made from, and the base branch once it exists,
-# with `git fetch origin`, which moves local refs only.
-# It reads the projects a project waits on from the parent's own blocked-by (waitsOn), and the projects that wait on
-# it from what the parent blocks (waitedOnBy). It derives whether its base branch exists on origin (baseExists),
-# whether a project is merged into the branch it was made from, and whether a project with no sub-issue can be split
-# into tasks now (startable).
-# The shape it reads is described in ../format.md.
-# This script is the only place that parses a sub-issue body (## Design with its ### Left broken subsection,
-# ## Acceptance criteria, ## Decisions),
-# the parent's Base: line (the base branch and the branch it was made from), its Roadmap: line (the roadmap file and
-# the entry heading, on the one parent that carries the initiative) and its ## Order list, and the Implements
-# head of a pull request.
-# --next reads only too: it names what to run next on the project, with a fingerprint of the state it was read from.
-# It also derives the title a sub-issue should carry, with its decision count (wantedTitle).
-# --order-body prints the parent's body as GitHub has it, with its ## Order list replaced by the one --order writes.
-# --same-words tells whether two bodies differ in backticks and whitespace only, and touches neither GitHub nor git.
-# --roadmap checks the repository's roadmap file against the format in ../format.md, in the working tree or at a ref.
-# It is the only place that parses the roadmap file.
 set -euo pipefail
 
 die() { echo "project: $*" >&2; exit 1; }
@@ -106,7 +87,6 @@ case "$REPO" in */*) ;; *) die "the repository must read <owner/repo>: $REPO" ;;
 TMP="$(mktemp -d)"
 trap 'rm -rf "$TMP"' EXIT
 
-# One GraphQL query for the parent and every sub-issue.
 gh api graphql -F owner="${REPO%%/*}" -F name="${REPO#*/}" -F n="$PARENT" -f query='
 query($owner: String!, $name: String!, $n: Int!) {
   repository(owner: $owner, name: $name) {

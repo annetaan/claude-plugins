@@ -1,4 +1,3 @@
-// Content hashes for the cut cache. A cut's key depends only on what changes its pixels, never on where it sits.
 import fs from 'node:fs';
 import path from 'node:path';
 import { createHash } from 'node:crypto';
@@ -10,7 +9,6 @@ export const QUALITIES = {
 
 export const sha = (data) => createHash('sha256').update(data).digest('hex');
 
-// Sorted-key JSON, so the same value always hashes the same.
 export function stable(v) {
   if (Array.isArray(v)) return `[${v.map(stable).join(',')}]`;
   if (v !== null && typeof v === 'object') {
@@ -19,7 +17,6 @@ export function stable(v) {
   return JSON.stringify(v) ?? 'null';
 }
 
-// Package version plus a hash of everything under src/page/.
 export function rendererVersion(rendererDir) {
   const pkg = JSON.parse(fs.readFileSync(path.join(rendererDir, 'package.json'), 'utf8'));
   const pageDir = path.join(rendererDir, 'src', 'page');
@@ -41,7 +38,6 @@ export function fileHash(absPath) {
   }
 }
 
-// Left out on purpose: id, start, end, in, out and scene info.
 export function cutKey(cut, { timeline, quality, storyDir, version }) {
   const refs = cut.refs.map((rel) => [rel, fileHash(path.resolve(storyDir, rel))]);
   return sha(

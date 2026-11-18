@@ -1,4 +1,3 @@
-// The build/ layout of one story directory. build/ is fully derived.
 import fs from 'node:fs';
 import path from 'node:path';
 
@@ -20,8 +19,6 @@ export function paths(storyDir, quality) {
 
 export const cutFile = (cutsDir, key) => path.join(cutsDir, `${key.slice(0, 12)}.mp4`);
 
-// Deletes every file in cutsDir that is not in keepFiles (absolute paths), empties pagesDir, and removes the
-// directories of videoFramesDir that are not in keepFrameDirs. Call it only after a render in which every cut succeeded.
 export function prune(cutsDir, keepFiles, pagesDir, videoFramesDir, keepFrameDirs = []) {
   const keep = new Set(keepFiles);
   if (fs.existsSync(cutsDir)) {
@@ -42,7 +39,6 @@ export function prune(cutsDir, keepFiles, pagesDir, videoFramesDir, keepFrameDir
   }
 }
 
-// Removes build/ whole; out.mp4, music.js and assets/ stay.
 export function clean(storyDir) {
   fs.rmSync(path.join(storyDir, 'build'), { recursive: true, force: true });
 }

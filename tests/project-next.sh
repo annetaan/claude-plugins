@@ -1,13 +1,4 @@
 #!/usr/bin/env bash
-# Test: --next reads the state a pj4-running stop leaves on GitHub. A `decision` stop leaves an open decision in the
-# issue body and no `ready` label, so the project goes to the user, and after the box is ticked to the doctor. A
-# `detail` stop leaves `blocker`, so the project goes to the doctor.
-#
-# Run: bash tests/project-next.sh   (exit 0 is success, anything else is failure)
-# Runs offline: a fake `gh` answers the GitHub queries from a JSON file each case writes, and the "remote" is a bare
-# repository in a temp dir. The fake is the one of tests/project-breakage.sh, with the parent's ## Order, an issue's
-# labels and its decisions set by the case.
-# PROJECT_SH=<path> tests another copy of project.sh.
 set -euo pipefail
 
 SCRIPT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)/plugins/annetaan/skills/pj1-plan/scripts/project.sh"
@@ -16,7 +7,6 @@ SCRIPT="${PROJECT_SH:-$SCRIPT}"
 TMP="$(mktemp -d)"
 trap 'rm -rf "$TMP"' EXIT
 
-# Cut off the user's git configuration (signing, hooks, templates).
 export HOME="$TMP/home"
 mkdir -p "$HOME"
 export GIT_CONFIG_NOSYSTEM=1
@@ -25,7 +15,6 @@ export GIT_COMMITTER_NAME=t GIT_COMMITTER_EMAIL=t@example.com
 
 fail() { echo "FAIL: $*" >&2; exit 1; }
 
-# A clone with one source file and a pj/1 branch on origin.
 cd "$TMP"
 git init -q -b main work
 git init -q --bare origin.git
@@ -39,8 +28,6 @@ git init -q --bare origin.git
   git push -q origin main main:refs/heads/pj/1
 )
 
-# A fake gh. The sub-issues of the project are read from the file named by ISSUES_JSON, the parent's body from
-# PARENT_BODY.
 mkdir bin
 cat > bin/gh <<'PYEOF'
 #!/usr/bin/env python3
@@ -74,7 +61,6 @@ export PATH="$TMP/bin:$PATH"
 export ISSUES_JSON="$TMP/issues.json"
 export PARENT_BODY="$TMP/parent.md"
 
-# project <order of issue numbers...>: the parent's body, with the numbers under ## Order.
 project() {
   {
     printf 'Base: `pj/1` from `main`\n\n## Goal\n\nx\n\n## Order\n\n'
@@ -83,8 +69,6 @@ project() {
   } > "$PARENT_BODY"
 }
 
-# issue <number> <labels, comma-separated, or none> <decision: none, open or ticked> [<blocker numbers>...]
-# Appends one sub-issue to $TMP/issues.list. The body is complete for its day apart from the decision the case sets.
 issue() {
   local number="$1" labels="$2" decision="$3"
   shift 3
@@ -107,7 +91,6 @@ print(json.dumps({"number": number, "title": "Task %d" % number, "state": "OPEN"
 PY
 }
 
-# flush: $TMP/issues.list, one object per line, becomes the JSON array the fake reads.
 flush() {
   python3 -c 'import json, sys; print(json.dumps([json.loads(l) for l in sys.stdin if l.strip()]))' \
     < "$TMP/issues.list" > "$ISSUES_JSON"
@@ -115,13 +98,10 @@ flush() {
 }
 
 next() { bash "$SCRIPT" -R test/repo 1 --next; }
-# assert <json> <python expression over d> <what>
 assert() { printf '%s' "$1" | python3 -c "import json, sys; d = json.load(sys.stdin); assert $2, d" || fail "$3: $1"; }
 
 cd "$TMP/work"
 
-# Case 1: the `decision` stop. The first issue has one open decision and no `ready`: the user ticks it. With the box
-# ticked and no `ready`, the doctor is next.
 project 2 3
 issue 2 none open
 issue 3 ready none 2
@@ -134,7 +114,6 @@ flush
 assert "$(next)" 'd["next"] == "doctor" and d["why"] == "not-ready" and d["issue"] == 2' "the box ticked"
 echo "ok: an issue stopped on a decision goes to the user, then to the doctor"
 
-# Case 2: the `detail` stop. `ready` is off and `blocker` is on, so the doctor comes first.
 project 2 3
 issue 2 blocker none
 issue 3 ready none 2
@@ -142,7 +121,6 @@ flush
 assert "$(next)" 'd["next"] == "doctor" and d["why"] == "blocker" and d["issue"] == 2' "a detail stop"
 echo "ok: an issue stopped on a detail goes to the doctor"
 
-# Case 3: a ready issue with no decision and no open blocker is workable, with no `--check` asked.
 project 2 3
 issue 2 ready none
 issue 3 ready none 2

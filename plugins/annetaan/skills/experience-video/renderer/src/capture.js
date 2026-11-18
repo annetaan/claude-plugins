@@ -1,4 +1,3 @@
-// Draws one cut in a headless browser, frame by frame, and pipes the frames into ffmpeg.
 import fs from 'node:fs';
 import path from 'node:path';
 import { spawn } from 'node:child_process';
@@ -6,7 +5,6 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 
 const PAGE_DIR = path.join(path.dirname(fileURLToPath(import.meta.url)), 'page');
 
-// story: true marks a finding about the story's own files (a fragment, a picture, a clip): exit 1, not 2.
 export class CaptureError extends Error {
   constructor(code, cutId, message, story = false) {
     super(message);
@@ -18,15 +16,12 @@ export class CaptureError extends Error {
 
 const read = (f) => fs.readFileSync(path.join(PAGE_DIR, f), 'utf8');
 
-// The fragment of a custom or screen cut: its html, or the content of its src.
 function fragmentOf(cut, storyDir) {
   if (typeof cut.props.html === 'string') return cut.props.html;
   if (typeof cut.props.src === 'string') return fs.readFileSync(path.resolve(storyDir, cut.props.src), 'utf8');
   return '';
 }
 
-// What the page needs from outside: the image's file URL, or the extracted frames of a video.
-// assets: { video: { dir, count, fps } | null }
 function assetOf(cut, storyDir, assets) {
   if (cut.part === 'image' && typeof cut.props.src === 'string') {
     const file = path.resolve(storyDir, cut.props.src);
@@ -47,7 +42,6 @@ function stageOf(cut, storyDir) {
   return '';
 }
 
-// Fills stage.html for one cut, writes build/pages/<hash12>.html and returns its file URL.
 export function buildPage(cut, timeline, pagesDir, key, storyDir, assets = {}) {
   const payload = {
     cut: { part: cut.part, duration: cut.duration, tail: cut.tail, marks: cut.marks, telops: cut.telops, props: cut.props },
@@ -59,12 +53,9 @@ export function buildPage(cut, timeline, pagesDir, key, storyDir, assets = {}) {
     bar: timeline.bar,
     asset: assetOf(cut, storyDir, assets),
   };
-  // "<" is escaped so no text can close the script element.
   const json = JSON.stringify(payload).replace(/</g, '\\u003c').replace(/[\u2028\u2029]/g, (c) => `\\u${c.charCodeAt(0).toString(16)}`);
-  // One pass over the template, so text inserted for one slot (a fragment) is never read as another slot.
   const slots = {
     LANG: () => String(timeline.language).replace(/[^A-Za-z0-9-]/g, ''),
-    // Relative paths in a fragment resolve against the story's directory, not build/pages/.
     BASE: () => pathToFileURL(path.resolve(storyDir) + path.sep).href.replace(/"/g, '%22'),
     CSS: () => read('stage.css'),
     CUT_JSON: () => json,
@@ -83,13 +74,10 @@ export function openBrowser(deps) {
   return deps.playwright.chromium.launch();
 }
 
-// A page may load only local files, data, blob and about URLs. Takes a URL object.
 export const isBlockedUrl = (u) => !['file:', 'data:', 'blob:', 'about:'].includes(u.protocol);
 
 export const frameCount = (cut, captureFps) => Math.ceil((cut.duration + cut.tail) * captureFps - 1e-9) + 1;
 
-// Runs in the page before any page script. Replaces every clock a fragment could animate with: each call is
-// recorded in window.__evViolations and does nothing.
 export function clockGuard() {
   const violations = (window.__evViolations = []);
   const note = (name) => violations.push(name);
@@ -112,15 +100,11 @@ export function clockGuard() {
 
 const isFragmentCut = (cut) => cut.part === 'custom' || cut.part === 'screen';
 
-// Throws the finding that explains what went wrong, if any: a fragment that broke a rule, a picture that would not
-// decode, a page error. `err` is an error already caught (a rejected ready or seek); with none, only the rules and
-// the page errors are looked at.
 async function verify({ cut, page, problems, requests }, err) {
   let names = [];
   try {
     names = await page.evaluate(() => window.__evViolations ?? []);
   } catch {
-    // the page is gone; go on with what is known
   }
   if (names.length > 0) {
     throw new CaptureError('fragment-clock', cut.id, `cut ${cut.id}: the fragment used the clock (${[...new Set(names)].join(', ')}); animate with CSS animations or window.renderAt(t)`, true);
@@ -144,7 +128,6 @@ async function openPage(browser, cut, timeline, scale, url) {
   try {
     await context.addInitScript(clockGuard);
     const requests = [];
-    // Everything that is not a file, data, blob or about request is recorded and refused. File requests are not routed.
     await context.route(
       isBlockedUrl,
       (route) => {
@@ -171,7 +154,6 @@ async function openPage(browser, cut, timeline, scale, url) {
   }
 }
 
-// One seek; whatever it throws is explained by verify.
 async function seekTo(guard, t) {
   try {
     await guard.page.evaluate((x) => window.__ev.seek(x), t);
@@ -181,7 +163,6 @@ async function seekTo(guard, t) {
   }
 }
 
-// captureCut -> writes outFile (an mp4 of duration + tail at captureFps).
 export async function captureCut({ browser, cut, timeline, quality, url, outFile }) {
   const captureFps = timeline.fps / quality.fpsDivisor;
   const frames = frameCount(cut, captureFps);
@@ -196,7 +177,7 @@ export async function captureCut({ browser, cut, timeline, quality, url, outFile
   let stderr = '';
   ff.stderr.on('data', (d) => (stderr += d));
   const exited = new Promise((resolve) => ff.on('close', resolve));
-  ff.stdin.on('error', () => {}); // a dead ffmpeg is reported through its exit code
+  ff.stdin.on('error', () => {});
   try {
     for (let k = 0; k < frames; k++) {
       await seekTo(guard, k / captureFps);
@@ -218,9 +199,6 @@ export async function captureCut({ browser, cut, timeline, quality, url, outFile
   }
 }
 
-// shootCut -> one PNG per shot, taken from one page, and the measurement of each frame.
-// shots: [{ t, outFile }] with t cut-relative. measure runs in the page after each seek. Returns the measurements
-// in shot order. The files appear only when the cut ran clean, as in snapshotCut.
 export async function shootCut({ browser, cut, timeline, scale, url, shots, measure, arg }) {
   const { context, page, guard } = await openPage(browser, cut, timeline, scale, url);
   const tmps = shots.map((s) => `${s.outFile}.part.png`);
@@ -243,7 +221,6 @@ export async function shootCut({ browser, cut, timeline, scale, url, shots, meas
   }
 }
 
-// snapshotCut -> writes one PNG of the cut at cut-relative time t.
 export async function snapshotCut({ browser, cut, timeline, scale, url, t, outFile }) {
   fs.mkdirSync(path.dirname(outFile), { recursive: true });
   const { context, page, guard } = await openPage(browser, cut, timeline, scale, url);

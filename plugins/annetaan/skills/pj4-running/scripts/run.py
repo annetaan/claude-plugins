@@ -18,15 +18,12 @@ def die(msg):
     sys.exit(1)
 
 def git(where, *args):
-    """Run git in where, and die when it fails."""
     r = run("git", "-C", where, *args)
     if r.returncode != 0:
         die("git %s failed: %s" % (" ".join(args), r.stderr.strip()))
     return r.stdout
 
 def locate(p):
-    """(main, wt): the main working tree, the path on the first worktree line, and the run's worktree under it.
-    None outside a clone."""
     r = run("git", "worktree", "list", "--porcelain")
     if r.returncode != 0:
         return None
@@ -49,7 +46,6 @@ def project(p, **extra):
     return json.loads(r.stdout)
 
 def read_project(p):
-    """project.sh <p>, parsed, or None when it fails."""
     r = run(PROJECT_SH, str(p))
     return json.loads(r.stdout) if r.returncode == 0 else None
 
@@ -61,12 +57,10 @@ def repo_view():
     return json.loads(r.stdout)
 
 def fetch(main, base):
-    """Move origin/<base> in main and nothing else. The explicit refspec works in a single-branch clone too."""
     return run("git", "-C", main, "fetch", "--quiet", "origin",
                "+refs/heads/%s:refs/remotes/origin/%s" % (base, base)).returncode == 0
 
 def api_json(*args):
-    """gh api, parsed. None when the call fails."""
     r = run("gh", "api", *args)
     if r.returncode != 0:
         return None
@@ -80,8 +74,6 @@ CLASSIC_QUERY = ("query($owner: String!, $name: String!, $q: String!) { reposito
                  "requiresCodeOwnerReviews requiresStatusChecks } } } }")
 
 def rules(repo, base, view, main):
-    """Whether pj4-running can merge its own pull requests into base, whether base requires status checks, and the
-    merge method to use."""
     owner, name = repo.split("/", 1)
     ruleset = api_json("repos/%s/rules/branches/%s" % (repo, base))
     rules_read = isinstance(ruleset, list)
@@ -133,7 +125,6 @@ def rules(repo, base, view, main):
             "mergeMethod": methods[0] if methods else None}
 
 def due(proj, n):
-    """Whether #n may be closed now: due, already (closed), not-due, or unknown (not in the project)."""
     parent = proj["parent"]
     if n == parent["number"]:
         return "already" if parent["state"] == "CLOSED" else "due" if parent["merged"] else "not-due"
@@ -148,7 +139,6 @@ def due(proj, n):
     return "unknown"
 
 def close_issue(n, comment_file):
-    """Comment on #n, then close it as completed. None, or the step that failed with its message."""
     r = run("gh", "issue", "comment", str(n), "--body-file", comment_file)
     if r.returncode != 0:
         return {"step": "comment", "message": r.stderr.strip()}
@@ -158,8 +148,6 @@ def close_issue(n, comment_file):
     return None
 
 def startable_after(n, proj):
-    """The projects that wait on #n and can be split now, as [{number, title}]: parent.startable from project.sh.
-    A project project.sh cannot read is skipped."""
     source = proj if n == P else read_project(n)
     if source is None:
         return []
@@ -171,7 +159,6 @@ def startable_after(n, proj):
     return sorted(found, key=lambda e: e["number"])
 
 def worktrees(main):
-    """The worktrees of the clone as [(path, prunable, branch)]. branch is None on a detached HEAD."""
     out = []
     for block in git(main, "worktree", "list", "--porcelain").split("\n\n"):
         lines = block.splitlines()
@@ -182,7 +169,6 @@ def worktrees(main):
     return out
 
 def listed(main, wt):
-    """None when wt is no worktree of the clone, otherwise whether it is prunable."""
     real = os.path.realpath(wt)
     for path, prunable, _ in worktrees(main):
         if os.path.realpath(path) == real:
@@ -190,7 +176,6 @@ def listed(main, wt):
     return None
 
 def checked_out_in(main, branch):
-    """The path of the worktree that has branch checked out, or None."""
     for path, _, head in worktrees(main):
         if head == branch:
             return path
@@ -199,22 +184,13 @@ def checked_out_in(main, branch):
 def has_branch(where, branch):
     return run("git", "-C", where, "rev-parse", "--verify", "--quiet", "refs/heads/" + branch).returncode == 0
 
-# gh pr checks exits 1 with one of these when it read the pull request and found nothing to report: no check at all on
-# the head commit, or checks but none required. Both strings come from gh's populateStatusChecks
-# (pkg/cmd/pr/checks/checks.go). The first does not contain the second.
 NO_CHECKS = "no checks reported on the"
 NO_REQUIRED = "no required checks reported on the"
 
 def nothing_required(text):
-    """Whether gh's output says it found no required check, as opposed to failing to read the checks."""
     return NO_CHECKS in text or NO_REQUIRED in text
 
 def registered(m):
-    """How many required checks have registered on #m, as a pair (n, error) in which exactly one side is None.
-
-    (n, None) when gh read the pull request: n is the number of required checks, 0 when gh says there is none.
-    (None, error) when gh failed for any other reason or printed something other than a JSON list.
-    """
     r = run("gh", "pr", "checks", str(m), "--required", "--json", "name")
     if r.returncode != 0:
         text = r.stdout + r.stderr
@@ -326,8 +302,6 @@ def close():
     emit(status="closed", number=n, already=False, startable=startable_after(n, proj) if is_parent else [])
 
 def discard(wt):
-    """Reset the tracked files of wt and remove its untracked files, keeping the ignored ones. The failed steps as
-    [{"step", "message"}], empty when both worked."""
     errors = []
     for step, args in (("reset", ("reset", "--hard")), ("clean", ("clean", "-fd"))):
         r = run("git", "-C", wt, *args)
@@ -336,11 +310,9 @@ def discard(wt):
     return errors
 
 def claim(wt):
-    """Assign the user to the parent when nobody is assigned, and stop when someone else is. {"login", "added"}."""
     def assignees(repo, me=None):
         r = api_json("repos/%s/issues/%d" % (repo, P))
         if r is None:
-            # me is set after the add: the user is assigned now, and the stop has to say so.
             extra = {"assignee": {"login": me, "added": True}} if me else {}
             stop("assign-failed", "cannot read the assignees of #%d" % P, step="read", worktree=wt, **extra)
         return [a["login"] for a in r.get("assignees") or []]
@@ -348,7 +320,6 @@ def claim(wt):
     def others(me, logins, added=False):
         found = [l for l in logins if l.lower() != me.lower()]
         if found:
-            # self: the user is assigned too, from before or from the add just made.
             stop("assigned", "#%d is assigned to %s" % (P, ", ".join(found)), login=me, assignees=found,
                  self=added or len(found) < len(logins), worktree=wt)
 
@@ -386,8 +357,6 @@ def worktree():
         if not changes:
             action = "moved"
         else:
-            # work-reports/ must be ignored in wt before the save directory is made in it: the directory is part of
-            # the tree the save reads.
             if run("git", "-C", wt, "check-ignore", "-q", "work-reports/").returncode != 0:
                 stop("not-ignored", "work-reports/ is not ignored in %s, and %s has uncommitted changes"
                      % (wt, wt), worktree=wt, assignee=assignee, changes=changes[:20])
@@ -422,8 +391,6 @@ def ignore():
     if listed(main, wt) is not False:
         die("%s is no worktree of this clone. run.sh worktree %d first" % (wt, P))
     def missing():
-        # The trailing slashes stay: a pattern that ends in / matches only a directory, and work-reports/ may not
-        # exist yet.
         return [path for where, path in ((main, ".claude/worktrees/"), (wt, "work-reports/"))
                 if run("git", "-C", where, "check-ignore", "-q", path).returncode != 0]
     not_ignored = missing()
@@ -431,7 +398,6 @@ def ignore():
         emit(status="ok", notIgnored=[], added=[])
     if "--add" not in ARGS:
         emit(status="ask", notIgnored=not_ignored)
-    # The exclude file git resolves. Every worktree of a clone shares it, so a line written here holds in main too.
     exclude = git(wt, "rev-parse", "--path-format=absolute", "--git-path", "info/exclude").strip()
     os.makedirs(os.path.dirname(exclude), exist_ok=True)
     text = open(exclude).read() if os.path.exists(exclude) else ""
@@ -474,20 +440,13 @@ def branch():
     git(wt, "switch", "--no-track", "-c", b, "origin/" + base)
     emit(status="ok", branch=b, start=git(wt, "rev-parse", "HEAD").strip())
 
-# --untracked-files=normal: the user's status.showUntrackedFiles must not hide what add -A stages and clean -fd removes.
 STATUS = ("status", "--porcelain", "--untracked-files=normal")
 
 def save_work(wt, target, since=None):
-    """Write the uncommitted work in wt to target as one binary diff, then reset and clean wt. With since, the diff
-    holds the commits from since to HEAD too. None when wt is clean (and, with since, no commit follows it).
-    Otherwise {file, head, changes, merge, left, errors}: head is the commit the diff applies to, since or HEAD, merge
-    is MERGE_HEAD when a merge was in progress and None otherwise, left is what status still shows afterwards, and
-    errors are the failed steps of the discard."""
     if not os.path.isdir(os.path.dirname(target)):
         die("no such directory: " + os.path.dirname(target))
     if os.path.lexists(target):
         die("%s already exists" % target)
-    # realpath on both sides: /tmp is /private/tmp on macOS.
     real = os.path.join(os.path.realpath(os.path.dirname(target)), os.path.basename(target))
     if real.startswith(os.path.realpath(wt) + os.sep) \
             and run("git", "-C", wt, "check-ignore", "-q", real).returncode != 0:
@@ -497,13 +456,9 @@ def save_work(wt, target, since=None):
     if not before and (since is None or int(git(wt, "rev-list", "--count", since + "..HEAD").strip()) == 0):
         return None
     head = since or git(wt, "rev-parse", "HEAD").strip()
-    # reset --hard in the discard below clears MERGE_HEAD too.
     r = run("git", "-C", wt, "rev-parse", "--verify", "--quiet", "MERGE_HEAD")
     merge = r.stdout.strip() if r.returncode == 0 else None
-    # A nested repository in an untracked directory cannot be staged (one without a commit makes add fail, one with a
-    # commit becomes a gitlink). Keep it out of the add; clean -fd leaves it in place, so it shows up in left.
     nested = []
-    # NUL-separated, because porcelain status quotes a name with a space or a non-ASCII byte.
     for entry in git(wt, "ls-files", "-z", "--others", "--exclude-standard", "--directory").split("\0"):
         if entry.endswith("/"):
             for root, dirs, _ in os.walk(os.path.join(wt, entry)):
@@ -512,8 +467,6 @@ def save_work(wt, target, since=None):
                     dirs[:] = []
                 dirs[:] = [d for d in dirs if d != ".git"]
     excludes = [":(exclude,literal)" + d for d in nested]
-    # git writes the file itself, so a binary diff never passes through a text decoder. diff-index is plumbing: it
-    # ignores the user's colour, prefix, external diff and textconv settings, which would make the file unappliable.
     for args in (("add", "-A", "--", ".", *excludes),
                  ("diff-index", "--cached", "--binary", "-p", head, "--output=" + target)):
         r = run("git", "-C", wt, *args)
@@ -533,7 +486,6 @@ def save():
         die("%s is no commit, or no ancestor of HEAD in %s" % (since, wt))
     since = git(wt, "rev-parse", since + "^{commit}").strip()
     commits = int(git(wt, "rev-list", "--count", since + "..HEAD").strip())
-    # The branch is read before the save: reset --hard and the switch below leave HEAD detached.
     r = run("git", "-C", wt, "symbolic-ref", "--quiet", "--short", "HEAD")
     branch = r.stdout.strip() if r.returncode == 0 else None
     done = save_work(wt, os.path.abspath(ARGS[1]), since)
@@ -581,14 +533,6 @@ def merge():
             stop("no-merge-method", "the rules on %s leave no merge method that %s allows"
                  % (base, view["nameWithOwner"]), pr=m)
         if found["requiredChecks"] != "no":
-            # With no, the base branch requires no checks, so nothing is waited on or watched.
-            # A pull request pushed seconds ago may have no check runs yet, and --watch does not wait for a check
-            # that has not registered, so the loop polls until one does or the wait runs out. A failed read does
-            # not end the loop early; only the last poll counts.
-            # unknown waits like yes, but merges when no required check registered: the merge never passes --admin,
-            # so GitHub still refuses a merge that a required check blocks. The watch below then doubles as the last
-            # look for a check that registered late.
-            # A read that failed is reported as checks-unreadable, never taken as zero checks.
             deadline = time.monotonic() + wait
             while True:
                 n, error = registered(m)
@@ -608,8 +552,6 @@ def merge():
             r = run("gh", "pr", "ready", str(m))
             if r.returncode != 0:
                 stop("merge-failed", "cannot mark #%d ready: %s" % (m, r.stderr.strip()), pr=m)
-        # No --delete-branch: to delete it gh switches <WT> to <base>, and git refuses that while <MAIN> has <base>
-        # checked out. The cleanup below deletes the branch. No --admin: a rule the user set is never bypassed.
         r = run("gh", "pr", "merge", str(m), "--" + method)
         if r.returncode != 0:
             stop("merge-failed", "cannot merge #%d: %s" % (m, r.stderr.strip()), pr=m)
@@ -625,7 +567,6 @@ def merge():
         else:
             closed = "closed"
 
-    # Every step from here on reports a failure in errors and goes on. The merge has happened.
     if not fetch(main, base):
         errors.append({"step": "fetch", "message": "cannot fetch %s from origin" % base})
     r = run("git", "-C", wt, "switch", "--detach", "origin/" + base)
@@ -652,7 +593,6 @@ def merge():
          errors=errors)
 
 def contains(where, ref, other):
-    """Whether ref contains other."""
     return run("git", "-C", where, "merge-base", "--is-ancestor", other, ref).returncode == 0
 
 def sync():
@@ -693,7 +633,6 @@ def sync():
                 die("git merge origin/%s failed: %s" % (frm, (r.stderr or r.stdout).strip()))
             emit(status="conflict", start=tip, files=files, **out)
     sha = git(wt, "rev-parse", "HEAD").strip()
-    # A plain push: it goes through only as a fast-forward of the base on origin, so it never rewrites its history.
     r = run("git", "-C", wt, "push", "--quiet", "origin", "HEAD:refs/heads/" + base)
     if r.returncode != 0:
         stop("push-rejected", "cannot push the merge to %s: %s" % (base, r.stderr.strip()), sha=sha, **out)
@@ -723,7 +662,6 @@ def project_pr():
     found = sorted(json.loads(r.stdout), key=lambda p: p["number"])
     if found:
         emit(status="exists", pr=found[0]["number"], url=found[0]["url"], **out)
-    # --head names a branch that is on origin already, so gh pushes nothing.
     r = run("gh", "pr", "create", "--base", frm, "--head", base, "--title", parent["title"], "--body-file", body)
     if r.returncode != 0:
         stop("create-failed", "cannot open the pull request from %s into %s: %s" % (base, frm, r.stderr.strip()),

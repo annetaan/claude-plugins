@@ -1,6 +1,3 @@
-// Time expressions: `term (('+'|'-') term)*`.
-// A term is a number with an optional unit (s, beat, beats, bar, bars; bare means seconds), `start`, `end`, or a mark name.
-
 const EPS = 1e-6;
 const TERM_RE = /\s*([+-])?\s*(?:(\d+(?:\.\d+)?|\.\d+)\s*(beats?|bars?|s)?(?![A-Za-z0-9_])|([A-Za-z_]\w*))/y;
 
@@ -11,7 +8,6 @@ export class TimeError extends Error {
   }
 }
 
-// parseTimeExpr(expr) -> [{sign, kind: 'num', value, unit} | {sign, kind: 'start' | 'end'} | {sign, kind: 'mark', name}]
 export function parseTimeExpr(expr) {
   const src = typeof expr === 'number' ? String(expr) : expr;
   if (typeof src !== 'string' || src.trim() === '') {
@@ -39,11 +35,6 @@ export function parseTimeExpr(expr) {
   return terms;
 }
 
-// resolveTimeExpr(expr, ctx) -> seconds.
-// ctx: { beat, bar, marks (name -> absolute seconds, only the marks defined so far),
-//        cutStart, cutDuration (inside a cut), duration (the whole video, used for `end` outside a cut) }.
-// Inside a cut the result is cut-relative, and a mark term has to land inside the cut.
-// Outside a cut (no cutStart) the result is absolute.
 export function resolveTimeExpr(expr, ctx) {
   const { beat, bar, marks = {} } = ctx;
   const inCut = ctx.cutStart !== undefined;

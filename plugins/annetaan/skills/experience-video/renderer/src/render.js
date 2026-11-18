@@ -1,4 +1,3 @@
-// Command logic for render and snapshot. Each returns { code, body }: the exit code and the JSON for stdout.
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -19,7 +18,6 @@ const MAX_PAGES = 4;
 const fail = (code, errors, warnings = []) => ({ code, body: { ok: false, errors, warnings } });
 const envFinding = (code, cut, message) => ({ code, scene: null, cut, message });
 
-// Loads and validates the story; the same error shape for every command that needs one.
 export function load(storyFile, deps, say) {
   const r = loadStory(path.resolve(storyFile), deps, { say });
   if (r.errors.length > 0) return { failure: fail(1, r.errors, r.warnings) };
@@ -43,7 +41,6 @@ async function runPool(items, limit, worker) {
   if (failure) throw failure;
 }
 
-// A video cut whose file exists draws from extracted frames: at the capture's frame rate and the output's width.
 const videoArgs = (cut, { timeline, quality, storyDir, p }) => {
   const file = typeof cut.props.src === 'string' ? path.resolve(storyDir, cut.props.src) : null;
   if (cut.part !== 'video' || !file || !fs.existsSync(file)) return null;
@@ -66,7 +63,6 @@ const assetsOf = (cut, ctx) => {
 };
 
 const toFinding = (e) => (e instanceof CaptureError ? envFinding(e.code, e.cutId, e.message) : envFinding('render', null, String(e.message ?? e)));
-// A finding about the story's own files is a story error (1); anything else is the environment (2).
 const failOn = (e, warnings) => fail(e instanceof CaptureError && e.story ? 1 : 2, [toFinding(e)], warnings);
 
 export async function render({ storyFile, deps, preview = false, force = false, say = true }) {
@@ -84,7 +80,7 @@ export async function render({ storyFile, deps, preview = false, force = false, 
   const ctx = { timeline, quality, storyDir, p };
   const rendered = [];
   const cached = [];
-  const todo = new Map(); // key -> first cut with that key
+  const todo = new Map();
   const doneKeys = new Set();
   for (const c of cuts) {
     const key = keyOf.get(c.id);
@@ -94,10 +90,9 @@ export async function render({ storyFile, deps, preview = false, force = false, 
       doneKeys.add(key);
       todo.set(key, c);
       rendered.push(c.id);
-    } else cached.push(c.id); // the same key renders once; the file is shared
+    } else cached.push(c.id);
   }
 
-  // Sound first, so a broken music script fails before any cut is captured.
   const source = musicSource(timeline, storyDir);
   let musicBody = { source: source ? source.kind : 'none', cached: source?.kind === 'file' };
   let clips = [];
@@ -178,11 +173,9 @@ export async function snapshot({ storyFile, deps, at, out, preview = false, say 
   return { code: 0, body: { ok: true, file, cut: cut.id, t: Math.round(t * 1e6) / 1e6 } };
 }
 
-const FRAME_SCALE = 0.5; // key frames are half the output size
+const FRAME_SCALE = 0.5;
 const fileSafe = (s) => String(s).replace(/[^A-Za-z0-9_-]/g, '_');
 
-// The frames command: key frames of every scene in build/review/, with a measurement of the text in each. Text that
-// overflows is a warning; it never fails the command.
 export async function frames({ storyFile, deps, say = true }) {
   const loaded = load(storyFile, deps, say);
   if (loaded.failure) return loaded.failure;
@@ -202,7 +195,7 @@ export async function frames({ storyFile, deps, say = true }) {
       return { scene, cut, shots };
     }),
   );
-  const results = new Map(); // cut id -> measurements in shot order
+  const results = new Map();
   try {
     const browser = await openBrowser(deps);
     try {
@@ -233,7 +226,6 @@ export async function frames({ storyFile, deps, say = true }) {
   return { code: 0, body: { ok: true, dir: p.reviewDir, frames: list, errors: [], warnings } };
 }
 
-// The music command: synthesizes the script and reports what a model cannot hear, the loudness of every bar.
 export async function music({ storyFile, deps, say = true }) {
   const loaded = load(storyFile, deps, say);
   if (loaded.failure) return loaded.failure;

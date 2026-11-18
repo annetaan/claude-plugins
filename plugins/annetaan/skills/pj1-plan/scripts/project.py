@@ -19,7 +19,6 @@ def die(msg):
     sys.exit(1)
 
 def unfenced(text):
-    """The lines of text outside code fences."""
     fence = False
     for line in (text or "").replace("\r\n", "\n").split("\n"):
         if line.lstrip().startswith("```"):
@@ -29,8 +28,6 @@ def unfenced(text):
             yield line
 
 def base_of(body):
-    """The base branch and the branch it was made from, as the Base: line among the unfenced lines before the
-    first ## heading names them, or None."""
     for line in unfenced(body):
         if line.startswith("## "):
             break
@@ -40,8 +37,6 @@ def base_of(body):
     return None
 
 def roadmap_of(body):
-    """The roadmap file and the entry heading, as the Roadmap: line among the unfenced lines before the first ##
-    heading names them, or None. A path outside ROADMAP_PATHS reads as None."""
     for line in unfenced(body):
         if line.startswith("## "):
             break
@@ -54,7 +49,6 @@ def roadmap_of(body):
     return None
 
 def order_of(body):
-    """The issue numbers of the numbered list under the parent's ## Order, in the order written."""
     _, secs = split_sections(body)
     out = []
     for line in secs.get("Order", "").split("\n"):
@@ -64,7 +58,6 @@ def order_of(body):
     return out
 
 def implements(body):
-    """The issue number in a pull request's head, the first line with any text on it, or None."""
     for line in (body or "").replace("\r\n", "\n").split("\n"):
         if line.strip():
             m = IMPLEMENTS_RE.match(line)
@@ -72,14 +65,9 @@ def implements(body):
     return None
 
 def shown(issue):
-    """An issue as it is printed: without its file list and its criteria spans, which --check and the breakage view read
-    from the full object."""
     return {k: v for k, v in issue.items() if k not in ("files", "criteria")}
 
 def with_order(body, numbers):
-    """body with CR removed and its ## Order section replaced by the numbered list of numbers, framed by blank lines.
-    Without an ## Order heading outside a code fence, the section goes before the first ## heading outside one, or at
-    the end. Ends in exactly one newline."""
     lines = (body or "").replace("\r", "").split("\n")
     fence, heads = False, []
     for k, line in enumerate(lines):
@@ -103,8 +91,6 @@ def run(*cmd):
     return subprocess.run(cmd, capture_output=True, text=True)
 
 def roadmap_parse(text):
-    """The entries of a roadmap file ({"heading", "start", "end"}, lines 1-based) and the reasons it is not in the
-    format. An entry starts at a ## line outside a code fence and runs to the line before the next one."""
     lines = (text or "").replace("\r", "").split("\n")
     if lines and lines[-1] == "":
         lines.pop()
@@ -149,7 +135,6 @@ def roadmap_parse(text):
     return entries, reasons
 
 def roadmap_read(ref):
-    """The roadmap file of the work tree, or of the ref when one is given, checked against the format."""
     top = run("git", "rev-parse", "--show-toplevel")
     if top.returncode != 0:
         die("not inside a git work tree")
@@ -198,8 +183,6 @@ def roadmap_read(ref):
     return out
 
 def graphql(fields, ints=None, strs=None, what="read the repository"):
-    """Run one GraphQL query on the repository and return its repository object. ints and strs are the variables,
-    passed with gh's -F and -f, and declared as Int! and String!. Dies when the query fails."""
     ints, strs = ints or {}, strs or {}
     decls = ["$owner: String!", "$name: String!"]
     decls += ["$%s: Int!" % k for k in ints] + ["$%s: String!" % k for k in strs]
@@ -215,7 +198,6 @@ def graphql(fields, ints=None, strs=None, what="read the repository"):
     return json.loads(q.stdout)["data"]["repository"]
 
 def split_sections(body):
-    """The ## headings in order, and the text under each."""
     order, out, name = [], {}, None
     for line in unfenced(body):
         m = re.match(r"^##\s+(.+?)\s*$", line)
@@ -229,7 +211,6 @@ def split_sections(body):
     return order, {k: "\n".join(v).strip() for k, v in out.items()}
 
 def spans_of(desc):
-    """Backticked identifier spans in an entry's description, in order, without repeats. foo() counts as foo."""
     out = []
     for span in re.findall(r"`([^`\n]+)`", desc):
         span = re.sub(r"\(.*\)$", "", span.strip())
@@ -241,7 +222,6 @@ def is_document(path):
     return path.lower().endswith(DOCUMENT_SUFFIXES)
 
 def symbols(entry, paths):
-    """The symbols of a file entry: the last segment of each span that does not name a path in paths (A.b is b)."""
     out = []
     for span in entry["spans"]:
         if span in paths:
@@ -252,9 +232,6 @@ def symbols(entry, paths):
     return out
 
 def file_list(design):
-    """The bullet list that opens ## Design. Returns (files, malformed entry count).
-    Blank lines between entries are allowed, and an indented line continues the entry above it.
-    The list ends at the first line that is neither, which is where the prose starts."""
     entries = []
     for line in design.split("\n"):
         if not line.strip():
@@ -278,9 +255,6 @@ def file_list(design):
     return files, bad
 
 def left_broken(design):
-    """The checks of the ### Left broken subsection of ## Design, and whether it is malformed. The subsection runs from
-    its heading to the next ### heading. Bullets read as file_list reads them. A check is the first backticked span of
-    a bullet, stripped, without repeats. Malformed: the heading with no bullet, or a bullet with no span."""
     lines, k = design.split("\n"), None
     for n, line in enumerate(lines):
         if re.match(r"^###\s+Left broken\s*$", line):
@@ -306,7 +280,6 @@ def left_broken(design):
     return checks, bad
 
 def criteria_spans(secs):
-    """Every backticked span in the bullets of ## Acceptance criteria, stripped."""
     out = []
     for line in secs.get("Acceptance criteria", "").split("\n"):
         if re.match(r"^\s*[-*]\s", line):
@@ -314,7 +287,6 @@ def criteria_spans(secs):
     return out
 
 def decisions(text):
-    """Each ### D<n>. decision as {checked, options, recommended}."""
     out = []
     for line in text.split("\n"):
         if re.match(r"^###\s+D\d+\.", line):
@@ -329,7 +301,6 @@ def decisions(text):
     return out
 
 def decision_counts(decs):
-    """The decisions by how many boxes each has checked: exactly one is settled, none is open, more is contradictory."""
     return {
         "total": len(decs),
         "settled": sum(d["checked"] == 1 for d in decs),
@@ -350,8 +321,6 @@ def parse(body):
     }
 
 def lint(p, paths=frozenset()):
-    """paths: file names known from outside the issue. A span naming one of them, or a path in the issue's own
-    file list, is a path and not a symbol."""
     if p["stub"]:
         return {"ok": False, "reasons": ["stub"]}
     reasons = []
@@ -379,8 +348,6 @@ def lint(p, paths=frozenset()):
     return {"ok": not reasons, "reasons": reasons}
 
 def titled(title, counts):
-    """The title a sub-issue should carry: every trailing (<n>/<m>) stripped, then (<settled>/<total>) appended while
-    a decision is not settled."""
     bare = COUNT_RE.sub("", title)
     if counts["settled"] < counts["total"]:
         return bare + " (%d/%d)" % (counts["settled"], counts["total"])
@@ -422,12 +389,10 @@ if named is None:
 base, made_from = named
 roadmap_line = roadmap_of(parent["body"])
 
-# One call for the pull requests into the base branch, to find the one whose head names each sub-issue.
 listed = run("gh", "pr", "list", "-R", repo, "--base", base, "--state", "all", "--limit", "500",
             "--json", "number,state,isDraft,url,body")
 if listed.returncode != 0:
     die("cannot list the pull requests into %s in %s: %s" % (base, repo, listed.stderr.strip()))
-# Open wins over merged, and the lower number wins within a state. Closed without a merge never counts.
 pr_of, rank = {}, {}
 for pr in json.loads(listed.stdout):
     n = implements(pr.get("body"))
@@ -468,8 +433,6 @@ issues.sort(key=lambda i: i["number"])
 by_number = {i["number"]: i for i in issues}
 
 def transitive_blockers(issue):
-    """The numbers in the transitive blockedBy of an issue, closed ones included. The walk follows only issues in the
-    project, but the result also holds a direct blocker outside it."""
     seen, todo = set(), [b["number"] for b in issue["blockedBy"]]
     while todo:
         m = todo.pop()
@@ -481,10 +444,6 @@ def transitive_blockers(issue):
     return seen
 
 def breakage_view():
-    """The declared breakage of the project. An entry per check of each issue that is open or closed as completed.
-    closedBy: the other such issues that hold the breaker in their transitive blockers and carry the check as a
-    backticked span in their acceptance criteria. state: unclosed with no closer, else planned while the breaker is
-    open, else closed when a closer is closed, else open."""
     live = [i for i in issues if i["state"] == "OPEN" or i["stateReason"] == "COMPLETED"]
     out = []
     for i in live:
@@ -503,10 +462,6 @@ def breakage_view():
             out.append({"issue": i["number"], "check": check_, "closedBy": closers, "state": state})
     return out
 
-# The run order: the open sub-issues, blockers first. Only edges between open sub-issues count.
-# A closed blocker is done, and a blocker outside the project is not this script's to order.
-# Among the issues free to go next, the one written earlier under the parent's ## Order goes first,
-# then the one more open issues wait on, then the lower number.
 written = order_of(parent["body"])
 position = {}
 for k, n in enumerate(written):
@@ -519,7 +474,6 @@ for n, deps in waits_on.items():
         unblocks[d].append(n)
 
 def find_cycle(nodes):
-    """Return one cycle among nodes as a list of numbers, the first one repeated at the end."""
     state = {}
     for start in sorted(nodes):
         if start in state:
@@ -543,7 +497,6 @@ def find_cycle(nodes):
     return []
 
 def waiting_count(n, seen=None):
-    """How many open issues wait on n, directly or not."""
     seen = set() if seen is None else seen
     for m in unblocks[n]:
         if m not in seen:
@@ -552,7 +505,6 @@ def waiting_count(n, seen=None):
     return len(seen)
 
 def run_order():
-    """The open sub-issues in run order, and a cycle among them (empty when there is none)."""
     left = {n: len(deps) for n, deps in waits_on.items()}
     result = []
     free = [n for n, c in left.items() if c == 0]
@@ -569,9 +521,6 @@ def run_order():
     return result, []
 
 def order_check():
-    """Whether the ## Order list can be run as written. unknown: a number that is no sub-issue. duplicate: a number
-    written twice. early: an open issue written before an open blocker of the same project. missing: an open
-    sub-issue not written, which does not make the list wrong."""
     early = [{"number": n, "blocker": b} for n in open_ if n in position
              for b in waits_on[n] if b in position and position[b] > position[n]]
     unknown = sorted({n for n in written if n not in by_number})
@@ -580,9 +529,6 @@ def order_check():
             "early": early, "missing": [n for n in sorted(open_) if n not in position]}
 
 def roadmap_view():
-    """The parent's Roadmap: line and its roadmap task, or None without the line. tasks: the sub-issues that list the
-    roadmap file and are open or closed as completed. task: the one of them when there is exactly one. missing: the
-    other open sub-issues the open task is not blocked by."""
     if roadmap_line is None:
         return None
     path, entry = roadmap_line
@@ -596,8 +542,6 @@ def roadmap_view():
     return {"path": path, "entry": entry, "tasks": tasks, "task": task, "missing": missing}
 
 def waits_on_parents(number, blockers):
-    """The projects project <number> waits on, as {parent number: parent}: the issues its parent is blocked by, other
-    than itself. Each has to be a project, a parent whose body has a Base: line. Dies on one that is not."""
     out = {}
     for b in blockers:
         if b["number"] == number:
@@ -614,7 +558,6 @@ for n, par in waits_on_parents(parent["number"], parent["blockedBy"]["nodes"]).i
     deps_of[parent["number"]][n] = par
 
 def project_deps(n):
-    """The projects project n waits on, as {parent number: base}. One query per project, cached."""
     if n not in deps_of:
         r = graphql("p: issue(number: $n) { blockedBy(first: 50) { nodes { number title state stateReason body } } }",
                     ints={"n": n}, what="read project #%d" % n)
@@ -625,7 +568,6 @@ def project_deps(n):
     return {m: project_bases[m] for m in deps_of[n]}
 
 def walk_projects(start):
-    """Walks the projects start waits on, directly or not. Dies on a cycle between projects."""
     done, path = set(), []
     def visit(n):
         path.append(n)
@@ -640,10 +582,6 @@ def walk_projects(start):
     visit(start)
 
 def branches(own, deps):
-    """One query for where the branches stand. own is (base, from) of this project, deps a list of
-    (number, base, from) of the open projects it waits on. Returns (own, {number: dep}), each with
-    exists (the base is on origin) and reached (the base has reached its from: a merged pull request from the base
-    into from, or from contains the base), and for a dep the states and the count of its sub-issues."""
     fields, strs, ints = [], {}, {}
     def ref_fields(k, b, f, open_pr=False):
         strs.update({"q%s" % k: "refs/heads/" + b, "b%s" % k: b, "f%s" % k: f})
@@ -674,8 +612,6 @@ def branches(own, deps):
     return dict(stand("o"), openPr=open_prs[0]["url"] if open_prs else None), out
 
 def merged(issue, states, reached):
-    """A project is merged when its parent is closed as completed, or when it is open, every sub-issue is closed and
-    its base has reached its from. A fresh base is identical to from, so the sub-issues have to be closed too."""
     if issue["state"] == "CLOSED":
         return issue.get("stateReason") == "COMPLETED"
     return bool(states) and all(s == "CLOSED" for s in states) and reached
@@ -694,7 +630,6 @@ if MODE in ("project", "check", "next"):
         })
 
 def project_view():
-    """The dict project mode prints."""
     return {
         "parent": dict({k: parent.get(k) for k in ("number", "title", "state", "stateReason", "updatedAt")},
                        labels=[l["name"] for l in parent["labels"]["nodes"]],
@@ -714,8 +649,6 @@ def project_view():
     }
 
 def fingerprint(view):
-    """The sha256 of the parts of the view a step can change: the parent, each issue and its pull request, and the
-    project's pull request."""
     p = view["parent"]
     state = {
         "parent": {"updatedAt": p["updatedAt"], "state": p["state"], "labels": p["labels"]},
@@ -727,7 +660,6 @@ def fingerprint(view):
     return hashlib.sha256(json.dumps(state, sort_keys=True).encode()).hexdigest()
 
 def next_step(view):
-    """What to run next, by the first rule that matches (state.md, What comes next)."""
     p, subs = view["parent"], view["issues"]
     def out(step, why, issue=None, url=None):
         return {"next": step, "why": why, "issue": issue, "url": url, "fingerprint": fingerprint(view)}
@@ -779,29 +711,20 @@ if MODE == "next":
     sys.exit(0)
 
 def check(n):
-    """Print whether sub-issue n can be implemented from its body now, as JSON. A function so that its temporaries
-    cannot rebind a global another function reads. Runs from the top of the work tree."""
     top = run("git", "rev-parse", "--show-toplevel")
     if top.returncode != 0:
         die("--check runs inside a work tree of a clone of %s/%s" % (REPO_OWNER, REPO_NAME))
-    # ls-tree with no path lists the current directory, and grep and log read pathspecs from it: run from the top.
     os.chdir(top.stdout.strip())
     issue = by_number.get(n)
     if issue is None:
         die("#%d is not a sub-issue of #%d" % (n, parent["number"]))
-    # An explicit refspec, so that a single-branch clone still gets origin/<branch>,
-    # and a branch that starts with - is not read as an option.
-    # <from> every time, the base only once pj4-running has created it.
     for branch in [made_from] + ([base] if base_exists else []):
         fetch = run("git", "fetch", "--quiet", "origin", "+refs/heads/%s:refs/remotes/origin/%s" % (branch, branch))
         if fetch.returncode != 0:
             die("cannot fetch %s from origin: %s" % (branch, fetch.stderr.strip()))
-    # Before the base exists, it is going to be cut from the tip of <from>.
     ref = "origin/" + (base if base_exists else made_from)
     history_unknown = run("git", "rev-parse", "--is-shallow-repository").stdout.strip() == "true"
 
-    # A path is one in the issue's own file list, a blob at the root of ref, or one in a blocker's file list.
-    # Directories are left out on purpose: `scripts` in a package.json entry is a real key and also a root directory.
     tree = run("git", "ls-tree", "-z", ref)
     if tree.returncode != 0:
         die("git ls-tree failed: " + tree.stderr.strip())
@@ -814,12 +737,6 @@ def check(n):
     paths |= {f["path"] for f in issue["files"]}
     check_lint = lint(parse(body_of[n]), paths)
 
-    # premises, in one of three modes.
-    #   none:  nothing is checked. The base is missing and a project this one waits on is not merged, or an open
-    #          blocker is outside the project, or an open blocker in the project is a stub. There is no body to read.
-    #   early: open in-project blockers (excusers) are still meant to change the files. A path they list or a symbol
-    #          they name counts as present, and a file list that contradicts this one is a failure.
-    #   full:  every blocker is closed. The files are read at ref as they are.
     failures = []
     excusers = []
     walked = transitive_blockers(issue)
@@ -879,17 +796,13 @@ if MODE == "check":
     check(int(sys.argv[4]))
     sys.exit(0)
 
-# --order and --order-body: the run order and the ## Order list (see run_order).
 result, cycle = run_order()
 if cycle:
     die("the blocked-by relationships have a cycle: " + " blocked by ".join("#%d" % n for n in cycle))
 
-# The projects this one waits on, directly or not, must not wait on it in turn.
 walk_projects(parent["number"])
 
 def order_list():
-    """The ## Order list: the issues closed as completed first, where the list has them and then by number, then the
-    run order. An issue closed as not planned is no work and leaves the list."""
     done = []
     for n in written + [i["number"] for i in issues]:
         i = by_number.get(n)

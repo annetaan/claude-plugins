@@ -1,11 +1,4 @@
 #!/usr/bin/env bash
-# Test: run.sh save writes everything in the run's worktree since a start commit, commits and uncommitted work, to one
-# diff, then puts the worktree back on that commit and deletes the run's branch.
-#
-# Run: bash tests/run-save.sh   (exit 0 is success, anything else is failure)
-# Runs offline, with git only: save never calls project.sh or gh. The clone is a temp repository with a worktree at
-# .claude/worktrees/pj-1, and work-reports/ is ignored through info/exclude.
-# RUN_SH=<path> tests another copy of run.sh.
 set -euo pipefail
 
 SCRIPT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)/plugins/annetaan/skills/pj4-running/scripts/run.sh"
@@ -14,7 +7,6 @@ SCRIPT="${RUN_SH:-$SCRIPT}"
 TMP="$(mktemp -d)"
 trap 'rm -rf "$TMP"' EXIT
 
-# Cut off the user's git configuration (signing, hooks, templates).
 export HOME="$TMP/home"
 mkdir -p "$HOME"
 export GIT_CONFIG_NOSYSTEM=1
@@ -24,10 +16,8 @@ git config --global init.defaultBranch main
 
 fail() { echo "FAIL: $*" >&2; exit 1; }
 
-# json <expression over d>: evaluate against the JSON on stdin and print the result.
 json() { python3 -c 'import json,sys; d=json.load(sys.stdin); print(eval(sys.argv[1]))' "$1"; }
 
-# A clone with a worktree pj-1 on the branch feat, started at $START.
 setup() {
   rm -rf "$TMP/work" "$TMP/check"
   git init -q "$TMP/work"
@@ -46,7 +36,6 @@ setup() {
   cd "$MAIN"
 }
 
-# A commit on feat and uncommitted work on top of it: a changed, b untracked.
 dirty() {
   echo two > "$WT/a"
   git -C "$WT" commit -q -am "second"
@@ -74,7 +63,6 @@ dirty
 git -C "$WT" symbolic-ref -q HEAD > /dev/null && fail "worktree is not detached"
 git -C "$WT" rev-parse --verify --quiet refs/heads/feat > /dev/null && fail "branch feat is left"
 [ -z "$(git -C "$WT" status --porcelain)" ] || fail "worktree is not clean: $(git -C "$WT" status --porcelain)"
-# The next run makes its branch in the same worktree.
 git -C "$WT" switch -q --no-track -c next "$START" || fail "cannot make the next branch"
 echo "ok: save leaves the worktree detached at START with the branch deleted"
 

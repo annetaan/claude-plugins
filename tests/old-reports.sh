@@ -1,11 +1,4 @@
 #!/usr/bin/env bash
-# Test: worktree.sh and pj-cleanup's cleanup.sh delete the work reports in <MAIN>/work-reports/ that arrived 14 days
-# ago or more, in check, cleanup, run and old-reports, and never delete anything else.
-#
-# Run: bash tests/old-reports.sh   (exit 0 is success, anything else is failure)
-# Runs offline: the worktree.sh clone has no remote, and the worktree is detached, so worktree.sh calls neither gh nor
-# origin. The cleanup.sh clone has a bare origin in the temp dir and a fake project.sh.
-# WORKTREE_SH=<path> tests another copy of worktree.sh, CLEANUP_SH=<path> another copy of cleanup.sh.
 set -euo pipefail
 
 SCRIPT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)/plugins/annetaan/skills/workflow/scripts/worktree.sh"
@@ -16,7 +9,6 @@ CLEANUP_SRC="${CLEANUP_SH:-$CLEANUP_SRC}"
 TMP="$(mktemp -d)"
 trap 'chmod -R u+rwx "$TMP" 2>/dev/null || true; rm -rf "$TMP"' EXIT
 
-# Cut off the user's git configuration (signing, hooks, templates).
 export HOME="$TMP/home"
 mkdir -p "$HOME"
 export GIT_CONFIG_NOSYSTEM=1
@@ -25,18 +17,14 @@ export GIT_COMMITTER_NAME=t GIT_COMMITTER_EMAIL=t@example.com
 
 fail() { echo "FAIL: $*" >&2; exit 1; }
 
-# json <expression over d>: evaluate against the JSON on stdin and print the result.
 json() { python3 -c 'import json,sys; d=json.load(sys.stdin); print(eval(sys.argv[1]))' "$1"; }
 
-# age <days> <path>: set the mtime of path to that many days ago.
 age() { python3 -c 'import os,sys,time; t=time.time()-float(sys.argv[1])*86400; os.utime(sys.argv[2],(t,t))' "$1" "$2"; }
 
-# mtime_age <path>: how many days ago the mtime of path is.
 mtime_age() { python3 -c 'import os,sys,time; print((time.time()-os.lstat(sys.argv[1]).st_mtime)/86400)' "$1"; }
 
 exists() { [ -e "$1" ] || [ -L "$1" ]; }
 
-# A clone with work-reports/ ignored and a detached worktree wf-test.
 setup() {
   rm -rf "$TMP/work"
   git init -q -b main "$TMP/work"
@@ -56,7 +44,6 @@ setup() {
   cd "$MAIN"
 }
 
-# The 7 entries under $R with their ages.
 seed_reports() {
   mkdir -p "$R"
   mkdir "$R/2026-01-01-0000-aaaaaaa" "$R/2026-01-02-0000-bbbbbbb" "$R/2026-01-03-0000-discarded" \
@@ -74,7 +61,6 @@ seed_reports() {
   age 40 "$R/.DS_Store"
 }
 
-# A clone with a bare origin and a worktree pj-1, next to a fake project.sh, laid out as the skills are.
 setup_pj() {
   rm -rf "$TMP/pj"
   mkdir -p "$TMP/pj/skills/pj-cleanup/scripts" "$TMP/pj/skills/workflow/scripts" "$TMP/pj/skills/pj1-plan/scripts"
@@ -135,7 +121,6 @@ exists "$R/2026-01-05-0000-link" || fail "symlink deleted"
 [ "$(echo "$out" | json 'd["errors"]')" = "[]" ] || fail "cleanup errors: $out"
 echo "ok: worktree.sh cleanup deletes the old reports and keeps a 13-day-old one, an unstamped directory, a file and a symlink"
 
-# The -discarded and the suffixed reports of the run above are gone.
 exists "$R/2026-01-03-0000-discarded" && fail "old -discarded report kept"
 exists "$R/2026-01-04-0000-ccccccc-wf-test" && fail "old suffixed report kept"
 echo "ok: worktree.sh cleanup deletes an old -discarded report and an old suffixed one"

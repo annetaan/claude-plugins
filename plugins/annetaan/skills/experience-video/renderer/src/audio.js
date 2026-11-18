@@ -1,4 +1,3 @@
-// Audio: narration clips from macOS `say`, and the ffmpeg inputs and filter graph that mix music and narration.
 import fs from 'node:fs';
 import path from 'node:path';
 import { spawnSync } from 'node:child_process';
@@ -8,8 +7,6 @@ import { CaptureError } from './capture.js';
 const RATE = 48000;
 const n = (x) => x.toFixed(6);
 
-// voiceFor(language, listText) -> a voice name or null. listText is the output of `say -v ?`: one voice per line,
-// "<name>  <locale>  # <sample>". The first voice whose locale is the language, else the first of the same language.
 export function voiceFor(language, listText) {
   if (!language) return null;
   const voices = [];
@@ -30,14 +27,12 @@ function clipSeconds(file) {
   return Number.isFinite(d) ? d : 0;
 }
 
-// narrationClips({ timeline, buildDir, say }) -> { clips: [{ file, at }], warnings }
-// `say` says whether the machine can speak. A clip is kept in build/narration/ under a hash of what it says.
 export function narrationClips({ timeline, buildDir, say }) {
   const scenes = timeline.scenes.filter((s) => s.narration);
   const dir = path.join(buildDir, 'narration');
   if (!say) return { clips: [], warnings: [] };
   if (scenes.length === 0) {
-    fs.rmSync(dir, { recursive: true, force: true }); // no scene speaks, so no clip is kept
+    fs.rmSync(dir, { recursive: true, force: true });
     return { clips: [], warnings: [] };
   }
   fs.mkdirSync(dir, { recursive: true });
@@ -83,11 +78,6 @@ export function narrationClips({ timeline, buildDir, say }) {
   return { clips, warnings };
 }
 
-// audioPlan({ timeline, music, clips, firstInput }) -> { inputs, graph }. Pure.
-//   music: null, { kind: 'file', file, offset } or { kind: 'script', file } (file is build/music.wav).
-//   inputs are ffmpeg arguments that follow the video inputs; the first of them is input number firstInput.
-//   graph ends in [aout]: every input as 48 kHz stereo, mixed without normalising, padded and cut to the duration,
-//   faded out over music.fadeOut.
 export function audioPlan({ timeline, music, clips, firstInput }) {
   const stereo = `aformat=sample_rates=${RATE}:channel_layouts=stereo`;
   const inputs = [];
@@ -110,7 +100,6 @@ export function audioPlan({ timeline, music, clips, firstInput }) {
   const d = n(timeline.duration);
   const fade = timeline.music.fadeOut > 0 ? `,afade=t=out:st=${n(Math.max(0, timeline.duration - timeline.music.fadeOut))}:d=${n(Math.min(timeline.music.fadeOut, timeline.duration))}` : '';
   if (labels.length === 0) {
-    // Nothing to play: a silent stream, so every output has one video and one audio stream.
     inputs.push('-f', 'lavfi', '-i', `anullsrc=r=${RATE}:cl=stereo`);
     return { inputs, graph: `[${firstInput}:a]atrim=duration=${d},asetpts=PTS-STARTPTS[aout]` };
   }

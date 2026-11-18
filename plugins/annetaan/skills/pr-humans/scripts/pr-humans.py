@@ -1,5 +1,19 @@
 #!/usr/bin/env python3
-"""pr-humans.py: gather what the pr-humans skill needs, and post its comment.
+import glob
+import json
+import os
+import re
+import subprocess
+import sys
+
+MARKER = "<!-- annetaan:pr-humans -->"
+MARKER_LINE = re.compile(r"^[ \t]*" + re.escape(MARKER) + r"[ \t]*\r?\n?", re.M)
+CLAUDE_TRAILER = re.compile(r"^Co-Authored-By:\s*Claude\b", re.I | re.M)
+CLAUDE_FOOTER = re.compile(r"Generated with \[?Claude Code", re.I)
+CHECKBOX = re.compile(r"^\s*[-*]\s+\[([ xX])\]\s+(.*\S)\s*$")
+HEADING = re.compile(r" {0,3}#{1,6}(\s|$)")
+TEXT_CAP = 1500
+USAGE = """pr-humans.py: gather what the pr-humans skill needs, and post its comment.
 
 Subcommands (each prints one JSON object on stdout; exit 2 is a usage error, 1 an unexpected failure):
 
@@ -34,21 +48,6 @@ Each pull request that targets lists comes with "recordedBy": "me", "other" or n
 Environment: PR_HUMANS_PROJECTS overrides ~/.claude/projects (tests).
 """
 
-import glob
-import json
-import os
-import re
-import subprocess
-import sys
-
-MARKER = "<!-- annetaan:pr-humans -->"
-MARKER_LINE = re.compile(r"^[ \t]*" + re.escape(MARKER) + r"[ \t]*\r?\n?", re.M)
-CLAUDE_TRAILER = re.compile(r"^Co-Authored-By:\s*Claude\b", re.I | re.M)
-CLAUDE_FOOTER = re.compile(r"Generated with \[?Claude Code", re.I)
-CHECKBOX = re.compile(r"^\s*[-*]\s+\[([ xX])\]\s+(.*\S)\s*$")
-HEADING = re.compile(r" {0,3}#{1,6}(\s|$)")
-TEXT_CAP = 1500
-
 
 def die(msg, code=2):
     print(msg, file=sys.stderr)
@@ -71,7 +70,6 @@ def gh_json(args):
 
 
 def graphql(query, tolerate=False, **variables):
-    """Run a GraphQL query. With tolerate, a NOT_FOUND error leaves its field null instead of stopping."""
     args = ["gh", "api", "graphql", "-f", f"query={query}"]
     for k, v in variables.items():
         args += ["-F" if isinstance(v, int) else "-f", f"{k}={v}"]
@@ -99,12 +97,8 @@ def cap(s, n=TEXT_CAP):
     return s if len(s) <= n else s[:n] + f" …[{len(s) - n} more chars]"
 
 
-# ---------------------------------------------------------------- targets
-
 
 def recorded_by(comments, me):
-    """Who left the pr-humans comment: "me" when this account did (also when another did too), "other" when only
-    others did, None when nobody did. comments are GraphQL nodes {author{login} body}; the login alone decides."""
     marked = [c for c in comments if MARKER in (c.get("body") or "")]
     if any(((c.get("author") or {}).get("login")) == me for c in marked):
         return "me"
@@ -112,7 +106,6 @@ def recorded_by(comments, me):
 
 
 def recorded_map(owner, name, numbers=None):
-    """number -> {number, title, state, url, recordedBy, recorded}."""
     me = None
     q = """query($owner:String!,$name:String!,$after:String){viewer{login} repository(owner:$owner,name:$name){
       pullRequests(first:50,after:$after,orderBy:{field:CREATED_AT,direction:ASC}){
@@ -120,7 +113,7 @@ def recorded_map(owner, name, numbers=None):
         nodes{number title state url comments(last:100){nodes{author{login} body}}}}}}"""
     if numbers is not None:
         res = {}
-        for n in numbers:  # issueOrPullRequest, so that an issue number inside a range is no error
+        for n in numbers:
             d = graphql("""query($owner:String!,$name:String!,$n:Int!){viewer{login}
               repository(owner:$owner,name:$name){
               issueOrPullRequest(number:$n){__typename ... on PullRequest{
@@ -153,8 +146,6 @@ def recorded_map(owner, name, numbers=None):
 
 
 def project_prs(owner, name, parent):
-    """The pull requests of project P: into and out of its base branch pj/P (pj4-running), and those that close one
-    of its sub-issues."""
     d = graphql("""query($owner:String!,$name:String!,$n:Int!){repository(owner:$owner,name:$name){
       issue(number:$n){subIssues(first:50){nodes{number
         closedByPullRequestsReferences(first:10,includeClosedPrs:true){nodes{number}}}}}}}""",
@@ -206,19 +197,15 @@ def cmd_targets(argv):
         chosen = info
     else:
         chosen = {n: info[n] for n in numbers if n in info}
-    missing = sorted(n for n in numbers if n not in info)  # issues inside a range, or numbers that do not exist
+    missing = sorted(n for n in numbers if n not in info)
     prs = sorted(chosen.values(), key=lambda p: p["number"])
     if unrecorded:
         prs = [p for p in prs if p["recordedBy"] is None]
     out({"repo": f"{owner}/{name}", "prs": prs, "notPullRequests": missing})
 
 
-# ---------------------------------------------------------------- github
-
 
 def boxes_of(body):
-    """(nearest heading above, box text) -> checked, for each box in a body. The heading is the last line that
-    starts with # above the box, without the # and the space."""
     res, heading = {}, ""
     for line in body.splitlines():
         if HEADING.match(line):
@@ -231,10 +218,6 @@ def boxes_of(body):
 
 
 def checkbox_events(edits):
-    """From the full-body revisions of an issue (newest first), the boxes that changed between two revisions. A box is
-    told by its heading and its text, so the same option under two decisions is two boxes, and each changed or
-    addedChecked entry says which decision it sits under. onlyBoxes is true when nothing but box states changed: an
-    edit like that is a tick in the GitHub UI."""
     revs = list(reversed(edits))
     events = []
     for prev, cur in zip(revs, revs[1:]):
@@ -271,10 +254,6 @@ LINK = re.compile(r"\b(?:close[sd]?|fix(?:e[sd])?|resolve[sd]?|implements?|part 
 
 
 def linked_issues(owner, name, pr):
-    """The issues a pull request works on: those it closes, those its body names after Implements, Part of, Closes,
-    Fixes, Resolves or Refs, and a (#N) in its title. A pull request into a base branch pj/P closes nothing on
-    GitHub, so the body is what links it. Each issue comes with its parent; an issue that is the parent of
-    another one in the list is not listed again."""
     nums = {i["number"] for i in pr["closingIssuesReferences"]["nodes"]}
     nums |= {int(m) for m in LINK.findall(pr["body"] or "")}
     nums |= {int(m) for m in re.findall(r"\(#(\d+)\)", pr["title"] or "")}
@@ -295,8 +274,6 @@ def linked_issues(owner, name, pr):
 
 
 def github(owner, name, n):
-    """The pull request as the record's input, and with it the raw comments (marker comments too) and the login of
-    this account, which write_previous needs."""
     data = graphql(f"""query($owner:String!,$name:String!,$n:Int!){{viewer{{login}} repository(owner:$owner,name:$name){{
       pullRequest(number:$n){{number title url state merged mergedAt closedAt createdAt
         author{{login}} mergedBy{{login}} headRefName baseRefName body
@@ -329,8 +306,6 @@ def github(owner, name, n):
         "author": (pr["author"] or {}).get("login"), "mergedBy": (pr["mergedBy"] or {}).get("login"),
         "head": pr["headRefName"], "base": pr["baseRefName"], "body": cap(pr["body"], 30000),
         "commits": commits,
-        # A merge commit carries no trailer whoever made it (workflow merges the base to resolve a conflict), so it
-        # is never counted as a human's commit on its own.
         "humanCommits": [c for c in commits if not c["claude"] and not c["merge"]],
         "reviews": [{"author": (r["author"] or {}).get("login"), "state": r["state"], "at": r["submittedAt"],
                      "body": cap(r["body"]), "claude": bool(CLAUDE_FOOTER.search(r["body"] or "")),
@@ -348,14 +323,11 @@ def github(owner, name, n):
 
 
 def previous_body(comments, me):
-    """The last pr-humans comment of this account, without its marker line; None when there is none."""
     mine = [c for c in comments if MARKER in (c.get("body") or "") and (c.get("author") or {}).get("login") == me]
     return MARKER_LINE.sub("", mine[-1]["body"], count=1).strip() + "\n" if mine else None
 
 
 def write_previous(comments, me, out_dir):
-    """Write out_dir/previous.md from comments (GraphQL nodes) and say whether there was one. A previous.md left by
-    an earlier gather is removed when there is none now."""
     path = os.path.join(out_dir, "previous.md")
     body = previous_body(comments, me)
     if body is None:
@@ -367,8 +339,6 @@ def write_previous(comments, me, out_dir):
     return True
 
 
-# ---------------------------------------------------------------- sessions
-
 SKIP_PREFIXES = ("Another Claude session sent a message", "<task-notification>", "<local-command-",
                  "Caveat: The messages below", "This session is being continued from a previous conversation")
 
@@ -378,14 +348,10 @@ def strip_reminders(s):
 
 
 def human_turns(path):
-    """What the human did in one session: messages typed, commands invoked, questions answered, tool calls refused.
-    A run of pr-humans is no part of a pull request's history: from the command (or from the Skill call that answers a
-    plain request for it, which also takes back the message that asked) until the next message typed or the next
-    command of another kind, nothing is added to turns or talk."""
     turns, meta = [], {"entrypoint": None, "cwd": None, "branches": set(), "prLinks": [], "first": None,
                        "last": None, "cwds": set()}
-    talk, in_run = [], False  # talk is the conversation's own text
-    last_msg = None  # (position in turns, position in talk) of the last message turn
+    talk, in_run = [], False
+    last_msg = None
     try:
         f = open(path, encoding="utf-8", errors="replace")
     except OSError:
@@ -410,7 +376,7 @@ def human_turns(path):
             meta["last"] = ts or meta["last"]
             meta["entrypoint"] = meta["entrypoint"] or e.get("entrypoint")
             meta["cwd"] = meta["cwd"] or e.get("cwd")
-            if not in_run:  # a run of pr-humans says nothing of where the work was done
+            if not in_run:
                 if e.get("cwd"):
                     meta["cwds"].add(e["cwd"])
                 if e.get("gitBranch"):
@@ -421,7 +387,7 @@ def human_turns(path):
                     continue
                 if any(isinstance(p, dict) and p.get("type") == "tool_use" and p.get("name") == "Skill"
                        and "pr-humans" in str((p.get("input") or {}).get("skill")) for p in content):
-                    if not in_run and last_msg:  # the request that started this run is no part of the history
+                    if not in_run and last_msg:
                         del turns[last_msg[0]]
                         del talk[last_msg[1]]
                         last_msg = None
@@ -469,7 +435,7 @@ def human_turns(path):
                     turns.append({"at": ts, "kind": "command", "command": m.group(1).strip(),
                                   "args": cap((args.group(1) if args else "").strip(), 800)})
                     talk.append(args.group(1) if args else "")
-                    last_msg = None  # a command since: a later Skill call no longer takes that message back
+                    last_msg = None
                 continue
             if text.startswith("[Request interrupted"):
                 if not in_run:
@@ -477,7 +443,7 @@ def human_turns(path):
                 continue
             if text.startswith("<") and re.match(r"<[a-z-]+>", text) and not re.search(r"[^\s<>]", re.sub(
                     r"<[^>]+>.*?</[^>]+>", "", text, flags=re.S)):
-                continue  # only harness tags
+                continue
             in_run = False
             last_msg = (len(turns), len(talk))
             talk.append(text)
@@ -514,14 +480,12 @@ def find_sessions(pr, repo_full, root):
             why.append("created-pr")
         if root and pr["head"] in meta["branches"] and any(c == root or c.startswith(root + "/") for c in cwds):
             why.append("on-branch")
-        # A URL counts only where the human or Claude wrote it in the conversation outside a pr-humans run, so that
-        # a session that only records this pull request, or only read it in a tool, is not taken for its history.
         for u in named:
             if re.search(re.escape(u) + r"(?!\d)", talk):
                 why.append("names-pr" if u == pr_url else "names-issue " + u.rsplit("/", 1)[-1])
         if not why:
             continue
-        if why == ["on-branch"] and not turns:  # only a run of pr-humans was there (its command line counts as a row)
+        if why == ["on-branch"] and not turns:
             continue
         found.append({"file": path, "session": os.path.basename(path)[:-6], "why": why, **meta,
                       "turns": turns})
@@ -553,7 +517,7 @@ def cmd_gather(argv):
     n, out_dir = int(argv[0].lstrip("#")), argv[2]
     owner, name = repo()
     root = run(["git", "rev-parse", "--show-toplevel"], check=False).strip() or None
-    if root:  # the main working tree, also when run inside a worktree
+    if root:
         common = run(["git", "rev-parse", "--path-format=absolute", "--git-common-dir"], check=False).strip()
         if common.endswith("/.git"):
             root = common[:-5]
@@ -582,8 +546,6 @@ def cmd_sessions_of(argv):
     out({**meta, "turns": turns})
 
 
-# ---------------------------------------------------------------- post
-
 
 GENERIC_PATH = re.compile(r"(/Users/|/home/|~/\.claude|\.claude/projects|[A-Za-z]:\\Users|/var/folders/|/private/var/|"
                           r"/private/tmp/|/tmp/)")
@@ -598,9 +560,6 @@ def _load(path):
 
 
 def known_values(dir_):
-    """The values that must not appear in a comment because they came from this machine: {value: problem}. They are
-    $HOME, DIR and its realpath, each session's cwd, cwds, file and id, and each report's file and its directory.
-    A value shorter than four characters, and "/", say nothing and are left out."""
     known = {}
 
     def add(v, kind="local-path"):
@@ -628,9 +587,6 @@ def known_values(dir_):
 
 
 def lint(body, known=None):
-    """What must never reach a public comment: a local path, a session file or id, and an @mention that notifies
-    someone. known is what this machine holds (known_values, or a list of paths); the patterns catch the same
-    kinds of thing that are not in it."""
     problems, hit = [], set()
     items = known.items() if isinstance(known, dict) else [(v, "local-path") for v in known or []]
     for v, kind in items:
@@ -654,8 +610,6 @@ def lint(body, known=None):
 
 
 def pick_record(comments, me):
-    """From the REST comments of a pull request: (mine, others), the pr-humans comments of this account and those of
-    others. Comments without the marker are not looked at."""
     marked = [c for c in comments or [] if MARKER in (c.get("body") or "")]
     mine = [c for c in marked if (c.get("user") or {}).get("login") == me]
     return mine, [c for c in marked if c not in mine]
@@ -672,7 +626,7 @@ def cmd_post(argv):
         body = open(os.path.join(dir_, "comment.md"), encoding="utf-8").read().strip()
     except OSError:
         body = ""
-    if not body:  # the writer did not leave a draft: this pull request is left out, the others go on
+    if not body:
         out({"number": n, "status": "stop", "problems": ["no-draft"]})
         sys.exit(3)
     problems = lint(body, known_values(dir_))
@@ -686,7 +640,7 @@ def cmd_post(argv):
     comments = gh_json(["api", "--paginate", "--slurp", f"repos/{owner}/{name}/issues/{n}/comments?per_page=100"])
     comments = [c for page in comments for c in page] if comments and isinstance(comments[0], list) else comments
     mine, others = pick_record(comments, me)
-    if not mine and others:  # another account's record is theirs to rewrite, not ours to duplicate
+    if not mine and others:
         out({"number": n, "status": "stop", "problems": ["recorded-by-other"]})
         sys.exit(3)
     payload = json.dumps({"body": body})
@@ -706,11 +660,11 @@ def cmd_post(argv):
 
 def main():
     if len(sys.argv) < 2:
-        die(__doc__)
+        die(USAGE)
     cmd, argv = sys.argv[1], sys.argv[2:]
     fn = {"targets": cmd_targets, "gather": cmd_gather, "sessions-of": cmd_sessions_of, "post": cmd_post}.get(cmd)
     if not fn:
-        die(f"unknown subcommand: {cmd}\n{__doc__}")
+        die(f"unknown subcommand: {cmd}\n{USAGE}")
     try:
         fn(argv)
     except subprocess.CalledProcessError as e:

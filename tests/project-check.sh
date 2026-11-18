@@ -1,10 +1,4 @@
 #!/usr/bin/env bash
-# Test: project.sh --check gives the same answer from any directory of the work tree,
-# and refuses to run outside a work tree.
-#
-# Run: bash tests/project-check.sh   (exit 0 is success, anything else is failure)
-# Runs offline: a fake `gh` answers the GitHub queries, and the "remote" is a bare repository in a temp dir.
-# PROJECT_SH=<path> tests another copy of project.sh.
 set -euo pipefail
 
 SCRIPT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)/plugins/annetaan/skills/pj1-plan/scripts/project.sh"
@@ -13,7 +7,6 @@ SCRIPT="${PROJECT_SH:-$SCRIPT}"
 TMP="$(mktemp -d)"
 trap 'rm -rf "$TMP"' EXIT
 
-# Cut off the user's git configuration (signing, hooks, templates).
 export HOME="$TMP/home"
 mkdir -p "$HOME"
 export GIT_CONFIG_NOSYSTEM=1
@@ -22,7 +15,6 @@ export GIT_COMMITTER_NAME=t GIT_COMMITTER_EMAIL=t@example.com
 
 fail() { echo "FAIL: $*" >&2; exit 1; }
 
-# A clone with a root blob, a tracked subdirectory, and a pj/1 branch on origin.
 cd "$TMP"
 git init -q -b main work
 git init -q --bare origin.git
@@ -39,9 +31,8 @@ git init -q --bare origin.git
   git remote add origin ../origin.git
   git push -q origin main main:refs/heads/pj/1
 )
-mkdir -p work/work-reports/run   # an untracked nested directory
+mkdir -p work/work-reports/run
 
-# A fake gh, answering the queries project.sh sends.
 mkdir bin
 cat > bin/gh <<'PYEOF'
 #!/usr/bin/env python3
@@ -83,7 +74,6 @@ export PATH="$TMP/bin:$PATH"
 
 check() { (cd "$1" && bash "$SCRIPT" -R test/repo 1 --check 2); }
 
-# Case 1: the same answer from the root, a tracked subdirectory and an untracked nested directory.
 root_out="$(check "$TMP/work")" || fail "check from the root exited non-zero"
 sub_out="$(check "$TMP/work/src")" || fail "check from a tracked subdirectory exited non-zero"
 nested_out="$(check "$TMP/work/work-reports/run")" || fail "check from an untracked nested directory exited non-zero"
@@ -100,7 +90,6 @@ assert d["ok"] is True, d
 ' || fail "check from the root gave an unexpected result: $root_out"
 echo "ok: check from a subdirectory matches check from the root"
 
-# Case 2: refused outside a work tree.
 for dir in "$TMP/origin.git" "$TMP/work/.git"; do
   rc=0
   err="$(check "$dir" 2>&1 >/dev/null)" || rc=$?

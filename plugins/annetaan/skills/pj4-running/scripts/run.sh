@@ -1,19 +1,4 @@
 #!/usr/bin/env bash
-# Runs the mechanical steps of pj4-running for one project and prints each result as one JSON object.
-# The judgment and the questions stay in the skill. --add carries the user's answer back.
-# Writes on GitHub: worktree assigns the user to the parent when nobody is assigned. start creates the project's base branch through the API when it is due, and close comments on an
-# issue and closes it as completed, when it is due. For a parent it also lists the projects that can be split now
-# (startable). merge marks the pull request ready, merges it, comments on and closes the issue,
-# and deletes the head branch on origin. sync pushes the merge of <from> into the base branch, the one push to the base
-# branch outside a pull request. pr opens the pull request from the base branch into the branch it was made from, once
-# every sub-issue is closed and the base branch contains it. Writes in git: start and worktree fetch the base branch
-# into origin/<base>, worktree creates and moves the run's worktree, branch creates the issue's branch in <WT>, merge
-# moves <WT> onto the merged base and deletes the local head branch, sync merges origin/<from> into the base in <WT>,
-# ignore --add appends to the clone's info/exclude, and save writes everything in <WT> since a start commit, commits and
-# uncommitted work, to a file as one binary diff, then puts <WT> back on that commit and deletes the run's branch.
-# worktree saves the uncommitted work of a dirty <WT> on its own, to <WT>/work-reports/<stamp>-discarded/stopped.diff,
-# and discards it, without asking.
-# It reads the project with ../../pj1-plan/scripts/project.sh, and never parses an issue body itself.
 set -euo pipefail
 
 die() { echo "run: $*" >&2; exit 1; }

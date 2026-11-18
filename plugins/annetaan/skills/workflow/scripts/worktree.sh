@@ -1,15 +1,4 @@
 #!/usr/bin/env bash
-# Owns the whole life of a workflow run's worktree, .claude/worktrees/wf-<stamp> under the main working tree, and
-# prints each result as one JSON object. The judgment and the questions stay in the skills. --add and --discard carry
-# the user's answers back.
-# Writes on GitHub: cleanup deletes the run's branch on origin. Writes in git: create fetches the base branch into
-# origin/<base>, check and cleanup fetch the base of a merged pull request and, when the clone lacks it, the pull
-# request's head (refs/pull/<n>/head, object only, no ref), create adds the detached worktree, ignore --add appends to the clone's info/exclude, and cleanup
-# moves the work reports into <MAIN>/work-reports/, removes the worktree, deletes the run's branch locally and on
-# origin, and fast-forwards the local base branch when the pull request merged. It never switches a branch, stashes,
-# commits or resets in the main working tree. list, old-reports without --delete and submodules only read. cleanup and old-reports --delete delete the work reports in
-# <MAIN>/work-reports/ that arrived there 14 days ago or more. sync fetches origin/<base> and, on a conflict, starts a merge in the
-# worktree and leaves it in progress. Nothing is recorded in git config or in files.
 set -euo pipefail
 
 die() { echo "worktree: $*" >&2; exit 1; }

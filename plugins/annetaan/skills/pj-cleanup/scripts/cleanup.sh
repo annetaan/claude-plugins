@@ -1,14 +1,4 @@
 #!/usr/bin/env bash
-# Cleans up the clone after a project's pull request has merged, and prints each result as one JSON object.
-# The judgment and the questions stay in the skill. --discard carries the user's answer back.
-# Writes on GitHub: run deletes the project's base branch on origin. Writes in git: run moves the work reports out of
-# the run's worktree into <MAIN>/work-reports/, removes the worktree, deletes the local base branch when origin holds
-# its tip, and fast-forwards the local <from> to origin/<from>. It never switches a branch, stashes, commits or resets.
-# run also deletes the work reports in <MAIN>/work-reports/ that arrived there 14 days ago or more, by calling
-# ../../workflow/scripts/worktree.sh old-reports --delete, and check lists them with old-reports.
-# It reads the project with ../../pj1-plan/scripts/project.sh, the old reports and the submodules that hold work of
-# their own through ../../workflow/scripts/worktree.sh old-reports and submodules, and refuses a project that is not
-# merged.
 set -euo pipefail
 
 die() { echo "cleanup: $*" >&2; exit 1; }

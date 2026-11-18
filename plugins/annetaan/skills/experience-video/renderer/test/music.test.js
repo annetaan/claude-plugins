@@ -15,7 +15,7 @@ const story = (telop = 'hi', bars = 2) =>
 
 test('wav: the header describes the samples', () => {
   const file = path.join(tmp, 'a.wav');
-  const pcm = new Int16Array([0, 1000, -1000, 32767, -32768, 5]); // three stereo frames
+  const pcm = new Int16Array([0, 1000, -1000, 32767, -32768, 5]);
   writeWav(file, pcm, { sampleRate: SAMPLE_RATE, channels: 2 });
   const b = fs.readFileSync(file);
   assert.equal(b.length, 44 + pcm.byteLength);
@@ -67,7 +67,6 @@ test('music: the three warnings', () => {
   assert.deepEqual(codes({ levels: loud, clipped: 3 }), ['music-clipping']);
   assert.ok(codes({ levels: loud.map(() => 0), clipped: 0 }).includes('music-silent'));
   assert.deepEqual(codes({ levels: loud.map((_, i) => (i >= peakBar ? 0.1 : 0.3)), clipped: 0 }), ['music-peak-weak']);
-  // A flat track, and a peak barely above the intro, have no peak.
   assert.deepEqual(codes({ levels: loud.map(() => 0.2), clipped: 0 }), ['music-peak-weak']);
   assert.deepEqual(codes({ levels: loud.map((_, i) => (i >= peakBar ? 0.21 : 0.2)), clipped: 0 }), ['music-peak-weak']);
 });

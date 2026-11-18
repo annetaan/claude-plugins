@@ -1,10 +1,8 @@
-// Lint a resolved timeline. Errors stop a render; warnings are for the frame check.
-
-export const MAX_DURATION = 60; // seconds; a video of this length or longer is an error
+export const MAX_DURATION = 60;
 export const READING_MIN_SECONDS = 1;
 export const READING_CHARS_PER_SECOND = { cjk: 4, other: 15 };
 export const NARRATION_CHARS_PER_SECOND = { cjk: 6, other: 15 };
-export const BEAT_TOLERANCE = 0.02; // seconds
+export const BEAT_TOLERANCE = 0.02;
 const EPS = 1e-6;
 
 const CJK_RE = /[぀-ヿ㐀-䶿一-鿿＀-￯]/g;
@@ -27,7 +25,6 @@ export function speakingTime(text) {
 
 const f = (code, scene, cut, message) => ({ code, scene, cut, message });
 
-// lintStory(timeline, { say }) -> { errors, warnings }. `say` says whether the machine can speak narration.
 export function lintStory(timeline, { say = true } = {}) {
   const errors = [];
   const warnings = [];

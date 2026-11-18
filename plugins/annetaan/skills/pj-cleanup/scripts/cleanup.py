@@ -19,15 +19,12 @@ def die(msg):
     sys.exit(1)
 
 def git(where, *args):
-    """Run git in where, and die when it fails."""
     r = run("git", "-C", where, *args)
     if r.returncode != 0:
         die("git %s failed: %s" % (" ".join(args), r.stderr.strip()))
     return r.stdout
 
 def worktrees():
-    """The worktrees of the clone as [(path, prunable, branch)]. branch is None on a detached HEAD.
-    The first one is the main working tree. None outside a clone."""
     r = run("git", "worktree", "list", "--porcelain")
     if r.returncode != 0:
         return None
@@ -50,7 +47,6 @@ def wt_of(main, p):
     return os.path.join(main, ".claude/worktrees/pj-%d" % p)
 
 def listed(trees, path):
-    """None when path is no worktree of the clone, otherwise whether it is prunable."""
     real = os.path.realpath(path)
     for where, prunable, _ in trees:
         if os.path.realpath(where) == real:
@@ -79,27 +75,22 @@ def read_project(p):
     return json.loads(r.stdout)["parent"]
 
 def fetch(main, branch):
-    """Move origin/<branch> in main and nothing else. The explicit refspec works in a single-branch clone too."""
     return run("git", "-C", main, "fetch", "--quiet", "origin",
                "+refs/heads/%s:refs/remotes/origin/%s" % (branch, branch)).returncode == 0
 
 def on_origin(main, branch):
-    """Whether origin has branch, or None when origin cannot be read."""
     r = run("git", "-C", main, "ls-remote", "--exit-code", "--heads", "origin", "refs/heads/" + branch)
     if r.returncode == 0:
         return True
     return False if r.returncode == 2 else None
 
 def reports(wt):
-    """The work report directories in the worktree."""
     root = os.path.join(wt, "work-reports")
     if not os.path.isdir(root):
         return []
     return sorted(e for e in os.listdir(root) if os.path.isdir(os.path.join(root, e)))
 
 def read_old_reports(main, *flags):
-    """worktree.sh old-reports, started in main: the cwd may be a worktree that was just removed.
-    Returns (parsed JSON or None, message)."""
     r = run(WORKTREE_SH, "old-reports", *flags, cwd=main)
     message = r.stderr.strip() or r.stdout.strip()
     if r.returncode != 0:
@@ -110,7 +101,6 @@ def read_old_reports(main, *flags):
         return None, message
 
 def read_submodules(main, wt):
-    """worktree.sh submodules, started in main. Returns (parsed JSON or None, message)."""
     r = run(WORKTREE_SH, "submodules", wt, cwd=main)
     message = r.stderr.strip() or r.stdout.strip()
     if r.returncode != 0:
@@ -121,7 +111,6 @@ def read_submodules(main, wt):
         return None, message
 
 def plan(p):
-    """Everything check prints and run acts on."""
     main, trees = located()
     parent = read_project(p)
     if not parent["merged"]:
@@ -154,7 +143,6 @@ def plan(p):
     if remote is None:
         stop("fetch-failed", "cannot read the branches on origin")
 
-    # The local base branch goes when nothing on it would be lost: origin/<base> or origin/<from> holds its tip.
     local = None
     if has_ref(main, "refs/heads/" + base):
         holder = checked_out_in(trees, base)
@@ -214,7 +202,6 @@ def check():
     emit(status="ok", **out)
 
 def move_reports(main, wt):
-    """Move each work report out of wt into <main>/work-reports/. A name taken there gets -pj<P> on the end."""
     moved = []
     dest_root = os.path.join(main, "work-reports")
     for name in reports(wt):
@@ -225,7 +212,7 @@ def move_reports(main, wt):
         if os.path.lexists(dest):
             die("cannot move %s: %s exists" % (name, dest))
         shutil.move(os.path.join(wt, "work-reports", name), dest)
-        os.utime(dest)  # the clock of the 14 days is the arrival
+        os.utime(dest)
         moved.append(dest)
     return moved
 
@@ -241,9 +228,6 @@ def cleanup():
 
     if tree["state"] in ("clean", "dirty"):
         tree["moved"] = move_reports(main, tree["path"])
-        # The work reports are ignored files, which git worktree remove deletes without --force. Uncommitted and
-        # untracked files need it, and the gate above has required --discard for them. Git also refuses a worktree
-        # with submodules whatever its state, so plan() is the check there.
         force = ["--force"] if tree["state"] == "dirty" or tree["hasSubmodules"] else []
         git(main, "worktree", "remove", *force, tree["path"])
         tree["action"] = "removed"
@@ -271,7 +255,6 @@ def cleanup():
     update = out["update"]
     if update["action"] == "fast-forward":
         if update["worktree"]:
-            # merge --ff-only refuses, and changes nothing, when it would overwrite a local change.
             r = run("git", "-C", update["worktree"], "merge", "--ff-only", "--quiet", "origin/" + frm)
         else:
             r = run("git", "-C", main, "update-ref", "refs/heads/" + frm, update["to"], update["from"])

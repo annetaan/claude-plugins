@@ -149,7 +149,6 @@ test('story: card stagger and count duration resolve to seconds', () => {
   const p = timelineOf(text).scenes[0].cuts[0].props;
   assert.equal(p.stagger, 0.5);
   assert.deepEqual(p.lines[0].count, { from: 45, to: 20, duration: 2, decimals: 1 });
-  // no duration means one bar, and no decimals means 0
   assert.deepEqual(p.lines[1].count, { from: 0, to: 9, duration: 2, decimals: 0 });
   assert.equal(p.align, 'center');
 });

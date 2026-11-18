@@ -1,13 +1,4 @@
 #!/usr/bin/env bash
-# Drives pj3-doctor and pj4-running on one project until the project needs the user, and prints each step as one JSON line.
-# Each step is a fresh `claude -p` run of one skill in unattended mode, started in the main working tree with
-# `--permission-mode acceptEdits`. It gets its own directory <LOG>/<i>-<run>/, passed as `tmp=<dir>` in the prompt and as `--add-dir <dir>`.
-# It writes nothing to GitHub itself (the children do), and it decides the next step only from
-# ../../pj1-plan/scripts/project.sh --next. It never reads a child's report beyond the last line of its result.
-# It writes the files of one drive into the log directory: drive.jsonl (every line it prints, with a "begin" line
-# before each step), <i>-<run>.json and <i>-<run>.err of each child, and the directory <i>-<run>/ of each child. It reads <dir>/stop before every step, and ends when the file exists.
-# It never kills a child, and it always ends with an "ended" line and exit 0, once it has started.
-# `auto.sh --rules` reads no project, writes nothing, and prints what the drive's runs need from the user's settings.
 set -uo pipefail
 
 die() { echo "auto: $*" >&2; exit 1; }
@@ -23,8 +14,6 @@ USAGE
   exit 1
 }
 
-# rules prints one JSON line: the rules every drive needs with the files whose allow list holds each, and the
-# permissions of the user's three settings files. It exits 0 once it runs.
 rules() {
   local main skills
   main="$(git worktree list --porcelain 2>/dev/null | sed -n 's/^worktree //p' | head -n 1)"
@@ -82,8 +71,6 @@ LOG="$(cd "$LOG" && pwd)"
 PROJECT="$(cd "$(dirname "$0")/../../pj1-plan/scripts" && pwd)/project.sh"
 [ -x "$PROJECT" ] || die "no such script: $PROJECT"
 
-# emit status key=value ... prints one JSON line and appends it to drive.jsonl.
-# key=value is a string, key:=value is raw JSON.
 emit() {
   python3 -I -c '
 import json, re, sys
@@ -98,7 +85,6 @@ with open(sys.argv[1], "a") as f:
 ' "$LOG/drive.jsonl" "$@"
 }
 
-# jget <json> <key> prints the value, or nothing for null.
 jget() {
   python3 -I -c '
 import json, sys
@@ -112,10 +98,8 @@ NOLINE=""
 FINISHED=0
 STEP_I=null
 
-# now prints the time in UTC, ISO 8601.
 now() { date -u +%Y-%m-%dT%H:%M:%SZ; }
 
-# end <reason> <next-json> <message>
 end() {
   local nolist
   nolist="[$(echo "$NOLINE" | tr -s ' ' ',' | sed 's/^,//; s/,$//')]"
@@ -135,7 +119,6 @@ fi
 
 emit status=started log="$LOG" main="$MAIN" project:="$P"
 
-# next_step sets NEXT_JSON, or ends the drive when project.sh fails.
 next_step() {
   local err
   NEXT_JSON="$(cd "$MAIN" && "$PROJECT" "$P" --next 2>"$LOG/project.err")"
