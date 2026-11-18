@@ -81,7 +81,7 @@ not outlive one command, so write the path in full each time.
    fails on a cycle**, within the project or between projects, show the user the cycle it names and stop. Nothing
    can be ordered until a human removes an edge.
 2. **Check every open sub-issue** whose `pr` is not merged, in one call with every such number. An open issue whose
-   pull request merged is waiting for `pj4-running` to close it. Leave it alone.
+   pull request merged is waiting for `pj4-running` to close it. Leave it alone. When no number is left, make no call.
 
    ```bash
    $DOCTOR/../pj1-plan/scripts/project.sh <P> --check <k1> <k2> ...
@@ -308,7 +308,9 @@ the numbers.
    gh issue edit <P> --add-label doing
    ```
 
-   Check all the open issues again in one call before any label goes on, because the bodies and the edges just changed.
+   Check again, in one call before any label goes on, the same issues as step 2 of phase 1 (every open sub-issue whose
+   `pr` is not merged), plus the issues step 2 of this phase filed, because the bodies and the edges just changed. An issue whose
+   pull request merged is left alone, and `ready` stays as it is on it. When no number is left, make no call.
 
    ```bash
    $DOCTOR/../pj1-plan/scripts/project.sh <P> --check <k1> <k2> ...

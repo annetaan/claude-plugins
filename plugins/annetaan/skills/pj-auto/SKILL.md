@@ -148,8 +148,8 @@ or the script.**
 
 Read the `ended` line of `<LOG>/drive.jsonl`, then list the steps from the `step` lines, one per line as
 `<i> <run> <why> <issue URL>`, and the reason. When `ended.i` is not null, the drive ended on that step: add it as one
-more line from its `begin` line, with the reason. For `child-failed` and `bg-killed`, give the `out` and `err` paths from that `begin`
-line. Name the next action from the reason:
+more line from its `begin` line, with the reason. For `child-failed`, give the `out` and `err` paths from that `begin`
+line, and for `bg-killed`, the `err` path. Name the next action from the reason:
 
 - `user`, or a first `--next` of `user`: split by `why`.
   - `split`: `/annetaan:pj2-issues <P>`
