@@ -9,19 +9,19 @@
 | What a human is asked | every open question | which leftovers reach a human | a question it raises, an open decision a model can settle | - | - |
 | Model decisions | every fork it settles | - | - | - | - |
 | Experiments | a fork that turns on behaviour | - | - | - | - |
-| Assumptions | kept branches, shared state | both, in the design | a parent's kept branch, an issue's missing reader | a write the design did not cover | readers the diff misses |
+| Assumptions | kept branches, shared state | both, in the design | a parent's kept branch, an issue's missing reader | a write the design did not cover | a reader the diff breaks, shown by a run |
 | Why existing behaviour is there | a branch nobody is named for | - | - | - | - |
-| Remove before adding | what leaves, and in which task | a check or an option for an input nobody sends | - | nothing for an input nobody is shown to send, dead code out | the same, in the diff |
-| As if it was always required | the shape, and what moves with it | its one question | - | everything in the task that states the old shape | what still states the old shape |
-| Reader load | each new layer, each home of state | every layer the change adds | - | the code it writes | the two questions, on the diff |
-| Comments | a design that needs one is redrawn | - | - | writes none outside the four kinds | one outside the four kinds is `changes-requested` |
+| Remove before adding | what leaves, and in which task | a check or an option for an input nobody sends | - | nothing for an input nobody is shown to send, dead code out | - |
+| As if it was always required | the shape, and what moves with it | its one question | - | everything in the task that states the old shape | what a search still finds stating the old shape |
+| Reader load | each new layer, each home of state | every layer the change adds | - | the code it writes | - |
+| Comments | a design that needs one is redrawn | - | - | writes none outside the four kinds | - |
 | Where to split | the plan, the split into tasks, the cut into projects | - | an issue that is two tasks | - | - |
-| No transitional code | a split that stays green only with it is one task; breakage a project declares | - | a shim in a body, a breakage nobody closes | no shim to stay green | a shim beside the new path, a check failing undeclared |
-| Root cause | the fix sits at the cause | a fix that guards | a fix drawn as a guard | no guard in place of the cause | a guard is `changes-requested` |
-| After two failed fixes | a symptom fixed twice before, a lint failing after two fixes | - | - | a test failing after two fixes, `stands again` | before writing `stands again` |
-| A lesson becomes a check | a repeated fix, a rule in the request | - | - | a second finding of one kind, a repeated note | a second finding of one kind |
-| Done means shown | the criteria and the flows | - | - | the evidence file | reads it, tries each `not run:` |
-| Confirmed and unconfirmed | - | - | - | answers with a run | backs a finding with a run |
+| No transitional code | a split that stays green only with it is one task; breakage a project declares | - | a shim in a body, a breakage nobody closes | no shim to stay green | an old path a search still finds, a check failing undeclared |
+| Root cause | the fix sits at the cause | a fix that guards | a fix drawn as a guard | no guard in place of the cause | the bad state reached past a guard |
+| After two failed fixes | a symptom fixed twice before, a lint failing after two fixes | - | - | a test failing after two fixes, `stands again` | - |
+| A lesson becomes a check | a repeated fix, a rule in the request | - | - | a second finding of one kind, a repeated note | - |
+| Done means shown | the criteria and the flows | - | - | the evidence file | reads it, tries each `not run:`, walks the whole design in integration round 1 |
+| Proven by a run | - | - | - | answers with the finding's command | every finding |
 
 Design is the design session of workflow, the planners of pj1-plan and pj2-issues, and the issue writer. Design review is the design review session, for workflow and for pj1-plan. Project review is the project reviewer of pj3-doctor. Implementation and Review are the workflow sessions. `-` means the section asks nothing of that role.
 
@@ -166,7 +166,7 @@ Every further failure at that gate repeats the three steps with a new sentence.
 
 For example: a finding says a value is stale after sign-out. Two fixes clear the cache in two more places, and the finding stands. Both took for granted that the stale value comes from the cache. Logging the read shows it comes from a module variable set at load.
 
-In a review, the gate is a finding marked `stands again`: every `stands` after the first on one finding. The finding itself may be the false premise, so the reviewer applies the same steps to it before writing that mark.
+In a review, the gate is a finding whose command still shows the failure after a second answer: every `stands` after the first on one finding is marked `stands again`. The main session's rerun of the command on the current tree is the observation on the finding's side.
 
 ## A lesson becomes a check
 
@@ -183,14 +183,14 @@ A check outside the task's files is not built on the side. The role file says ho
 
 Walk each user flow the change touches: the changed step and the operations around it (sign out then sign in again, switch tenant, reload). Walk the flow of each reader in `### Shared state` too.
 
-`not run: <what is missing here>` is allowed only for the environment, never for effort. The task goes on. The reviewer tries each `not run:` itself, and only what neither side could run is listed in `log.md` under its own heading.
+`not run: <what is missing here>` is allowed only for the environment, never for effort. The task goes on. Each review seat tries each `not run:` itself, and only what neither side could run is listed in `log.md` under its own heading. In integration round 1, where no evidence file exists, a seat walks every acceptance criterion and flow of the whole design.
 
 A bug fix with a cheap test path (an existing test file or harness for that module that runs in seconds) gets the failing test first.
 
-## Confirmed and unconfirmed
+## Proven by a run
 
-**A reviewer backs a correctness finding by running the breaking input.** `Confirmed:` carries the command and its output.
+**A review finding is a command, what it printed, and what the intent requires.** The command runs against the real code: a failing test, a repro script, a command whose output shows the wrong behaviour. What was not run is not a finding.
 
-A serious suspicion the reviewer could not run is `Unconfirmed:`, and it is a request for a run. The worker answers with `ran:` and `saw:`: it reproduces, so the answer is `fixed`; or it does not, and the answer carries the output. When the worker cannot run it for an environment reason, it answers `not run:`. The reviewer resolves the finding on that output, never on argument.
+The main session runs each command again and keeps a finding only when the failure shows and breaks the intent. The intent is the approved design, its acceptance criteria, the plan and the task's detail design. A command that cannot be run again is dropped.
 
-A finding unrun on both sides is resolved as unrun. It does not block `approve`, and it is listed in `log.md` under the not-run heading.
+The worker answers a finding with the same command, which runs on its tree as it is at that moment: `fixed` always carries `ran:` and `saw:` from it, and a `disagree` gives the reason, which the main session judges against the intent.

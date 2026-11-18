@@ -126,3 +126,12 @@ assert lines[-1]["reason"] == "done", lines[-1]
 assert lines[-1]["noLine"] == [1, 2], lines[-1]
 ' || fail "no-line: unexpected drive: $OUT"
 echo "ok: no last line without the message is still no-line"
+
+"$TMP/skills/pj-auto/scripts/auto.sh" --rules | python3 -I -c '
+import json, sys
+e = json.loads(sys.stdin.read())
+rules = [b["rule"] for b in e["base"]]
+assert len(rules) == 6, rules
+assert "Bash(" + sys.argv[1] + "/workflow/scripts/panel.sh:*)" in rules, rules
+' "$TMP/skills" || fail "auto.sh --rules does not list six base rules with panel.sh"
+echo "ok: auto.sh --rules lists six base rules, panel.sh among them"

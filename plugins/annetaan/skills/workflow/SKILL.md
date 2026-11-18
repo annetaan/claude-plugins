@@ -1,6 +1,6 @@
 ---
 name: workflow
-description: Runs one implementation as design, a design review in every repository (it moves existing code only where breaking changes are welcome), approval, then per task (implement, review rounds, one commit), then an integration review when the plan has more than one task, then a finish step that merges the base in and resolves the conflicts under review when the branch conflicts with it, pushes and opens a pull request. Also resolves the conflicts of a pull request that is already open, with the same review rounds, and pushes the merge to its branch. A conflict in a project's pull request from `pj/<n>` goes to pj4-running. The standalone run works in a git worktree of its own, `.claude/worktrees/wf-<stamp>`, and leaves the main working tree alone. The review rounds run through Markdown files in the run's work report directory. Use it only when the user names this skill or invokes /annetaan:workflow, when the user asks to resolve the conflicts of a pull request ("resolve the conflicts on #12", "コンフリクト解消して"), or when pj4-running loads it to run one sub-issue of a project or to resolve a merge of the project's source branch, because it spawns four sub-sessions and adds commits. Do not use it for a one-off implementation request or for an ordinary code review request.
+description: Runs one implementation as design, a design review in every repository (it moves existing code only where breaking changes are welcome), approval, then per task (implement, review rounds, one commit), then an integration review when the plan has more than one task, then a finish step that merges the base in and resolves the conflicts under review when the branch conflicts with it, pushes and opens a pull request. Also resolves the conflicts of a pull request that is already open, with the same review rounds, and pushes the merge to its branch. A conflict in a project's pull request from `pj/<n>` goes to pj4-running. The standalone run works in a git worktree of its own, `.claude/worktrees/wf-<stamp>`, and leaves the main working tree alone. The review rounds run through Markdown files in the run's work report directory. Use it only when the user names this skill or invokes /annetaan:workflow, when the user asks to resolve the conflicts of a pull request ("resolve the conflicts on #12", "コンフリクト解消して"), or when pj4-running loads it to run one sub-issue of a project or to resolve a merge of the project's source branch, because it spawns several sub-sessions and adds commits. Do not use it for a one-off implementation request or for an ordinary code review request.
 ---
 
 # workflow
@@ -9,7 +9,7 @@ One implementation, run as **design, a design review in every repository (it mov
 The review rounds run through Markdown files under the run's work report directory, described in
 `$FLOW/review-files.md`.
 
-The design session returns a **plan**: an ordered list of tasks. Implementation and review rounds run inside a task. A task the reviewer approves becomes **one commit**. After the last task of a plan with more than one task, an **integration review** looks at the whole diff once. Then the flow finishes.
+The design session returns a **plan**: an ordered list of tasks. Implementation and review rounds run inside a task. A task the review approves becomes **one commit**. After the last task of a plan with more than one task, an **integration review** looks at the whole diff once. Then the flow finishes.
 
 You are the main session, and you are the **orchestrator. You do not write code.** Sub-agents design, implement and review. You pass work between them and you are the only window onto the human.
 
@@ -36,6 +36,12 @@ The standalone flow also uses the script `$FLOW/scripts/worktree.sh`, written `w
 prints one JSON object with a `status`. A non-zero exit is a usage error or an unexpected failure: quote its message
 and stop. The standalone flow and From a pull request call it. From an issue and From a sync never do.
 
+Every entry also uses `$FLOW/scripts/panel.sh`, written `panel.sh`, which owns the two review seats, one git worktree
+each beside `<WT>`. A seat reaches its worktree only through `panel.sh run <WT> <seat> <probe dir>`, which runs a
+probe the seat wrote (see `$FLOW/review-files.md`, **A probe**), and `panel.sh close <WT>` removes the seats at the
+cleanup. `<WT>` is the absolute path. Both print one JSON object with a `status`, as `worktree.sh` does. A non-zero
+exit is quoted and stops the run, the same way.
+
 ## Before you start
 
 This skill spawns sub-sessions and adds commits. **Start it only when the user names it or invokes
@@ -44,7 +50,7 @@ sync.**
 
 ## The worktree line
 
-A sub-session does not start in `<WT>` by itself. **Every sub-agent prompt, once `<WT>` is entered, ends with this line**: the design, the design review, the implementation, the review, the integration review and the report session.
+A sub-session does not start in `<WT>` by itself. **Every sub-agent prompt, once `<WT>` is entered, ends with this line**: the design, the design review, the implementation, the two review seats of every review, the integration review included, and the report session.
 
 > Your working directory must be the worktree `<WT>`. Run `git rev-parse --show-toplevel` first. When it prints anything else, call `EnterWorktree(path: "<WT>")` before anything else, or, when that tool is not available, start every command with `cd <WT>` and keep Edit and Write paths under `<WT>`. Never touch `<MAIN>`.
 
@@ -52,16 +58,21 @@ Write the real path for `<WT>` and `<MAIN>` when you send it.
 
 ## Agents
 
-**The implementation and review sessions start fresh for every task.**
+**The implementation session and the two review seats start fresh for every task.**
 
 **A task boundary throws away almost nothing.** The code is in git, the design and the plan are in your hands, and
 every finding is resolved because the task was approved. What is left is how this repository wants to be
 worked in, and that travels as the handover notes (phase 4 (d)).
 
-**Every task, and the integration review when the plan has more than one task, run on the same two agents**:
-`annetaan:workflow-worker` for implementation and `annetaan:workflow-reviewer` for review. There is no per-task choice to make.
-Both ship with this plugin, and the model and effort are pinned in `agents/*.md`. Do not pass a `model` argument to
-`Agent`, because the definition holds the right value.
+**Every task, and the integration review when the plan has more than one task, run on the same three agents**:
+`annetaan:workflow-worker` for implementation, and `annetaan:workflow-reviewer-a` and `annetaan:workflow-reviewer-b` for
+review, seats `a` and `b` of the review panel. There is no per-task choice to make.
+All three ship with this plugin, and the model and effort are pinned in `agents/*.md`. Do not pass a `model` argument to
+`Agent`, because the definition holds the right value, except for the fallback below.
+
+**Seat `b` that cannot start** (a weekly limit, a rate limit, the model is unavailable) is spawned again as
+`annetaan:workflow-reviewer-b` with `model: "opus"`. **A seat that returns no report is a dropout**: the round goes on
+with the other seat, and the `Seats:` line of the round file says so.
 
 **The design review runs on `annetaan:workflow-design-review`**, once before approval, in every repository. It moves existing code only where breaking changes are welcome (see `$FLOW/breaking-changes.md`).
 
@@ -160,24 +171,32 @@ Check that the tests pass before you send anything to review, and that the evide
 
 **(b) Review**
 
-**Round 1 of every task starts a new review session.**
+The same steps run for a task, for the integration review and for the merge task. `<scope>` is `task-<k>`, `integration` or `merge`. Every session, yours and the seats', stays in `<WT>`. Only `panel.sh` enters a seat's worktree.
+
+1. **Later rounds only**: run again the command of every open earlier finding, one `panel.sh run` line per Bash call, before you message the seats.
+2. **Start both seats in one message.** Round 1 is `Agent`, with the diff to read depending on the review: a task reads `git diff HEAD` plus the untracked files, the integration review `git diff <START>` plus the untracked files, and a merge the files named by `merge-task.md`.
 
 ```
-Agent(subagent_type: "annetaan:workflow-reviewer", description: "review, task k",
-      prompt: "Read $FLOW/roles/review.md first and follow the role it describes.\n\nApproved design and acceptance criteria:\n<the full design>\n\nPlan:\n<the full plan>\n\nDetail design for this task:\n<the same one the implementation session got>\n\nProgress:\n<the tasks already done and the commit that closed each. \"none\" for task 1>\n\nReview files: <absolute path of WORKDIR>/review\nScratch: <absolute path of WORKDIR>/scratch/review\n\nUnder review: task k, \"<task name>\". The diff sits between the working tree and HEAD (`git diff HEAD` plus untracked files). The evidence is `task-<k>-evidence.md`. Write round 1 as `task-<k>-round-1.md`.\n\n<the worktree line>")
+Agent(subagent_type: "annetaan:workflow-reviewer-a", description: "review, task k, seat a",
+      prompt: "Read $FLOW/roles/review.md first and follow the role it describes.\n\nYou are seat a.\n\nApproved design and acceptance criteria:\n<the full design>\n\nPlan:\n<the full plan>\n\nDetail design for this task:\n<the same one the implementation session got>\n\nProgress:\n<the tasks already done and the commit that closed each. \"none\" for task 1>\n\nHandover notes from the earlier sessions:\n<the notes, or none>\n\nReview files: <absolute path of WORKDIR>/review\nProbes: <absolute path of WORKDIR>/seats/a\nRun a probe with: $FLOW/scripts/panel.sh run <WT> a <probe dir>\n\nUnder review: task k, \"<task name>\". The diff sits between the working tree and HEAD (`git diff HEAD` plus untracked files). The evidence is `task-<k>-evidence.md`. Write your seat file as `<scope>-round-1-a.md` under the review files.\n\n<the worktree line>")
 ```
 
-Every round after that goes to the same session with `SendMessage`, as "the diff has been updated, and the reply is
-`task-<k>-round-<r>-reply.md`, with the evidence in `task-<k>-round-<r>-evidence.md` when the reply changed code. Review it again as round `<r+1>`". A reviewer has to remember what it asked for and
-what the implementation side answered back. The session ends with the task, at (d).
+The call for seat `b` is the same with `annetaan:workflow-reviewer-b`, `You are seat b`, `Probes:` under `seats/b`, `panel.sh run <WT> b <probe dir>` and `<scope>-round-1-b.md`. Write `$FLOW` and `<WT>` out as absolute paths. Both calls go in one message, so the seats run in parallel. In a run from an issue each prompt also carries the lines `from-issue.md` adds, and in a merge the lines `merge-task.md` gives.
 
-Read the verdict at the end of the round file yourself. `approve` goes to (d). Anything else goes to (c).
+**Every round after that goes to each seat with `SendMessage`**, in one message for both: "the tree has been updated, and the reply is `<scope>-round-<r>-reply.md`, with the evidence in `<scope>-round-<r>-evidence.md` when the reply changed code, and the round file of the last round is `<scope>-round-<r>.md`. Review it again, and write `<scope>-round-<r+1>-<seat>.md`." The seats live for one task, so each remembers what it tried and its probes are still there.
+
+3. **When both have reported**, read the two seat files and run each finding's `Command:` again, word for word, from `<WT>`, one command per Bash call. Each run snapshots the tree as it is and prints `exit` and `output`.
+4. **Keep, drop, merge.** Keep a finding when `exit` and `output` show the failure and the failure breaks the intent: the approved design, its criteria, the plan and the task detail. **Drop the rest with the reason**, a command that cannot be run again included. Findings with one root cause become one entry that names every seat. **There is no judge.** The round file holds every verified finding of both seats. Anything under `## Not run` that no seat could run goes to the round file's `## Not run`.
+5. **Earlier findings.** The failure gone is `resolved`. The failure still shown is `stands`, and `stands again` from the second time on. A `disagree` whose reason shows the failure does not break the intent is `resolved`, with the reason quoted.
+6. **Write the round file** `<scope>-round-<r>.md` with Write, in the shape `$FLOW/review-files.md` gives: `Seats:` (the model each seat ran on, a fallback and a dropout said here), `## Earlier findings`, `## New findings`, `## Dropped`, `## Not run` and `## Verdict`. The verdict is yours. `approve` needs no verified finding open and the evidence file of the latest code change. In integration round 1, where no evidence file exists, a `## Walk` in at least one seat file takes its place.
+
+`approve` goes to (d). Anything else goes to (c).
 
 **(c) Respond**
 
 `SendMessage` to the implementation session.
 
-> The review is `<WORKDIR>/review/task-<k>-round-<r>.md`. Fix what needs fixing, and write your answer to every open finding in `task-<k>-round-<r>-reply.md` next to it. Answer `disagree` with your reasoning when you disagree. Answer a finding marked `stands again` as **After two failed fixes** in `$FLOW/judgement.md` says. A reply that changes code comes with `task-<k>-round-<r>-evidence.md`, a full pass. **Do not commit yet.** Report back once the tests pass.
+> The review is `<WORKDIR>/review/task-<k>-round-<r>.md`. Fix what needs fixing, and write your answer to every open finding in `task-<k>-round-<r>-reply.md` next to it. Each finding's `Command:` is a `panel.sh run` line with the seat's probe, which you can read: run that line after your fix, and a `fixed` always carries its `ran:` and `saw:`. Answer `disagree` with your reasoning when you disagree. Answer a finding marked `stands again` as **After two failed fixes** in `$FLOW/judgement.md` says. A reply that changes code comes with `task-<k>-round-<r>-evidence.md`, a full pass. **Do not commit yet.** Report back once the tests pass.
 
 Go back to (b). Count one round.
 
@@ -197,8 +216,8 @@ outlives a session.
 
 **Give the user a one-line progress report**: `task k/N done: <short SHA> <commit subject> (commit k since START <short SHA>)`. A long context can be summarised away, and the plan, `START` and the progress all rebuild from that line. When the commit report had a `check wanted:` line (task or integration fix commit), pass it on to the user as a line of its own after the progress line, word for word, so that a summary still leaves a copy.
 
-**This task's implementation and review sessions are finished here.** Do not send them anything after this. The next
-task starts a new pair. After the last task's commit, the entry's file says what comes next, and whether that task's implementation session stays alive. Its review session ends here either way.
+**This task's implementation session and the two seat sessions are finished here.** Do not send them anything after this. The next
+task starts new ones, and the seats' worktrees stay beside `<WT>`, re-pointed by the next `panel.sh run`. After the last task's commit, the entry's file says what comes next, and whether that task's implementation session stays alive. The seat sessions end here either way.
 
 ### When the plan breaks
 
@@ -215,11 +234,11 @@ If round five does not come back `approve`, stop as the entry's file says. Do no
 
 ## Rules for the whole flow
 
-- **You do not write code.** The implementation session implements and the review session reviews. Code you write yourself never passes through a review.
-- **The review session never changes code.** It runs what it suspects and writes its findings to the review file, and nothing else outside its scratch directory. The implementation session fixes them.
+- **You do not write code.** The implementation session implements and the seats review. Code you write yourself never passes through a review.
+- **A seat never changes the tree of `<WT>`.** It writes only its probes under `<WORKDIR>/seats/<seat>/` and its seat file, and executes only through `panel.sh run`. You write the round file and no other file of the review, and the implementation session fixes what is found. The seats' worktrees stay beside `<WT>` until the cleanup removes them.
 - **The design review session never changes code and sends one report.** It runs once, before approval, never on task detailing or a plan redraw, and the flow goes on without it when it cannot start.
 - **The review files are written once.** Each round and each reply is a new file under `<WORKDIR>/review/`, in the shape `$FLOW/review-files.md` gives. The evidence files are written once too. Nobody edits one after it is written.
-- **The design session lives for the whole flow, in the standalone flow and in From an issue. An implementation session and a review session live for one task.** Inside a task they continue through `SendMessage`, because throwing the context away between rounds repeats arguments that were already settled. At the commit they are finished, and the next task starts a new pair. The implementation session of a one-task plan also writes the work report.
+- **The design session lives for the whole flow, in the standalone flow and in From an issue. An implementation session and the two seat sessions live for one task.** Inside a task they continue through `SendMessage`, because throwing the context away between rounds repeats arguments that were already settled. At the commit they are finished, and the next task starts new ones. The implementation session of a one-task plan also writes the work report.
 - **Keep the reports from the sub-agents short.** The role instructions cap them. A report that pastes a diff or a log fills the one context that holds the whole plan, which is yours. When a long one arrives, say so, and ask for the gist next time.
 - **One task is one commit, and a commit happens only after approval.** A commit mid-round drops the diff out of the working-tree view the review reads.
 - **No branches, no history rewriting from the sub-sessions.** The main session owns `git checkout -b`, run in `<WT>`. `git rebase`, `git reset --hard` and `--amend` break the `START` comparison. The role instructions say the same.
@@ -228,7 +247,7 @@ If round five does not come back `approve`, stop as the entry's file says. Do no
 - **Do not lose `START`.** The phase 2 message to the user and the per-task progress lines in phase 4 are the copies that survive a summarised context.
 - **Never write into `work-reports/` without checking it is ignored.** Unchecked, the report and the screenshots ride into the next commit. Check first that git ignores `work-reports/`, ask before adding it to `.git/info/exclude`, and never edit `.gitignore`.
 - **The standalone flow never touches `<MAIN>`.** Never switch, stash, commit or clean there. Everything runs in `<WT>`.
-- **`worktree.sh` is for the standalone flow and From a pull request.** From an issue and From a sync never call it.
+- **`worktree.sh` is for the standalone flow and From a pull request.** From an issue and From a sync never call it. **`panel.sh` is called by every entry**, with the absolute `<WT>`, and only as `run` and `close`.
 - **Do not move anything under `<WORKDIR>` into version control.** The report, the screenshots and the diff are worth more untracked. Move them only when the user asks.
 - Report a failure when it happens: a failing test, a design that falls apart. **Approved commits are already on the branch and the task in flight is uncommitted in the working tree.** Say both.
 - Standalone, the main session pushes and opens the pull request. From an issue, the main session also pushes and opens the draft pull request. Nothing is merged here. pj4-running

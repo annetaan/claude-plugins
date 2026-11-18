@@ -7,7 +7,7 @@
 # Runs offline: the worktree.sh cases use a clone with no remote, the cleanup.sh cases a bare temp origin, and the
 # worktree is detached, so neither script calls gh. cleanup.sh gets a fake project.sh.
 # The submodule is a second temp repository added by path.
-# The cleanup cases also open the review seats with panel.sh and check that the cleanup removes them.
+# The cleanup cases also put the review seats there with panel.sh run and check that the cleanup removes them.
 # WORKTREE_SH=<path>, CLEANUP_SH=<path> and PANEL_SH=<path> test other copies of the scripts.
 set -euo pipefail
 
@@ -112,6 +112,14 @@ commit_in_sub() {
   git -C "$WT" commit -q -m bump
 }
 
+# seat_run <seat> puts the seat beside $WT with a probe that leaves an untracked file in it.
+seat_run() {
+  local dir="$WT/work-reports/2026-01-01-0000-aaaaaaa/seats/$1/p"
+  mkdir -p "$dir"
+  echo 'echo repro > repro.sh' > "$dir/run.sh"
+  "$PANEL_SRC" run "$WT" "$1" "$dir" > /dev/null
+}
+
 seats_gone() {
   local s
   for s in a b; do
@@ -124,8 +132,8 @@ seats_gone() {
 gone() { ! exists "$WT" && ! exists "$MAIN/.git/worktrees/${1:-wf-test}"; }
 
 setup init
-"$PANEL_SRC" open "$WT" > /dev/null
-echo repro > "$MAIN/.claude/worktrees/review-wf-test-a/repro.sh"
+seat_run a
+seat_run b
 out="$("$SCRIPT" cleanup wf-test)"
 [ "$(echo "$out" | json 'd["status"]')" = done ] || fail "seats cleanup status: $out"
 [ "$(echo "$out" | json 'd["errors"]')" = "[]" ] || fail "seats cleanup errors: $out"
@@ -237,8 +245,7 @@ gone pj-1 || fail "pj discard left the worktree"
 echo "ok: cleanup.sh run --discard removes a worktree whose submodule holds work"
 
 setup_pj init
-"$PANEL_SRC" open "$WT" > /dev/null
-echo repro > "$MAIN/.claude/worktrees/review-pj-1-b/repro.sh"
+seat_run b
 before="$("$CLEANUP" check 1)"
 [ "$(echo "$before" | json 'd["status"]')" = ok ] || fail "pj seats check status: $before"
 [ "$(echo "$before" | json 'd["loses"]')" = "[]" ] || fail "pj seats check loses: $before"

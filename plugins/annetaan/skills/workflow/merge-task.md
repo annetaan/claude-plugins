@@ -29,16 +29,15 @@ git diff --name-only --diff-filter=U
 
 ## The rounds
 
-Phases 3 and 4 run as written for task 1, with a new implementation session and a new review session, five rounds,
+Phases 3 and 4 run as written for task 1, with a new implementation session and the two review seats, five rounds,
 and the worktree line in every prompt, except for these.
 
 - The phase 3 prompt: "Start point START: `<M>`. Branch: `<into>`. This is a merge in progress. Resolve the
   conflicts, and `git add` each file you resolve. Write `merge-evidence.md` under the review files. Never run `git merge --abort`, `git reset` or `git commit`: the
   merge state is the task. Follow **Work outside the task** in your role instruction."
-- The review prompt: "This is a merge. `git diff HEAD` also shows everything `<incoming>` brings. Review the
+- The review prompt, to each seat: "This is a merge. `git diff HEAD` also shows everything `<incoming>` brings. Review the
   resolution: each conflicted file against both sides, with `git diff HEAD -- <file>` and
-  `git diff MERGE_HEAD -- <file>`, and any change outside those files. The evidence is `merge-evidence.md`. Write round 1 as `merge-round-1.md`." Later
-  rounds are `merge-round-<r>.md`, the replies `merge-round-<r>-reply.md`, and the evidence of a reply that changed code `merge-round-<r>-evidence.md`. The acceptance criteria above are commands, so the evidence is those commands and their output, plus the flows the conflicted files take part in.
+  `git diff MERGE_HEAD -- <file>`, and any change outside those files. The evidence is `merge-evidence.md`. Write round 1 as `merge-round-1-<seat>.md`." `<scope>` of phase 4 (b) is `merge`. The round files are `merge-round-<r>.md`, the replies `merge-round-<r>-reply.md`, and the evidence of a reply that changed code `merge-round-<r>-evidence.md`. The acceptance criteria above are commands, so the evidence is those commands and their output, plus the flows the conflicted files take part in.
 - **The commit**, in phase 4 (d): "The merge passed review. Run `git add -A`, then `git commit --no-edit`, which
   records the merge with both parents and the message git prepared. Check that `git status --porcelain` prints
   nothing and that `git rev-parse --verify --quiet MERGE_HEAD` fails, and report back", with the notes for the next
@@ -47,7 +46,7 @@ and the worktree line in every prompt, except for these.
 Check it yourself with `git log -1 --oneline` and `git rev-parse --verify --quiet MERGE_HEAD`. Print
 `merge done: <short SHA>`.
 
-After the commit, the implementation session stays alive for the caller, and the review session ends. The round cap and the user saying stop end in **Stopping** below.
+After the commit, the implementation session stays alive for the caller, and the seat sessions end. The round cap and the user saying stop end in **Stopping** below.
 
 ## Reports from the implementation session
 

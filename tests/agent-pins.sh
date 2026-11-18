@@ -2,7 +2,7 @@
 # Test: the model and the effort of every agent are stated in two places only, the frontmatter of
 # plugins/annetaan/agents/*.md (and the "(<model> / effort <effort>)" in its description) and the agent table of
 # plugins/annetaan/README.md, and the two agree. The design review runs on another model than the design and the
-# planner, and no skill states a pin.
+# planner, the two review seats run on different models, and no skill states a pin.
 #
 # Run: bash tests/agent-pins.sh   (exit 0 is success, anything else is failure)
 # Runs offline: reads files only, writes nothing.
@@ -49,6 +49,10 @@ for other in workflow-design pj-planner; do
   [ "$review" != "$(front "$PLUGIN/agents/$other.md" model)" ] || fail "workflow-design-review runs on the model of $other"
 done
 echo "ok: the design review runs on another model than the design and the planner"
+
+[ "$(front "$PLUGIN/agents/workflow-reviewer-a.md" model)" != "$(front "$PLUGIN/agents/workflow-reviewer-b.md" model)" ] \
+  || fail "workflow-reviewer-a and workflow-reviewer-b run on the same model"
+echo "ok: the two review seats run on different models"
 
 if grep -rnE '(opus|sonnet|fable|haiku) / (low|medium|high|xhigh|max)|pinned to (Fable|fable|opus|sonnet|haiku) at' "$PLUGIN/skills"; then
   fail "a skill states a pin"

@@ -45,7 +45,7 @@ This entry asks nothing and writes nothing to memory. Its ending is **What it ha
 - **Phase 5** runs after the last task when the plan has two or more tasks, as **Phase 5: integration review** in
   `standalone.md` says, with its round cap ending in **The stop procedure** below. With one task it does not run, and
   the task's implementation session stays alive as the standalone flow keeps it, because it writes the work report in
-  **Phase 6 from an issue**. Its review session ends as usual.
+  **Phase 6 from an issue**. Its seat sessions end as usual.
 - **The round cap**, and the user saying stop, end in **The stop procedure**, with no question to the user.
 
 ## Start point and work directory
@@ -99,16 +99,16 @@ gh issue view <Q> --json body   # each Q
 ## Phases 3 and 4
 
 They run as written in SKILL.md, phase 4 (a) included: from task 2 onward the design session details each task. Each
-task gets a new implementation session and a new review session, five rounds, one commit. **When the plan breaks** and a
+task gets a new implementation session and two new review seats, five rounds, one commit. **When the plan breaks** and a
 `Diverged:` report go to the design session with `SendMessage`. A new `Body:` from it goes through **A redrawn issue**
 again, and `Stop: ask` is the stop `decision`. Existing decisions stay byte for byte in every redraw. The prompts gain
 a line each.
 
 - The phase 3 prompt: "This run comes from issue #<n>. Follow **Work outside the task** in your role instruction."
-- The review prompt: "The design is issue #<n>. Its checked decisions bind."
-- Every prompt, implementation and review alike, carries **the worktree line** (**The worktree line** in SKILL.md).
-- Every prompt, implementation and review alike, carries "Left broken on the base branch:" with one line per entry of `parent.breakage` whose `state` is `open` and whose `closedBy` does not hold `#<n>`, as `` `<check>` (left by #<j>) ``, or "none". An entry this issue closes is left out, because its check has to pass here. The declared reason is in `#<j>`'s `### Left broken`, read with `gh issue view <j> --json body` (a body, not a comment). pj4-running has the `project.sh <P>` JSON from its re-read.
-- Every review request, the round 1 prompt and each "review it again" `SendMessage`, also carries the adaptations
+- The prompt of each seat: "The design is issue #<n>. Its checked decisions bind."
+- Every prompt, implementation and seats alike, carries **the worktree line** (**The worktree line** in SKILL.md).
+- Every prompt, implementation and seats alike, carries "Left broken on the base branch:" with one line per entry of `parent.breakage` whose `state` is `open` and whose `closedBy` does not hold `#<n>`, as `` `<check>` (left by #<j>) ``, or "none". An entry this issue closes is left out, because its check has to pass here. The declared reason is in `#<j>`'s `### Left broken`, read with `gh issue view <j> --json body` (a body, not a comment). pj4-running has the `project.sh <P>` JSON from its re-read.
+- Every review request, each seat's round 1 prompt and each "attack it again" `SendMessage`, also carries the adaptations
   the implementation session has listed so far, under "Adaptations", or "none".
 
 Keep the handover lines from phase 4 (d) for pj4-running.
@@ -170,7 +170,8 @@ approved. Look for the commits in `git log --oneline <START>..HEAD`.
   pull request. Then return `finished`, with `stop requested: yes` when the user said stop.
 - **Anything less.** Leave the working tree as it is. Push nothing. Send nothing more to the sessions in flight. Return
   `stopped`. pj4-running saves everything since `<START>`, commits included, to `<WORKDIR>/stopped.diff` with
-  `run.sh save` when it gets the hand-back, and puts `<WT>` back on `<START>`. The next run redoes the issue.
+  `run.sh save` when it gets the hand-back, and puts `<WT>` back on `<START>`. The next run redoes the issue. The seats'
+  worktrees stay beside `<WT>`, and the next run's `panel.sh run` re-points them.
 - **A step of phase 6 fails before the pull request exists.** Return `stopped` with the reason `finish`, the step
   that failed, its error message, and the path of `log.md` when step 1 wrote it.
 
