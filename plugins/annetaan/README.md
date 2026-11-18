@@ -369,11 +369,12 @@ It asks one approval question per drive, and only when a step would run (the que
 the project is not given or the only candidate): a summary of the project, what the steps do and which of the
 permissions they need your settings lack, then start or not. That approval covers the whole drive, and the runs ask nothing. Each run starts in Claude Code's acceptEdits mode,
 so it edits and writes files inside your clone, the project's worktree and a directory of its own without asking. The merges
-into the project's branch happen. The project's own pull request is never merged.
+into the project's branch happen. The project's own pull request is never merged. The drive keeps the Mac from idle sleep
+until it ends (closing the lid still sleeps it), and a run may wait up to 60 minutes after its last turn for its background work.
 
 The drive stops when the project needs you (a split, a wait, a decision to tick, the project's pull request to merge),
 when it is done, when a run ends needing you, when a run changes nothing, when `pj3-doctor` has run twice on the same
-issue, when a run fails, or when you say stop in the conversation. It then names what you do next. Every step writes a
+issue, when a run fails, when a run's background work outlasts the 60 minute wait, or when you say stop in the conversation. It then names what you do next. Every step writes a
 line in `drive.jsonl` in the log directory it prints when it starts, with the time and the files it writes, and another
 when it ends, so the `tail -f` command it shows tells what is running and since when. Each step is a
 whole session, so a long project costs many.

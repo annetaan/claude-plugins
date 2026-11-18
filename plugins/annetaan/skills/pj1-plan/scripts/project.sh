@@ -27,7 +27,9 @@ usage() {
 usage: project.sh [-R <owner/repo>] <parent>               the whole project, as JSON
        project.sh [-R <owner/repo>] <parent> --order       the run order, and the ## Order list to write, as JSON
        project.sh [-R <owner/repo>] <parent> --next        what to run next on the project, as JSON
-       project.sh [-R <owner/repo>] <parent> --check <n>   whether sub-issue <n> can be implemented from its body now
+       project.sh [-R <owner/repo>] <parent> --check <n> [<n>...]
+                                                           whether each sub-issue can be implemented from its body now,
+                                                           one JSON object per line
        project.sh [-R <owner/repo>] <parent> --order-body  the parent body with its ## Order list replaced, as text
        project.sh --lint <file|->                          lint one sub-issue body, read from a file or standard input
        project.sh --same-words <before> <after>            whether two bodies differ in backticks and whitespace only
@@ -37,7 +39,8 @@ usage: project.sh [-R <owner/repo>] <parent>               the whole project, as
         or when the projects wait on each other.
 --next reads only. It prints what to run next (doctor, running, user or done), why, and a fingerprint of the state.
 --check runs inside a work tree of a clone of the repository, from any directory in it. It fetches the branch the base was made from,
-        and the base branch once it exists.
+        and the base branch once it exists. The parent comes before --check. It reads GitHub and fetches once whatever
+        the count, and dies before printing anything when a number is no sub-issue.
 --order-body prints the parent body as GitHub has it now, with the lines under ## Order replaced by the list --order
         writes. It fails like --order when the blocked-by relationships have a cycle.
 --lint touches neither GitHub nor git and always exits 0.
@@ -50,7 +53,7 @@ USAGE
   exit 1
 }
 
-REPO=""; MODE="project"; PARENT=""; TARGET=""; LINT_FILE=""
+REPO=""; MODE="project"; PARENT=""; TARGETS=""; LINT_FILE=""
 SAME_BEFORE=""; SAME_AFTER=""
 ROADMAP_REF=""
 while [ $# -gt 0 ]; do
@@ -59,7 +62,9 @@ while [ $# -gt 0 ]; do
     --order)   MODE="order"; shift ;;
     --order-body) MODE="order-body"; shift ;;
     --next)    MODE="next"; shift ;;
-    --check)   [ $# -ge 2 ] || usage; MODE="check"; TARGET="$2"; shift 2 ;;
+    --check)   MODE="check"; shift
+               while [ $# -gt 0 ] && [ -n "$1" ] && [ -z "${1//[0-9]/}" ]; do TARGETS="$TARGETS $1"; shift; done
+               [ -n "$TARGETS" ] || die "--check takes issue numbers" ;;
     --lint)    [ $# -ge 2 ] || usage; MODE="lint"; LINT_FILE="$2"; shift 2 ;;
     --same-words) [ $# -ge 3 ] || usage; MODE="same-words"; SAME_BEFORE="$2"; SAME_AFTER="$3"; shift 3 ;;
     --roadmap) MODE="roadmap"; shift
@@ -853,17 +858,17 @@ if MODE == "next":
     print(json.dumps(next_step(project_view()), ensure_ascii=False))
     sys.exit(0)
 
-def check(n):
-    """Print whether sub-issue n can be implemented from its body now, as JSON. A function so that its temporaries
+def check(numbers):
+    """Print whether each sub-issue in numbers can be implemented from its body now, one JSON object per line. A function so that its temporaries
     cannot rebind a global another function reads. Runs from the top of the work tree."""
     top = run("git", "rev-parse", "--show-toplevel")
     if top.returncode != 0:
         die("--check runs inside a work tree of a clone of %s/%s" % (REPO_OWNER, REPO_NAME))
     # ls-tree with no path lists the current directory, and grep and log read pathspecs from it: run from the top.
     os.chdir(top.stdout.strip())
-    issue = by_number.get(n)
-    if issue is None:
-        die("#%d is not a sub-issue of #%d" % (n, parent["number"]))
+    for n in numbers:
+        if n not in by_number:
+            die("#%d is not a sub-issue of #%d" % (n, parent["number"]))
     # An explicit refspec, so that a single-branch clone still gets origin/<branch>,
     # and a branch that starts with - is not read as an option.
     # <from> every time, the base only once pj4-running has created it.
@@ -885,73 +890,74 @@ def check(n):
         meta, _, fname = rec.partition("\t")
         if fname and meta.split()[1] == "blob":
             root_files.add(fname)
-    paths = root_files | {f["path"] for m in transitive_blockers(issue) if m in by_number for f in by_number[m]["files"]}
-    paths |= {f["path"] for f in issue["files"]}
-    check_lint = lint(parse(body_of[n]), paths)
-
-    # premises, in one of three modes.
-    #   none:  nothing is checked. The base is missing and a project this one waits on is not merged, or an open
-    #          blocker is outside the project, or an open blocker in the project is a stub. There is no body to read.
-    #   early: open in-project blockers (excusers) are still meant to change the files. A path they list or a symbol
-    #          they name counts as present, and a file list that contradicts this one is a failure.
-    #   full:  every blocker is closed. The files are read at ref as they are.
-    failures = []
-    excusers = []
-    walked = transitive_blockers(issue)
-    if (not (base_exists or all(d["merged"] for d in waits_on_entries))
-            or any(b["number"] not in by_number and b["state"] == "OPEN" for b in issue["blockedBy"])
-            or any(m in by_number and by_number[m]["state"] == "OPEN" and by_number[m]["stub"] for m in walked)):
-        mode = "none"
-    else:
-        excusers = sorted(m for m in walked if m in by_number and by_number[m]["state"] == "OPEN")
-        mode = "early" if excusers else "full"
-        lists = lambda kinds, path: [m for m in excusers
-                                     if any(g["path"] == path and g["kind"] in kinds for g in by_number[m]["files"])]
-        tokens = {m: set(re.findall(r"[A-Za-z_$][\w$]*", body_of[m] or "")) for m in excusers}
-        for f in issue["files"]:
-            exists = run("git", "cat-file", "-e", "%s:%s" % (ref, f["path"])).returncode == 0
-            why = None
-            if f["kind"] == "added":
-                if lists({"added"}, f["path"]):
-                    why = "added, but an open blocker adds it too"
-                elif exists and not lists({"deleted"}, f["path"]):
-                    why = "added, but already exists"
-            elif lists({"deleted"}, f["path"]):
-                why = "%s, but an open blocker deletes it" % f["kind"]
-            elif not exists and not lists({"added"}, f["path"]):
-                why = "%s, but does not exist" % f["kind"]
-            if why:
-                failures.append({"path": f["path"], "why": why})
-            elif f["kind"] == "changed":
-                namers = lists({"added", "changed"}, f["path"])
-                for sym in ([] if is_document(f["path"]) else symbols(f, paths)):
-                    found = exists and run("git", "grep", "-w", "-F", "-q", sym, ref, "--", f["path"]).returncode == 0
-                    if not found and not any(sym in tokens[m] for m in namers):
-                        as_word = "(^|[^A-Za-z0-9_])" + sym.replace("$", "[$]") + "([^A-Za-z0-9_]|$)"
-                        held = history_unknown or (exists and run("git", "log", "--format=%H", "-n", "1", "--pickaxe-regex", "-S" + as_word, ref, "--", f["path"]).stdout.strip() != "")
-                        failures.append({"path": f["path"], "symbol": sym,
-                                         "why": "symbol not found" if held else "symbol never in the file"})
-                if roadmap_line and f["path"] == roadmap_line[0]:
-                    shown_text = run("git", "show", "%s:%s" % (ref, f["path"]))
-                    entries = roadmap_parse(shown_text.stdout)[0] if shown_text.returncode == 0 else []
-                    if not any(e["heading"] == roadmap_line[1] for e in entries):
-                        failures.append({"path": f["path"], "why": "roadmap entry not found"})
-
     unclosed = [{"issue": b["issue"], "check": b["check"]} for b in breakage_view() if b["state"] == "unclosed"]
+    for n in numbers:
+        issue = by_number[n]
+        paths = root_files | {f["path"] for m in transitive_blockers(issue) if m in by_number for f in by_number[m]["files"]}
+        paths |= {f["path"] for f in issue["files"]}
+        check_lint = lint(parse(body_of[n]), paths)
 
-    print(json.dumps({
-        "number": n,
-        "base": base,
-        "from": made_from,
-        "baseExists": base_exists,
-        "ok": check_lint["ok"] and not failures and not unclosed,
-        "lint": check_lint,
-        "premises": {"mode": mode, "excusers": excusers, "failures": failures},
-        "breakage": {"unclosed": unclosed},
-    }, ensure_ascii=False))
+        # premises, in one of three modes.
+        #   none:  nothing is checked. The base is missing and a project this one waits on is not merged, or an open
+        #          blocker is outside the project, or an open blocker in the project is a stub. There is no body to read.
+        #   early: open in-project blockers (excusers) are still meant to change the files. A path they list or a symbol
+        #          they name counts as present, and a file list that contradicts this one is a failure.
+        #   full:  every blocker is closed. The files are read at ref as they are.
+        failures = []
+        excusers = []
+        walked = transitive_blockers(issue)
+        if (not (base_exists or all(d["merged"] for d in waits_on_entries))
+                or any(b["number"] not in by_number and b["state"] == "OPEN" for b in issue["blockedBy"])
+                or any(m in by_number and by_number[m]["state"] == "OPEN" and by_number[m]["stub"] for m in walked)):
+            mode = "none"
+        else:
+            excusers = sorted(m for m in walked if m in by_number and by_number[m]["state"] == "OPEN")
+            mode = "early" if excusers else "full"
+            lists = lambda kinds, path: [m for m in excusers
+                                         if any(g["path"] == path and g["kind"] in kinds for g in by_number[m]["files"])]
+            tokens = {m: set(re.findall(r"[A-Za-z_$][\w$]*", body_of[m] or "")) for m in excusers}
+            for f in issue["files"]:
+                exists = run("git", "cat-file", "-e", "%s:%s" % (ref, f["path"])).returncode == 0
+                why = None
+                if f["kind"] == "added":
+                    if lists({"added"}, f["path"]):
+                        why = "added, but an open blocker adds it too"
+                    elif exists and not lists({"deleted"}, f["path"]):
+                        why = "added, but already exists"
+                elif lists({"deleted"}, f["path"]):
+                    why = "%s, but an open blocker deletes it" % f["kind"]
+                elif not exists and not lists({"added"}, f["path"]):
+                    why = "%s, but does not exist" % f["kind"]
+                if why:
+                    failures.append({"path": f["path"], "why": why})
+                elif f["kind"] == "changed":
+                    namers = lists({"added", "changed"}, f["path"])
+                    for sym in ([] if is_document(f["path"]) else symbols(f, paths)):
+                        found = exists and run("git", "grep", "-w", "-F", "-q", sym, ref, "--", f["path"]).returncode == 0
+                        if not found and not any(sym in tokens[m] for m in namers):
+                            as_word = "(^|[^A-Za-z0-9_])" + sym.replace("$", "[$]") + "([^A-Za-z0-9_]|$)"
+                            held = history_unknown or (exists and run("git", "log", "--format=%H", "-n", "1", "--pickaxe-regex", "-S" + as_word, ref, "--", f["path"]).stdout.strip() != "")
+                            failures.append({"path": f["path"], "symbol": sym,
+                                             "why": "symbol not found" if held else "symbol never in the file"})
+                    if roadmap_line and f["path"] == roadmap_line[0]:
+                        shown_text = run("git", "show", "%s:%s" % (ref, f["path"]))
+                        entries = roadmap_parse(shown_text.stdout)[0] if shown_text.returncode == 0 else []
+                        if not any(e["heading"] == roadmap_line[1] for e in entries):
+                            failures.append({"path": f["path"], "why": "roadmap entry not found"})
+
+        print(json.dumps({
+            "number": n,
+            "base": base,
+            "from": made_from,
+            "baseExists": base_exists,
+            "ok": check_lint["ok"] and not failures and not unclosed,
+            "lint": check_lint,
+            "premises": {"mode": mode, "excusers": excusers, "failures": failures},
+            "breakage": {"unclosed": unclosed},
+        }, ensure_ascii=False))
 
 if MODE == "check":
-    check(int(sys.argv[4]))
+    check([int(a) for a in sys.argv[4:]])
     sys.exit(0)
 
 # --order and --order-body: the run order and the ## Order list (see run_order).
@@ -999,7 +1005,6 @@ fi
 
 [ -n "$PARENT" ] || usage
 case "$PARENT" in *[!0-9]*) die "the parent must be an issue number: $PARENT" ;; esac
-case "$TARGET" in *[!0-9]*) die "--check takes an issue number: $TARGET" ;; esac
 
 command -v gh >/dev/null 2>&1 || die "gh is not installed"
 
@@ -1034,7 +1039,7 @@ query($owner: String!, $name: String!, $n: Int!) {
 }' > "$TMP/issues.json" || die "cannot read issue #$PARENT in $REPO"
 
 if [ "$MODE" = "check" ]; then
-  python3 -c "$PY" check "$TMP/issues.json" "$REPO" "$TARGET"
+  python3 -c "$PY" check "$TMP/issues.json" "$REPO" $TARGETS
   exit 0
 fi
 

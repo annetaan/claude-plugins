@@ -23,7 +23,7 @@ project.sh <P>               # the whole project, as JSON
 project.sh <P> --order       # the run order, and the ## Order list to write
 project.sh <P> --order-body  # the parent body with its ## Order list replaced, as text
 project.sh <P> --next        # what to run next on the project, and a fingerprint (see What comes next)
-project.sh <P> --check <n>   # whether sub-issue <n>'s body still holds against the code and the project (see Is the body still current?)
+project.sh <P> --check <n> [<n>...]   # whether each sub-issue's body still holds against the code and the project (see Is the body still current?)
 project.sh --lint <file>     # the lint of one body, from a file, or from standard input with -
 project.sh --same-words <before> <after>   # whether the two bodies differ in backticks and whitespace only
 project.sh --roadmap [<ref>] # the roadmap file, in the work tree or at <ref>, checked against the format (see format.md)
@@ -109,8 +109,10 @@ cannot read, and otherwise exits 0 whatever the result:
 `path` is set when exactly one roadmap file exists. `start` and `end` are the first and last line of an entry, 1-based.
 `line` and `heading` appear on a reason when one applies. The codes are in `format.md`, **The roadmap file**.
 
-`--check <n>` runs inside a work tree of a clone of the repository, from any directory in it. It fetches `<from>` from origin every time, and the base branch
-only once it exists, which moves local refs and nothing else, and prints:
+`--check <n> [<n>...]` runs inside a work tree of a clone of the repository, from any directory in it. It takes one or more
+numbers after the parent, reads the project and fetches once per call, and prints one object per number, one per line, in
+the order given. It fetches `<from>` from origin every time, and the base branch
+only once it exists, which moves local refs and nothing else. Each object has the shape:
 
 ```
 {"number", "base", "from", "baseExists", "ok", "lint": {"ok", "reasons"},
