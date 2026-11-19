@@ -54,8 +54,9 @@ know. The approval also shows the model decisions, and "change something first" 
 Each task's implementation session shows every acceptance criterion by running it, on the tree under review, and writes
 the runs to an evidence file. A bug fix with a cheap test path starts with a failing test. Two review seats try to break the change and prove every finding by a run of a probe they wrote: a command, what it
 printed, and what the design requires. The main session runs each command again, keeps only a failure that breaks the
-design, and writes the round and its verdict. What no seat could run is listed in the pull request under its own
-heading.
+design, and writes the round and its verdict. From round 2 on, the main session reruns the open findings itself, and
+each seat attacks only what changed since the tree it reviewed last. What no seat could run is listed in the pull
+request under its own heading.
 
 Five more rules apply across the roles. The design removes what the request makes unnecessary before it adds anything,
 and draws a new requirement as if it had always been there, down to the types, documents and examples that state the
@@ -86,8 +87,8 @@ pushes the branch and opens a pull request into the base.
 **The approval settles the boundaries. The tasks get detailed one at a time.** What you approve up front is what
 crosses from one task into the next: the contracts, the types, the names, and the order things have to land in. The
 interior of task 1 comes with it, because task 1 starts from the repository the design session just read. Every task
-after that is detailed by the same design session right before it starts, against the code the earlier tasks actually
-produced. A plan that turns out to be wrong surfaces there, before anybody writes code against it.
+after that is detailed by the same design session while the task before it is committed, against the code the earlier
+tasks actually produced. A plan that turns out to be wrong surfaces there, before anybody writes code against it.
 
 **Five review rounds per task, fixed.** A task that does not settle in five comes back to you with the open points
 laid out, and its changes stay uncommitted in the run's worktree. Saying "stop" partway through the rounds works too.

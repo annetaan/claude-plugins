@@ -40,7 +40,8 @@ When the design comes back:
 - **The round cap is five per task and it is fixed.** Mention it once at approval. Do not negotiate the number (see **The round cap** in SKILL.md).
 
 **Keep the design session alive for the whole flow.** You go back to it twice. Before every task from task 2
-onward, to have it detail that task against the code as it now stands (phase 4 (a)). And whenever the plan breaks,
+onward, to have it detail that task against the approved tree of the task before, while that task is committed (phase
+4 (d)). And whenever the plan breaks,
 to have it redraw the remaining tasks.
 
 ### The design review

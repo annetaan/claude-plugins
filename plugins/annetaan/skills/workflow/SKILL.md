@@ -158,9 +158,8 @@ A task is **(a) detail it and implement, (b) review, (c) respond, back to (b), t
 **Task 1 needs no detailing.** The design session read the repository in the state task 1 starts from, so the detail
 it wrote for task 1 cannot have gone stale.
 
-**From task 2 onward, go back to the design session first.** `SendMessage`:
-
-> Task k-1 is committed as `<short SHA>`. Detail task k, "<task name>", against the code as it stands now. What the earlier tasks actually produced outranks what the design predicted. Follow **Detailing a task** in your role instruction. If the task boundary itself no longer holds, say that instead.
+**From task 2 onward, the design session details the task first.** You asked for that detail in (d) of task k-1, in
+the same message as the commit, so it runs while the commit does. Wait until both have reported.
 
 **This is where a broken plan gets caught before anyone writes code against it.** An answer that says the boundary no
 longer holds goes to **When the plan breaks**.
@@ -183,7 +182,7 @@ Agent(subagent_type: "annetaan:workflow-reviewer-a", description: "review, task 
 
 The call for seat `b` is the same with `annetaan:workflow-reviewer-b`, `You are seat b`, `Probes:` under `seats/b`, `panel.sh run <WT> b <probe dir>` and `<scope>-round-1-b.md`. Write `$FLOW` and `<WT>` out as absolute paths. Both calls go in one message, so the seats run in parallel. In a run from an issue each prompt also carries the lines `from-issue.md` adds, and in a merge the lines `merge-task.md` gives.
 
-**Every round after that goes to each seat with `SendMessage`**, in one message for both: "the tree has been updated, and the reply is `<scope>-round-<r>-reply.md`, with the evidence in `<scope>-round-<r>-evidence.md` when the reply changed code, and the round file of the last round is `<scope>-round-<r>.md`. Review it again, and write `<scope>-round-<r+1>-<seat>.md`." The seats live for one task, so each remembers what it tried and its probes are still there.
+**Every round after that goes to each seat with `SendMessage`**, in one message for both: "the tree has been updated, and the reply is `<scope>-round-<r>-reply.md`, with the evidence in `<scope>-round-<r>-evidence.md` when the reply changed code, and the round file of the last round is `<scope>-round-<r>.md`. Attack what changed since your last round, as **Later rounds** in your role instruction says, and write `<scope>-round-<r+1>-<seat>.md`." The seats live for one task, so each remembers what it tried, its probes are still there, and it diffs the tree it reviewed last against the tree now.
 
 3. **When both have reported**, read the two seat files and run each finding's `Command:` again, word for word, from `<WT>`, one command per Bash call. Each run snapshots the tree as it is and prints `exit` and `output`.
 4. **Keep, drop, merge.** Keep a finding when `exit` and `output` show the failure and the failure breaks the intent: the approved design, its criteria, the plan and the task detail. **Drop the rest with the reason**, a command that cannot be run again included. Findings with one root cause become one entry that names every seat. **There is no judge.** The round file holds every verified finding of both seats. Anything under `## Not run` that no seat could run goes to the round file's `## Not run`.
@@ -205,6 +204,12 @@ Go back to (b). Count one round.
 `SendMessage` to the implementation session.
 
 > Task k, "<task name>", passed review. Turn its changes into **one commit**. Match the commit message style this repository already uses and make the task recognisable. Check that `git status --porcelain` is empty afterwards and report back. End the report with **notes for the next session, five lines at most**: the commands that run the tests and the type checks, the conventions you kept and the traps you hit, and anything that bears on the tasks still to come. No explanation of the code.
+
+**When tasks are left, ask the design session for the next detail in the same message**, a second `SendMessage`
+beside the one above, so the detail runs while the commit does. The approved change is what the commit takes, so the
+working tree already holds the code task k+1 starts from.
+
+> Task k, "<task name>", passed review and is being committed now. Its approved change sits in the working tree of `<WT>`, uncommitted, and the commit takes it unchanged. Detail task k+1, "<task name>", against the code as it stands in the working tree, untracked files included. What the earlier tasks actually produced outranks what the design predicted. Follow **Detailing a task** in your role instruction. If the task boundary itself no longer holds, say that instead.
 
 Check it yourself with `git log -1 --oneline`, `git status --porcelain`, and `git branch --show-current` to confirm the branch has not moved. Anything left in the working tree needs an explanation from the implementation session. Screenshots inside `<WORKDIR>` are ignored by git and can stay.
 

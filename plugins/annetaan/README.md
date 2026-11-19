@@ -177,7 +177,7 @@ flowchart TD
 
     subgraph task["per task"]
         direction TB
-        detail["design session<br/>details this task against<br/>the code as it now stands"]
+        detail["design session<br/>details this task against the code<br/>the task before left, while it commits"]
         impl["implementation session<br/>new for this task<br/>writes it, evidence file,<br/>commits nothing"]
         review["two review seats<br/>new for this task<br/>read the tree in the run's worktree,<br/>prove each finding by a probe run,<br/>main session reruns and writes the round"]
         respond["implementation session<br/>fixes, then writes a reply file"]
@@ -590,11 +590,11 @@ returns no report is a dropout: the round goes on with the other.
 | --- | --- | --- | --- |
 | `annetaan:workflow-design` | fable | medium | design. returns the design and the plan, and tries a doubtful point in a throwaway experiment. In a pj run it also details one sub-issue against the code and may return its body redrawn |
 | `annetaan:workflow-design-review` | opus | high | design review for `workflow` and `pj1-plan`. once, before approval, in every repository. moves existing code only where breaking changes are welcome |
-| `annetaan:workflow-worker` | opus | xhigh | implementation, for every task. shows each acceptance criterion by running it and writes the evidence file |
+| `annetaan:workflow-worker` | opus | high | implementation, for every task. shows each acceptance criterion by running it and writes the evidence file |
 | `annetaan:workflow-reviewer-a` | opus | high | review seat a, for every task, and the integration review when the plan has more than one task. tries to break the change and proves each finding by a run of a probe it wrote |
-| `annetaan:workflow-reviewer-b` | fable | high | review seat b, the same job as seat a on another model |
+| `annetaan:workflow-reviewer-b` | fable | medium | review seat b, the same job as seat a on another model |
 | `annetaan:pj-planner` | fable | medium | planning for `pj1-plan` and `pj2-issues`. the projects, their designs and the waits between them, then one project's split into tasks. answers the design review, and tries a doubtful point in a throwaway experiment |
-| `annetaan:pj-issue-writer` | opus | xhigh | one sub-issue, drawn against the code. drafts it for `pj2-issues`, revises it for `pj3-doctor`, and tries a doubtful point in a throwaway experiment |
+| `annetaan:pj-issue-writer` | opus | high | one sub-issue, drawn against the code. drafts it for `pj2-issues`, revises it for `pj3-doctor`, and tries a doubtful point in a throwaway experiment |
 | `annetaan:pj-reviewer` | fable | medium | project review for `pj3-doctor`. reads the whole project against the ticked boxes, the code and each issue |
 | `annetaan:experience-video-producer` | fable | medium | production for `experience-video`. fills in the cuts, fragments and music of a story, renders it, and checks its frames |
 | `annetaan:pr-humans-writer` | sonnet | medium | one comment for `pr-humans`. reads only the gathered files. drafts how people took part in one pull request |
