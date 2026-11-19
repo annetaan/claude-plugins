@@ -33,6 +33,8 @@ command -v python3 >/dev/null 2>&1 || die "python3 is not installed"
 PROJECT_SH="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/../../pj1-plan/scripts/project.sh"
 WORKTREE_SH="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/../../workflow/scripts/worktree.sh"
 
+PANEL_SH="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/../../workflow/scripts/panel.sh"
+
 PY_FILE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/cleanup.py"
 
-exec python3 "$PY_FILE" "$PROJECT_SH" "$WORKTREE_SH" "$@"
+exec python3 "$PY_FILE" "$PROJECT_SH" "$WORKTREE_SH" "$PANEL_SH" "$@"

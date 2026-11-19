@@ -5,6 +5,8 @@ SCRIPT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)/plugins/annetaan/skills
 SCRIPT="${WORKTREE_SH:-$SCRIPT}"
 CLEANUP_SRC="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)/plugins/annetaan/skills/pj-cleanup/scripts/cleanup.sh"
 CLEANUP_SRC="${CLEANUP_SH:-$CLEANUP_SRC}"
+PANEL_SRC="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)/plugins/annetaan/skills/workflow/scripts/panel.sh"
+PANEL_SRC="${PANEL_SH:-$PANEL_SRC}"
 
 TMP="$(mktemp -d)"
 trap 'chmod -R u+rwx "$TMP" 2>/dev/null || true; rm -rf "$TMP"' EXIT
@@ -68,11 +70,12 @@ setup_pj() {
   cp "${CLEANUP_SRC%.sh}.py" "$TMP/pj/skills/pj-cleanup/scripts/cleanup.py"
   cp "$SCRIPT" "$TMP/pj/skills/workflow/scripts/worktree.sh"
   cp "${SCRIPT%.sh}.py" "$TMP/pj/skills/workflow/scripts/worktree.py"
+  cp "$PANEL_SRC" "$TMP/pj/skills/workflow/scripts/panel.sh"
   cat > "$TMP/pj/skills/pj1-plan/scripts/project.sh" <<'FAKE'
 #!/usr/bin/env bash
 echo '{"parent":{"number":1,"title":"P","state":"CLOSED","base":"pj/1","from":"main","merged":true}}'
 FAKE
-  chmod +x "$TMP/pj/skills/pj-cleanup/scripts/cleanup.sh" "$TMP/pj/skills/workflow/scripts/worktree.sh" \
+  chmod +x "$TMP/pj/skills/pj-cleanup/scripts/cleanup.sh" "$TMP/pj/skills/workflow/scripts/worktree.sh" "$TMP/pj/skills/workflow/scripts/panel.sh" \
            "$TMP/pj/skills/pj1-plan/scripts/project.sh"
   CLEANUP="$TMP/pj/skills/pj-cleanup/scripts/cleanup.sh"
   git init -q --bare "$TMP/pj/origin.git"

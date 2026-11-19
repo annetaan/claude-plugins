@@ -49,6 +49,7 @@ names = [
     "Bash(git:*)",
     "Bash(" + skills + "/pj1-plan/scripts/project.sh:*)",
     "Bash(" + skills + "/pj4-running/scripts/run.sh:*)",
+    "Bash(" + skills + "/workflow/scripts/panel.sh:*)",
     "Read(/" + skills + "/**)",
 ]
 base = [{"rule": r, "in": [e["file"] for e in settings if r in e["allow"]]} for r in names]

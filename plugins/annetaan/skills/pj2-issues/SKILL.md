@@ -1,6 +1,6 @@
 ---
 name: pj2-issues
-description: Takes the project to split from a number given, or the only one it could split, and otherwise asks, offering the projects with no sub-issue whose waited-on projects are all merged or closed without a merge, with the lowest-numbered one as the recommended one. Refuses a project that waits on one not yet merged. Has a planner split the project into tasks against the code as it stands after those merges, and asks the split-level questions. Shows the split, a diff of any change to the parent, and any change to its blocked-by relationships for approval. Has one issue writer per task draw that task in parallel, then files the sub-issues with the blocked-by relationships inside the project, the run order in the parent's Order list, and the titles, and labels the parent doing. The second of four skills, after pj1-plan and before pj3-doctor and pj4-running. Use it only when the user names this skill or invokes /annetaan:pj2-issues, because it creates and edits issues, relationships and labels on GitHub.
+description: Takes the project to split from a number given, the project this conversation is on when it can be split, or the only one it could split, and otherwise asks, offering the projects with no sub-issue whose waited-on projects are all merged or closed without a merge, with the lowest-numbered one as the recommended one. Refuses a project that waits on one not yet merged. Has a planner split the project into tasks against the code as it stands after those merges, and asks the split-level questions. Shows the split, a diff of any change to the parent, and any change to its blocked-by relationships for approval. Has one issue writer per task draw that task in parallel, then files the sub-issues with the blocked-by relationships inside the project, the run order in the parent's Order list, and the titles, and labels the parent doing. The second of four skills, after pj1-plan and before pj3-doctor and pj4-running. Use it only when the user names this skill or invokes /annetaan:pj2-issues, because it creates and edits issues, relationships and labels on GitHub.
 ---
 
 # pj2-issues
@@ -61,7 +61,7 @@ git branch --show-current
 ## The project
 
 1. Pick it as `between-skills.md` says under **Picking the project**. The project picked is `<P>`. Print
-   `project #<P>` once, so that a context summary can find it again. Run `mktemp -d` once for the whole run. `$TMP`
+   `project #<P>` once, as **Picking the project** says. Run `mktemp -d` once for the whole run. `$TMP`
    below is the directory it printed. A shell variable does not outlive one command, so write the path in full each
    time. Run `git status --porcelain` once and keep its output. The checks in phases 1 and 3 compare against it.
 2. Read the project.
@@ -131,9 +131,9 @@ Agent(subagent_type: "annetaan:pj-planner", description: "split #<P>",
 the first form, with `parent.roadmap.path` as `<path>`, when the split ends with the roadmap task, the second with the line kept above, and `none` for a parent
 with no `Roadmap:` line.
 
-`annetaan:pj-planner` ships with this plugin and is pinned to Fable at medium effort. It is told never to change the repository and to write only under its `Scratch:` directory, by instruction.
+`annetaan:pj-planner` ships with this plugin and has its model and effort pinned in `agents/*.md`. It is told never to change the repository and to write only under its `Scratch:` directory, by instruction.
 **When it cannot start** (a weekly limit, a rate limit, the model is unavailable), spawn it again with the same
-prompt and `model: "opus"`. The effort stays medium.
+prompt and `model: "opus"`.
 
 When the split comes back:
 
@@ -236,8 +236,8 @@ Agent(subagent_type: "annetaan:pj-issue-writer", description: "issue T<k>",
       prompt: "Read $ISSUES/roles/issue.md first and follow the role it describes. The project format is in $ISSUES/../pj1-plan/format.md. Lint a body with $ISSUES/../pj1-plan/scripts/project.sh. The judgement rules are in <skills>/workflow/judgement.md.\n\nMode: draft\n\nParent: #<P>\nWaits on: <#Q, #R | none>\n\nThe parent body:\n<the approved body>\n\nThe split:\n<the full report from the planner>\n\nRead the code: <the working tree | at origin/<from>>\n\nYour task: T<k>, \"<title>\".\n\nScratch: $TMP/scratch/T<k>")
 ```
 
-`Waits on:` names the parents in `parent.waitsOn`. `annetaan:pj-issue-writer` ships with this plugin and is pinned to
-opus at medium effort. It is told never to change the repository and to write only under its `Scratch:` directory, by
+`Waits on:` names the parents in `parent.waitsOn`. `annetaan:pj-issue-writer` ships with this plugin and has its model and
+effort pinned in `agents/*.md`. It is told never to change the repository and to write only under its `Scratch:` directory, by
 instruction.
 
 Each writer sends back a title and a body in the shape `format.md` gives a sub-issue, or a statement that the split
@@ -389,5 +389,5 @@ Then the next steps, in this order:
   **Projects**).
 - **Always pass a body with `--body-file`.**
 - **Re-read `updatedAt` before every edit.**
-- After a context summary, take `<P>` again from the `project #<P>` line, and rebuild where the run stood from
+- After a context summary, take `<P>` again from the last `project #<P>` line, and rebuild where the run stood from
   `project.sh <P>`. A planner or a writer whose handle is gone is started again.

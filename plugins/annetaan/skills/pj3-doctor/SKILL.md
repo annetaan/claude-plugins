@@ -1,6 +1,6 @@
 ---
 name: pj3-doctor
-description: Takes the project from a number given, a sub-issue's number naming its parent, or the only project with sub-issues, and otherwise asks which project to work on, then reviews the whole project against the boxes the user ticked on GitHub, against the code and against each issue in it. Has one issue writer per issue redraw what no longer holds, draws the stubs, resolves the blockers, rewrites the run order in the parent's Order list, and labels the issues ready. Asks the user no task decision, because the user ticks those on GitHub. Asks only about a split, two boxes ticked in one decision, and its changes before they are written. Run it again after ticking. The third of four skills, after pj1-plan and pj2-issues and before pj4-running. Use it only when the user names this skill or invokes /annetaan:pj3-doctor, because it edits, files and closes issues and changes labels on GitHub.
+description: Takes the project from a number given, a sub-issue's number naming its parent, the project this conversation is on, or the only project with sub-issues, and otherwise asks which project to work on, then reviews the whole project against the boxes the user ticked on GitHub, against the code and against each issue in it. Has one issue writer per issue redraw what no longer holds, draws the stubs, resolves the blockers, rewrites the run order in the parent's Order list, and labels the issues ready. Asks the user no task decision, because the user ticks those on GitHub. Asks only about a split, two boxes ticked in one decision, and its changes before they are written. Run it again after ticking. The third of four skills, after pj1-plan and pj2-issues and before pj4-running. Use it only when the user names this skill or invokes /annetaan:pj3-doctor, because it edits, files and closes issues and changes labels on GitHub.
 ---
 
 # pj3-doctor
@@ -58,7 +58,7 @@ gh repo view --json nameWithOwner,hasIssuesEnabled,defaultBranchRef
 - A dirty working tree does not matter. This skill reads the code and changes nothing in it.
 
 **The project.** Pick it as `between-skills.md` says under **Picking the project**. The project picked is `<P>`. In an unattended run, only rule 1 of **Picking the project** applies (`between-skills.md`, **Unattended runs**). Print
-`project #<P>` once, with ` unattended` after it in an unattended run, so that a context summary can find both again.
+`project #<P>` once, with ` unattended` after it in an unattended run, as **Picking the project** says.
 
 When the args carry `tmp=<dir>`, `$TMP` below is that directory. Otherwise run `mktemp -d` once and use the
 directory it printed. Print `tmp <dir>` once, so that a context summary can find it again. A shell variable does
@@ -96,9 +96,9 @@ not outlive one command, so write the path in full each time.
          prompt: "Read $DOCTOR/roles/review.md first and follow the role it describes. The project format is in $DOCTOR/../pj1-plan/format.md. The state of a project is in $DOCTOR/../pj1-plan/state.md. The agreements between the skills are in $DOCTOR/../pj1-plan/between-skills.md. The judgement rules are in <skills>/workflow/judgement.md.\n\nParent: #<P>\n\nproject.sh <P>:\n<the JSON>\n\nproject.sh <P> --check, per issue:\n<each JSON>")
    ```
 
-   `annetaan:pj-reviewer` ships with this plugin and is pinned to Fable at medium effort with code changes disabled.
+   `annetaan:pj-reviewer` ships with this plugin and ships its model and effort in `agents/*.md` and has code changes disabled.
    **When it cannot start** (a weekly limit, a rate limit, the model is unavailable), spawn it again with the same
-   prompt and `model: "opus"`. The effort stays medium.
+   prompt and `model: "opus"`.
    **Keep it alive until phase 4 ends.** Phase 3 sends it the rewritten bodies.
 4. **Show the user the diagnosis**, one line per open sub-issue, in `--order` order:
    - number and title, and `ready`, `blocker` or `stub` when it is one
@@ -141,7 +141,7 @@ Agent(subagent_type: "annetaan:pj-issue-writer", description: "revise #<n>", run
       prompt: "Read $DOCTOR/../pj2-issues/roles/issue.md first and follow the role it describes. The project format is in $DOCTOR/../pj1-plan/format.md. project.sh is $DOCTOR/../pj1-plan/scripts/project.sh. The judgement rules are in <skills>/workflow/judgement.md.\n\nMode: revise\n\nParent: #<P>\nIssue: #<n>\n\nproject.sh <P>:\n<the JSON>\n\nproject.sh <P> --check <n>:\n<the JSON, or none for a parent>\n\nThe review's findings on #<n>:\n<the findings>\n\nThe user's answers:\n<the phase 2 answers on #<n>, or none>\n\nScratch: $TMP/scratch/<n>")
 ```
 
-`annetaan:pj-issue-writer` ships with this plugin and is pinned to opus at medium effort. It is told never to change the repository and to write only under its `Scratch:` directory, by instruction.
+`annetaan:pj-issue-writer` ships with this plugin and has its model and effort pinned in `agents/*.md`. It is told never to change the repository and to write only under its `Scratch:` directory, by instruction.
 **Keep each writer alive until phase 4 ends.**
 
 **Each writer writes its own issue only.** A finding a writer says belongs to another issue goes to that issue's
@@ -418,5 +418,5 @@ is needs-user too.
 - **Re-read `updatedAt` before every edit. Never edit a closed issue.**
 - **A sub-issue body goes out only after its lint passes**, and a parent's only after you read it against its shape.
 - An unattended run never calls `AskUserQuestion` and ends with one `unattended:` line.
-- After a context summary, take `<P>` and whether the run is unattended again from the `project #<P>` line, and `$TMP` from the `tmp` line, and rebuild where the run stood from the
+- After a context summary, take `<P>` and whether the run is unattended again from the last `project #<P>` line, and `$TMP` from the last `tmp` line, and rebuild where the run stood from the
   progress lines (the review count is the largest k of `review <k> done`) and `project.sh <P>`. A writer or a reviewer whose handle is gone is started again.

@@ -43,7 +43,7 @@ pre-release product or a library you control, the review reports everything it f
 only the findings that move no existing code. The skill never edits `CLAUDE.md` or `AGENTS.md`. When one of those
 files or memory decides, you get one line saying so before design starts, and that is where you stop a memory that has
 gone stale. A request for a minimal change, such as an urgent fix, skips the review and the question, and writes
-nothing to memory. When Fable cannot start, because of the weekly limit for example, the review is skipped and the
+nothing to memory. When the design review session cannot start, because of the weekly limit for example, the review is skipped and the
 approval message says so.
 
 There is one approval point. You get the design summary and the **plan**, an ordered list of tasks, and one
@@ -52,15 +52,16 @@ design review's points that turn on something only you know, marked `(from the d
 know. The approval also shows the model decisions, and "change something first" overturns any of them.
 
 Each task's implementation session shows every acceptance criterion by running it, on the tree under review, and writes
-the runs to an evidence file. A bug fix with a cheap test path starts with a failing test. The review session runs what it suspects and marks
-each correctness finding confirmed or unconfirmed. What neither side could run is listed in the pull request under its
-own heading.
+the runs to an evidence file. A bug fix with a cheap test path starts with a failing test. Two review seats try to break the change and prove every finding by a run of a probe they wrote: a command, what it
+printed, and what the design requires. The main session runs each command again, keeps only a failure that breaks the
+design, and writes the round and its verdict. What no seat could run is listed in the pull request under its own
+heading.
 
 Five more rules apply across the roles. The design removes what the request makes unnecessary before it adds anything,
 and draws a new requirement as if it had always been there, down to the types, documents and examples that state the
-old shape. A new layer needs a named second user and state lives in the narrowest place; the review asks of a diff where
-a value comes from and what can change it. A finding the reviewer marks `stands again` is answered with `assumed:`, what
-both answers took for granted, before the next fix. A lesson that turns up a second time becomes a check inside the
+old shape. A new layer needs a named second user and state lives in the narrowest place, and the code a task writes
+answers where a value comes from and what can change it. A finding whose command still shows the failure after a second
+answer is marked `stands again`, and is answered with `assumed:`, what both answers took for granted, before the next fix. A lesson that turns up a second time becomes a check inside the
 task. A check that belongs outside the task is reported as `check wanted:`, and those lines get a heading of their own
 in `log.md`, so they reach the pull request body. Code carries no comment beyond a licence header, a note in a configuration file, an instruction to a tool and a doc comment on a published library's public API, and the comments in a file a task changes leave with it. `scripts/comments.py` fails a task that adds one or silences a check, and both sessions run it. An existing workaround is never a pattern to copy, and a change adds no explaining document the request did not ask for.
 
@@ -91,8 +92,8 @@ produced. A plan that turns out to be wrong surfaces there, before anybody write
 **Five review rounds per task, fixed.** A task that does not settle in five comes back to you with the open points
 laid out, and its changes stay uncommitted in the run's worktree. Saying "stop" partway through the rounds works too.
 
-The implementation and review sessions **start fresh for every task**, implementation on sonnet and review on opus,
-both at medium effort, whatever the task. A task boundary is a cheap place to
+The implementation session and the two review seats **start fresh for every task**, each on its own agent,
+whatever the task. A task boundary is a cheap place to
 start over. The code is in git, the plan is with the orchestrator, and every review finding is resolved. What is left
 is how this repository wants to be worked in, and that rides along as **handover notes**: five lines from each
 session, folded together, capped at fifteen.
@@ -129,7 +130,7 @@ pushes it. A stop before that commit leaves the merge in progress in the worktre
 **When the pull request would conflict from the start**, the finish step settles it before the push. The base may have
 moved while the tasks ran. When the branch merges into it cleanly, nothing happens and GitHub merges it later. When it
 conflicts, the run merges the base into the branch and resolves the conflicts as one more task, with a new
-implementation session and a new review session and the same five-round cap, and its commit is the merge commit. The
+implementation session and the two review seats and the same five-round cap, and its commit is the merge commit. The
 review rounds are `merge-round-<r>.md` in the work report.
 
 **When an open pull request conflicts later**, ask for it in plain words, such as "resolve the conflicts on #12" or
@@ -146,8 +147,13 @@ clone. The worktree has none of your clone's ignored files, such as dependencies
 them. A run that ends before approval removes its worktree. Every other run leaves it, whether it opened a pull request
 or stopped midway.
 
+The two review seats are git worktrees of their own, `review-wf-<stamp>-a` and `-b` beside the run's. No session works
+inside one: a seat writes its probes under `seats/` in the work report, and `panel.sh run` snapshots the run's working
+tree, puts the seat's worktree at it and runs the probe there. A seat lives as long as the run's worktree, so the
+dependencies a probe installed in it serve every later task and round. The cleanup removes it.
+
 After you merge or close the pull request, `/annetaan:workflow-cleanup` moves the work report into `work-reports/` in
-your clone, removes the worktree and the branch, fast-forwards your local base after a merge, and deletes the reports that have been there 14 days or more. Details are in
+your clone, removes the worktree, the review seats and the branch, fast-forwards your local base after a merge, and deletes the reports that have been there 14 days or more. Details are in
 [workflow-cleanup](../workflow-cleanup/SKILL.md).
 
 ```
@@ -164,11 +170,13 @@ work-reports/2026-09-19-1346-a1b2c3d/
   changes.diff   the diff from the start commit to HEAD
   review/        one file per review round, the reply to each, and the evidence files
     task-1-evidence.md
-    task-1-round-1.md
+    task-1-round-1-a.md         what seat a proved in round 1, and `-b` for seat b
+    task-1-round-1.md           the main session's round, from the seat files
     task-1-round-1-reply.md
     task-1-round-1-evidence.md  after a round that changed code
-    integration-round-1.md      plans of two or more tasks
-  scratch/       throwaway scripts of the implementation and review sessions
+    integration-round-1.md      plans of two or more tasks, with its two seat files
+  seats/         the probes of the two review seats, `a/<name>/run.sh` and its `tree/`
+  scratch/       throwaway scripts of the implementation session
   before.png     before and after, when the change shows on screen
   after.png
 ```
@@ -230,13 +238,14 @@ screenshots it could not attach.
 | `roles/design.md` | the role for the design session, which returns the design and the plan |
 | `roles/design-review.md` | the role for the design review session, which pushes the design toward its ideal shape once, before approval |
 | `roles/work.md` | the role for the implementation session |
-| `roles/review.md` | the role for the review session |
+| `roles/review.md` | the role for a review seat |
 | `scripts/worktree.sh` | creates the run's worktree and checks its ignore rules. `workflow-cleanup` uses it to clean up |
 | `scripts/worktree.py` | the code `worktree.sh` runs |
 | `scripts/comments.py` | fails on a comment outside the four kinds, or a silenced check the change adds, in the files a change touches. The implementation and review sessions run it |
-| `review-files.md` | the shape of the review files and the evidence files, read by the review and implementation sessions |
+| `scripts/panel.sh` | runs a review seat's probe in a git worktree beside the run's, at a snapshot of the working tree, and removes the seats at cleanup |
+| `review-files.md` | the shape of the review files and the evidence files, read by the seats, the main session and the implementation session |
 
 The design, implementation and review sessions run on agents that ship with the plugin (`../../agents/`). Design is
-`annetaan:workflow-design` (fable / medium, opus when Fable cannot start). The design review is
-`annetaan:workflow-design-review` (fable / medium), once before approval. Implementation is `annetaan:workflow-worker`
-(sonnet / medium) and review is `annetaan:workflow-reviewer` (opus / medium). The full list is in [the plugin README](../../README.md).
+`annetaan:workflow-design`. The design review is
+`annetaan:workflow-design-review`, once before approval. Implementation is `annetaan:workflow-worker`
+and review is the two seats `annetaan:workflow-reviewer-a` and `annetaan:workflow-reviewer-b`, pinned to different models. The models and efforts are in the agent table of [the plugin README](../../README.md).

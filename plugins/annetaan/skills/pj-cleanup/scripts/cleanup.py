@@ -1,8 +1,8 @@
 import json, os, re, shutil, subprocess, sys
 
-PROJECT_SH, WORKTREE_SH, SUB = sys.argv[1:4]
-P = int(sys.argv[4]) if len(sys.argv) > 4 else None
-ARGS = sys.argv[5:]
+PROJECT_SH, WORKTREE_SH, PANEL_SH, SUB = sys.argv[1:5]
+P = int(sys.argv[5]) if len(sys.argv) > 5 else None
+ARGS = sys.argv[6:]
 
 def run(*cmd, cwd=None):
     return subprocess.run(cmd, capture_output=True, text=True, cwd=cwd)
@@ -225,6 +225,15 @@ def cleanup():
         stop("foreign", "%s exists and is not a worktree of this clone" % tree["path"], **out)
     if out["loses"] and "--discard" not in ARGS:
         stop("discard", "%s holds work that nothing else holds: %s" % (tree["path"], ", ".join(out["loses"])), **out)
+
+    r = run(PANEL_SH, "close", tree["path"], cwd=main)
+    try:
+        tree["seats"] = json.loads(r.stdout)["removed"] if r.returncode == 0 else []
+    except (ValueError, KeyError):
+        tree["seats"] = []
+        r.returncode = 1
+    if r.returncode != 0:
+        errors.append({"step": "seats", "message": r.stderr.strip() or r.stdout.strip()})
 
     if tree["state"] in ("clean", "dirty"):
         tree["moved"] = move_reports(main, tree["path"])

@@ -27,7 +27,7 @@ work into projects, each a parent issue. A parent is blocked by the parents of t
 splits one project into sub-issues once every project it waits on is merged. You tick the decisions on GitHub.
 `pj3-doctor` makes the issues ready. `pj4-running` runs `workflow` once per sub-issue, merges each pull request into
 the project's branch and closes the issue, and at the end opens the pull request that takes the project's branch
-back. The four pass nothing to each other through the conversation. Each one reads the project from GitHub afresh.
+back. The pj skills pass one thing through the conversation, which project it is on, so a run started without a number goes on with that project. Everything else each one reads from GitHub afresh.
 `pj-auto` drives the doctor and the runner and stops where you are needed. `pj-cleanup` tidies up once you have merged
 a project. `workflow-cleanup` does the same for a workflow run. `pj-roadmap` brings an existing roadmap file into the
 format the pj skills read, through a pull request.
@@ -141,27 +141,28 @@ request is the exception: asking to resolve the conflicts of a pull request, in 
 Runs one implementation through sessions with different jobs. A design session writes the plan, then details each
 task as its turn comes. A design review session pushes the design toward its ideal shape once, before approval, and
 checks the behaviour the design keeps from existing code. The design and the design review move existing code only
-where breaking changes are welcome. An implementation session writes the code for one task. A review
-session reads it and writes its findings to a file. Those last two are new for every task. You approve once, near the start, and
+where breaking changes are welcome. An implementation session writes the code for one task. Two review seats try to break it and write what they prove, each by a probe they run through `panel.sh`, to a file. Those last three are new for every task. You approve once, near the start, and
 the approval message names the branch and the base. The run happens in `.claude/worktrees/wf-<stamp>`.
 
 The sessions follow [the judgement rules](skills/workflow/judgement.md). The design session settles what it can from
 the code, the history or a throwaway experiment, and lists those as model decisions, which the approval shows. You are
 asked only what turns on something only you know. The implementation session shows each acceptance criterion by running
-it and walks the flows the change touches. The review session runs what it suspects, marks each correctness finding
-confirmed or unconfirmed, and sends back a fix that guards the symptom.
+it and walks the flows the change touches. A review seat reports only what it proved by a run: a command, what it
+printed, and what the design requires. The main session runs each command again, keeps a finding only when the failure
+shows and breaks the design. A fix that only guards the symptom comes back when a probe reaches the bad state past the guard.
 
 These rules shape the work. A design removes what the request makes unnecessary before it adds anything. A new
 requirement is drawn as if it had always been there, down to the types, documents and examples that state the old shape.
-The review always sends back a document that still states the old shape, and never one whose wording or format is the
-only fault in what it says. A new layer needs a named second user, state lives in the narrowest place, and the review
-asks of a diff where a value comes from and what can change it. Code speaks through names, types and structure, and the
-only comments that stay are a licence header, a note in a configuration file on how to use it, an instruction to a tool, and a doc comment on the public API of a published library. The comments in a file a task changes leave with it, and a script fails the task that adds one or silences a check. A silenced check is a guard, an existing workaround is never a pattern to copy, and a change adds no explaining document the request did not ask for. When the same finding stands twice, the implementation session writes down what both
+The review sends back a document that a search still finds stating the old shape, and never one whose wording or format is the
+only fault in what it says. A new layer needs a named second user, state lives in the narrowest place, and the code a
+task writes answers where a value comes from and what can change it. Code speaks through names, types and structure, and the
+only comments that stay are a licence header, a note in a configuration file on how to use it, an instruction to a tool, and a doc comment on the public API of a published library. The comments in a file a task changes leave with it, and a script fails the task that adds one or silences a check. A silenced check is a guard, an existing workaround is never a pattern to copy, and a change adds no explaining document the request did not ask for. When the same finding's command still shows the failure after two answers, the implementation session writes down what both
 answers took for granted and makes one observation that would come out differently if it were false, before the next fix. When the same lesson turns up a second time, it
 becomes the strongest check that can hold it, a type before a lint rule before a test before a runtime assertion, instead of prose, and a check that has to live outside the task goes into the work report. A task never keeps an old path, an adapter or a shim so that the tests stay green until a later task. A split that passes only with one is one task.
 
-The review rounds run through Markdown files in the run's work report directory. The review session writes one file
-per round, and the implementation session answers each finding in a reply file next to it. Nobody edits a file once
+The review rounds run through Markdown files in the run's work report directory. Each seat writes one file per round,
+the main session merges the verified findings into a round file with the verdict, and the implementation session answers each
+finding in a reply file next to it. Nobody edits a file once
 it is written, so the directory reads back as the whole review, in order. The directory also holds the evidence files,
 which record what the implementation session ran.
 
@@ -177,7 +178,7 @@ flowchart TD
         direction TB
         detail["design session<br/>details this task against<br/>the code as it now stands"]
         impl["implementation session<br/>new for this task<br/>writes it, evidence file,<br/>commits nothing"]
-        review["review session<br/>new for this task<br/>reads working tree vs HEAD,<br/>runs what it suspects,<br/>writes a round file"]
+        review["two review seats<br/>new for this task<br/>read the tree in the run's worktree,<br/>prove each finding by a probe run,<br/>main session reruns and writes the round"]
         respond["implementation session<br/>fixes, then writes a reply file"]
         commit["one commit<br/>plus 5 lines of handover notes"]
         detail --> impl --> review
@@ -213,7 +214,7 @@ such as "コンフリクト解消して", with no skill named ([Conflicts](skill
 
 Every run leaves a work report behind, inside the repository under `work-reports/` so that you see them. The skill checks that git ignores `.claude/worktrees/` and `work-reports/` before it writes anything, and asks
 before adding them to `.git/info/exclude`. That file stays in your clone, so nothing is committed and `.gitignore` is
-never edited. `/annetaan:workflow-cleanup` moves the report into your clone's `work-reports/` once the run is over, and deletes the reports that have sat there for 14 days or more.
+never edited. `/annetaan:workflow-cleanup` moves the report into your clone's `work-reports/` once the run is over, and deletes the reports that have sat there for 14 days or more. It removes the two review seat worktrees beside the run's worktree as well.
 
 ### pj1-plan, pj2-issues, pj3-doctor, pj4-running
 
@@ -256,7 +257,7 @@ answer the plan-level questions and see the projects in stages, with the reason 
 pick the branch the projects start from. Nothing reaches GitHub before that. Then one parent issue per project is
 filed, blocked by the parents it waits on. When the request is a roadmap entry, one project of the last stage, the one with the lowest number, carries a `Roadmap:` line naming the file and the entry. No sub-issue and no branch is created yet, and no issue is `ready` yet.
 
-`/annetaan:pj2-issues` ([details](skills/pj2-issues/SKILL.md)) takes the project to split from a number given, or the only one it could split, and otherwise asks. It offers the
+`/annetaan:pj2-issues` ([details](skills/pj2-issues/SKILL.md)) takes the project to split from a number given, the project this conversation is on when it can be split, or the only one it could split, and otherwise asks. It offers the
 projects with no sub-issue yet whose waited-on projects are all merged, and recommends the lowest-numbered one. A planner
 session splits the project against the code as it stands after those merges, and you answer the split-level
 questions. You approve the split, any change to the parent shown as a diff, and any change to its blocked-by. The split
@@ -272,7 +273,7 @@ another project that is not merged yet, `pj2-issues` asks whether to add that wa
 between the two parents and stops without filing anything else. For the project carrying the `Roadmap:` line, the split
 ends with one more task, blocked by every other, that removes the entry from the roadmap.
 
-`/annetaan:pj3-doctor` ([details](skills/pj3-doctor/SKILL.md)) takes the project from a number given or the only
+`/annetaan:pj3-doctor` ([details](skills/pj3-doctor/SKILL.md)) takes the project from a number given, the project this conversation is on or the only
 project that has sub-issues, and otherwise asks which project to work on. A
 reviewer session reads the whole project against the boxes you ticked, the code, and each issue in it: a ticked
 option the design does not hold, two issues that disagree on a name, a missing blocked-by, a stub, a blocker, a parent that keeps behaviour whose
@@ -365,7 +366,7 @@ next and starts that step as a fresh `claude -p` run in unattended mode, one pro
 report to decide, only the project on GitHub.
 
 It asks one approval question per drive, and only when a step would run (the question which project comes before it, when
-the project is not given or the only candidate): a summary of the project, what the steps do and which of the
+the project is not given, not the one this conversation is on and not the only candidate): a summary of the project, what the steps do and which of the
 permissions they need your settings lack, then start or not. That approval covers the whole drive, and the runs ask nothing. Each run starts in Claude Code's acceptEdits mode,
 so it edits and writes files inside your clone, the project's worktree and a directory of its own without asking. The merges
 into the project's branch happen. The project's own pull request is never merged. The drive keeps the Mac from idle sleep
@@ -385,7 +386,7 @@ whole session, so a long project costs many.
 What it needs:
 
 - the `claude` CLI on the PATH
-- the rules every drive needs, because the runs cannot ask: `Bash(gh:*)`, `Bash(git:*)`, the two script rules, and a
+- the rules every drive needs, because the runs cannot ask: `Bash(gh:*)`, `Bash(git:*)`, the three script rules, and a
   `Read` rule for the plugin's skills directory. pj-auto shows them with the real paths before it asks, because the
   plugin's directory differs per machine. Edits need no rule, because the runs start in acceptEdits mode.
 - the repository's own commands, such as the install, the tests and the type checks. pj-auto finds them in `CLAUDE.md`,
@@ -398,9 +399,9 @@ What it needs:
 ### pj-cleanup
 
 `/annetaan:pj-cleanup` ([details](skills/pj-cleanup/SKILL.md)) cleans up after you merge a project's pull request.
-Without a number, it takes the merged project whose worktree is in your clone, and asks when there are several. It
+Without a number, it takes the project this conversation is on when that one is merged and has its worktree in your clone, otherwise the only merged project with a worktree there, and asks when there are several. It
 shows what it will do and asks once. Then it closes the parent when it is still open, moves the work reports out of
-the project's worktree into `work-reports/` in your clone, removes the worktree, deletes the project's branch on
+the project's worktree into `work-reports/` in your clone, removes the worktree and the review seats beside it, deletes the project's branch on
 origin and locally, fast-forwards your local copy of the branch the project merged into, usually `main`, and deletes the work reports in `work-reports/` that have been there for 14 days or more.
 
 It never switches your branch, stashes or resets. When the branch is checked out in your clone, it moves with
@@ -435,7 +436,7 @@ pull request that is already open.
 `/annetaan:workflow-cleanup` ([details](skills/workflow-cleanup/SKILL.md)) cleans up after a workflow run or a `pj-roadmap` run. Without a
 number, it lists the `wf-*` worktrees whose pull request is merged or closed, and those that have none, which is a run that
 stopped or one still going in another session. It takes the only candidate, or asks which. It shows what it will do and asks once. Then it moves the work
-reports into `work-reports/` in your clone, removes the worktree, deletes the branch locally and on origin,
+reports into `work-reports/` in your clone, removes the worktree and the review seats beside it, deletes the branch locally and on origin,
 fast-forwards your local base after a merge, and deletes the work reports in `work-reports/` that have been there for
 14 days or more.
 
@@ -579,23 +580,26 @@ report has since gone. A pull request that another account has recorded is left 
 ## Agents
 
 These are the sub-agents the skills spawn. Anything under `agents/` becomes callable as `annetaan:<name>`.
-The model and the effort are pinned here, and a skill selects one by name alone. When a Fable agent other than the
-design review cannot start, the skill spawns it again on opus at the same effort.
+The model and the effort are pinned here, and a skill selects one by name alone. When a Fable agent cannot start, the
+skill spawns it again on opus at the same effort. The design review is pinned to another model than the design and the
+planner, and is skipped when it cannot start. The two review seats are pinned to different models, and a seat that
+returns no report is a dropout: the round goes on with the other.
 
 | Agent | Model | Effort | Role |
 | --- | --- | --- | --- |
 | `annetaan:workflow-design` | fable | medium | design. returns the design and the plan, and tries a doubtful point in a throwaway experiment. In a pj run it also details one sub-issue against the code and may return its body redrawn |
-| `annetaan:workflow-design-review` | fable | medium | design review for `workflow` and `pj1-plan`. once, before approval, in every repository. moves existing code only where breaking changes are welcome |
-| `annetaan:workflow-worker` | sonnet | medium | implementation, for every task. shows each acceptance criterion by running it and writes the evidence file |
-| `annetaan:workflow-reviewer` | opus | medium | review, for every task, and the integration review when the plan has more than one task. runs what it suspects and marks each correctness finding confirmed or unconfirmed |
+| `annetaan:workflow-design-review` | opus | high | design review for `workflow` and `pj1-plan`. once, before approval, in every repository. moves existing code only where breaking changes are welcome |
+| `annetaan:workflow-worker` | opus | xhigh | implementation, for every task. shows each acceptance criterion by running it and writes the evidence file |
+| `annetaan:workflow-reviewer-a` | opus | high | review seat a, for every task, and the integration review when the plan has more than one task. tries to break the change and proves each finding by a run of a probe it wrote |
+| `annetaan:workflow-reviewer-b` | fable | high | review seat b, the same job as seat a on another model |
 | `annetaan:pj-planner` | fable | medium | planning for `pj1-plan` and `pj2-issues`. the projects, their designs and the waits between them, then one project's split into tasks. answers the design review, and tries a doubtful point in a throwaway experiment |
-| `annetaan:pj-issue-writer` | opus | medium | one sub-issue, drawn against the code. drafts it for `pj2-issues`, revises it for `pj3-doctor`, and tries a doubtful point in a throwaway experiment |
+| `annetaan:pj-issue-writer` | opus | xhigh | one sub-issue, drawn against the code. drafts it for `pj2-issues`, revises it for `pj3-doctor`, and tries a doubtful point in a throwaway experiment |
 | `annetaan:pj-reviewer` | fable | medium | project review for `pj3-doctor`. reads the whole project against the ticked boxes, the code and each issue |
 | `annetaan:experience-video-producer` | fable | medium | production for `experience-video`. fills in the cuts, fragments and music of a story, renders it, and checks its frames |
 | `annetaan:pr-humans-writer` | sonnet | medium | one comment for `pr-humans`. reads only the gathered files. drafts how people took part in one pull request |
 | `annetaan:doc-meta-overview` | opus | high | overview for `doc-meta`. finds what a per-sentence flag misses |
 
-`annetaan:workflow-design`, `annetaan:pj-planner` and `annetaan:pj-issue-writer` can write files, and their roles confine that to a scratch directory.
+`annetaan:workflow-design`, `annetaan:pj-planner` and `annetaan:pj-issue-writer` can write files, and their roles confine that to a scratch directory. The two reviewers write only their probes and their seat file, and run code only through `panel.sh`.
 
 `pj4-running` has no agents of its own. It runs workflow's.
 
@@ -609,7 +613,8 @@ that path out of the prompt the main session hands it.
 Several of the judgement rules in [`skills/workflow/judgement.md`](skills/workflow/judgement.md) were learned from
 pstack in [cursor/plugins](https://github.com/cursor/plugins) (MIT): ask a person only what a person knows, show work
 by running it, fix the cause and not the symptom, remove before adding, question what two failed fixes share, turn a
-repeated lesson into a check, design a requirement as if it was always there, and keep the reader's load low. Four more
+repeated lesson into a check, design a requirement as if it was always there, and keep the reader's load low. Two more shape the review: a panel of two seats that
+run their probes in worktrees of their own, and a finding that counts only when a command proves it. Four more
 shape how work is split and carried through. Three are in `Where to split` and `No transitional code`: finish work that
 is coupled in code as one task with one owner, however large; move the callers and delete the old path in the same
 task, with no compatibility layer kept between tasks; and cut work only into units that can each be reviewed and

@@ -63,7 +63,7 @@ The standalone flow works in a git worktree of its own, `.claude/worktrees/wf-<s
    Where that tool is not available, `cd <WT>`. Print `worktree <WT> base <base>` once. **Every command from here to
    the end of the run runs in `<WT>`.** After a context summary, run `git rev-parse --show-toplevel`, and enter
    `<WT>` again when it prints anything else.
-6. **The worktree line.** From here on, every sub-agent prompt ends with **The worktree line** in SKILL.md: the design, the design review, the implementation, the review, the integration review and the report session.
+6. **The worktree line.** From here on, every sub-agent prompt ends with **The worktree line** in SKILL.md: the design, the design review, the implementation, the two review seats, the integration review seats and the report session.
 7. `<WT>` has none of `<MAIN>`'s ignored files, such as installed dependencies or a `.env`. The first worker prepares what the tests need and leaves the steps in the handover notes, so later tasks find them there. The submodules of `<WT>` are not initialized either. When the build or the tests need one, the first worker runs `git submodule update --init` in `<WT>` and leaves that in the handover notes too.
 
 ### Ending before approval

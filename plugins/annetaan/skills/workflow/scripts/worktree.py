@@ -1,7 +1,8 @@
 import json, os, re, shutil, subprocess, sys, time
 
-SUB = sys.argv[1]
-ARGS = sys.argv[2:]
+PANEL_SH = sys.argv[1]
+SUB = sys.argv[2]
+ARGS = sys.argv[3:]
 
 def run(*cmd, cwd=None):
     return subprocess.run(cmd, capture_output=True, text=True, cwd=cwd)
@@ -372,6 +373,15 @@ def cleanup():
         stop("discard", "%s holds work that nothing else holds: %s" % (name, ", ".join(out["loses"])), **{
             k: v for k, v in out.items()})
     tree, errors, br = out["worktree"], [], out["branch"]
+
+    r = run(PANEL_SH, "close", tree["path"], cwd=main)
+    try:
+        tree["seats"] = json.loads(r.stdout)["removed"] if r.returncode == 0 else []
+    except (ValueError, KeyError):
+        tree["seats"] = []
+        r.returncode = 1
+    if r.returncode != 0:
+        errors.append({"step": "seats", "message": r.stderr.strip() or r.stdout.strip()})
 
     if tree["state"] == "prunable":
         git(main, "worktree", "prune")
