@@ -1,4 +1,3 @@
-// Parse story.md, validate it, resolve it into a timeline, and write build/timeline.json.
 import fs from 'node:fs';
 import path from 'node:path';
 import { resolveTimeExpr, TimeError } from './time.js';
@@ -38,9 +37,6 @@ const isObj = (v) => v !== null && typeof v === 'object' && !Array.isArray(v);
 const isNum = (v) => typeof v === 'number' && Number.isFinite(v);
 const isTime = (v) => isNum(v) || (typeof v === 'string' && v.trim() !== '');
 
-// ---------------------------------------------------------------------------------------------------------------
-// Parsing
-
 const SCENE_HEADING_RE = /^Scene\s+(\d+)\s*[—:-]\s*(.+)$/;
 
 function splitFrontmatter(text) {
@@ -49,11 +45,10 @@ function splitFrontmatter(text) {
   return { front: m[1], body: text.slice(m[0].length) };
 }
 
-// Splits the body into scene sections. Headings and yaml blocks inside other fences are not looked at.
 function splitScenes(body, errors) {
   const scenes = [];
-  let current = null; // the scene section being read, or null in the brief or any other section
-  let fence = null; // { info, lines } while inside a fenced block
+  let current = null;
+  let fence = null;
   let order = 0;
   for (const line of body.split('\n')) {
     if (fence) {
@@ -286,7 +281,6 @@ function validateScene(data, n, errors) {
   });
 }
 
-// parseStory(text, { yaml }) -> { meta, scenes: [{ index, name, prose, data }] }. Throws StoryError.
 export function parseStory(text, { yaml }) {
   const errors = [];
   const { front, body } = splitFrontmatter(text.replace(/\r\n?/g, '\n'));
@@ -313,9 +307,6 @@ export function parseStory(text, { yaml }) {
   return { meta, scenes };
 }
 
-// ---------------------------------------------------------------------------------------------------------------
-// Resolving
-
 function transition(v, defaultType, ctx, fail) {
   const spec = typeof v === 'string' ? { type: v } : (v ?? {});
   const type = spec.type ?? defaultType;
@@ -326,13 +317,12 @@ function transition(v, defaultType, ctx, fail) {
   return { type, duration: round(Math.max(0, duration)) };
 }
 
-// resolveStory(parsed, { storyDir }) -> timeline. Throws StoryError.
 export function resolveStory(parsed, { storyDir = '.' } = {}) {
   const { meta } = parsed;
   const errors = [];
   const beat = 60 / meta.bpm;
   const bar = beat * meta.beatsPerBar;
-  const marks = {}; // name -> absolute seconds, in definition order
+  const marks = {};
   const cutIds = new Set();
   const scenes = [];
   let cursor = 0;
@@ -407,7 +397,6 @@ export function resolveStory(parsed, { storyDir = '.' } = {}) {
         props.focus = c.focus ?? 'center';
       } else if (c.part === 'video') {
         props.fit = c.fit ?? 'cover';
-        // A position in the file, not on the timeline: no mark and no `end`.
         const s = c.start === undefined ? 0 : fail(() => resolveTimeExpr(c.start, { beat, bar, marks: {} }), 0);
         if (s < 0) errors.push(finding('bad-value', `start must not be negative: "${c.start}"`, sc.index, id));
         props.start = round(Math.max(0, s));
@@ -495,7 +484,6 @@ export function resolveStory(parsed, { storyDir = '.' } = {}) {
   };
 }
 
-// loadStory(file, deps, { say }) -> { timeline, errors, warnings }. Writes build/timeline.json when the story resolves.
 export function loadStory(file, deps, { say = true } = {}) {
   let text;
   try {

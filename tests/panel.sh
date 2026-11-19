@@ -1,11 +1,4 @@
 #!/usr/bin/env bash
-# Test: panel.sh run puts a review seat, a git worktree beside the run's worktree, at a snapshot of the run's working
-# tree without touching the run, copies a probe's tree over it and runs the probe's run.sh there. close removes the seats.
-#
-# Run: bash tests/panel.sh   (exit 0 is success, anything else is failure)
-# Runs offline, with git only. The clone is a temp repository with a worktree at .claude/worktrees/wf-test, and
-# work-reports/, .claude/worktrees/ and node_modules/ are ignored through info/exclude.
-# PANEL_SH=<path> tests another copy of panel.sh.
 set -euo pipefail
 
 SCRIPT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)/plugins/annetaan/skills/workflow/scripts/panel.sh"
@@ -54,7 +47,6 @@ dirty() {
   echo dep > "$WT/node_modules/x"
 }
 
-# probe <seat> <name> <run.sh text> makes the probe directory and prints its path.
 probe() {
   local dir="$REPORT/seats/$1/$2"
   mkdir -p "$dir"

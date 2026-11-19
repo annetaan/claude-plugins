@@ -1,10 +1,4 @@
 #!/usr/bin/env bash
-# Test: project.sh --same-words tells whether two bodies differ in backticks and whitespace only,
-# and prints the lint of the second body.
-#
-# Run: bash tests/project-same-words.sh   (exit 0 is success, anything else is failure)
-# Runs offline: --same-words touches neither GitHub nor git.
-# PROJECT_SH=<path> tests another copy of project.sh.
 set -euo pipefail
 
 SCRIPT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)/plugins/annetaan/skills/pj1-plan/scripts/project.sh"

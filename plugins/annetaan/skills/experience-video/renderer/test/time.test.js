@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { parseTimeExpr, resolveTimeExpr, TimeError } from '../src/time.js';
 
-const beat = 0.5; // 120 bpm
+const beat = 0.5;
 const bar = 2;
 const near = (a, b) => assert.ok(Math.abs(a - b) < 1e-9, `${a} != ${b}`);
 
@@ -30,7 +30,6 @@ test('time: a mark from another cut resolves through absolute time', () => {
     () => resolveTimeExpr('earlier', { beat, bar, marks, cutStart: 10, cutDuration: 4 }),
     (e) => e instanceof TimeError && e.code === 'mark-outside-cut',
   );
-  // Outside a cut the result is absolute.
   near(resolveTimeExpr('earlier + 1bar', { beat, bar, marks, duration: 30 }), 9);
 });
 

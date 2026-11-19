@@ -1,15 +1,7 @@
-// The music of the sample story. It reads every time from `timeline` and `helpers`, so a longer scene or another
-// tempo moves the music with it. The roles of the scenes shape the track:
-//   pain        sparse and low: a pad and a slow bass note
-//   encounter   a pulse joins and grows
-//   peak        a build-up (hats speeding up, a rising sweep) that lands on timeline.peak, then the full arrangement
-//   everyday    a steady groove, lighter than the full arrangement
-//   headline    a chord that resolves and rings into the fade
 window.compose = async (ctx, timeline, helpers) => {
   const { bar, beat, random } = helpers;
   const hz = (midi) => 440 * Math.pow(2, (midi - 69) / 12);
 
-  // Master chain: gain into a compressor, so the loudest section stays below clipping.
   const master = ctx.createGain();
   master.gain.value = 0.62;
   const comp = ctx.createDynamicsCompressor();
@@ -67,7 +59,6 @@ window.compose = async (ctx, timeline, helpers) => {
     s.stop(t + dur + 0.05);
   };
 
-  // Building blocks.
   const kick = (t, vel) => {
     const o = ctx.createOscillator();
     const g = ctx.createGain();
@@ -109,7 +100,6 @@ window.compose = async (ctx, timeline, helpers) => {
     s.stop(t + dur + 0.1);
   };
 
-  // A four-chord loop in a minor key: Am F C G. Chord tones as MIDI notes above the root.
   const chords = [
     { root: 45, tones: [57, 60, 64] },
     { root: 41, tones: [53, 57, 60] },
@@ -124,7 +114,7 @@ window.compose = async (ctx, timeline, helpers) => {
     const firstBar = Math.round(scene.startBar);
     const count = Math.ceil(scene.bars - 1e-6);
     for (let k = 0; k < count; k++) {
-      const g = firstBar + k; // the bar's number in the whole video
+      const g = firstBar + k;
       const t0 = bar(g);
       if (t0 >= end - 1e-6) break;
       const chord = chords[g % chords.length];
@@ -134,7 +124,6 @@ window.compose = async (ctx, timeline, helpers) => {
       const room = Math.min(bar(1), end - t0);
 
       if (full) {
-        // The full arrangement: four on the floor, claps, eighth hats, bass, pad and an arpeggio.
         pad(t0, room, chord.tones, 0.34);
         for (let b = 0; b < beatsPerBar; b++) {
           const t = t0 + beat(b);
@@ -158,9 +147,8 @@ window.compose = async (ctx, timeline, helpers) => {
         for (let b = 0; b < beatsPerBar; b++) hat(t0 + beat(b) + beat(0.5), 0.04 + 0.08 * progress);
         bass(t0, beat(1.5), chord.root, 0.25 + 0.15 * progress);
       } else if (inPeakScene) {
-        // Build-up: the pulse tightens bar by bar and a sweep rises into the peak.
         pad(t0, room, chord.tones, 0.14 + 0.14 * progress);
-        const steps = progress > 0.5 ? 4 : 2; // eighths, then sixteenths
+        const steps = progress > 0.5 ? 4 : 2;
         for (let b = 0; b < beatsPerBar; b++) {
           kick(t0 + beat(b), 0.35 + 0.4 * progress);
           for (let s = 0; s < steps; s++) hat(t0 + beat(b) + beat(s / steps), 0.08 + 0.1 * progress);
@@ -168,17 +156,14 @@ window.compose = async (ctx, timeline, helpers) => {
         bass(t0, beat(2), chord.root, 0.45);
         if (k === 0) sweep(scene.start, Math.max(0.5, (peakT ?? scene.end) - scene.start), 0.28);
         if (peakT !== null && t0 + bar(1) > peakT - 1e-6) {
-          // The last bar before the peak: a snare roll.
           for (let s = 0; s < beatsPerBar * 4; s++) clap(t0 + beat(s / 4), 0.1 + 0.18 * (s / (beatsPerBar * 4)));
         }
       } else if (scene.role === 'headline') {
         if (k === 0) kick(t0, 0.7);
-        // A resolving chord (C major with a ninth) that rings on into the fade-out.
         const resolve = [48, 55, 60, 64, 67];
         pad(t0, room + bar(1), resolve, 0.3);
         if (k === 0) for (const m of [72, 76, 79, 83]) tone('sine', hz(m), t0 + beat(0.5), bar(count), 0.07, { attack: 0.03, release: 1.5 });
       } else {
-        // Everyday and anything else: a steady groove, lighter than the full arrangement.
         pad(t0, room, chord.tones, 0.17);
         for (let b = 0; b < beatsPerBar; b++) {
           const t = t0 + beat(b);

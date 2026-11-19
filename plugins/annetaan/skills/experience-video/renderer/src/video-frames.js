@@ -1,4 +1,3 @@
-// Extracts the frames of a video cut as numbered JPEGs, so the page never needs a <video> element.
 import fs from 'node:fs';
 import path from 'node:path';
 import { spawnSync } from 'node:child_process';
@@ -8,7 +7,6 @@ import { CaptureError } from './capture.js';
 
 const countFrames = (dir) => fs.readdirSync(dir).filter((f) => /^\d{5}\.jpg$/.test(f)).length;
 
-// The directory the frames of these arguments live in: build/video-frames/<hash12>.
 export function framesPath({ file, start, seconds, fps, maxWidth, framesDir }) {
   const key = createHash('sha256')
     .update(JSON.stringify([fileHash(file), start, seconds, fps, maxWidth]))
@@ -17,8 +15,6 @@ export function framesPath({ file, start, seconds, fps, maxWidth, framesDir }) {
   return path.join(framesDir, key);
 }
 
-// extractFrames({ file, start, seconds, fps, maxWidth, framesDir, cutId }) -> { dir, count }
-// Frames are <dir>/00001.jpg and on. An existing directory is reused as it is.
 export function extractFrames({ file, start, seconds, fps, maxWidth, framesDir, cutId }) {
   const dir = framesPath({ file, start, seconds, fps, maxWidth, framesDir });
   if (fs.existsSync(dir)) return { dir, count: countFrames(dir) };

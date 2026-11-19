@@ -1,14 +1,9 @@
-// Joins the rendered cuts into one mp4 with one ffmpeg process.
-//   - Each cut is visible from its start, on top until its end, and under the next cut for its tail.
-//   - in: fade / crossfade ramps the cut's alpha over the transition's duration; out: fade goes to black at its end.
-//   - Output is exactly timeline.duration long, at the capture frame rate, h264 yuv420p with +faststart, AAC audio.
 import fs from 'node:fs';
 import path from 'node:path';
 import { spawn } from 'node:child_process';
 
 const n = (x) => x.toFixed(6);
 
-// buildGraph(timeline, captureFps, outW, outH) -> filter_complex string; input i is the file of cut i.
 export function buildGraph(timeline, captureFps, outW, outH, cuts = timeline.scenes.flatMap((s) => s.cuts)) {
   const parts = [`color=c=black:s=${outW}x${outH}:r=${captureFps}:d=${n(timeline.duration)},format=yuv420p[b0]`];
   cuts.forEach((cut, i) => {
@@ -25,8 +20,6 @@ export function buildGraph(timeline, captureFps, outW, outH, cuts = timeline.sce
   return parts.join(';');
 }
 
-// assemble({ timeline, files, quality, outFile, audio }): files[i] is the mp4 of cut i, in timeline order; audio is
-// the result of audioPlan.
 export async function assemble({ timeline, files, quality, outFile, audio }) {
   const captureFps = timeline.fps / quality.fpsDivisor;
   const outW = Math.round(timeline.width * quality.scale);

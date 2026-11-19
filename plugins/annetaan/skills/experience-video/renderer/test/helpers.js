@@ -1,4 +1,3 @@
-// Shared by the tests. Not a test itself.
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { loadDeps } from '../src/deps.js';
@@ -17,7 +16,6 @@ music: { bpm: 120, beats_per_bar: 4 }
 Prose.
 `;
 
-// scene(n, yamlText, name?) -> a scene section.
 export function scene(n, yamlText, name = 'Name') {
   return `\n## Scene ${n} — ${name}\n\nPurpose.\n\n\`\`\`yaml\n${yamlText.trim()}\n\`\`\`\n`;
 }

@@ -17,7 +17,6 @@ const keys = (text, quality = QUALITIES.full) => {
   return t.scenes.flatMap((s) => s.cuts).map((c) => cutKey(c, { timeline: t, quality, storyDir: tmp, version }));
 };
 
-// A story of card cuts: one entry per cut { id?, bars?, text?, in?, out?, telop? }.
 const story = (cuts) =>
   FRONT +
   scene(

@@ -14,12 +14,14 @@
 | Remove before adding | what leaves, and in which task | a check or an option for an input nobody sends | - | nothing for an input nobody is shown to send, dead code out | - |
 | As if it was always required | the shape, and what moves with it | its one question | - | everything in the task that states the old shape | what a search still finds stating the old shape |
 | Reader load | each new layer, each home of state | every layer the change adds | - | the code it writes | - |
-| Comments | a design that needs one is redrawn | - | - | writes none outside the four kinds | - |
+| Comments | a design that needs one is redrawn; the comments in a task's files leave with it | - | - | writes none outside the four kinds, removes those in the files it changes, runs the check | a comment outside the four kinds, shown by `comments.py`; a `@ts-expect-error` outside a type test, shown by a run without it |
+| Documents | no explaining document the request did not ask for | - | - | - | - |
 | Where to split | the plan, the split into tasks, the cut into projects | - | an issue that is two tasks | - | - |
 | No transitional code | a split that stays green only with it is one task; breakage a project declares | - | a shim in a body, a breakage nobody closes | no shim to stay green | an old path a search still finds, a check failing undeclared |
-| Root cause | the fix sits at the cause | a fix that guards | a fix drawn as a guard | no guard in place of the cause | the bad state reached past a guard |
+| Existing workarounds | never a pattern to ride on; one in the task's files leaves | a workaround the design rides on | - | copies none, reports one outside the task | an `existing` entry of `comments.py` the design does not account for |
+| Root cause | the fix sits at the cause | a fix that guards | a fix drawn as a guard | no guard in place of the cause, no silenced check | the bad state reached past a guard, a silenced check shown by `comments.py` |
 | After two failed fixes | a symptom fixed twice before, a lint failing after two fixes | - | - | a test failing after two fixes, `stands again` | - |
-| A lesson becomes a check | a repeated fix, a rule in the request | - | - | a second finding of one kind, a repeated note | - |
+| A lesson becomes a check | a repeated fix, a rule in the request, the strongest check that holds it | - | - | a second finding of one kind, a repeated note | - |
 | Done means shown | the criteria and the flows | - | - | the evidence file | reads it, tries each `not run:`, walks the whole design in integration round 1 |
 | Proven by a run | - | - | - | answers with the finding's command | every finding |
 
@@ -95,7 +97,7 @@ A layer the change itself adds is measured under **Reader load**, not here.
 
 **How far existing code moves has a limit, and the role file names it.** A role told whether the repository accepts breaking changes follows that answer: where it does not, a contract that code outside the change relies on stays, and the shape it would have had is recorded under **Model decisions**. A role working under an approved design (a parent's `## Design`, an issue body, a detail design) moves what that design moves and no more.
 
-**The change then reaches everything that states the old shape**: the callers, the types, the tests, the documents, the examples, and the comments and records that give the reason. Find them by search and read each one. One that still describes the old shape after the change is unfinished work, not a follow-up.
+**The change then reaches everything that states the old shape**: the callers, the types, the tests, the documents, the examples, and the records that give the reason. Find them by search and read each one. One that still describes the old shape after the change is unfinished work, not a follow-up. A comment that states the old shape is removed, not rewritten (**Comments**).
 
 The design holds the whole shape, and the plan delivers it in tasks that each pass. The design review asks the same question of the finished design.
 
@@ -113,20 +115,38 @@ The section applies to what the change writes. Existing code is measured only wh
 
 ## Comments
 
-**Our own code explains itself through names, types and structure, never through a comment.** A comment stays only when it is one of four:
+**Code carries no comment.** Names, types and structure say what it does. The issue, the pull request and the work report say why. Four kinds stay:
 
 - a licence header
-- a constraint from outside that the code cannot change: a vendor, a platform, a protocol
-- a doc comment on a public API
-- a link to an issue or an RFC that explains a constraint the code cannot express
+- a comment in a configuration file that says how to use it
+- an instruction to a tool: a shebang, `# frozen_string_literal: true`, `// @ts-expect-error` in a type test to assert that a type error occurs (`comments.py` passes it, so the review shows a use outside a type test by a run: remove it and run the type check)
+- a doc comment on the public API of a library published for others
+
+An instruction that silences a check is not one of them: it is a guard (**Root cause**). A doc comment anywhere else is not one either.
 
 **A comment that explains our own code marks code that is unclear.** Rename, give it a type or restructure until the comment says nothing new, then leave it out. A design that needs one to be understood is redrawn.
+
+**A comment that excuses a stopgap is evidence of a guard**: "temporary", "workaround", "for now", "should never happen". The code under it is read by **Root cause**.
 
 **A "do not remove" or "keep in sync" comment is a rule written down**, and it goes through **A lesson becomes a check**: a test, a type or an assertion holds it, and the comment leaves.
 
 Getting it wrong: `// keep in sync with PLAN_LIMITS` above a second table of the same limits. One table is derived from the other, or a test compares them, and the comment goes.
 
-The section applies to what the change writes. **An existing comment the change makes false is corrected when it is one of the four kinds, and removed otherwise.** No other existing comment is touched. A repository whose conventions ask for comments keeps them.
+**The comments already in a file the change touches leave in the same task**, outside the four kinds. A task removes only inside the files it already changes.
+
+**`scripts/comments.py` of the workflow skill holds this section.** It fails on a comment outside the four kinds in a file the change touches, and on a silenced check the change adds. It cannot tell a public API, so with `--library` it lists the doc comments for a reader. The role file says when it runs.
+
+A repository whose conventions ask for comments keeps them, and a hit its conventions ask for is no finding.
+
+## Documents
+
+**A document here is a file whose only job is to explain the code or the change to a person or a model**: a decision record, notes, a summary, a plan, a guide. A file that something loads, ships or publishes is not one: a skill's or a role's prompt, a page of a site, a template.
+
+**The explaining documents people maintain are `README`, `CLAUDE.md` and `AGENTS.md`, `CONTRIBUTING`, and the design documents the repository names. A change adds no other one unless the request asks for it.**
+
+**What was decided and why goes where the work is tracked**: the issue, the pull request, the work report (**Model decisions**). Nothing in the repository records it.
+
+Getting it wrong: a task adds `docs/decisions/0007-cache-keys.md` to record why the cache key changed. The reason goes into the pull request, and the file is not added.
 
 ## Where to split
 
@@ -148,11 +168,21 @@ Getting it wrong: a rename that reaches 80 files, cut into four tasks "to keep t
 
 Getting it wrong: task 1 adds `fetchUserV2` and keeps `fetchUser` forwarding to it, so that task 2 can move the callers. The forwarder serves the plan and no user.
 
+## Existing workarounds
+
+**A workaround in existing code is never a precedent.** A workaround gets past a problem without solving it: a wait on a timer, `any` or a cast that quiets the type checker, a silenced lint rule, a skipped test, a swallowed error. A design that names the patterns it rides on leaves these out, and new code copies none because a neighbour has one.
+
+One inside the files the change touches leaves through **Why existing behaviour is there**. One outside them is reported, and the role file says how.
+
+Getting it wrong: the design says "wait for the dialog the way `openMenu` does", and `openMenu` sleeps 300 ms. The new code awaits the event the dialog fires.
+
 ## Root cause
 
 **A bug fix names three things**: the symptom, the cause (the write or the assumption that produces the bad state), and what showed it. The fix goes at the cause.
 
 A guard is a check where the failure surfaces: a null check, a retry, a refetch on a miss, a caught error, a default. The cause stays. A guard beside the cause fix is fine. A guard instead of it is never done. A cause out of reach is reported, not guarded.
+
+**A silenced check is a guard on the check.** `eslint-disable`, `@ts-ignore`, `# noqa`, `#[allow(...)]`, a `.skip` on a test: the code the check objects to is the cause, and it stays. A change that adds one is never done.
 
 ## After two failed fixes
 
@@ -170,9 +200,10 @@ In a review, the gate is a finding whose command still shows the failure after a
 
 ## A lesson becomes a check
 
-**A rule about to be written down a second time becomes something that runs**: a type, a lint rule, a test, a runtime assertion, a script. The second time is a fix of a kind the history already shows, a finding of a kind the task already had, or a note the handover notes already carry.
+**A rule about to be written down a second time becomes something that runs.** The second time is a fix of a kind the history already shows, a finding of a kind the task already had, or a note the handover notes already carry.
 
-- **When a check can hold the rule, the check is the whole fix.** Prose that says the same thing is not added, and prose the check replaces is removed.
+- **Pick the strongest check that can hold the rule**, in this order: a type; a lint rule, a forbidden dependency direction among them; a test, a property-based one among them; a runtime assertion; prose last. A script that runs with the lint or the tests counts as the one it runs with.
+- **When a check can hold the rule, the check is the whole fix.** Prose that says the same thing is not added, in `CLAUDE.md`, `AGENTS.md` or anywhere else, and prose the check replaces is removed.
 - **When the rule takes judgement, it stays prose**: placed where its reader starts, made to stand out, with one example of getting it wrong.
 
 A check outside the task's files is not built on the side. The role file says how it is reported.

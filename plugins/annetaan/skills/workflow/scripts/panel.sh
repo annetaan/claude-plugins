@@ -1,15 +1,4 @@
 #!/usr/bin/env bash
-# Owns the seats of the review panel, one git worktree per seat beside the run's worktree, and prints each result as
-# one JSON object. The seats are a and b. Seat <s> of the worktree <WT> lives at <dirname of WT>/review-<basename of WT>-<s>,
-# detached. Every subcommand takes <WT>, the absolute path of the run's worktree, and never reads the cwd.
-# run builds a snapshot commit, one parent (HEAD of <WT>), whose tree is the working tree of <WT>: tracked changes plus
-# untracked files that are not ignored. It is built through a temporary index inside the git dir of <WT>, with a fixed
-# identity and fixed dates so that the same tree on the same HEAD gives the same commit, so the index, the working tree
-# and MERGE_HEAD of <WT> are untouched, and no ref points at the commit. run adds the seat at the snapshot, or re-points
-# an existing seat and removes its untracked files, which keeps its ignored files, copies <probe dir>/tree over the seat,
-# and runs <probe dir>/run.sh with the seat as its cwd. One run holds a seat at a time, through an exclusive flock on a lock
-# file in the common git directory, which the kernel releases when the run ends. close removes the seats.
-# Run: panel.sh run <WT> <seat> <probe dir> | close <WT>
 set -euo pipefail
 
 die() { echo "panel: $*" >&2; exit 1; }

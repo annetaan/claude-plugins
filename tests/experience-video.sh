@@ -1,11 +1,4 @@
 #!/usr/bin/env bash
-# Test: the experience-video renderer installs its dependencies, passes its unit tests, and checks the sample story.
-#
-# Run: bash tests/experience-video.sh   (exit 0 is success, anything else is failure)
-# The first run needs the network: setup runs `npm ci` (playwright, yaml) and may download a Chromium headless shell,
-# and the --deps step installs a second copy of the dependencies into a temp directory.
-# Needs node 20 or newer and ffmpeg. With no --deps, setup installs into the renderer directory itself.
-# VIDEO_DIR=<path> tests another copy of the skill directory.
 set -euo pipefail
 
 VIDEO="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)/plugins/annetaan/skills/experience-video"
@@ -17,19 +10,15 @@ trap 'rm -rf "$TMP"' EXIT
 
 fail() { echo "FAIL: $*" >&2; exit 1; }
 
-# json <expression over d>: evaluate against the JSON on stdin and print the result.
 json() { python3 -c 'import json,sys; d=json.load(sys.stdin); print(eval(sys.argv[1]))' "$1"; }
 
-# setup with no --deps installs into the renderer directory.
 SETUP="$(node "$EV" setup)" || fail "setup exited non-zero: $SETUP"
 [ "$(echo "$SETUP" | json "d['ok']")" = "True" ] || fail "setup did not report ok: $SETUP"
 echo "ok: setup"
 
-# The renderer's own unit tests.
 (cd "$VIDEO/renderer" && npm test >"$TMP/npm-test.log" 2>&1) || { cat "$TMP/npm-test.log" >&2; fail "npm test failed"; }
 echo "ok: unit tests"
 
-# check on a temp copy of the sample, so build/ lands outside the repository.
 cp -R "$VIDEO/sample" "$TMP/sample"
 CHECK="$(node "$EV" check "$TMP/sample/story.md")" || fail "check exited non-zero: $CHECK"
 [ "$(echo "$CHECK" | json "d['ok']")" = "True" ] || fail "check did not report ok: $CHECK"
@@ -38,7 +27,6 @@ CHECK="$(node "$EV" check "$TMP/sample/story.md")" || fail "check exited non-zer
 [ -f "$TMP/sample/build/timeline.json" ] || fail "check wrote no build/timeline.json"
 echo "ok: check on the sample"
 
-# A story with a mismatched heading fails with exit 1 and a finding.
 sed 's/^## Scene 2 /## Scene 7 /' "$TMP/sample/story.md" >"$TMP/bad.md"
 set +e
 BAD="$(node "$EV" check "$TMP/bad.md")"
@@ -48,7 +36,6 @@ set -e
 [ "$(echo "$BAD" | json "d['errors'][0]['code']")" = "scene-number" ] || fail "expected scene-number: $BAD"
 echo "ok: check rejects a bad story"
 
-# setup --deps installs outside the skill, and check runs from there.
 DEPS_OUT="$(node "$EV" setup --deps "$TMP/deps")" || fail "setup --deps exited non-zero: $DEPS_OUT"
 [ "$(echo "$DEPS_OUT" | json "d['ok']")" = "True" ] || fail "setup --deps did not report ok: $DEPS_OUT"
 [ "$(echo "$DEPS_OUT" | json "d['deps']")" = "$TMP/deps" ] || fail "setup --deps reported another directory: $DEPS_OUT"
@@ -59,7 +46,6 @@ AGAIN="$(node "$EV" setup --deps "$TMP/deps")" || fail "second setup --deps exit
 [ "$(echo "$AGAIN" | json "d['installed']")" = "False" ] || fail "a second setup --deps reinstalled: $AGAIN"
 echo "ok: setup --deps"
 
-# render: the sample draws with no source files (image cuts become placeholders). Never render in place on sample/.
 SIZE() { ffprobe -v error -of json -show_entries stream=codec_type,width,height,duration:format=duration "$1"; }
 set +e
 R1="$(node "$EV" render "$TMP/sample/story.md" --preview 2>"$TMP/render.log")"
@@ -80,7 +66,6 @@ PROBE="$(SIZE "$PREVIEW")"
 [ "$(echo "$PROBE" | json "abs(float(d['format']['duration']) - $DUR) < 0.1")" = "True" ] || fail "the preview is not $DUR s long: $PROBE"
 echo "ok: render --preview"
 
-# A story of small helpers for the part tests: story_with <dir> <cuts yaml> writes <dir>/story.md.
 story_with() {
   mkdir -p "$1/assets"
   {
@@ -89,15 +74,12 @@ story_with() {
   } >"$1/story.md"
 }
 
-# The sample's audio is not silent: mean volume above -50 dB.
 MEAN="$(ffmpeg -v info -i "$PREVIEW" -vn -af volumedetect -f null - 2>&1 | sed -n 's/.*mean_volume: \(-*[0-9.]*\) dB.*/\1/p')"
 [ "$(python3 -c "print($MEAN > -50)")" = "True" ] || fail "the sample's audio is silent: mean volume $MEAN dB"
 echo "ok: the sample's audio is not silent"
 
-# Narration: one clip per narrated scene, only where `say` exists. The sample narrates scene 1.
 if command -v say >/dev/null 2>&1; then
   [ "$(ls "$TMP/sample/build/narration" | wc -l | tr -d ' ')" = "1" ] || fail "expected one narration clip in build/narration"
-  # Taking the narration out removes the clip.
   story_with "$TMP/nar" "  - { id: only, part: card, bars: 1, lines: [Hello] }"
   sed -i.bak 's/^role: headline$/role: headline\nnarration: "Hello there."/' "$TMP/nar/story.md"
   node "$EV" render "$TMP/nar/story.md" --preview >/dev/null 2>&1 || fail "render with narration failed"
@@ -110,7 +92,6 @@ else
   echo "skip: narration (no say on this machine)"
 fi
 
-# music: writes a WAV of the timeline's duration, caches by script and timing, and reports levels for a model that cannot listen.
 cp -R "$VIDEO/sample" "$TMP/m1"
 M1="$(node "$EV" music "$TMP/m1/story.md" 2>/dev/null)" || fail "music failed: $M1"
 [ "$(echo "$M1" | json "(d['ok'], d['cached'], d['warnings'])")" = "(True, False, [])" ] || fail "the sample's music should be new and have no warning: $M1"
@@ -135,7 +116,6 @@ M4="$(node "$EV" music "$TMP/m1/story.md" 2>/dev/null)" || fail "music after len
 [ "$(echo "$M4" | json "d['cached']")" = "False" ] || fail "lengthening a cut should synthesize again: $M4"
 echo "ok: music"
 
-# A story with music.file uses the file and runs no script.
 mkdir -p "$TMP/mfile/assets"
 ffmpeg -v error -y -f lavfi -i "sine=frequency=440:duration=6" "$TMP/mfile/assets/track.wav" || fail "could not make the track"
 cat >"$TMP/mfile/story.md" <<'MD'
@@ -175,14 +155,12 @@ set -e
 [ "$(echo "$MG" | json "d['errors'][0]['code']")" = "missing-file" ] || fail "expected missing-file: $MG"
 echo "ok: music.file"
 
-# A story with neither music nor narration renders a silent track and warns no-music.
 story_with "$TMP/silent" "  - { id: only, part: card, bars: 1, lines: [Quiet] }"
 SL="$(node "$EV" render "$TMP/silent/story.md" --preview 2>/dev/null)" || fail "render with no music failed: $SL"
 [ "$(echo "$SL" | json "(d['music']['source'], [w['code'] for w in d['warnings'] if w['code'] == 'no-music'])")" = "('none', ['no-music'])" ] || fail "expected source none and a no-music warning: $SL"
 [ "$(SIZE "$TMP/silent/build/preview.mp4" | json "sorted(s['codec_type'] for s in d['streams'])")" = "['audio', 'video']" ] || fail "a silent story should still have an audio stream"
 echo "ok: no music renders a silent track"
 
-# A music.js without compose fails with music-script, exit 1.
 story_with "$TMP/badmusic" "  - { id: only, part: card, bars: 1, lines: [Quiet] }"
 echo "window.notCompose = 1;" >"$TMP/badmusic/music.js"
 set +e
@@ -200,23 +178,19 @@ set -e
 [ "$(echo "$BM" | json "d['errors'][0]['code']")" = "music-script" ] || fail "expected music-script for the clock: $BM"
 echo "ok: a music script without compose or using the clock fails"
 
-# A second render renders no cut.
 R2="$(node "$EV" render "$TMP/sample/story.md" --preview 2>/dev/null)" || fail "second render failed: $R2"
 [ "$(echo "$R2" | json "(d['rendered'], len(d['cached']))")" = "([], 8)" ] || fail "a second render should render nothing: $R2"
 echo "ok: a second render is cached"
 
-# --force renders every cut.
 RF="$(node "$EV" render "$TMP/sample/story.md" --preview --force 2>/dev/null)" || fail "render --force failed: $RF"
 [ "$(echo "$RF" | json "len(d['rendered'])")" = "8" ] || fail "--force should render all 8 cuts: $RF"
 echo "ok: render --force"
 
-# Editing one telop renders exactly one cut.
 sed -i.bak 's/"Again."/"Again!"/' "$TMP/sample/story.md"
 R3="$(node "$EV" render "$TMP/sample/story.md" --preview 2>/dev/null)" || fail "render after a telop edit failed: $R3"
 [ "$(echo "$R3" | json "d['rendered']")" = "['question']" ] || fail "a telop edit should render only question: $R3"
 echo "ok: a telop edit renders one cut"
 
-# Lengthening an early cut renders that cut and nothing after.
 python3 - "$TMP/sample/story.md" <<'PY'
 import sys
 p = sys.argv[1]
@@ -227,7 +201,6 @@ open(p, "w").write(s.replace(old, old.replace("bars: 2", "bars: 3")))
 PY
 R4="$(node "$EV" render "$TMP/sample/story.md" --preview 2>/dev/null)" || fail "render after lengthening failed: $R4"
 [ "$(echo "$R4" | json "d['rendered']")" = "['basket']" ] || fail "lengthening basket should render only basket: $R4"
-# A longer crossfade on recipe changes only the cut before it (its tail).
 python3 - "$TMP/sample/story.md" <<'PY'
 import sys
 p = sys.argv[1]
@@ -240,26 +213,21 @@ R5="$(node "$EV" render "$TMP/sample/story.md" --preview 2>/dev/null)" || fail "
 [ "$(echo "$R5" | json "d['rendered']")" = "['basket']" ] || fail "a longer crossfade should render only basket: $R5"
 echo "ok: edits render only the cuts they change"
 
-# Pruning leaves only the referenced files. Four edits have replaced the files of question and basket by now, so the
-# old ones are gone only if prune removed them: one file per distinct key, 8.
 [ "$(ls "$TMP/sample/build/cuts/preview" | wc -l | tr -d ' ')" = "8" ] || fail "build/cuts/preview should hold 8 files after the edits"
 echo "ok: pruning leaves only referenced files"
 
-# snapshot at peak+0.5 writes a PNG of the output size and names the cut.
 SNAP="$(node "$EV" snapshot "$TMP/sample/story.md" --at "peak+0.5")" || fail "snapshot failed: $SNAP"
 [ "$(echo "$SNAP" | json "d['cut']")" = "twenty" ] || fail "snapshot at peak+0.5 should land in twenty: $SNAP"
 SNAP_FILE="$(echo "$SNAP" | json "d['file']")"
 [ "$(python3 -c 'import struct,sys; b=open(sys.argv[1],"rb").read(24); print(struct.unpack(">II", b[16:24]))' "$SNAP_FILE")" = "(1920, 1080)" ] || fail "the snapshot is not 1920x1080"
 echo "ok: snapshot"
 
-# snapshot of the screen cut writes a PNG of the output size.
 SNAP2="$(node "$EV" snapshot "$TMP/sample/story.md" --at "order+2")" || fail "snapshot of the screen cut failed: $SNAP2"
 [ "$(echo "$SNAP2" | json "d['cut']")" = "order" ] || fail "snapshot at order+2 should land in order: $SNAP2"
 SNAP2_FILE="$(echo "$SNAP2" | json "d['file']")"
 [ "$(python3 -c 'import struct,sys; b=open(sys.argv[1],"rb").read(24); print(struct.unpack(">II", b[16:24]))' "$SNAP2_FILE")" = "(1920, 1080)" ] || fail "the screen snapshot is not 1920x1080"
 echo "ok: snapshot of the screen cut"
 
-# Media made here with ffmpeg: no binary file is kept in the repository.
 mkdir -p "$TMP/media"
 story_with "$TMP/media" "  - { id: pic, part: image, bars: 1, src: assets/pic.png, prompt: A red picture, zoom: in }
   - { id: clip, part: video, bars: 1, src: assets/clip.mp4, prompt: A test clip, start: 0.5 }"
@@ -282,7 +250,6 @@ FRAMES_AFTER="$(python3 -c 'import os,sys; d=sys.argv[1]; print([ (n, os.stat(os
 [ "$FRAMES_BEFORE" = "$FRAMES_AFTER" ] || fail "a second render extracted the frames again: $FRAMES_BEFORE then $FRAMES_AFTER"
 echo "ok: a video cut renders from a clip and its frames are kept"
 
-# An image that cannot be decoded is a story error.
 echo "not a picture" >"$TMP/media/assets/pic.png"
 set +e
 MB="$(node "$EV" render "$TMP/media/story.md" --preview 2>/dev/null)"
@@ -292,7 +259,6 @@ set -e
 [ "$(echo "$MB" | json "(d['errors'][0]['code'], d['errors'][0]['cut'])")" = "('bad-image', 'pic')" ] || fail "expected bad-image on pic: $MB"
 echo "ok: an undecodable image fails with bad-image"
 
-# A fragment's relative path resolves against the story's directory: a red picture shows in the middle of the frame.
 mkdir -p "$TMP/relpath"
 story_with "$TMP/relpath" "  - { id: show, part: custom, bars: 1, src: assets/f.html }"
 ffmpeg -v error -y -f lavfi -i color=c=red:s=640x360 -frames:v 1 "$TMP/relpath/assets/photo.png" || fail "could not make the photo"
@@ -302,8 +268,7 @@ PIXEL="$(ffmpeg -v error -i "$(echo "$RP" | json "d['file']")" -vf crop=1:1:480:
 [ "$(echo "$PIXEL" | python3 -c 'import sys; r,g,b=map(int, sys.stdin.read().split()); print(r > 240 and g < 15 and b < 15)')" = "True" ] || fail "the relative picture is not on screen; the middle pixel is:$PIXEL"
 echo "ok: a fragment's relative path resolves against the story"
 
-# Fragments that break the rules fail with the finding and the cut's id, exit 1, and leave no file in build/cuts.
-fragment_fails() { # <name> <fragment html> <expected code>
+fragment_fails() {
   local dir="$TMP/frag-$1"
   story_with "$dir" "  - { id: boom, part: custom, bars: 1, src: assets/f.html }"
   printf '%s\n' "$2" >"$dir/assets/f.html"
@@ -321,7 +286,6 @@ fragment_fails network '<div>x</div><img src="http://example.invalid/a.png">' fr
 fragment_fails error '<div>x</div><script>throw new Error("kaboom")</script>' fragment-error
 echo "ok: fragments that break the rules fail"
 
-# A 9:16 story with a screen cut renders at 540x960 in preview.
 story_with "$TMP/tallscreen" "  - id: app
     part: screen
     device: phone
@@ -333,7 +297,6 @@ TS="$(SIZE "$TMP/tallscreen/build/preview.mp4")"
 [ "$(echo "$TS" | json "(d['streams'][0]['width'], d['streams'][0]['height'])")" = "(540, 960)" ] || fail "the 9:16 screen preview is not 540x960: $TS"
 echo "ok: 9:16 screen cut"
 
-# A 9:16 story renders at 1080x1920 (540x960 in preview).
 mkdir -p "$TMP/tall"
 cat >"$TMP/tall/story.md" <<'MD'
 ---
@@ -363,7 +326,6 @@ TALL="$(SIZE "$TMP/tall/build/preview.mp4")"
 [ "$(echo "$TALL" | json "(d['streams'][0]['width'], d['streams'][0]['height'])")" = "(540, 960)" ] || fail "the 9:16 preview is not 540x960: $TALL"
 echo "ok: 9:16"
 
-# A story with an error exits 1 and writes no video.
 rm -f "$TMP/bad-render/build/preview.mp4"
 mkdir -p "$TMP/bad-render"
 sed 's/^## Scene 2 /## Scene 7 /' "$TMP/sample/story.md" >"$TMP/bad-render/story.md"
@@ -375,7 +337,6 @@ set -e
 [ ! -e "$TMP/bad-render/build/preview.mp4" ] || fail "render wrote a video for a story with an error"
 echo "ok: render rejects a bad story"
 
-# frames: key frames of every scene on a temp copy of the sample, with no overflow warning.
 set +e
 FR="$(node "$EV" frames "$TMP/sample/story.md" 2>"$TMP/frames.log")"
 CODE=$?
@@ -392,12 +353,10 @@ FRAME_SIZES="$(echo "$FR" | json "set(__import__('struct').unpack('>II', open(f[
 [ "$(json "len(d['frames'])" <"$TMP/sample/build/review/index.json")" = "$(echo "$FR" | json "len(d['frames'])")" ] || fail "index.json does not list the frames that frames reported"
 BAD_CODES="$(echo "$FR" | json "[w['code'] for w in d['warnings'] if w['code'] in ('text-outside', 'fragment-text-clipped', 'telop-lines', 'telop-overlap', 'telop-covered')]")"
 [ "$BAD_CODES" = "[]" ] || fail "the sample has an overflow warning: $FR"
-# frames changes no cut key: a preview render afterwards has nothing to render.
 R2="$(node "$EV" render "$TMP/sample/story.md" --preview 2>/dev/null)" || fail "render --preview after frames failed"
 [ "$(echo "$R2" | json "d['rendered']")" = "[]" ] || fail "a render after frames re-rendered a cut: $R2"
 echo "ok: frames on the sample"
 
-# frames reports a telop of more than two lines, and a card with too many lines, without failing.
 LONG="$(printf 'a long caption that goes on and on %.0s' 1 2 3 4 5 6 7 8)"
 story_with "$TMP/overflow" "  - part: card
     bars: 2
@@ -418,8 +377,7 @@ TM="$(node "$EV" frames "$TMP/tooMany/story.md" 2>/dev/null)" || fail "a card wi
 [ "$(echo "$TM" | json "any(w['code'] == 'text-outside' for w in d['warnings'])")" = "True" ] || fail "a card with too many lines was not reported: $TM"
 echo "ok: frames reports overflow"
 
-# frames reads what a fragment draws: its text, its CSS content and its shapes, against the telop and the stage.
-frame_finds() { # <name> <fragment html> <expected code> [telop position]
+frame_finds() {
   local dir="$TMP/fr-$1"
   story_with "$dir" "  - part: custom
     bars: 2
@@ -436,7 +394,6 @@ frame_finds content '<style>#fragment .n::before { content: "123456789012"; font
 frame_finds ring '<div style="position:absolute;left:50%;bottom:2vmin;width:30vmin;height:30vmin;margin-left:-15vmin;border:1.2vmin solid #f2a33a;border-radius:50%"></div>' telop-covered bottom
 echo "ok: frames reads fragment text, CSS content and shapes"
 
-# An empty decorative content: "" does not turn the element's box into text.
 story_with "$TMP/decor" "  - part: custom
     bars: 2
     src: assets/f.html
@@ -447,7 +404,6 @@ DC="$(node "$EV" frames "$TMP/decor/story.md" 2>/dev/null)" || fail "frames fail
 [ "$(echo "$DC" | json "[w['code'] for w in d['warnings'] if w['code'] != 'no-peak']")" = "[]" ] || fail "an empty ::after content gave a warning: $DC"
 echo "ok: an empty CSS content adds no text"
 
-# A second frames run leaves no stale file.
 story_with "$TMP/stale" "  - part: card
     bars: 2
     lines: [Hello]
@@ -462,7 +418,6 @@ PNGS="$(find "$TMP/stale/build/review" -name '*.png' | wc -l | tr -d ' ')"
 [ "$PNGS" = "$(echo "$ST" | json "len(d['frames'])")" ] || fail "the second frames run left $PNGS PNGs for $(echo "$ST" | json "len(d['frames'])") frames"
 echo "ok: frames leaves no stale file"
 
-# frames on a story with an error exits 1 and writes no frame.
 set +e
 node "$EV" frames "$TMP/bad-render/story.md" >/dev/null 2>&1
 CODE=$?
@@ -471,7 +426,6 @@ set -e
 [ ! -e "$TMP/bad-render/build/review" ] || fail "frames wrote files for a story with an error"
 echo "ok: frames rejects a bad story"
 
-# clean removes build/ and keeps story.md.
 node "$EV" clean "$TMP/sample/story.md" >/dev/null || fail "clean failed"
 [ ! -e "$TMP/sample/build" ] || fail "clean left build/"
 [ -f "$TMP/sample/story.md" ] || fail "clean removed story.md"

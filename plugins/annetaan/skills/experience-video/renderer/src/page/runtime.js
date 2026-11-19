@@ -1,5 +1,3 @@
-// Page runtime for one cut. Plain browser script: no imports, no timers, no requestAnimationFrame, no clock.
-// Reads window.__evCut and exposes window.__ev = { ready, seek }.
 (function () {
   var data = window.__evCut;
   var cut = data.cut;
@@ -7,8 +5,8 @@
 
   var stage = document.getElementById('stage');
   var counters = [];
-  var videoStep = null; // set by buildVideo: t -> promise
-  var ownImage = null; // the image of an image or video part
+  var videoStep = null;
+  var ownImage = null;
   var EASE_IN_MS = 500;
 
   function el(tag, cls, text) {
@@ -96,7 +94,6 @@
     var logical = (window.__evDevices || {})[device];
     content.style.width = logical.width + 'px';
     content.style.height = logical.height + 'px';
-    // Outer size of the device in CSS pixels: the screen plus bezel (and the laptop's base).
     var outerW = logical.width + (device === 'phone' ? 28 : 24 + 96);
     var outerH = logical.height + (device === 'phone' ? 28 : 24 + 20);
     var scale = device === 'phone'
@@ -147,15 +144,11 @@
 
   var asset = data.asset;
   if (cut.part === 'card') stage.appendChild(buildCard(cut.props));
-  else if (cut.part === 'image' && asset) stage.appendChild(buildImage(cut.props, asset));
-  else if (cut.part === 'video' && asset) stage.appendChild(buildVideo(cut.props, asset));
+  else if (cut.part === 'image') stage.appendChild(asset ? buildImage(cut.props, asset) : buildPlaceholder(cut.part, cut.props));
+  else if (cut.part === 'video') stage.appendChild(asset ? buildVideo(cut.props, asset) : buildPlaceholder(cut.part, cut.props));
   else if (cut.part === 'screen') fitDevice(cut.props.device, data);
-  else if (cut.part === 'custom') { /* the fragment is already in the stage */ }
-  else stage.appendChild(buildPlaceholder(cut.part, cut.props));
   stage.appendChild(buildTelops(cut.telops));
 
-  // Fonts, then every image decoded. Only the image part's own image can fail the cut; the others are reported by
-  // the request rules, or are the fragment's own business.
   var ready = document.fonts.ready.then(function () {
     return Promise.all(Array.prototype.map.call(document.images, function (img) {
       return img.decode().catch(function (err) {

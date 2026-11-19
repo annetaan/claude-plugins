@@ -1,14 +1,4 @@
 #!/usr/bin/env bash
-# Test: worktree.sh and cleanup.sh remove a worktree that has submodules, and refuse without --discard when a
-# submodule holds work of its own (an uncommitted change, or a commit that no remote of the submodule and no tag
-# reaches).
-#
-# Run: bash tests/worktree-submodules.sh   (exit 0 is success, anything else is failure)
-# Runs offline: the worktree.sh cases use a clone with no remote, the cleanup.sh cases a bare temp origin, and the
-# worktree is detached, so neither script calls gh. cleanup.sh gets a fake project.sh.
-# The submodule is a second temp repository added by path.
-# The cleanup cases also put the review seats there with panel.sh run and check that the cleanup removes them.
-# WORKTREE_SH=<path>, CLEANUP_SH=<path> and PANEL_SH=<path> test other copies of the scripts.
 set -euo pipefail
 
 SCRIPT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)/plugins/annetaan/skills/workflow/scripts/worktree.sh"
@@ -21,7 +11,6 @@ PANEL_SRC="${PANEL_SH:-$PANEL_SRC}"
 TMP="$(mktemp -d)"
 trap 'chmod -R u+rwx "$TMP" 2>/dev/null || true; rm -rf "$TMP"' EXIT
 
-# Cut off the user's git configuration (signing, hooks, templates).
 export HOME="$TMP/home"
 mkdir -p "$HOME"
 export GIT_CONFIG_NOSYSTEM=1
@@ -32,13 +21,10 @@ git config --global init.defaultBranch main
 
 fail() { echo "FAIL: $*" >&2; exit 1; }
 
-# json <expression over d>: evaluate against the JSON on stdin and print the result.
 json() { python3 -c 'import json,sys; d=json.load(sys.stdin); print(eval(sys.argv[1]))' "$1"; }
 
 exists() { [ -e "$1" ] || [ -L "$1" ]; }
 
-# A clone with a detached worktree wf-test. The superproject records the submodule "sub", cloned from $TMP/subsrc.
-# $WT has the submodule checked out only when $1 is "init".
 setup() {
   rm -rf "$TMP/work" "$TMP/subsrc"
   git init -q "$TMP/subsrc"
@@ -64,13 +50,13 @@ setup() {
   cd "$MAIN"
 }
 
-# A clone with an origin and a detached worktree pj-1 for cleanup.sh, in a tree of skill directories with a fake
-# project.sh. The superproject records the submodule "sub". $WT has it checked out only when $1 is "init".
 setup_pj() {
   rm -rf "$TMP/pj" "$TMP/subsrc"
   mkdir -p "$TMP/pj/skills/pj-cleanup/scripts" "$TMP/pj/skills/workflow/scripts" "$TMP/pj/skills/pj1-plan/scripts"
   cp "$CLEANUP_SRC" "$TMP/pj/skills/pj-cleanup/scripts/cleanup.sh"
+  cp "${CLEANUP_SRC%.sh}.py" "$TMP/pj/skills/pj-cleanup/scripts/cleanup.py"
   cp "$SCRIPT" "$TMP/pj/skills/workflow/scripts/worktree.sh"
+  cp "${SCRIPT%.sh}.py" "$TMP/pj/skills/workflow/scripts/worktree.py"
   cp "$PANEL_SRC" "$TMP/pj/skills/workflow/scripts/panel.sh"
   cat > "$TMP/pj/skills/pj1-plan/scripts/project.sh" <<'FAKE'
 #!/usr/bin/env bash
@@ -105,14 +91,12 @@ FAKE
   cd "$MAIN"
 }
 
-# A commit in the submodule of $WT, recorded in the superproject, so the superproject tree is clean.
 commit_in_sub() {
   git -C "$WT/sub" commit -q --allow-empty -m local
   git -C "$WT" add sub
   git -C "$WT" commit -q -m bump
 }
 
-# seat_run <seat> puts the seat beside $WT with a probe that leaves an untracked file in it.
 seat_run() {
   local dir="$WT/work-reports/2026-01-01-0000-aaaaaaa/seats/$1/p"
   mkdir -p "$dir"

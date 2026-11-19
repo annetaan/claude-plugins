@@ -1,12 +1,4 @@
 #!/usr/bin/env bash
-# Test: the model and the effort of every agent are stated in two places only, the frontmatter of
-# plugins/annetaan/agents/*.md (and the "(<model> / effort <effort>)" in its description) and the agent table of
-# plugins/annetaan/README.md, and the two agree. The design review runs on another model than the design and the
-# planner, the two review seats run on different models, and no skill states a pin.
-#
-# Run: bash tests/agent-pins.sh   (exit 0 is success, anything else is failure)
-# Runs offline: reads files only, writes nothing.
-# PLUGIN=<path> tests another copy of plugins/annetaan.
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"

@@ -1,5 +1,3 @@
-// Runs before the stage is parsed, so a custom or screen fragment already finds window.cut, the theme variables and
-// the --mark-<name> variables. Plain browser script: no imports, no timers, no clock.
 (function () {
   var data = window.__evCut;
   var cut = data.cut;
@@ -15,7 +13,6 @@
     root.style.setProperty('--mark-' + name, cut.marks[name] + 's');
   });
 
-  // The logical size of each device screen, in CSS pixels. A screen fragment lays out against it.
   var DEVICES = { phone: { width: 390, height: 844 }, laptop: { width: 1280, height: 800 } };
   var width = data.width;
   var height = data.height;

@@ -63,7 +63,7 @@ old shape. A new layer needs a named second user and state lives in the narrowes
 answers where a value comes from and what can change it. A finding whose command still shows the failure after a second
 answer is marked `stands again`, and is answered with `assumed:`, what both answers took for granted, before the next fix. A lesson that turns up a second time becomes a check inside the
 task. A check that belongs outside the task is reported as `check wanted:`, and those lines get a heading of their own
-in `log.md`, so they reach the pull request body.
+in `log.md`, so they reach the pull request body. Code carries no comment beyond a licence header, a note in a configuration file, an instruction to a tool and a doc comment on a published library's public API, and the comments in a file a task changes leave with it. `scripts/comments.py` fails a task that adds one or silences a check, and both sessions run it. An existing workaround is never a pattern to copy, and a change adds no explaining document the request did not ask for.
 
 The approval message names the new branch and `base: <branch>`. Correct either one there. A base corrected at approval
 recreates the worktree on the new base and runs the design again. The design review does not run a second time.
@@ -227,7 +227,7 @@ screenshots it could not attach.
 | --- | --- |
 | `SKILL.md` | the procedure for the orchestrator, which is the main session: which file each entry reads, the worktree line, the agents, phases 2 to 4 and the rules every entry shares |
 | `standalone.md` | the standalone run: design, the design review and approval, the integration review and the finish |
-| `judgement.md` | the rules every role of workflow and the pj skills reads. It opens with a table that maps each section to the roles that apply it, and holds what a human is asked, model decisions, experiments, assumptions, root cause, evidence, removing before adding, designing as if always required, reader load, comments, what two failed fixes share, and turning a repeated lesson into a check |
+| `judgement.md` | the rules every role of workflow and the pj skills reads. It opens with a table that maps each section to the roles that apply it, and holds what a human is asked, model decisions, experiments, assumptions, root cause, evidence, removing before adding, designing as if always required, reader load, comments, documents, existing workarounds, what two failed fixes share, and turning a repeated lesson into the strongest check that holds it |
 | `breaking-changes.md` | the check that settles whether the repository accepts breaking changes, for the standalone run and pj1-plan |
 | `from-pr.md` | resolving the conflicts of a pull request that is already open |
 | `from-issue.md` | one sub-issue, detailed against the code and run as a plan of one or more commits, for pj4-running |
@@ -240,6 +240,8 @@ screenshots it could not attach.
 | `roles/work.md` | the role for the implementation session |
 | `roles/review.md` | the role for a review seat |
 | `scripts/worktree.sh` | creates the run's worktree and checks its ignore rules. `workflow-cleanup` uses it to clean up |
+| `scripts/worktree.py` | the code `worktree.sh` runs |
+| `scripts/comments.py` | fails on a comment outside the four kinds, or a silenced check the change adds, in the files a change touches. The implementation and review sessions run it |
 | `scripts/panel.sh` | runs a review seat's probe in a git worktree beside the run's, at a snapshot of the working tree, and removes the seats at cleanup |
 | `review-files.md` | the shape of the review files and the evidence files, read by the seats, the main session and the implementation session |
 

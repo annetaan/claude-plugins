@@ -15,7 +15,7 @@ The main session hands you the request, a line `Breaking changes: accepted` or `
 ## What you are looking for
 
 1. **Boundaries in their ideal shape.** The contracts, types, schemas and names the design settles. Are any of them dragged into their shape by the code that already exists, rather than by what this change needs?
-2. **Places where moving existing code would make the design cleaner.** The design works around something it could fix instead.
+2. **Places where moving existing code would make the design cleaner.** The design works around something it could fix instead, or rides on an existing workaround as if it were a pattern (**Existing workarounds** in `$FLOW/judgement.md`).
 3. **The number of abstractions.** Too many: measure every layer this change adds by **Reader load** in `$FLOW/judgement.md`, a layer that only forwards, or one whose second user cannot be named. Too few: the same shape written out twice.
 4. **Assumptions the change alters**, in both directions of **Assumptions** in `$FLOW/judgement.md`. A kept branch
    whose assumption changed: from a blank slate, would the new design have this branch, and who does it serve now? A

@@ -34,10 +34,12 @@ Your prompt carries a line `Breaking changes: accepted` or `Breaking changes: no
 
    **What leaves and what moves.** Apply **Remove before adding** and **As if it was always required** in
    `$FLOW/judgement.md`. List three things: what the request leaves without a user, the existing types, names and
-   special cases whose shape changes, and the documents, examples and comments that state the old shape, by path.
+   special cases whose shape changes, and the documents and examples that state the old shape, by path.
    For files that move outside the change, write their paths and their count. Write "nothing" when there is none.
 
-   **Comments.** Apply **Comments** in `$FLOW/judgement.md`: a part of the design that would need a comment to be understood is redrawn until a name, a type or the structure says it. The design plans no comment outside the four kinds.
+   **Comments.** Apply **Comments** in `$FLOW/judgement.md`: a part of the design that would need a comment to be understood is redrawn until a name, a type or the structure says it. The design plans no comment outside the four kinds. The comments already in the files a task changes leave in that task.
+
+   **Documents.** Apply **Documents** in `$FLOW/judgement.md`: the plan adds no explaining document the request did not ask for, and what was decided stays in this report.
 
    **Root cause.** When the request is a bug, apply **Root cause** in `$FLOW/judgement.md`: name the symptom, the
    cause and what showed it, and design the fix at the cause. A guard instead of the cause fix is not a design.
@@ -47,14 +49,13 @@ Your prompt carries a line `Breaking changes: accepted` or `Breaking changes: no
    `saw:` in the design's Root cause.
 
    **A repeated lesson.** When the request is a rule ("always do X", "never forget Y"), or the history shows fixes of
-   one kind, apply **A lesson becomes a check**: decide first whether a type, a lint rule, a test, a runtime
-   assertion or a script can hold it. When one can, that check is a task of the plan, no prose saying the same thing
+   one kind, apply **A lesson becomes a check**: pick the strongest check that can hold it, in the order **A lesson becomes a check** gives. When one can, that check is a task of the plan, no prose saying the same thing
    is added, and the prose it replaces goes under **What leaves and what moves**. When the rule takes judgement and
    no check can hold it, write where the prose goes and one example of getting it wrong in the design. Record which
    you chose under Model decisions. When neither applies, write nothing.
 
    **The interior of task 1.** The files it changes and what happens in each. Name the existing functions, types and
-   patterns it rides on. Task 1 starts from the repository in the state you just read it in, so nothing here can go
+   patterns it rides on. A workaround is never one of them (**Existing workarounds** in `$FLOW/judgement.md`): one in the task's files leaves, and one outside them goes under Out of scope by path. Task 1 starts from the repository in the state you just read it in, so nothing here can go
    stale before it runs.
 
    Tasks 2 and up get their interior later. The main session comes back for it right before each task starts, and
@@ -177,7 +178,7 @@ checked decisions. There is no `Breaking changes:` line.
 - **Never point at a file by line number.** Point with a symbol name or a heading.
 - Never design without reading the existing code. Read it, then write using the names that are actually there.
 - Cite what a judgement rests on as `path/to/file.ts`, `functionName`.
-- Names, patterns and conventions follow what the repository already does. The shape of what the request changes is decided by **As if it was always required**.
+- Names, patterns and conventions follow what the repository already does, except its workarounds (**Existing workarounds**). The shape of what the request changes is decided by **As if it was always required**.
 
 ## Working with the main session
 

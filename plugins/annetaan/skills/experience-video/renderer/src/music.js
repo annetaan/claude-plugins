@@ -1,8 +1,3 @@
-// Music: runs the story's music script in a headless page and writes build/music.wav.
-//   - The script assigns window.compose = async (ctx, timeline, helpers) => {} and builds its sound on an
-//     OfflineAudioContext; this file renders it, counts clipped samples, measures the loudness of every bar and
-//     writes the WAV.
-//   - The result is cached by a key over the script and the timeline's timing, so editing a telop does not synthesize again.
 import fs from 'node:fs';
 import path from 'node:path';
 import { sha, stable } from './hash.js';
@@ -13,9 +8,8 @@ const CHANNELS = 2;
 const CHUNK_SECONDS = 5;
 const SEED = 20240611;
 export const SILENT_RMS = 0.001;
-export const PEAK_MARGIN = 1.5; // the bars from the peak have to be this many times louder than the bars before it
+export const PEAK_MARGIN = 1.5;
 
-// Where the story's music comes from: a file named in the frontmatter, the script beside story.md, or nowhere.
 export function musicSource(timeline, storyDir) {
   if (timeline.music.file) {
     return { kind: 'file', file: path.resolve(storyDir, timeline.music.file), offset: timeline.music.offset ?? 0 };
@@ -25,7 +19,6 @@ export function musicSource(timeline, storyDir) {
   return null;
 }
 
-// Only what the music can depend on: the timing. Telops, props and the theme are left out on purpose.
 export function musicKey(scriptText, timeline, version) {
   return sha(
     stable({
@@ -46,7 +39,6 @@ export function musicKey(scriptText, timeline, version) {
   );
 }
 
-// writeWav(file, pcm16, { sampleRate, channels }): pcm16 is interleaved 16-bit samples (an Int16Array or a Buffer of them).
 export function writeWav(file, pcm16, { sampleRate = SAMPLE_RATE, channels = CHANNELS } = {}) {
   const data = Buffer.isBuffer(pcm16) ? pcm16 : Buffer.from(pcm16.buffer, pcm16.byteOffset, pcm16.byteLength);
   const header = Buffer.alloc(44);
@@ -55,7 +47,7 @@ export function writeWav(file, pcm16, { sampleRate = SAMPLE_RATE, channels = CHA
   header.write('WAVE', 8, 'ascii');
   header.write('fmt ', 12, 'ascii');
   header.writeUInt32LE(16, 16);
-  header.writeUInt16LE(1, 20); // PCM
+  header.writeUInt16LE(1, 20);
   header.writeUInt16LE(channels, 22);
   header.writeUInt32LE(sampleRate, 24);
   header.writeUInt32LE(sampleRate * channels * 2, 28);
@@ -69,7 +61,6 @@ export function writeWav(file, pcm16, { sampleRate = SAMPLE_RATE, channels = CHA
 
 const barIndex = (t, bar) => Math.floor(t / bar + 1e-6);
 
-// The three music warnings, worked out from the measured levels.
 export function musicWarnings(info, timeline) {
   const warnings = [];
   const w = (code, message) => warnings.push({ code, scene: null, cut: null, message });
@@ -92,7 +83,6 @@ export function musicWarnings(info, timeline) {
   return warnings;
 }
 
-// Runs in the page. Replaces Math.random with a seeded generator and hands it to the script as helpers.random.
 function seedPage(seed) {
   let a = seed >>> 0;
   const random = () => {
@@ -106,7 +96,6 @@ function seedPage(seed) {
   window.__evRandom = random;
 }
 
-// Runs in the page. Renders the script and returns the samples as base64 chunks of 16-bit interleaved PCM.
 async function renderInPage({ timeline, rate, channels, chunkSeconds }) {
   if (typeof window.compose !== 'function') return { missing: true };
   const frames = Math.ceil(timeline.duration * rate);
@@ -129,7 +118,7 @@ async function renderInPage({ timeline, rate, channels, chunkSeconds }) {
       const b = Math.min(barCount - 1, Math.floor(i / barFrames));
       for (let c = 0; c < channels; c++) {
         let v = data[c][i];
-        if (!(v === v)) v = 0; // NaN
+        if (!(v === v)) v = 0;
         if (v > 1 || v < -1) {
           clipped++;
           v = v > 1 ? 1 : -1;
@@ -149,7 +138,6 @@ async function renderInPage({ timeline, rate, channels, chunkSeconds }) {
 
 const scriptError = (message) => new CaptureError('music-script', null, `music.js: ${message}`, true);
 
-// synthesize({ deps, timeline, storyDir, buildDir, version }) -> { key, duration, levels, loudestBar, clipped, cached, warnings }
 export async function synthesize({ deps, timeline, storyDir, buildDir, version }) {
   const scriptFile = path.join(storyDir, 'music.js');
   const scriptText = fs.readFileSync(scriptFile, 'utf8');
@@ -161,7 +149,6 @@ export async function synthesize({ deps, timeline, storyDir, buildDir, version }
       const info = JSON.parse(fs.readFileSync(json, 'utf8'));
       if (info.key === key) return { ...info, cached: true, warnings: musicWarnings(info, timeline) };
     } catch {
-      // a broken cache file is synthesized again
     }
   }
 

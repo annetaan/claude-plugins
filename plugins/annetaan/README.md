@@ -156,10 +156,9 @@ requirement is drawn as if it had always been there, down to the types, document
 The review sends back a document that a search still finds stating the old shape, and never one whose wording or format is the
 only fault in what it says. A new layer needs a named second user, state lives in the narrowest place, and the code a
 task writes answers where a value comes from and what can change it. Code speaks through names, types and structure, and the
-only comments that stay are a licence header, a constraint from outside, a doc comment on a public API, and a link to an
-issue or an RFC. When the same finding's command still shows the failure after two answers, the implementation session writes down what both
+only comments that stay are a licence header, a note in a configuration file on how to use it, an instruction to a tool, and a doc comment on the public API of a published library. The comments in a file a task changes leave with it, and a script fails the task that adds one or silences a check. A silenced check is a guard, an existing workaround is never a pattern to copy, and a change adds no explaining document the request did not ask for. When the same finding's command still shows the failure after two answers, the implementation session writes down what both
 answers took for granted and makes one observation that would come out differently if it were false, before the next fix. When the same lesson turns up a second time, it
-becomes a check instead of prose, and a check that has to live outside the task goes into the work report. A task never keeps an old path, an adapter or a shim so that the tests stay green until a later task. A split that passes only with one is one task.
+becomes the strongest check that can hold it, a type before a lint rule before a test before a runtime assertion, instead of prose, and a check that has to live outside the task goes into the work report. A task never keeps an old path, an adapter or a shim so that the tests stay green until a later task. A split that passes only with one is one task.
 
 The review rounds run through Markdown files in the run's work report directory. Each seat writes one file per round,
 the main session merges the verified findings into a round file with the verdict, and the implementation session answers each
@@ -614,7 +613,7 @@ that path out of the prompt the main session hands it.
 Several of the judgement rules in [`skills/workflow/judgement.md`](skills/workflow/judgement.md) were learned from
 pstack in [cursor/plugins](https://github.com/cursor/plugins) (MIT): ask a person only what a person knows, show work
 by running it, fix the cause and not the symptom, remove before adding, question what two failed fixes share, turn a
-repeated lesson into a check, design a requirement as if it was always there, keep the reader's load low, and keep comments to what the code cannot say. Two more shape the review: a panel of two seats that
+repeated lesson into a check, design a requirement as if it was always there, and keep the reader's load low. Two more shape the review: a panel of two seats that
 run their probes in worktrees of their own, and a finding that counts only when a command proves it. Four more
 shape how work is split and carried through. Three are in `Where to split` and `No transitional code`: finish work that
 is coupled in code as one task with one owner, however large; move the callers and delete the old path in the same

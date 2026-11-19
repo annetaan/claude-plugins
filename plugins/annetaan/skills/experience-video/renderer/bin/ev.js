@@ -1,8 +1,4 @@
 #!/usr/bin/env node
-// experience-video renderer CLI.
-//   node ev.js <command> <path/to/story.md> [--deps <dir>] [flags]
-// One JSON object on stdout, logs on stderr. Exit 0 ok, 1 story error, 2 environment error.
-// This file and setup use node builtins only, so setup runs before any dependency exists.
 import fs from 'node:fs';
 import path from 'node:path';
 import { spawnSync } from 'node:child_process';
@@ -48,7 +44,6 @@ function setup(depsDir) {
     fs.mkdirSync(depsDir, { recursive: true });
     for (const f of ['package.json', 'package-lock.json']) fs.copyFileSync(path.join(RENDERER_DIR, f), path.join(depsDir, f));
   }
-  // The stamp is written only after npm ci succeeds, so a failed or interrupted install is retried.
   const stamp = path.join(depsDir, 'node_modules', '.ev-lock.json');
   let installed = false;
   if (!sameFile(path.join(RENDERER_DIR, 'package-lock.json'), stamp)) {

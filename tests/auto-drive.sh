@@ -1,9 +1,4 @@
 #!/usr/bin/env bash
-# Test: auto.sh holds caffeinate for the drive, starts each child with a 60 minute background wait, and ends as bg-killed when claude -p stopped a run's background tasks.
-#
-# Run: bash tests/auto-drive.sh   (exit 0 is success, anything else is failure)
-# Runs offline: a fake `claude` and `caffeinate` are put on the PATH, and a stub project.sh answers --next.
-# AUTO_SH=<path> tests another copy of auto.sh.
 set -euo pipefail
 
 SCRIPT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)/plugins/annetaan/skills/pj-auto/scripts/auto.sh"
@@ -24,7 +19,6 @@ mkdir -p "$TMP/skills/pj-auto/scripts" "$TMP/skills/pj1-plan/scripts" "$TMP/bin"
 cp "$SCRIPT" "$TMP/skills/pj-auto/scripts/auto.sh"
 chmod +x "$TMP/skills/pj-auto/scripts/auto.sh"
 
-# A stub project.sh: --next answers "running" with a new fingerprint twice, then "done".
 cat > "$TMP/skills/pj1-plan/scripts/project.sh" <<'EOS'
 #!/usr/bin/env bash
 n=$(cat "$COUNTER" 2>/dev/null || echo 0)
@@ -38,7 +32,6 @@ fi
 EOS
 chmod +x "$TMP/skills/pj1-plan/scripts/project.sh"
 
-# A fake claude: records the variable, prints $FX_RESULT (a done result when unset) and writes $FX_STDERR to stderr when set.
 cat > "$TMP/bin/claude" <<'EOS'
 #!/usr/bin/env bash
 echo "${CLAUDE_CODE_PRINT_BG_WAIT_CEILING_MS-unset}" >> "$FAKE_LOG/ceiling"
@@ -50,7 +43,6 @@ else
 fi
 exit 0
 EOS
-# A fake caffeinate: records its arguments and the command of the process its -w names (auto.sh is still running then).
 cat > "$TMP/bin/caffeinate" <<'EOS'
 #!/usr/bin/env bash
 ps -o command= -p "$3" >> "$FAKE_LOG/caffeinate-target"
@@ -65,7 +57,6 @@ export PATH="$TMP/bin:$PATH"
 git init -q -b main "$TMP/repo"
 cd "$TMP/repo"
 
-# run_drive resets the counter and the fake's log, makes a fresh log directory and runs one drive into OUT.
 RUNS=0
 run_drive() {
   RUNS=$((RUNS + 1))
@@ -74,12 +65,10 @@ run_drive() {
   OUT="$("$TMP/skills/pj-auto/scripts/auto.sh" 7 --log "$TMP/log$RUNS")" || fail "auto.sh exited non-zero"
 }
 
-# statuses prints the statuses of OUT on one line.
 statuses() { printf '%s\n' "$OUT" | python3 -I -c 'import json,sys; print(" ".join(json.loads(l)["status"] for l in sys.stdin))'; }
 
 run_drive
 
-# Let the backgrounded fake caffeinate finish writing.
 for _ in 1 2 3 4 5 6 7 8 9 10; do [ -s "$FAKE_LOG/caffeinate" ] && break; sleep 0.2; done
 
 [ "$(sort -u "$FAKE_LOG/ceiling")" = "3600000" ] || fail "the child did not get 3600000: $(cat "$FAKE_LOG/ceiling")"
