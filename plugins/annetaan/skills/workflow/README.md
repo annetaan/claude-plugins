@@ -167,7 +167,8 @@ Every run writes a work report. It lives under the worktree's `work-reports/` un
 
 ```
 work-reports/2026-09-19-1346-a1b2c3d/
-  log.md         what changed, how it was verified, the checks wanted, what the review changed, the screenshots
+  log.md         what changed, how it was verified, the checks wanted, what the review changed, the screenshots,
+                 and last one `Level:` line with the level, its source and the review counts
   changes.diff   the diff from the start commit to HEAD
   review/        one file per review round, the reply to each, and the evidence files
     task-1-evidence.md
@@ -197,8 +198,10 @@ Otherwise it follows how recent merged pull requests are written. With nothing t
 picks a structure. Whatever it picks, the report has to answer what changed, how it was verified with the commands
 that were actually run, what the review changed, and which commit answers which task in the plan.
 
-`log.md` becomes the pull request body. `review/` holds how each finding was
-raised and answered.
+`log.md` becomes the pull request body. It ends with one `Level:` line: the level the run used, its source, the tasks,
+the task rounds, the integration rounds and the findings, as
+`Level: 2 (file) · tasks 2 · task rounds 3 · integration rounds 1 · findings 4`. `/annetaan:level` reads these lines
+from the merged pull requests. `review/` holds how each finding was raised and answered.
 
 ## Screenshots
 

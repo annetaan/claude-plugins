@@ -138,3 +138,147 @@ assert got == want, got
 ' "$n" || fail "agents at level $n: $OUT"
 done
 echo "ok: show: agents holds the four levelled agents with the table's values at each level"
+
+WD="$TMP/wd"
+mkdir -p "$WD/review"
+printf '## New findings\n\n### R1.1 a\n\n### R1.2 b\n\n## Dropped\n\n### R9.9 z\n' > "$WD/review/task-1-round-1.md"
+printf '## New findings\n\nNone.\n' > "$WD/review/task-1-round-2.md"
+printf '## New findings\n\n### R1.1 c\n' > "$WD/review/task-2-round-1.md"
+printf '## New findings\n\n### R1.1 d\n' > "$WD/review/integration-round-1.md"
+printf '## New findings\n\nNone.\n' > "$WD/review/integration-round-2.md"
+printf '## New findings\n\n### R1.1 merge\n' > "$WD/review/merge-round-1.md"
+printf '## New findings\n\n### R5.5 seat\n' > "$WD/review/task-1-round-1-a.md"
+printf '## New findings\n\n### R5.6 reply\n' > "$WD/review/task-1-round-1-reply.md"
+printf '## New findings\n\n### R5.7 evidence\n' > "$WD/review/task-1-round-1-evidence.md"
+printf '## New findings\n\n### R5.8 evidence\n' > "$WD/review/task-1-evidence.md"
+printf 'Implements #3\nPart of #1\n\n## What changed\n\nthe body\n\n\n' > "$WD/log.md"
+LINE="Level: 2 (file) · tasks 2 · task rounds 3 · integration rounds 2 · findings 4"
+
+OUT="$("$SCRIPT" record "$WD" 2 file)" || fail "record exited non-zero"
+[ "$(field '"status"')" = ok ] || fail "record: status is not ok: $OUT"
+[ "$(field '"line"')" = "$LINE" ] || fail "record: the line is wrong: $OUT"
+[ "$(tail -n 1 "$WD/log.md")" = "$LINE" ] || fail "record: log.md does not end with the line: $(cat "$WD/log.md")"
+[ "$(tail -n 2 "$WD/log.md" | head -n 1)" = "" ] || fail "record: no blank line before the line: $(cat "$WD/log.md")"
+[ "$(tail -n 3 "$WD/log.md" | head -n 1)" = "the body" ] || fail "record: the trailing blank lines were not stripped: $(cat "$WD/log.md")"
+[ "$(head -n 1 "$WD/log.md")" = "Implements #3" ] || fail "record: the head moved: $(cat "$WD/log.md")"
+echo "ok: record: writes the line at the end of log.md"
+
+"$SCRIPT" record "$WD" 2 file > /dev/null || fail "record a second time exited non-zero"
+[ "$(grep -c '^Level: ' "$WD/log.md")" = 1 ] || fail "record twice: not exactly one line: $(cat "$WD/log.md")"
+[ "$(tail -n 1 "$WD/log.md")" = "$LINE" ] || fail "record twice: log.md does not end with the line: $(cat "$WD/log.md")"
+cp "$WD/log.md" "$TMP/recorded-log.md"
+echo "ok: record: run twice leaves one line"
+
+mkdir -p "$TMP/no-log/review"
+OUT="$("$SCRIPT" record "$TMP/no-log" 2 file)" || fail "record without log.md exited non-zero"
+[ "$(field '"status"') $(field '"reason"')" = "stop no-log" ] || fail "record without log.md: expected stop no-log: $OUT"
+[ -n "$(field '"message"')" ] || fail "record without log.md: no message: $OUT"
+echo "ok: record: no log.md gives stop no-log"
+
+mkdir -p "$TMP/no-review"
+echo body > "$TMP/no-review/log.md"
+OUT="$("$SCRIPT" record "$TMP/no-review" 2 file)" || fail "record without review/ exited non-zero"
+[ "$(field '"status"') $(field '"reason"')" = "stop no-review" ] || fail "record without review/: expected stop no-review: $OUT"
+[ -n "$(field '"message"')" ] || fail "record without review/: no message: $OUT"
+[ "$(cat "$TMP/no-review/log.md")" = body ] || fail "record without review/: log.md changed"
+echo "ok: record: no review/ gives stop no-review"
+
+if "$SCRIPT" record "$WD" 4 file >/dev/null 2>&1; then fail "record with level 4 exited 0"; fi
+if "$SCRIPT" record "$WD" 2 other >/dev/null 2>&1; then fail "record with source other exited 0"; fi
+if "$SCRIPT" record "$WD" 2 >/dev/null 2>&1; then fail "record with no source exited 0"; fi
+echo "ok: record: level 4 or source other exits 1"
+
+mkdir -p "$TMP/bin"
+cat > "$TMP/bin/gh" <<'GH'
+#!/usr/bin/env bash
+printf '%s\n' "$*" > "$FX_GH_ARGS"
+if [ -n "${FX_GH_FAIL:-}" ]; then echo "gh: not logged in" >&2; exit 1; fi
+printf '%s\n' "$FX_GH_JSON"
+GH
+chmod +x "$TMP/bin/gh"
+export FX_GH_ARGS="$TMP/gh-args" FX_GH_JSON='[]'
+
+list_history() { OUT="$(PATH="$TMP/bin:$PATH" "$SCRIPT" history "$CLONE")" || fail "history exited non-zero"; }
+
+git -C "$SEED" rm -q "$FILE"
+git -C "$SEED" commit -q -m "no level"
+git -C "$SEED" push -q origin trunk
+list_history
+[ "$(field '"status"')" = ok ] || fail "history without a file: status is not ok: $OUT"
+[ "$(field '"since"')" = None ] || fail "history without a file: since is not null: $OUT"
+if grep -qF -- "--search" "$FX_GH_ARGS"; then fail "history without a file: gh got --search: $(cat "$FX_GH_ARGS")"; fi
+grep -qxF "pr list --state merged --limit 1000 --json number,url,body,mergedAt" "$FX_GH_ARGS" \
+  || fail "history: gh got other arguments: $(cat "$FX_GH_ARGS")"
+echo "ok: history: no file on origin gives since null and no --search"
+
+publish "$(level_file 2 2026-11-01 2099-02-18)"
+list_history
+[ "$(field '"since"')" = 2026-11-01 ] || fail "history with a file: since is not 2026-11-01: $OUT"
+grep -qF -- "--search merged:>2026-11-01" "$FX_GH_ARGS" || fail "history with a file: no --search: $(cat "$FX_GH_ARGS")"
+echo "ok: history: evaluated on origin gives --search merged:>2026-11-01 and since"
+
+FX_GH_JSON="$(python3 -c '
+import json
+dot = "·"
+def line(level, source, t, tr, ir, f):
+    return "Level: %d (%s) %s tasks %d %s task rounds %d %s integration rounds %d %s findings %d" % (
+        level, source, dot, t, dot, tr, dot, ir, dot, f)
+print(json.dumps([
+    {"number": 1, "url": "u1", "mergedAt": "2026-11-10T00:00:00Z",
+     "body": "Implements #3\nPart of #1\n\n" + line(3, "default", 9, 9, 9, 9) + "\n\nbody\n\n" + line(2, "file", 2, 3, 2, 4) + "\n"},
+    {"number": 2, "url": "u2", "mergedAt": "2026-11-05T00:00:00Z", "body": "x\n\n" + line(1, "override", 1, 2, 0, 3)},
+    {"number": 3, "url": "u3", "mergedAt": "2026-11-06T00:00:00Z", "body": "no line here"},
+    {"number": 4, "url": "u4", "mergedAt": "2026-11-08T00:00:00Z", "body": "a\r\n\r\n" + line(2, "file", 3, 4, 1, 1) + "\r\n"},
+    {"number": 5, "url": "u5", "mergedAt": "2026-11-09T00:00:00Z", "body": line(2, "override", 0, 0, 1, 0)},
+]))
+')"
+list_history
+printf '%s\n' "$OUT" | python3 -c '
+import json, sys
+d = json.load(sys.stdin)
+assert d["prs"] == 5, d["prs"]
+assert [r["pr"] for r in d["runs"]] == [2, 4, 5, 1], d["runs"]
+last = d["runs"][-1]
+assert last == {"pr": 1, "url": "u1", "mergedAt": "2026-11-10T00:00:00Z", "level": 2, "source": "file",
+                "tasks": 2, "taskRounds": 3, "integrationRounds": 2, "findings": 4}, last
+want = [
+    {"level": 1, "source": "override", "runs": 1, "tasks": 1, "taskRounds": 2, "integrationRounds": 0, "findings": 3,
+     "sendBacks": 1, "sendBacksPerTask": 1.0, "findingsPerTask": 3.0},
+    {"level": 2, "source": "file", "runs": 2, "tasks": 5, "taskRounds": 7, "integrationRounds": 3, "findings": 5,
+     "sendBacks": 2, "sendBacksPerTask": 0.4, "findingsPerTask": 1.0},
+    {"level": 2, "source": "override", "runs": 1, "tasks": 0, "taskRounds": 0, "integrationRounds": 1, "findings": 0,
+     "sendBacks": 0, "sendBacksPerTask": None, "findingsPerTask": None},
+]
+assert d["groups"] == want, d["groups"]
+' || fail "history: runs or groups are wrong: $OUT"
+echo "ok: history: runs and groups split by level and source, sendBacks = taskRounds - tasks"
+
+OUT="$(PATH="$TMP/bin:$PATH" FX_GH_FAIL=1 "$SCRIPT" history "$CLONE")" || fail "history with gh failing exited non-zero"
+[ "$(field '"status"') $(field '"reason"')" = "stop gh" ] || fail "history with gh failing: expected stop gh: $OUT"
+field '"message"' | grep -qF "gh: not logged in" || fail "history with gh failing: the message is not gh's: $OUT"
+FX_GH_JSON='not json'
+list_history
+[ "$(field '"status"') $(field '"reason"')" = "stop gh" ] || fail "history with gh printing no JSON: expected stop gh: $OUT"
+echo "ok: history: gh failing gives stop gh"
+
+FX_GH_JSON="$(python3 -c '
+import json, sys
+body = open(sys.argv[1], encoding="utf-8").read()
+print(json.dumps([{"number": 9, "url": "u9", "mergedAt": "2026-11-12T00:00:00Z", "body": body}]))
+' "$TMP/recorded-log.md")"
+list_history
+printf '%s\n' "$OUT" | python3 -c '
+import json, sys
+d = json.load(sys.stdin)
+got = [(r["pr"], r["level"], r["source"], r["tasks"], r["taskRounds"], r["integrationRounds"], r["findings"]) for r in d["runs"]]
+assert got == [(9, 2, "file", 2, 3, 2, 4)], d["runs"]
+' || fail "history: the log.md record wrote was not read back: $OUT"
+echo "ok: history: reads a log.md that record wrote"
+
+if "$SCRIPT" history >/dev/null 2>&1; then fail "history with no <dir> exited 0"; fi
+rm -f "$FX_GH_ARGS"
+if PATH="$TMP/bin:$PATH" "$SCRIPT" history "$TMP/plain" >/dev/null 2>&1; then fail "history outside a clone exited 0"; fi
+if PATH="$TMP/bin:$PATH" "$SCRIPT" history "$TMP/missing" 2>"$TMP/missing.err" >/dev/null; then fail "history on a missing directory exited 0"; fi
+if grep -q Traceback "$TMP/missing.err"; then fail "history on a missing directory ended in a traceback: $(cat "$TMP/missing.err")"; fi
+[ ! -e "$FX_GH_ARGS" ] || fail "history outside a clone ran gh: $(cat "$FX_GH_ARGS")"
+echo "ok: history: no <dir>, a directory outside a clone or a missing one exits 1 without running gh"

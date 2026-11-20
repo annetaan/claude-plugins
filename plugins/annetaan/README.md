@@ -125,7 +125,7 @@ your decisions there too.
 
 A skill whose `description` matches a request normally starts without being named. The ones here do not. `workflow`
 spawns several sessions, adds commits, creates a worktree and pushes a branch on its own. `workflow-cleanup` deletes
-branches and removes a worktree. `pj-roadmap` creates a worktree, pushes a branch and opens a pull request. The pj
+branches and removes a worktree. `pj-roadmap` and `level` create a worktree, push a branch and open a pull request. The pj
 skills create, edit and close issues and labels on GitHub, and `pj4-running` also creates each project's branch,
 pushes, opens and merges pull requests. The doc skills make a file next to your document, rewrite the document itself,
 and can add one commit of their own to `.gitignore` after asking. `experience-video` installs npm packages, downloads a
@@ -431,9 +431,22 @@ pull request that is already open.
 /annetaan:pj-roadmap
 ```
 
+### level
+
+`/annetaan:level` ([details](skills/level/SKILL.md)) proposes the level your repository runs at (see **Levels** under
+**Agents**). It reads the `Level:` lines of the pull requests merged since the level file's `evaluated` date, and an
+evaluator reads the code for how tidy the design is and how hard the problems are. It shows the proposal with its
+reasons and asks once which level to use. Then it works in a worktree of its own, writes `.claude/annetaan-level.md`,
+commits it on a new branch, pushes it and opens a pull request into the default branch. It never merges.
+`/annetaan:workflow-cleanup` removes the worktree and the branch after you merge it.
+
+```
+/annetaan:level
+```
+
 ### workflow-cleanup
 
-`/annetaan:workflow-cleanup` ([details](skills/workflow-cleanup/SKILL.md)) cleans up after a workflow run or a `pj-roadmap` run. Without a
+`/annetaan:workflow-cleanup` ([details](skills/workflow-cleanup/SKILL.md)) cleans up after a workflow run, a `pj-roadmap` run or a `level` run. Without a
 number, it lists the `wf-*` worktrees whose pull request is merged or closed, and those that have none, which is a run that
 stopped or one still going in another session. It takes the only candidate, or asks which. It shows what it will do and asks once. Then it moves the work
 reports into `work-reports/` in your clone, removes the worktree and the review seats beside it, deletes the branch locally and on origin,
@@ -600,6 +613,7 @@ dropout: the round goes on with the other.
 | `annetaan:experience-video-producer` | fable | medium | production for `experience-video`. fills in the cuts, fragments and music of a story, renders it, and checks its frames |
 | `annetaan:pr-humans-writer` | sonnet | medium | one comment for `pr-humans`. reads only the gathered files. drafts how people took part in one pull request |
 | `annetaan:doc-meta-overview` | opus | high | overview for `doc-meta`. finds what a per-sentence flag misses |
+| `annetaan:level-evaluator` | opus | high | evaluation for `level`. reads the code and the review counts and proposes a level |
 
 `annetaan:workflow-design`, `annetaan:pj-planner` and `annetaan:pj-issue-writer` can write files, and their roles confine that to a scratch directory. The two reviewers write only their probes and their seat file, and run code only through `panel.sh`.
 
@@ -616,6 +630,9 @@ A repository's level says how much model the implementation, the review and the 
 `.claude/annetaan-level.md` on the default branch of `origin`, and only there: a copy in the working tree or on another
 branch is never read. With no file, the level is 3. `level=<n>` in the args of `workflow`, `pj3-doctor`,
 `pj4-running` or `pj-auto` sets it for one run. A file past its `review-by` date still counts, with a warning.
+Each workflow run ends its pull request body with a `Level:` line: the level it ran at, its source, and how many tasks,
+task rounds, integration rounds and findings it had. `/annetaan:level` proposes a new level from those lines and the
+code.
 
 | Agent | Level 1 | Level 2 | Level 3 |
 | --- | --- | --- | --- |

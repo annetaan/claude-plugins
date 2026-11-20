@@ -32,6 +32,17 @@ base.
 git diff --output=<WORKDIR>/changes.diff origin/<base>...HEAD
 ```
 
+Then add the line that records the run's level and its review counts, from the `level` and `source` of **The level**
+in SKILL.md:
+
+```bash
+$FLOW/scripts/level.sh record <WORKDIR> <level> <source>
+```
+
+It appends one `Level:` line to the end of `log.md`, so the pull request body carries it, and `/annetaan:level` reads
+it from there. A `stop` (`no-log`, `no-review`) is a failed step of the finish: quote `message` and go to the entry's
+ending, as for a failed push.
+
 Then open the pull request.
 
 ## The pull request

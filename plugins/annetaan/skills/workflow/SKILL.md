@@ -60,7 +60,9 @@ $FLOW/scripts/level.sh show <WT> [<n>]
 It prints `status: ok` with `level`, `source` (`file`, `override` or `default`), `ref`, `evaluated`, `reviewBy`,
 `warning` and `agents`. `agents.<name>` holds the `model` and the `effort` of `workflow-worker`,
 `workflow-reviewer-a`, `workflow-reviewer-b` and `pj-issue-writer`. Keep the JSON. Print `level <level> (<source>)`
-once, and `warning` on a line of its own when it is set. A warning never stops the run.
+once, and `warning` on a line of its own when it is set. A warning never stops the run. The finish writes `level` and
+`source` into `log.md` with `level.sh record` (`finish.md`, **The work report**), and `/annetaan:level` reads them back
+from the merged pull requests.
 
 After a context summary, an entry that runs `show` runs it again, with `<n>` from the `level` line it printed when
 that line says `override`.
