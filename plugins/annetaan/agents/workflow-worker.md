@@ -1,6 +1,6 @@
 ---
 name: workflow-worker
-description: The implementation role of the workflow skill (opus / effort high). Implements an approved design, shows each acceptance criterion by running it and writes the evidence file, answers the review files, and fixes what the review asks for. Spawned by the main session that runs the workflow skill. Do not use it on its own.
+description: The implementation role of the workflow skill (level 3: opus / effort high; the repository's level picks the model and effort). Implements an approved design, shows each acceptance criterion by running it and writes the evidence file, answers the review files, and fixes what the review asks for. Spawned by the main session that runs the workflow skill. Do not use it on its own.
 model: opus
 effort: high
 ---

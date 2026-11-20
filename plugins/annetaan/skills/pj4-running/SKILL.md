@@ -40,9 +40,10 @@ when an issue is ready and workable. Everything below refers to them. `$RUNNING/
 issues and their bodies, and is read only at the sections this file names: **The run order**, **Stubs**, **Fixed
 tokens** and **Writing bodies**.
 
-This skill uses three more things:
+This skill uses four more things:
 
 - the script `$RUNNING/../pj1-plan/scripts/project.sh`, written `project.sh` below
+- the script `$RUNNING/../workflow/scripts/level.sh`, written `level.sh` below (see **The level**)
 - the script `$RUNNING/scripts/run.sh`, written `run.sh` below. Every subcommand prints one JSON object with a
   `status`. A `stop` whose `reason` the section at hand does not name, such as `project` when `project.sh` fails,
   stops the run: quote `message`. A non-zero exit is a usage error or an unexpected failure: quote its message and
@@ -70,6 +71,7 @@ the whole order of the project picked.
 When the args carry `tmp=<dir>`, `$TMP` below is that directory. Otherwise run `mktemp -d` once and use the
 directory it printed. Print `tmp <dir>` once, so that a context summary can find it again. The start may already
 write comment files there. A shell variable does not outlive one command, so write the path in full each time.
+When the args carry `level=<n>`, `<n>` sets the repository's level for this run (see **The level**).
 
 Then check everything the run needs.
 
@@ -106,11 +108,11 @@ branch from the tip of `<from>` when the base branch is missing and every projec
 - **`empty`**: the project has no sub-issue yet. It has not been split. Give the next step,
   `/annetaan:pj2-issues <P>`, and end.
 - **`done`**: every sub-issue is closed. When `project.merged` is true, `close` held `<P>`. Report its close, and
-  end. Otherwise keep the values as for `run`, take **The worktree** and **Paths this clone must ignore**, and go
-  straight to phase 5, which brings `<from>` in and opens the project's pull request.
+  end. Otherwise keep the values as for `run`, take **The worktree**, **Paths this clone must ignore** and **The
+  level**, and go straight to phase 5, which brings `<from>` in and opens the project's pull request.
 - **`run`**: keep `main` as `<MAIN>`, `worktree` as `<WT>`, `project.base` as `<base>`, `project.from` as `<from>`,
   and keep `created` and `rules`. When `created` is not null, this run created the base branch. Print
-  `<base> created from <from> at <short sha>`, and keep the SHA for phase 2. Go through the rest of this section, then take **The worktree** and **Paths this clone must ignore**, then read `issues.md` and follow it from phase 1.
+  `<base> created from <from> at <short sha>`, and keep the SHA for phase 2. Go through the rest of this section, then take **The worktree**, **Paths this clone must ignore** and **The level**, then read `issues.md` and follow it from phase 1.
 
 When `rules.selfMerge` is `unknown`, the rules on the base branch could not be read. The rules call failed, or the
 branch is protected and reading its classic protection needs admin rights. Ask once.
@@ -240,6 +242,20 @@ Act by `status`.
 On a stop, leave `<WT>` as phase 5 step 2 says and end the run. `<WT>` stays in place, and the report says that
 `git -C "<MAIN>" worktree remove <WT>` removes it. In a repository with submodules git refuses that command and it needs `--force`, which also deletes what a submodule in `<WT>` holds on its own; `git -C <WT>/<path> log --branches --not --remotes` shows such commits. When `worktree` stopped on `not-ignored`, `<WT>` holds
 uncommitted work, so the report names that work with `git -C <WT> diff` in place of the `worktree remove` line.
+
+### The level
+
+The repository's level picks the model and the effort of workflow's implementation session and its two review seats.
+Run `level.sh` once, in `<WT>`, as **The level** in the workflow skill's `SKILL.md` says, with `<n>` from `level=<n>`
+in the args, left out when the args carry none.
+
+```bash
+$RUNNING/../workflow/scripts/level.sh show <WT> [<n>]
+```
+
+Print `level <level> (<source>)` once, and `warning` on a line of its own when it is set. Keep the JSON: From an issue
+and From a sync take it as settled. A non-zero exit, such as `level=<n>` outside 1 to 3, stops the run: quote its
+message, and leave `<WT>` as phase 5 step 2 says. An unattended run ends as needs-user.
 
 ## Unplanned work
 
@@ -390,4 +406,4 @@ section does not name never reads as done.
 - **Edit an existing sub-issue's body, the edges between existing sub-issues and the parent's `## Order` only in **A redrawn issue** in `issues.md`, and a
   sub-issue's title only on a `decision` stop.** The one other write is a stub filed by **Unplanned work** or by a stop, with its `--blocking` edge.
 - An unattended run never calls `AskUserQuestion` and ends with one `unattended:` line.
-- After a context summary, take whether the run is unattended from the last `project #<P>` line, `$TMP` from the last `tmp` line, and rebuild the run from the progress lines and `project.sh <P>`. Read `issues.md` again when the run is in phases 1 to 4, and `project-pr.md` when it is in **The project's pull request**. A run inside a workflow entry takes **Before workflow runs** again for that entry.
+- After a context summary, take whether the run is unattended from the last `project #<P>` line, `$TMP` from the last `tmp` line, the level from the last `level` line, running `level.sh show` again with that level when the line says `override` and without one otherwise, and rebuild the run from the progress lines and `project.sh <P>`. Read `issues.md` again when the run is in phases 1 to 4, and `project-pr.md` when it is in **The project's pull request**. A run inside a workflow entry takes **Before workflow runs** again for that entry.

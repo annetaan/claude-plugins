@@ -30,6 +30,7 @@ labels, the titles and picking the project. Everything below refers to them.
 This skill uses these files:
 
 - the script `$ISSUES/../pj1-plan/scripts/project.sh`, written `project.sh` below
+- the script `$ISSUES/../workflow/scripts/level.sh`, written `level.sh` below
 - the planner's role file `$ISSUES/roles/split.md`
 - the issue writer's role file `$ISSUES/roles/issue.md`
 - the judgement rules `$ISSUES/../workflow/judgement.md`, which the planner and the writers read (written
@@ -92,6 +93,15 @@ git branch --show-current
      ```
 
      Otherwise stop, and say that those projects have to be merged into `<from>` first.
+3. Read the level. The repository's level picks the model and the effort of the issue writers. `<root>` is what
+   `git rev-parse --show-toplevel` printed.
+
+   ```bash
+   $ISSUES/../workflow/scripts/level.sh show <root>
+   ```
+
+   Keep the JSON, and print `level <level> (<source>)` once and `warning` on a line of its own when it is set, as
+   **The level** in the workflow skill's `SKILL.md` says. A non-zero exit stops the skill: quote its message.
 
 ## Phase 1: the split
 
@@ -233,11 +243,12 @@ and none of them touches GitHub.
 
 ```
 Agent(subagent_type: "annetaan:pj-issue-writer", description: "issue T<k>",
+      model: "<agents.pj-issue-writer.model>", effort: "<agents.pj-issue-writer.effort>",
       prompt: "Read $ISSUES/roles/issue.md first and follow the role it describes. The project format is in $ISSUES/../pj1-plan/format.md. Lint a body with $ISSUES/../pj1-plan/scripts/project.sh. The judgement rules are in <skills>/workflow/judgement.md.\n\nMode: draft\n\nParent: #<P>\nWaits on: <#Q, #R | none>\n\nThe parent body:\n<the approved body>\n\nThe split:\n<the full report from the planner>\n\nRead the code: <the working tree | at origin/<from>>\n\nYour task: T<k>, \"<title>\".\n\nScratch: $TMP/scratch/T<k>")
 ```
 
-`Waits on:` names the parents in `parent.waitsOn`. `annetaan:pj-issue-writer` ships with this plugin and has its model and
-effort pinned in `agents/*.md`. It is told never to change the repository and to write only under its `Scratch:` directory, by
+`Waits on:` names the parents in `parent.waitsOn`. `annetaan:pj-issue-writer` ships with this plugin and takes its model and
+effort from the level, `agents.pj-issue-writer` of the `level.sh` JSON. It is told never to change the repository and to write only under its `Scratch:` directory, by
 instruction.
 
 Each writer sends back a title and a body in the shape `format.md` gives a sub-issue, or a statement that the split
@@ -389,5 +400,5 @@ Then the next steps, in this order:
   **Projects**).
 - **Always pass a body with `--body-file`.**
 - **Re-read `updatedAt` before every edit.**
-- After a context summary, take `<P>` again from the last `project #<P>` line, and rebuild where the run stood from
-  `project.sh <P>`. A planner or a writer whose handle is gone is started again.
+- After a context summary, take `<P>` again from the last `project #<P>` line, run `level.sh show <root>` again, and
+  rebuild where the run stood from `project.sh <P>`. A planner or a writer whose handle is gone is started again.

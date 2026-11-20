@@ -242,6 +242,8 @@ screenshots it could not attach.
 | `roles/review.md` | the role for a review seat |
 | `scripts/worktree.sh` | creates the run's worktree and checks its ignore rules. `workflow-cleanup` uses it to clean up |
 | `scripts/worktree.py` | the code `worktree.sh` runs |
+| `scripts/level.sh` | reads the repository's level from origin's default branch and prints the model and effort it gives the implementation session, the two review seats and pj's issue writer |
+| `scripts/level.py` | the code `level.sh` runs, and the one place the level table lives |
 | `scripts/comments.py` | fails on a comment outside the four kinds, or a silenced check the change adds, in the files a change touches. The implementation and review sessions run it |
 | `scripts/panel.sh` | runs a review seat's probe in a git worktree beside the run's, at a snapshot of the working tree, and removes the seats at cleanup |
 | `review-files.md` | the shape of the review files and the evidence files, read by the seats, the main session and the implementation session |
@@ -249,4 +251,4 @@ screenshots it could not attach.
 The design, implementation and review sessions run on agents that ship with the plugin (`../../agents/`). Design is
 `annetaan:workflow-design`. The design review is
 `annetaan:workflow-design-review`, once before approval. Implementation is `annetaan:workflow-worker`
-and review is the two seats `annetaan:workflow-reviewer-a` and `annetaan:workflow-reviewer-b`, pinned to different models. The models and efforts are in the agent table of [the plugin README](../../README.md).
+and review is the two seats `annetaan:workflow-reviewer-a` and `annetaan:workflow-reviewer-b`, on different models at every level. The models and efforts are in the agent table of [the plugin README](../../README.md), and those of the implementation session and the two seats at each level of the repository in its level table.

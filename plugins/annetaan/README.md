@@ -386,7 +386,7 @@ whole session, so a long project costs many.
 What it needs:
 
 - the `claude` CLI on the PATH
-- the rules every drive needs, because the runs cannot ask: `Bash(gh:*)`, `Bash(git:*)`, the three script rules, and a
+- the rules every drive needs, because the runs cannot ask: `Bash(gh:*)`, `Bash(git:*)`, the four script rules, and a
   `Read` rule for the plugin's skills directory. pj-auto shows them with the real paths before it asks, because the
   plugin's directory differs per machine. Edits need no rule, because the runs start in acceptEdits mode.
 - the repository's own commands, such as the install, the tests and the type checks. pj-auto finds them in `CLAUDE.md`,
@@ -580,10 +580,12 @@ report has since gone. A pull request that another account has recorded is left 
 ## Agents
 
 These are the sub-agents the skills spawn. Anything under `agents/` becomes callable as `annetaan:<name>`.
-The model and the effort are pinned here, and a skill selects one by name alone. When a Fable agent cannot start, the
-skill spawns it again on opus at the same effort. The design review is pinned to another model than the design and the
-planner, and is skipped when it cannot start. The two review seats are pinned to different models, and a seat that
-returns no report is a dropout: the round goes on with the other.
+The frontmatter holds the model and the effort, the level-3 values for the four agents of **Levels** below. For those
+four, `workflow`, `pj2-issues`, `pj3-doctor` and `pj4-running` pass the values of the repository's level with each
+call. Every other agent runs as its frontmatter says. When a Fable agent cannot start, the skill spawns it again on
+opus at the same effort. The design review runs on another model than the design and the planner, and is skipped when
+it cannot start. The two review seats run on different models at every level, and a seat that returns no report is a
+dropout: the round goes on with the other.
 
 | Agent | Model | Effort | Role |
 | --- | --- | --- | --- |
@@ -607,6 +609,20 @@ returns no report is a dropout: the round goes on with the other.
 
 The agent definitions are thin. The substance of each role lives in the skill's `roles/*.md`, and an agent reads
 that path out of the prompt the main session hands it.
+
+### Levels
+
+A repository's level says how much model the implementation, the review and the issue writing get. It lives in
+`.claude/annetaan-level.md` on the default branch of `origin`, and only there: a copy in the working tree or on another
+branch is never read. With no file, the level is 3. `level=<n>` in the args of `workflow`, `pj3-doctor`,
+`pj4-running` or `pj-auto` sets it for one run. A file past its `review-by` date still counts, with a warning.
+
+| Agent | Level 1 | Level 2 | Level 3 |
+| --- | --- | --- | --- |
+| `workflow-worker` | sonnet / high | opus / medium | opus / high |
+| `workflow-reviewer-a` | opus / medium | opus / high | opus / high |
+| `workflow-reviewer-b` | fable / medium | fable / medium | fable / medium |
+| `pj-issue-writer` | sonnet / high | opus / medium | opus / high |
 
 ## Credits
 

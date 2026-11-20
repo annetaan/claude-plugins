@@ -8,7 +8,7 @@
   comes before the cases below.
 - When phase 5 was skipped, the last task's implementation session is still alive (the entry keeps it after phase 4 (d)). `SendMessage` it.
 - When the integration review asked for fixes, that implementation session is still alive. `SendMessage` it.
-- When the integration review approved with nothing to fix, no session is left. Start one with the phase 3 prompt, carrying the progress and the handover notes, and ask it for the report and nothing else.
+- When the integration review approved with nothing to fix, no session is left. Start one with the phase 3 call, its `model` and `effort` included, carrying the progress and the handover notes, and ask it for the report and nothing else.
 
 The request:
 

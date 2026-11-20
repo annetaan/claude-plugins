@@ -5,8 +5,9 @@ die() { echo "auto: $*" >&2; exit 1; }
 
 usage() {
   cat >&2 <<'USAGE'
-usage: auto.sh <P> --log <dir>   drive project <P> until it needs the user, logging into the existing directory <dir>
-usage: auto.sh --rules              print the rules every drive needs, with real paths, and the allow, deny and ask rules of the user's settings
+usage: auto.sh <P> --log <dir> [--level <n>]   drive project <P> until it needs the user, logging into the existing directory <dir>;
+                                               --level passes level=<n>, 1, 2 or 3, to every run
+usage: auto.sh --rules                         print the rules every drive needs, with real paths, and the allow, deny and ask rules of the user's settings
 In the drive form, every line on standard output is one JSON object with "status": started, begin, step or ended.
 Create <dir>/stop to end the drive after the current step.
 Exit 1 means a usage error. Otherwise it exits 0.
@@ -50,6 +51,7 @@ names = [
     "Bash(" + skills + "/pj1-plan/scripts/project.sh:*)",
     "Bash(" + skills + "/pj4-running/scripts/run.sh:*)",
     "Bash(" + skills + "/workflow/scripts/panel.sh:*)",
+    "Bash(" + skills + "/workflow/scripts/level.sh:*)",
     "Read(/" + skills + "/**)",
 ]
 base = [{"rule": r, "in": [e["file"] for e in settings if r in e["allow"]]} for r in names]
@@ -62,9 +64,15 @@ command -v python3 >/dev/null 2>&1 || die "python3 is not installed"
 
 if [ $# -eq 1 ] && [ "$1" = "--rules" ]; then rules; fi
 
-[ $# -eq 3 ] && [ "$2" = "--log" ] || usage
+[ $# -eq 3 ] || [ $# -eq 5 ] || usage
+[ "$2" = "--log" ] || usage
 P="$1"
 LOG="$3"
+LEVEL_ARG=""
+if [ $# -eq 5 ]; then
+  [ "$4" = "--level" ] || usage
+  case "$5" in 1|2|3) LEVEL_ARG=" level=$5" ;; *) usage ;; esac
+fi
 case "$P" in ''|*[!0-9]*) die "the project must be a number: $P" ;; esac
 [ -d "$LOG" ] || die "no such directory: $LOG"
 LOG="$(cd "$LOG" && pwd)"
@@ -168,7 +176,7 @@ while :; do
   DIR="$LOG/$I-$RUN"
   mkdir "$DIR" || end child-failed "$CUR" "cannot create $DIR"
   emit status=begin i:="$I" run="$RUN" why="$WHY" issue:="${ISSUE:-null}" at="$(now)" dir="$DIR" out="$OUT" err="$ERR" log="$LOG"
-  (cd "$MAIN" && CLAUDE_CODE_PRINT_BG_WAIT_CEILING_MS=3600000 claude -p "/annetaan:$SKILL $P unattended tmp=$DIR" --permission-mode acceptEdits --add-dir "$DIR" --output-format json < /dev/null > "$OUT" 2> "$ERR")
+  (cd "$MAIN" && CLAUDE_CODE_PRINT_BG_WAIT_CEILING_MS=3600000 claude -p "/annetaan:$SKILL $P unattended tmp=$DIR$LEVEL_ARG" --permission-mode acceptEdits --add-dir "$DIR" --output-format json < /dev/null > "$OUT" 2> "$ERR")
   CODE=$?
 
   VERDICT="$(python3 -I -c '

@@ -42,11 +42,37 @@ probe the seat wrote (see `$FLOW/review-files.md`, **A probe**), and `panel.sh c
 cleanup. `<WT>` is the absolute path. Both print one JSON object with a `status`, as `worktree.sh` does. A non-zero
 exit is quoted and stops the run, the same way.
 
+## The level
+
+The repository's level picks the model and the effort of the implementation session and the two review seats. The
+script `$FLOW/scripts/level.sh` is written `level.sh` in this skill's files. It reads the level from
+`.claude/annetaan-level.md` on origin's default branch, and from nowhere else.
+
+```bash
+$FLOW/scripts/level.sh show <WT> [<n>]
+```
+
+- **Standalone and From a pull request** run it right after entering `<WT>` (**The worktree** step 5 in
+  `worktree.md`). `<n>` comes from `level=<n>` in the args, and is left out when the args carry none. The token sets
+  the level of this run only, and it is not part of the request.
+- **From an issue and From a sync** do not run it. They take the JSON pj4-running settled.
+
+It prints `status: ok` with `level`, `source` (`file`, `override` or `default`), `ref`, `evaluated`, `reviewBy`,
+`warning` and `agents`. `agents.<name>` holds the `model` and the `effort` of `workflow-worker`,
+`workflow-reviewer-a`, `workflow-reviewer-b` and `pj-issue-writer`. Keep the JSON. Print `level <level> (<source>)`
+once, and `warning` on a line of its own when it is set. A warning never stops the run.
+
+After a context summary, an entry that runs `show` runs it again, with `<n>` from the `level` line it printed when
+that line says `override`.
+
+A non-zero exit is a usage error, such as `level=<n>` outside 1 to 3, or an unexpected failure: quote its message and
+stop, as for `worktree.sh`.
+
 ## Before you start
 
 This skill spawns sub-sessions and adds commits. **Start it only when the user names it or invokes
 `/annetaan:workflow`, asks to resolve the conflicts of a pull request, or pj4-running loads it for an issue or a
-sync.**
+sync.** `level=<n>` in the args, 1, 2 or 3, sets the repository's level for this run (see **The level**).
 
 ## The worktree line
 
@@ -67,11 +93,12 @@ worked in, and that travels as the handover notes (phase 4 (d)).
 **Every task, and the integration review when the plan has more than one task, run on the same three agents**:
 `annetaan:workflow-worker` for implementation, and `annetaan:workflow-reviewer-a` and `annetaan:workflow-reviewer-b` for
 review, seats `a` and `b` of the review panel. There is no per-task choice to make.
-All three ship with this plugin, and the model and effort are pinned in `agents/*.md`. Do not pass a `model` argument to
-`Agent`, because the definition holds the right value, except for the fallback below.
+All three ship with this plugin. **Every `Agent` call for `annetaan:workflow-worker`, `annetaan:workflow-reviewer-a`
+and `annetaan:workflow-reviewer-b` passes `model` and `effort` from `agents.<name>` of the level JSON** (see **The
+level**), so the calls below carry them.
 
 **Seat `b` that cannot start** (a weekly limit, a rate limit, the model is unavailable) is spawned again as
-`annetaan:workflow-reviewer-b` with `model: "opus"`. **A seat that returns no report is a dropout**: the round goes on
+`annetaan:workflow-reviewer-b` with `model: "opus"` and the same `effort`. **A seat that returns no report is a dropout**: the round goes on
 with the other seat, and the `Seats:` line of the round file says so.
 
 **The design review runs on `annetaan:workflow-design-review`**, once before approval, in every repository. It moves existing code only where breaking changes are welcome (see `$FLOW/breaking-changes.md`).
@@ -131,6 +158,7 @@ where you make it.
 
 ```
 Agent(subagent_type: "annetaan:workflow-worker", description: "implementation, task k",
+      model: "<agents.workflow-worker.model>", effort: "<agents.workflow-worker.effort>",
       prompt: "Read $FLOW/roles/work.md first and follow the role it describes.\n\nApproved design:\n<the full design>\n\nPlan:\n<the full plan>\n\nDetail design for this task:\n<what the design session returned for task k. For task 1, the part of the approved design that covers it>\n\nStart point START: <the SHA>\nBranch: <branch name>\nReview files: <absolute path of WORKDIR>/review\nScratch: <absolute path of WORKDIR>/scratch/work\n\nProgress:\n<the tasks already done and the commit that closed each, as the matching `git log --oneline` lines. \"none\" for task 1>\n\nHandover notes from the earlier sessions:\n<the notes you have been accumulating. \"none\" for task 1>\n\nImplement task k, \"<task name>\", of the plan. **Do not commit yet.** Write `task-<k>-evidence.md` under the review files. Report back once the tests pass.\n\n<the worktree line>")
 ```
 
@@ -177,10 +205,11 @@ The same steps run for a task, for the integration review and for the merge task
 
 ```
 Agent(subagent_type: "annetaan:workflow-reviewer-a", description: "review, task k, seat a",
+      model: "<agents.workflow-reviewer-a.model>", effort: "<agents.workflow-reviewer-a.effort>",
       prompt: "Read $FLOW/roles/review.md first and follow the role it describes.\n\nYou are seat a.\n\nApproved design and acceptance criteria:\n<the full design>\n\nPlan:\n<the full plan>\n\nDetail design for this task:\n<the same one the implementation session got>\n\nProgress:\n<the tasks already done and the commit that closed each. \"none\" for task 1>\n\nHandover notes from the earlier sessions:\n<the notes, or none>\n\nReview files: <absolute path of WORKDIR>/review\nProbes: <absolute path of WORKDIR>/seats/a\nRun a probe with: $FLOW/scripts/panel.sh run <WT> a <probe dir>\n\nUnder review: task k, \"<task name>\". The diff sits between the working tree and HEAD (`git diff HEAD` plus untracked files). The evidence is `task-<k>-evidence.md`. Write your seat file as `<scope>-round-1-a.md` under the review files.\n\n<the worktree line>")
 ```
 
-The call for seat `b` is the same with `annetaan:workflow-reviewer-b`, `You are seat b`, `Probes:` under `seats/b`, `panel.sh run <WT> b <probe dir>` and `<scope>-round-1-b.md`. Write `$FLOW` and `<WT>` out as absolute paths. Both calls go in one message, so the seats run in parallel. In a run from an issue each prompt also carries the lines `from-issue.md` adds, and in a merge the lines `merge-task.md` gives.
+The call for seat `b` is the same with `annetaan:workflow-reviewer-b`, its `model` and `effort` from `agents.workflow-reviewer-b`, `You are seat b`, `Probes:` under `seats/b`, `panel.sh run <WT> b <probe dir>` and `<scope>-round-1-b.md`. Write `$FLOW` and `<WT>` out as absolute paths. Both calls go in one message, so the seats run in parallel. In a run from an issue each prompt also carries the lines `from-issue.md` adds, and in a merge the lines `merge-task.md` gives.
 
 **Every round after that goes to each seat with `SendMessage`**, in one message for both: "the tree has been updated, and the reply is `<scope>-round-<r>-reply.md`, with the evidence in `<scope>-round-<r>-evidence.md` when the reply changed code, and the round file of the last round is `<scope>-round-<r>.md`. Attack what changed since your last round, as **Later rounds** in your role instruction says, and write `<scope>-round-<r+1>-<seat>.md`." The seats live for one task, so each remembers what it tried, its probes are still there, and it diffs the tree it reviewed last against the tree now.
 

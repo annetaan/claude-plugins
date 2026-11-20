@@ -21,6 +21,8 @@ These values are already in your context. Nothing arrives as an argument.
 - `attach` from pj4-running's `run.sh start`, which has run its checks: whether `--attach` works
 - the `project.sh <P>` JSON from pj4-running's re-read, and the `project.sh <P> --check <n>` JSON it read after making
   the branch
+- the `level.sh show` JSON, from **The level** in pj4-running. The worker and the two seats take their `model` and
+  `effort` from it
 
 pj4-running has already run its checks (`gh`) on `<WT>` and confirmed that `work-reports/` is ignored there.
 Every command below runs in `<WT>`, so `<ROOT>` and `<WORKDIR>` come from there. Never touch

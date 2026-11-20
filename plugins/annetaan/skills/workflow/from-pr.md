@@ -34,9 +34,10 @@ $FLOW/scripts/worktree.sh pr <number>
 
 - **`ok`**: keep `pr.head` as `<head>`, `pr.base` as `<base>`, and the number as `<n>`.
   - **`pr.project` is set**: this is project #`pr.project`'s pull request, from its base branch, which only
-    pj4-running pushes to. Say so in one line, then load `Skill(skill: "annetaan:pj4-running", args: "<pr.project>")`
-    and follow it. Every sub-issue of the project is closed, so it brings `<base>` in under review and finds the pull
-    request there. The user's request covers its run.
+    pj4-running pushes to. Say so in one line, then load `Skill(skill: "annetaan:pj4-running", args: "<pr.project>")`,
+    with the `level=` token of this run's args added after the number when they carry one, and follow it. Every
+    sub-issue of the project is closed, so it brings `<base>` in under review and finds the pull request there. The
+    user's request covers its run.
 - **`stop`** with `not-open`, `fork` or `unknown`: quote `message` and stop. Nothing was changed.
 
 ## The worktree
@@ -44,7 +45,9 @@ $FLOW/scripts/worktree.sh pr <number>
 Run steps 3 to 6 of **The worktree** in `worktree.md` with `<head>` in place of the base: `worktree.sh create <head>` puts the new
 worktree on the tip of `origin/<head>`, detached, so a worktree that already has `<head>` checked out, such as the
 one the run that opened the pull request left, is not in the way. A stop there ends this entry, as it would a
-standalone run. Then make the work directory as phase 2 (d) says, from `git rev-parse HEAD`.
+standalone run. Then run **The level** in SKILL.md, and when `level.sh show` exits non-zero, quote the message and leave
+the worktree as **Ending before approval** in `worktree.md` says. Then make the work directory as phase 2 (d) says,
+from `git rev-parse HEAD`.
 
 ## The merge
 
