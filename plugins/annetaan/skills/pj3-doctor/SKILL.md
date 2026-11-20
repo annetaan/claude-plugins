@@ -32,6 +32,7 @@ Everything below refers to them.
 This skill uses these files:
 
 - the script `$DOCTOR/../pj1-plan/scripts/project.sh`, written `project.sh` below
+- the script `$DOCTOR/../workflow/scripts/level.sh`, written `level.sh` below
 - the reviewer's role file `$DOCTOR/roles/review.md`
 - the issue writer's role file `$DOCTOR/../pj2-issues/roles/issue.md`
 - the judgement rules `$DOCTOR/../workflow/judgement.md`, which the reviewer and the writers read (written
@@ -63,6 +64,18 @@ gh repo view --json nameWithOwner,hasIssuesEnabled,defaultBranchRef
 When the args carry `tmp=<dir>`, `$TMP` below is that directory. Otherwise run `mktemp -d` once and use the
 directory it printed. Print `tmp <dir>` once, so that a context summary can find it again. A shell variable does
 not outlive one command, so write the path in full each time.
+
+**The level.** The repository's level picks the model and the effort of the issue writers. `<root>` is what `git
+rev-parse --show-toplevel` printed, and `<level>` is the number of `level=<level>` in the args, left out when the args
+carry none.
+
+```bash
+$DOCTOR/../workflow/scripts/level.sh show <root> [<level>]
+```
+
+Keep the JSON, and print `level <level> (<source>)` once and `warning` on a line of its own when it is set, as
+**The level** in the workflow skill's `SKILL.md` says. A non-zero exit, such as `level=<level>` outside 1 to 3, stops
+the skill: quote its message.
 
 ## Phase 1: the diagnosis
 
@@ -138,10 +151,11 @@ An answer here is the user's decision, so the writer of that issue works it into
 
 ```
 Agent(subagent_type: "annetaan:pj-issue-writer", description: "revise #<n>", run_in_background: true,
+      model: "<agents.pj-issue-writer.model>", effort: "<agents.pj-issue-writer.effort>",
       prompt: "Read $DOCTOR/../pj2-issues/roles/issue.md first and follow the role it describes. The project format is in $DOCTOR/../pj1-plan/format.md. project.sh is $DOCTOR/../pj1-plan/scripts/project.sh. The judgement rules are in <skills>/workflow/judgement.md.\n\nMode: revise\n\nParent: #<P>\nIssue: #<n>\n\nproject.sh <P>:\n<the JSON>\n\nproject.sh <P> --check <n>:\n<the JSON, or none for a parent>\n\nThe review's findings on #<n>:\n<the findings>\n\nThe user's answers:\n<the phase 2 answers on #<n>, or none>\n\nScratch: $TMP/scratch/<n>")
 ```
 
-`annetaan:pj-issue-writer` ships with this plugin and has its model and effort pinned in `agents/*.md`. It is told never to change the repository and to write only under its `Scratch:` directory, by instruction.
+`annetaan:pj-issue-writer` ships with this plugin and takes its model and effort from the level, `agents.pj-issue-writer` of the `level.sh` JSON. It is told never to change the repository and to write only under its `Scratch:` directory, by instruction.
 **Keep each writer alive until phase 4 ends.**
 
 **Each writer writes its own issue only.** A finding a writer says belongs to another issue goes to that issue's
@@ -418,5 +432,5 @@ is needs-user too.
 - **Re-read `updatedAt` before every edit. Never edit a closed issue.**
 - **A sub-issue body goes out only after its lint passes**, and a parent's only after you read it against its shape.
 - An unattended run never calls `AskUserQuestion` and ends with one `unattended:` line.
-- After a context summary, take `<P>` and whether the run is unattended again from the last `project #<P>` line, and `$TMP` from the last `tmp` line, and rebuild where the run stood from the
+- After a context summary, take `<P>` and whether the run is unattended again from the last `project #<P>` line, `$TMP` from the last `tmp` line, and the level from the last `level` line, running `level.sh show` again with that level when the line says `override` and without one otherwise, and rebuild where the run stood from the
   progress lines (the review count is the largest k of `review <k> done`) and `project.sh <P>`. A writer or a reviewer whose handle is gone is started again.

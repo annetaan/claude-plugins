@@ -2,7 +2,8 @@
 
 > This file is read by the main session that loaded the workflow skill. The paths it uses are the ones **Paths: `$FLOW`** in SKILL.md gives.
 
-Read `worktree.md` and run **The start check** first. Then decide **Does this repository accept breaking changes?** below, run **The worktree** in `worktree.md`, phase 1 below, phases 2 to 4 in SKILL.md as **Phases 2 to 4 in the standalone flow** below settles them, and phases 5 and 6 below.
+Read `worktree.md` and run **The start check** first. Then decide **Does this repository accept breaking changes?** below, run **The worktree** in `worktree.md`, then **The level** in SKILL.md, phase 1 below, phases 2 to 4 in SKILL.md as **Phases 2 to 4 in the standalone flow** below settles them, and phases 5 and 6 below. When `level.sh show` exits non-zero, the worktree already exists: quote
+the message and take **Ending before approval** in `worktree.md`.
 
 ## Does this repository accept breaking changes?
 
@@ -92,6 +93,7 @@ The approval message states:
 - the name of the new branch, and `base: <base>`
 - the worktree `<WT>`, and that `<MAIN>` is not touched
 - that `<WT>` lacks `<MAIN>`'s ignored files (dependencies, `.env`), so the first worker prepares what the tests need and records the steps in the handover notes
+- `level <n> (<source>)`, the model and effort it gives the implementation session and the two review seats, and that `level=<n>` on a new run changes it
 - that everything after this runs on its own: per-task implementation and review rounds, the integration review when the plan has more than one task, the push and the pull request
 
 **You pick the branch name yourself.** Match the naming the repository already uses (`git branch -a`), choose one that `git branch -a` does not list yet, and write it into the approval message, so the user can correct it there. Do not spend a question on it.
@@ -137,11 +139,11 @@ The target is the working tree against `START` (`git diff <START>` plus untracke
 together. The working tree should be empty at this point. Fixes from the integration review land uncommitted in the
 working tree, so later rounds see them in the same diff.
 
-**The integration review starts two new seats**, with the steps of phase 4 (b) in SKILL.md: both seats in one message, the rerun of each command, the round file. `<scope>` is `integration`, so the files are `integration-round-<r>-<seat>.md` and `integration-round-<r>.md`. The prompt is the phase 4 (b) prompt with the plan carrying the commit that closed each task (the matching `git log --oneline` lines) in place of the task detail, and this request in place of "Under review":
+**The integration review starts two new seats**, model and effort included, with the steps of phase 4 (b) in SKILL.md: both seats in one message, the rerun of each command, the round file. `<scope>` is `integration`, so the files are `integration-round-<r>-<seat>.md` and `integration-round-<r>.md`. The prompt is the phase 4 (b) prompt with the plan carrying the commit that closed each task (the matching `git log --oneline` lines) in place of the task detail, and this request in place of "Under review":
 
 > Every task is committed. This is the integration review. The target is `git diff <START>` plus untracked files, read in `<WT>`. Write round 1 as `integration-round-1-<seat>.md`. The tasks were reviewed one at a time, so look at **the boundaries**: types and contracts between functions that call each other across tasks, names that do not match, duplicated implementations, and acceptance criteria for the whole design that are still unmet. No evidence file exists before round 1, because the tree is clean. Record the walk of every acceptance criterion and every flow of the whole design under `## Walk`, each run as a probe, with `ran:` and `saw:`, or `not run:`.
 
-**`changes-requested` starts a new implementation session as well**, with the phase 3 prompt, its `Scratch:` line included, and each reply that changes code comes with `integration-round-<r>-evidence.md`. The progress is every task, the handover notes are everything you have collected, and the request is to
+**`changes-requested` starts a new implementation session as well**, with the phase 3 call, model and effort included, and its `Scratch:` line, and each reply that changes code comes with `integration-round-<r>-evidence.md`. The progress is every task, the handover notes are everything you have collected, and the request is to
 answer the integration review. From there the (b), (c) loop is the same as phase 4, with the `integration-round-<r>`
 files, and the cap is the same
 **five rounds**. No session gets rebuilt during those rounds. Fixes become **one commit** after approval, with a
@@ -192,5 +194,5 @@ Every standalone run that got past approval ends here, finished or stopped (roun
 - the review files, under `<WORKDIR>/review/`
 - the screenshot paths, when the change shows on screen
 - when phase 5 was skipped, one line saying the integration review did not run because the plan had one task
-- **the cleanup**: once the pull request is merged or closed, `/annetaan:workflow-cleanup <PR number>` moves the work report into `<MAIN>/work-reports/`, removes `<WT>` and the branch, fast-forwards the local `<base>` after a merge, and deletes the reports that have been in `<MAIN>/work-reports/` 14 days or more. A run that stopped with no pull request is cleaned up with `/annetaan:workflow-cleanup` and no number
+- **the cleanup**: once the pull request is merged or closed, `/annetaan:workflow-cleanup <PR number>` moves the work report into `<MAIN>/work-reports/`, removes `<WT>` and the branch, fast-forwards the local `<base>` after a merge, and deletes the reports in `<MAIN>/work-reports/` beyond the 100 newest, by the time stamp in their name. A run that stopped with no pull request is cleaned up with `/annetaan:workflow-cleanup` and no number
 - for a stopped run, what is still uncommitted in `<WT>`

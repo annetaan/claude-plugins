@@ -125,7 +125,7 @@ your decisions there too.
 
 A skill whose `description` matches a request normally starts without being named. The ones here do not. `workflow`
 spawns several sessions, adds commits, creates a worktree and pushes a branch on its own. `workflow-cleanup` deletes
-branches and removes a worktree. `pj-roadmap` creates a worktree, pushes a branch and opens a pull request. The pj
+branches and removes a worktree. `pj-roadmap` and `level` create a worktree, push a branch and open a pull request. The pj
 skills create, edit and close issues and labels on GitHub, and `pj4-running` also creates each project's branch,
 pushes, opens and merges pull requests. The doc skills make a file next to your document, rewrite the document itself,
 and can add one commit of their own to `.gitignore` after asking. `experience-video` installs npm packages, downloads a
@@ -214,7 +214,7 @@ such as "コンフリクト解消して", with no skill named ([Conflicts](skill
 
 Every run leaves a work report behind, inside the repository under `work-reports/` so that you see them. The skill checks that git ignores `.claude/worktrees/` and `work-reports/` before it writes anything, and asks
 before adding them to `.git/info/exclude`. That file stays in your clone, so nothing is committed and `.gitignore` is
-never edited. `/annetaan:workflow-cleanup` moves the report into your clone's `work-reports/` once the run is over, and deletes the reports that have sat there for 14 days or more. It removes the two review seat worktrees beside the run's worktree as well.
+never edited. `/annetaan:workflow-cleanup` moves the report into your clone's `work-reports/` once the run is over, and deletes the reports there beyond the 100 newest, by the time stamp in their name. It removes the two review seat worktrees beside the run's worktree as well.
 
 ### pj1-plan, pj2-issues, pj3-doctor, pj4-running
 
@@ -386,7 +386,7 @@ whole session, so a long project costs many.
 What it needs:
 
 - the `claude` CLI on the PATH
-- the rules every drive needs, because the runs cannot ask: `Bash(gh:*)`, `Bash(git:*)`, the three script rules, and a
+- the rules every drive needs, because the runs cannot ask: `Bash(gh:*)`, `Bash(git:*)`, the four script rules, and a
   `Read` rule for the plugin's skills directory. pj-auto shows them with the real paths before it asks, because the
   plugin's directory differs per machine. Edits need no rule, because the runs start in acceptEdits mode.
 - the repository's own commands, such as the install, the tests and the type checks. pj-auto finds them in `CLAUDE.md`,
@@ -402,7 +402,7 @@ What it needs:
 Without a number, it takes the project this conversation is on when that one is merged and has its worktree in your clone, otherwise the only merged project with a worktree there, and asks when there are several. It
 shows what it will do and asks once. Then it closes the parent when it is still open, moves the work reports out of
 the project's worktree into `work-reports/` in your clone, removes the worktree and the review seats beside it, deletes the project's branch on
-origin and locally, fast-forwards your local copy of the branch the project merged into, usually `main`, and deletes the work reports in `work-reports/` that have been there for 14 days or more.
+origin and locally, fast-forwards your local copy of the branch the project merged into, usually `main`, and deletes the work reports in `work-reports/` beyond the 100 newest, by the time stamp in their name.
 
 It never switches your branch, stashes or resets. When the branch is checked out in your clone, it moves with
 `git merge --ff-only`, which refuses rather than overwrite a local change. A local branch with commits origin does not
@@ -431,14 +431,27 @@ pull request that is already open.
 /annetaan:pj-roadmap
 ```
 
+### level
+
+`/annetaan:level` ([details](skills/level/SKILL.md)) proposes the level your repository runs at (see **Levels** under
+**Agents**). It reads the `Level:` lines of the pull requests merged since the level file's `evaluated` date, and an
+evaluator reads the code for how tidy the design is and how hard the problems are. It shows the proposal with its
+reasons and asks once which level to use. Then it works in a worktree of its own, writes `.claude/annetaan-level.md`,
+commits it on a new branch, pushes it and opens a pull request into the default branch. It never merges.
+`/annetaan:workflow-cleanup` removes the worktree and the branch after you merge it.
+
+```
+/annetaan:level
+```
+
 ### workflow-cleanup
 
-`/annetaan:workflow-cleanup` ([details](skills/workflow-cleanup/SKILL.md)) cleans up after a workflow run or a `pj-roadmap` run. Without a
+`/annetaan:workflow-cleanup` ([details](skills/workflow-cleanup/SKILL.md)) cleans up after a workflow run, a `pj-roadmap` run or a `level` run. Without a
 number, it lists the `wf-*` worktrees whose pull request is merged or closed, and those that have none, which is a run that
 stopped or one still going in another session. It takes the only candidate, or asks which. It shows what it will do and asks once. Then it moves the work
 reports into `work-reports/` in your clone, removes the worktree and the review seats beside it, deletes the branch locally and on origin,
-fast-forwards your local base after a merge, and deletes the work reports in `work-reports/` that have been there for
-14 days or more.
+fast-forwards your local base after a merge, and deletes the work reports in `work-reports/` beyond the 100 newest, by
+the time stamp in their name.
 
 It never switches your branch, stashes or resets. Work that nothing else holds is removed only when you choose to
 discard it. That means uncommitted changes, what a submodule in the worktree holds on its own (its uncommitted changes and the commits no remote of the submodule has), commits that are on no other branch on origin, and the branch of a closed
@@ -580,10 +593,12 @@ report has since gone. A pull request that another account has recorded is left 
 ## Agents
 
 These are the sub-agents the skills spawn. Anything under `agents/` becomes callable as `annetaan:<name>`.
-The model and the effort are pinned here, and a skill selects one by name alone. When a Fable agent cannot start, the
-skill spawns it again on opus at the same effort. The design review is pinned to another model than the design and the
-planner, and is skipped when it cannot start. The two review seats are pinned to different models, and a seat that
-returns no report is a dropout: the round goes on with the other.
+The frontmatter holds the model and the effort, the level-3 values for the four agents of **Levels** below. For those
+four, `workflow`, `pj2-issues`, `pj3-doctor` and `pj4-running` pass the values of the repository's level with each
+call. Every other agent runs as its frontmatter says. When a Fable agent cannot start, the skill spawns it again on
+opus at the same effort. The design review runs on another model than the design and the planner, and is skipped when
+it cannot start. The two review seats run on different models at every level, and a seat that returns no report is a
+dropout: the round goes on with the other.
 
 | Agent | Model | Effort | Role |
 | --- | --- | --- | --- |
@@ -598,6 +613,7 @@ returns no report is a dropout: the round goes on with the other.
 | `annetaan:experience-video-producer` | fable | medium | production for `experience-video`. fills in the cuts, fragments and music of a story, renders it, and checks its frames |
 | `annetaan:pr-humans-writer` | sonnet | medium | one comment for `pr-humans`. reads only the gathered files. drafts how people took part in one pull request |
 | `annetaan:doc-meta-overview` | opus | high | overview for `doc-meta`. finds what a per-sentence flag misses |
+| `annetaan:level-evaluator` | opus | high | evaluation for `level`. reads the code and the review counts and proposes a level |
 
 `annetaan:workflow-design`, `annetaan:pj-planner` and `annetaan:pj-issue-writer` can write files, and their roles confine that to a scratch directory. The two reviewers write only their probes and their seat file, and run code only through `panel.sh`.
 
@@ -607,6 +623,23 @@ returns no report is a dropout: the round goes on with the other.
 
 The agent definitions are thin. The substance of each role lives in the skill's `roles/*.md`, and an agent reads
 that path out of the prompt the main session hands it.
+
+### Levels
+
+A repository's level says how much model the implementation, the review and the issue writing get. It lives in
+`.claude/annetaan-level.md` on the default branch of `origin`, and only there: a copy in the working tree or on another
+branch is never read. With no file, the level is 3. `level=<n>` in the args of `workflow`, `pj3-doctor`,
+`pj4-running` or `pj-auto` sets it for one run. A file past its `review-by` date still counts, with a warning.
+Each workflow run ends its pull request body with a `Level:` line: the level it ran at, its source, and how many tasks,
+task rounds, integration rounds and findings it had. `/annetaan:level` proposes a new level from those lines and the
+code.
+
+| Agent | Level 1 | Level 2 | Level 3 |
+| --- | --- | --- | --- |
+| `workflow-worker` | sonnet / high | opus / medium | opus / high |
+| `workflow-reviewer-a` | opus / medium | opus / high | opus / high |
+| `workflow-reviewer-b` | fable / medium | fable / medium | fable / medium |
+| `pj-issue-writer` | sonnet / high | opus / medium | opus / high |
 
 ## Credits
 

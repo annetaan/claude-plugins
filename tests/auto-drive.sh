@@ -35,6 +35,7 @@ chmod +x "$TMP/skills/pj1-plan/scripts/project.sh"
 cat > "$TMP/bin/claude" <<'EOS'
 #!/usr/bin/env bash
 echo "${CLAUDE_CODE_PRINT_BG_WAIT_CEILING_MS-unset}" >> "$FAKE_LOG/ceiling"
+echo "$*" >> "$FAKE_LOG/args"
 [ -n "${FX_STDERR:-}" ] && echo "$FX_STDERR" >&2
 if [ -n "${FX_RESULT:-}" ]; then
   echo "$FX_RESULT"
@@ -62,7 +63,7 @@ run_drive() {
   RUNS=$((RUNS + 1))
   rm -rf "$FAKE_LOG" "$COUNTER"
   mkdir -p "$FAKE_LOG" "$TMP/log$RUNS"
-  OUT="$("$TMP/skills/pj-auto/scripts/auto.sh" 7 --log "$TMP/log$RUNS")" || fail "auto.sh exited non-zero"
+  OUT="$("$TMP/skills/pj-auto/scripts/auto.sh" 7 --log "$TMP/log$RUNS" "$@")" || fail "auto.sh exited non-zero"
 }
 
 statuses() { printf '%s\n' "$OUT" | python3 -I -c 'import json,sys; print(" ".join(json.loads(l)["status"] for l in sys.stdin))'; }
@@ -83,6 +84,15 @@ STATUSES="$(statuses)"
 [ "$STATUSES" = "started begin step begin step ended" ] || fail "unexpected statuses: $STATUSES"
 printf '%s\n' "$OUT" | tail -n 1 | grep -q '"reason": "done"' || fail "the drive did not end as done"
 echo "ok: a drive of done steps ends as before"
+
+if grep -q "level=" "$FAKE_LOG/args"; then fail "a drive without --level passed a level: $(cat "$FAKE_LOG/args")"; fi
+run_drive --level 1
+[ "$(grep -c " tmp=[^ ]* level=1 " "$FAKE_LOG/args")" = 2 ] || fail "--level 1 did not reach every run: $(cat "$FAKE_LOG/args")"
+echo "ok: --level 1 passes level=1 to every claude -p, and no --level passes none"
+
+if "$TMP/skills/pj-auto/scripts/auto.sh" 7 --log "$TMP" --level 4 >/dev/null 2>&1; then fail "--level 4 exited 0"; fi
+if "$TMP/skills/pj-auto/scripts/auto.sh" 7 --log "$TMP" --tier 1 >/dev/null 2>&1; then fail "--tier 1 exited 0"; fi
+echo "ok: a bad --level exits 1"
 
 NOLAST='{"is_error":false,"result":"working on it"}'
 BGLINE='Background tasks still running 10m after the last turn (shell "Check issue 79 against the code"); stopping them. Set CLAUDE_CODE_PRINT_BG_WAIT_CEILING_MS=0 to wait indefinitely.'
@@ -120,7 +130,8 @@ echo "ok: no last line without the message is still no-line"
 import json, sys
 e = json.loads(sys.stdin.read())
 rules = [b["rule"] for b in e["base"]]
-assert len(rules) == 6, rules
+assert len(rules) == 7, rules
 assert "Bash(" + sys.argv[1] + "/workflow/scripts/panel.sh:*)" in rules, rules
-' "$TMP/skills" || fail "auto.sh --rules does not list six base rules with panel.sh"
-echo "ok: auto.sh --rules lists six base rules, panel.sh among them"
+assert "Bash(" + sys.argv[1] + "/workflow/scripts/level.sh:*)" in rules, rules
+' "$TMP/skills" || fail "auto.sh --rules does not list seven base rules with panel.sh and level.sh"
+echo "ok: auto.sh --rules lists seven base rules, panel.sh and level.sh among them"

@@ -26,6 +26,7 @@ This skill uses these files:
 
 - the script `$AUTO/scripts/auto.sh`. `auto.sh --rules` prints the rules every drive needs and the user's settings.
 - the script `$AUTO/../pj1-plan/scripts/project.sh`, written `project.sh` below
+- the script `$AUTO/../workflow/scripts/level.sh`, written `level.sh` below
 
 **Language**: talk to the user in the user's language.
 
@@ -53,6 +54,17 @@ Any of these failing stops the skill. Say which one and stop.
 **The project.** Pick it as `between-skills.md` says under **Picking the project**, with the candidates of `pj3-doctor`
 and `pj4-running`. The project picked is `<P>`. Print `project #<P>` once, as that section says.
 
+**The level.** `<root>` is what `git rev-parse --show-toplevel` printed, and `<n>` comes from `level=<n>` in the args,
+left out when the args carry none.
+
+```bash
+$AUTO/../workflow/scripts/level.sh show <root> [<n>]
+```
+
+Print `level <level> (<source>)` once, and `warning` on a line of its own when it is set, as **The level** in the
+workflow skill's `SKILL.md` says. A non-zero exit, such as `level=<n>` outside 1 to 3, stops the skill: quote its
+message.
+
 ## The next step
 
 Run `project.sh <P> --next` once and read it (`state.md`, **What comes next**).
@@ -65,7 +77,7 @@ user** says for that reason, and end.
 Runs only when a step would run. The runs cannot ask, so show the user what their settings lack before the question.
 
 1. The rules every drive needs and what the settings hold: run `$AUTO/scripts/auto.sh --rules` and read the output
-   whole. `main` is `<MAIN>`. `base` lists the six rules, each with the files whose `allow` list holds that exact
+   whole. `main` is `<MAIN>`. `base` lists the seven rules, each with the files whose `allow` list holds that exact
    string, and `settings` lists the three settings files with their `allow`, `deny` and `ask` rules.
 2. The repository's own commands: install, tests, type checks, lint, build. Find them with Read and Glob in `<MAIN>`:
    `CLAUDE.md`, `AGENTS.md` and `CONTRIBUTING.md`; the root manifest and lockfile that name the package manager
@@ -74,7 +86,7 @@ Runs only when a step would run. The runs cannot ask, so show the user what thei
    comment, read with the command in `between-skills.md`, **The handover comment**. Each command becomes
    `Bash(<program>:*)`, such as `Bash(pnpm:*)` for `pnpm install`. Write a narrower `Bash(<program> <subcommand>:*)`
    only when the user's rules are already written that way.
-3. Judge each rule, the six base rules and those of step 2, against the lists of every file:
+3. Judge each rule, the seven base rules and those of step 2, against the lists of every file:
    - **covered**: an `allow` rule matches. It is the same string; a `:*` rule whose prefix starts the command; the
      space form `Bash(gh *)`, which counts as `Bash(gh:*)`; the tool name alone (`Bash`, `Bash(*)`, `Read`); or, for a
      `Read` rule, a path glob that contains the needed path (expand `~/`, and read `//` as an absolute path). Note
@@ -110,6 +122,8 @@ Otherwise a step would run. Show a summary first:
   then stalls
 - that a run may wait up to 60 minutes after its last turn for its background work
 - that merges into the project's base branch happen, and the project's own pull request is never merged
+- the level the runs use, `level <level> (<source>)`, and that each run reads it again from origin's default branch,
+  unless `level=<n>` was given, in which case every run gets `level=<n>`
 - that no other session may run on the same project while the drive runs: a dirty worktree is taken for a dead run's
   and discarded
 - the permissions: every rule from **The permissions**, one line each, as `covered (<file>)`, `missing`, or
@@ -133,8 +147,10 @@ The directory it printed is `<LOG>`. Print `drive <LOG>` once, so that a context
 script with Bash `run_in_background`:
 
 ```bash
-$AUTO/scripts/auto.sh <P> --log <LOG>
+$AUTO/scripts/auto.sh <P> --log <LOG> [--level <n>]
 ```
+
+`--level <n>` goes in only when the args carried `level=<n>`. `auto.sh` then adds ` level=<n>` to the args of every run.
 
 Print `tail -f <LOG>/drive.jsonl` with the real path, for the user to follow the steps. Each step writes a `begin` line
 when it starts and a `step` line when it ends. The `begin` line names the run, why, the issue, `at`, its output files
@@ -179,4 +195,4 @@ When `noLine` is not empty, add one line naming the steps that ended without a l
 - You write nothing to GitHub yourself, and you never kill a run.
 - You never write the user's settings. You show the rules, and the user adds them.
 - The next action comes only from `project.sh --next` and the `ended` line.
-- After a context summary, resume from the last `project #<P>` line and the last `drive <LOG>` line.
+- After a context summary, resume from the last `project #<P>` line, the last `level` line and the last `drive <LOG>` line.

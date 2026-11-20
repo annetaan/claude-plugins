@@ -154,7 +154,7 @@ tree, puts the seat's worktree at it and runs the probe there. A seat lives as l
 dependencies a probe installed in it serve every later task and round. The cleanup removes it.
 
 After you merge or close the pull request, `/annetaan:workflow-cleanup` moves the work report into `work-reports/` in
-your clone, removes the worktree, the review seats and the branch, fast-forwards your local base after a merge, and deletes the reports that have been there 14 days or more. Details are in
+your clone, removes the worktree, the review seats and the branch, fast-forwards your local base after a merge, and deletes the reports there beyond the 100 newest, by the time stamp in their name. Details are in
 [workflow-cleanup](../workflow-cleanup/SKILL.md).
 
 ```
@@ -167,7 +167,8 @@ Every run writes a work report. It lives under the worktree's `work-reports/` un
 
 ```
 work-reports/2026-09-19-1346-a1b2c3d/
-  log.md         what changed, how it was verified, the checks wanted, what the review changed, the screenshots
+  log.md         what changed, how it was verified, the checks wanted, what the review changed, the screenshots,
+                 and last one `Level:` line with the level, its source and the review counts
   changes.diff   the diff from the start commit to HEAD
   review/        one file per review round, the reply to each, and the evidence files
     task-1-evidence.md
@@ -186,8 +187,8 @@ The directory name is the local time the run started, plus the short SHA of the 
 run sorts last, so there is never a question about which report is the current one. The design session's throwaway
 experiments go in `work-reports/<stamp>-design/`, next to the report directory and not inside it.
 
-**These live inside the repository so that you see them.** A cleanup deletes the ones that have sat in your clone's
-`work-reports/` for 14 days. In a temp directory somewhere else they eat
+**These live inside the repository so that you see them.** A cleanup deletes the ones in your clone's
+`work-reports/` beyond the 100 newest, by the time stamp in their name. In a temp directory somewhere else they eat
 disk where nobody looks. In exchange, the skill checks that `.claude/worktrees/` and `work-reports/` are
 ignored by git before it writes anything, and asks before adding them to `.git/info/exclude`. That file stays in your
 clone, so nothing is committed and `.gitignore` is never edited.
@@ -197,8 +198,10 @@ Otherwise it follows how recent merged pull requests are written. With nothing t
 picks a structure. Whatever it picks, the report has to answer what changed, how it was verified with the commands
 that were actually run, what the review changed, and which commit answers which task in the plan.
 
-`log.md` becomes the pull request body. `review/` holds how each finding was
-raised and answered.
+`log.md` becomes the pull request body. It ends with one `Level:` line: the level the run used, its source, the tasks,
+the task rounds, the integration rounds and the findings, as
+`Level: 2 (file) · tasks 2 · task rounds 3 · integration rounds 1 · findings 4`. `/annetaan:level` reads these lines
+from the merged pull requests. `review/` holds how each finding was raised and answered.
 
 ## Screenshots
 
@@ -242,6 +245,8 @@ screenshots it could not attach.
 | `roles/review.md` | the role for a review seat |
 | `scripts/worktree.sh` | creates the run's worktree and checks its ignore rules. `workflow-cleanup` uses it to clean up |
 | `scripts/worktree.py` | the code `worktree.sh` runs |
+| `scripts/level.sh` | reads the repository's level from origin's default branch and prints the model and effort it gives the implementation session, the two review seats and pj's issue writer |
+| `scripts/level.py` | the code `level.sh` runs, and the one place the level table lives |
 | `scripts/comments.py` | fails on a comment outside the four kinds, or a silenced check the change adds, in the files a change touches. The implementation and review sessions run it |
 | `scripts/panel.sh` | runs a review seat's probe in a git worktree beside the run's, at a snapshot of the working tree, and removes the seats at cleanup |
 | `review-files.md` | the shape of the review files and the evidence files, read by the seats, the main session and the implementation session |
@@ -249,4 +254,4 @@ screenshots it could not attach.
 The design, implementation and review sessions run on agents that ship with the plugin (`../../agents/`). Design is
 `annetaan:workflow-design`. The design review is
 `annetaan:workflow-design-review`, once before approval. Implementation is `annetaan:workflow-worker`
-and review is the two seats `annetaan:workflow-reviewer-a` and `annetaan:workflow-reviewer-b`, pinned to different models. The models and efforts are in the agent table of [the plugin README](../../README.md).
+and review is the two seats `annetaan:workflow-reviewer-a` and `annetaan:workflow-reviewer-b`, on different models at every level. The models and efforts are in the agent table of [the plugin README](../../README.md), and those of the implementation session and the two seats at each level of the repository in its level table.

@@ -8,7 +8,7 @@
   comes before the cases below.
 - When phase 5 was skipped, the last task's implementation session is still alive (the entry keeps it after phase 4 (d)). `SendMessage` it.
 - When the integration review asked for fixes, that implementation session is still alive. `SendMessage` it.
-- When the integration review approved with nothing to fix, no session is left. Start one with the phase 3 prompt, carrying the progress and the handover notes, and ask it for the report and nothing else.
+- When the integration review approved with nothing to fix, no session is left. Start one with the phase 3 call, its `model` and `effort` included, carrying the progress and the handover notes, and ask it for the report and nothing else.
 
 The request:
 
@@ -31,6 +31,17 @@ base.
 ```bash
 git diff --output=<WORKDIR>/changes.diff origin/<base>...HEAD
 ```
+
+Then add the line that records the run's level and its review counts, from the `level` and `source` of **The level**
+in SKILL.md:
+
+```bash
+$FLOW/scripts/level.sh record <WORKDIR> <level> <source>
+```
+
+It appends one `Level:` line to the end of `log.md`, so the pull request body carries it, and `/annetaan:level` reads
+it from there. A `stop` (`no-log`, `no-review`) is a failed step of the finish: quote `message` and go to the entry's
+ending, as for a failed push.
 
 Then open the pull request.
 
