@@ -154,7 +154,7 @@ tree, puts the seat's worktree at it and runs the probe there. A seat lives as l
 dependencies a probe installed in it serve every later task and round. The cleanup removes it.
 
 After you merge or close the pull request, `/annetaan:workflow-cleanup` moves the work report into `work-reports/` in
-your clone, removes the worktree, the review seats and the branch, fast-forwards your local base after a merge, and deletes the reports that have been there 14 days or more. Details are in
+your clone, removes the worktree, the review seats and the branch, fast-forwards your local base after a merge, and deletes the reports there beyond the 100 newest, by the time stamp in their name. Details are in
 [workflow-cleanup](../workflow-cleanup/SKILL.md).
 
 ```
@@ -186,8 +186,8 @@ The directory name is the local time the run started, plus the short SHA of the 
 run sorts last, so there is never a question about which report is the current one. The design session's throwaway
 experiments go in `work-reports/<stamp>-design/`, next to the report directory and not inside it.
 
-**These live inside the repository so that you see them.** A cleanup deletes the ones that have sat in your clone's
-`work-reports/` for 14 days. In a temp directory somewhere else they eat
+**These live inside the repository so that you see them.** A cleanup deletes the ones in your clone's
+`work-reports/` beyond the 100 newest, by the time stamp in their name. In a temp directory somewhere else they eat
 disk where nobody looks. In exchange, the skill checks that `.claude/worktrees/` and `work-reports/` are
 ignored by git before it writes anything, and asks before adding them to `.git/info/exclude`. That file stays in your
 clone, so nothing is committed and `.gitignore` is never edited.

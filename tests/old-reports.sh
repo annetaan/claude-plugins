@@ -21,11 +21,13 @@ fail() { echo "FAIL: $*" >&2; exit 1; }
 
 json() { python3 -c 'import json,sys; d=json.load(sys.stdin); print(eval(sys.argv[1]))' "$1"; }
 
-age() { python3 -c 'import os,sys,time; t=time.time()-float(sys.argv[1])*86400; os.utime(sys.argv[2],(t,t))' "$1" "$2"; }
-
-mtime_age() { python3 -c 'import os,sys,time; print((time.time()-os.lstat(sys.argv[1]).st_mtime)/86400)' "$1"; }
-
 exists() { [ -e "$1" ] || [ -L "$1" ]; }
+
+OLDEST=2026-01-01-0000-r000
+SECOND=2026-01-01-0100-r001
+NEWEST=2026-01-05-0400-r100
+NEW_IN=2099-12-31-2359-incoming
+OLD_IN=2000-01-01-0000-incoming
 
 setup() {
   rm -rf "$TMP/work"
@@ -48,19 +50,25 @@ setup() {
 
 seed_reports() {
   mkdir -p "$R"
-  mkdir "$R/2026-01-01-0000-aaaaaaa" "$R/2026-01-02-0000-bbbbbbb" "$R/2026-01-03-0000-discarded" \
-        "$R/2026-01-04-0000-ccccccc-wf-test" "$R/2026-02-01-0000-ddddddd" "$R/notes"
-  echo x > "$R/2026-01-01-0000-aaaaaaa/log.md"
+  python3 - "$R" <<'PY'
+import datetime, os, sys
+start = datetime.datetime(2026, 1, 1)
+for i in range(101):
+    stamp = (start + datetime.timedelta(hours=i)).strftime("%Y-%m-%d-%H%M")
+    os.mkdir(os.path.join(sys.argv[1], "%s-r%03d" % (stamp, i)))
+PY
+  echo x > "$R/$OLDEST/log.md"
+  mkdir "$R/notes"
   : > "$R/.DS_Store"
+  : > "$R/2099-01-01-0000-file"
   mkdir -p "$TMP/elsewhere"
-  ln -s "$TMP/elsewhere" "$R/2026-01-05-0000-link"
-  age 20 "$R/2026-01-01-0000-aaaaaaa"
-  age 14 "$R/2026-01-02-0000-bbbbbbb"
-  age 30 "$R/2026-01-03-0000-discarded"
-  age 15 "$R/2026-01-04-0000-ccccccc-wf-test"
-  age 13 "$R/2026-02-01-0000-ddddddd"
-  age 40 "$R/notes"
-  age 40 "$R/.DS_Store"
+  rm -f "$R/2000-01-01-0000-link"
+  ln -s "$TMP/elsewhere" "$R/2000-01-01-0000-link"
+  touch -t 202601010000 "$R/$NEWEST"
+}
+
+incoming() {
+  mkdir -p "$1/work-reports/$NEW_IN" "$1/work-reports/$OLD_IN" "$1/work-reports/$OLDEST"
 }
 
 setup_pj() {
@@ -98,126 +106,116 @@ FAKE
   cd "$MAIN"
 }
 
+count() { ls -A "$R" | wc -l | tr -d ' '; }
 
 setup
 out="$("$SCRIPT" check wf-test)"
-[ "$(echo "$out" | json 'd["oldReports"]["names"]')" = "['2026-01-01-0000-aaaaaaa', '2026-01-02-0000-bbbbbbb', '2026-01-03-0000-discarded', '2026-01-04-0000-ccccccc-wf-test']" ] \
-  || fail "check names: $out"
-[ "$(echo "$out" | json 'd["oldReports"]["days"]')" = 14 ] || fail "check days: $out"
+[ "$(echo "$out" | json 'd["oldReports"]["names"]')" = "['$OLDEST']" ] || fail "check names: $out"
+[ "$(echo "$out" | json 'd["oldReports"]["keep"]')" = 100 ] || fail "check keep: $out"
 [ "$(echo "$out" | json 'd["oldReports"]["path"]')" = "$R" ] || fail "check path: $out"
 [ "$(echo "$out" | json '"deleted" in d["oldReports"]')" = False ] || fail "check carries deleted: $out"
-[ "$(ls "$R" | wc -l | tr -d ' ')" = 7 ] || fail "check deleted something"
-echo "ok: worktree.sh check lists the reports whose mtime is 14 days old or more and deletes nothing"
+[ "$(count)" = 105 ] || fail "check deleted something"
+echo "ok: check lists the reports beyond the 100 newest by stamp and deletes nothing"
 
 setup
+incoming "$WT"
+out="$("$SCRIPT" check wf-test)"
+listed="$(echo "$out" | json 'd["oldReports"]["names"]')"
+[ "$listed" = "['$OLD_IN', '$OLDEST', '$OLDEST-wf-test', '$SECOND']" ] || fail "check with incoming names: $out"
 out="$("$SCRIPT" cleanup wf-test)"
 [ "$(echo "$out" | json 'd["status"]')" = done ] || fail "cleanup status: $out"
-exists "$R/2026-01-01-0000-aaaaaaa" && fail "old report kept"
-exists "$R/2026-01-02-0000-bbbbbbb" && fail "14-day-old report kept"
-exists "$R/2026-02-01-0000-ddddddd" || fail "13-day-old report deleted"
+[ "$(echo "$out" | json 'd["oldReports"]["deleted"]')" = "$listed" ] || fail "cleanup deleted what check did not list: $out"
+[ "$(echo "$out" | json 'd["errors"]')" = "[]" ] || fail "cleanup errors: $out"
+exists "$R/$OLD_IN" && fail "old incoming report kept"
+exists "$R/$OLDEST" && fail "oldest report kept"
+exists "$R/$OLDEST-wf-test" && fail "incoming report renamed on a collision kept"
+exists "$R/$SECOND" && fail "second oldest report kept"
+exists "$R/$NEW_IN" || fail "new incoming report deleted"
+exists "$R/$NEWEST" || fail "newest report deleted"
 exists "$R/notes" || fail "unstamped directory deleted"
 exists "$R/.DS_Store" || fail "file deleted"
-exists "$R/2026-01-05-0000-link" || fail "symlink deleted"
+exists "$R/2099-01-01-0000-file" || fail "stamped file deleted"
+exists "$R/2000-01-01-0000-link" || fail "symlink deleted"
 [ -d "$TMP/elsewhere" ] || fail "symlink target deleted"
-[ "$(echo "$out" | json 'd["oldReports"]["deleted"]')" = "['2026-01-01-0000-aaaaaaa', '2026-01-02-0000-bbbbbbb', '2026-01-03-0000-discarded', '2026-01-04-0000-ccccccc-wf-test']" ] \
-  || fail "cleanup deleted: $out"
-[ "$(echo "$out" | json 'd["errors"]')" = "[]" ] || fail "cleanup errors: $out"
-echo "ok: worktree.sh cleanup deletes the old reports and keeps a 13-day-old one, an unstamped directory, a file and a symlink"
-
-exists "$R/2026-01-03-0000-discarded" && fail "old -discarded report kept"
-exists "$R/2026-01-04-0000-ccccccc-wf-test" && fail "old suffixed report kept"
-echo "ok: worktree.sh cleanup deletes an old -discarded report and an old suffixed one"
+[ "$(ls -d "$R"/2*-r* "$R"/*-incoming | wc -l | tr -d ' ')" = 100 ] || fail "not 100 reports left"
+echo "ok: cleanup deletes what check listed, an incoming report past the cut included, under the name a collision gives it"
 
 setup
-mkdir -p "$WT/work-reports/2020-01-01-0000-eeeeeee"
-age 100 "$WT/work-reports/2020-01-01-0000-eeeeeee"
+out="$("$SCRIPT" check wf-test)"
+[ "$(echo "$out" | json 'd["oldReports"]["names"]')" = "['$OLDEST']" ] || fail "mtime check names: $out"
 out="$("$SCRIPT" cleanup wf-test)"
-[ "$(echo "$out" | json 'd["status"]')" = done ] || fail "cleanup status: $out"
-exists "$R/2020-01-01-0000-eeeeeee" || fail "moved report deleted"
-python3 - "$R/2020-01-01-0000-eeeeeee" <<'PY' || fail "moved report mtime is not now"
-import os, sys, time
-sys.exit(0 if time.time() - os.lstat(sys.argv[1]).st_mtime < 3600 else 1)
-PY
-[ "$(echo "$out" | json '"2020-01-01-0000-eeeeeee" in d["oldReports"]["deleted"]')" = False ] || fail "moved report listed as deleted"
-echo "ok: worktree.sh cleanup keeps a report it moved in whose name stamp is old, and sets its mtime to now"
+exists "$R/$NEWEST" || fail "newest-stamped report with an old mtime deleted"
+exists "$R/$OLDEST" && fail "oldest-stamped report with a new mtime kept"
+echo "ok: mtime does not decide"
 
 setup
 echo dirty > "$WT/untracked.txt"
 out="$("$SCRIPT" cleanup wf-test)"
 [ "$(echo "$out" | json 'd["status"]')" = stop ] || fail "refused status: $out"
 [ "$(echo "$out" | json 'd["reason"]')" = discard ] || fail "refused reason: $out"
-[ "$(ls "$R" | wc -l | tr -d ' ')" = 7 ] || fail "refused cleanup deleted something"
-exists "$R/2026-01-01-0000-aaaaaaa" || fail "refused cleanup deleted an old report"
+[ "$(count)" = 105 ] || fail "refused cleanup deleted something"
 echo "ok: worktree.sh cleanup refused for discard deletes nothing"
 
 setup
+incoming "$WT"
 out="$("$SCRIPT" old-reports)"
 [ "$(echo "$out" | json 'd["status"]')" = ok ] || fail "old-reports status: $out"
-[ "$(echo "$out" | json 'len(d["oldReports"]["names"])')" = 4 ] || fail "old-reports names: $out"
-exists "$R/2026-01-01-0000-aaaaaaa" || fail "old-reports without --delete deleted"
+[ "$(echo "$out" | json 'd["oldReports"]["names"]')" = "['$OLDEST']" ] || fail "old-reports names: $out"
+out="$("$SCRIPT" old-reports --from "$WT")"
+[ "$(echo "$out" | json 'd["status"]')" = ok ] || fail "old-reports --from status: $out"
+[ "$(echo "$out" | json 'd["oldReports"]["names"]')" = "['$OLD_IN', '$OLDEST', '$OLDEST-wf-test', '$SECOND']" ] || fail "old-reports --from names: $out"
+[ "$(count)" = 105 ] || fail "old-reports without --delete deleted"
 out="$("$SCRIPT" old-reports --delete)"
 [ "$(echo "$out" | json 'd["status"]')" = done ] || fail "old-reports --delete status: $out"
-[ "$(echo "$out" | json 'len(d["oldReports"]["deleted"])')" = 4 ] || fail "old-reports --delete deleted: $out"
+[ "$(echo "$out" | json 'd["oldReports"]["deleted"]')" = "['$OLDEST']" ] || fail "old-reports --delete deleted: $out"
 [ "$(echo "$out" | json 'd["errors"]')" = "[]" ] || fail "old-reports --delete errors: $out"
-exists "$R/2026-01-01-0000-aaaaaaa" && fail "old-reports --delete kept an old report"
-exists "$R/2026-02-01-0000-ddddddd" || fail "old-reports --delete deleted a young report"
-echo "ok: worktree.sh old-reports lists, and old-reports --delete deletes and reports deleted"
+exists "$R/$OLDEST" && fail "old-reports --delete kept the oldest report"
+exists "$R/$SECOND" || fail "old-reports --delete deleted one of the 100 newest"
+"$SCRIPT" old-reports --from 2>/dev/null && fail "old-reports --from without a path accepted"
+"$SCRIPT" old-reports --keep 2>/dev/null && fail "old-reports with an unknown flag accepted"
+echo "ok: worktree.sh old-reports lists, --from counts a worktree's reports in, and --delete deletes"
 
 setup
-mkdir "$R/2026-01-06-0000-locked"
-echo x > "$R/2026-01-06-0000-locked/f"
-age 20 "$R/2026-01-06-0000-locked"
-chmod 555 "$R/2026-01-06-0000-locked"
+mkdir "$R/2000-01-02-0000-locked"
+echo x > "$R/2000-01-02-0000-locked/f"
+chmod 555 "$R/2000-01-02-0000-locked"
 out="$("$SCRIPT" old-reports --delete)"
 [ "$(echo "$out" | json 'd["status"]')" = done ] || fail "locked status: $out"
 [ "$(echo "$out" | json '[e["step"] for e in d["errors"]]')" = "['old-reports']" ] || fail "locked errors: $out"
-[ "$(echo "$out" | json '"2026-01-06-0000-locked" in d["oldReports"]["deleted"]')" = False ] || fail "locked listed as deleted: $out"
-[ "$(echo "$out" | json '"2026-01-01-0000-aaaaaaa" in d["oldReports"]["deleted"]')" = True ] || fail "other not deleted: $out"
-exists "$R/2026-01-01-0000-aaaaaaa" && fail "other old report kept"
-exists "$R/2026-01-06-0000-locked" || fail "locked report vanished"
-chmod 755 "$R/2026-01-06-0000-locked"
+[ "$(echo "$out" | json 'd["oldReports"]["deleted"]')" = "['$OLDEST']" ] || fail "locked deleted: $out"
+exists "$R/$OLDEST" && fail "other old report kept"
+exists "$R/2000-01-02-0000-locked" || fail "locked report vanished"
+chmod 755 "$R/2000-01-02-0000-locked"
 echo "ok: worktree.sh old-reports --delete records a report it cannot delete in errors and deletes the others"
 
 setup_pj
+incoming "$WT"
 out="$("$CLEANUP" check 1)"
 [ "$(echo "$out" | json 'd["status"]')" = ok ] || fail "pj check status: $out"
-[ "$(echo "$out" | json 'd["oldReports"]["names"]')" = "['2026-01-01-0000-aaaaaaa', '2026-01-02-0000-bbbbbbb', '2026-01-03-0000-discarded', '2026-01-04-0000-ccccccc-wf-test']" ] \
-  || fail "pj check names: $out"
-[ "$(echo "$out" | json 'd["oldReports"]["days"]')" = 14 ] || fail "pj check days: $out"
+listed="$(echo "$out" | json 'd["oldReports"]["names"]')"
+[ "$listed" = "['$OLD_IN', '$OLDEST', '$OLDEST-pj-1', '$SECOND']" ] || fail "pj check names: $out"
+[ "$(echo "$out" | json 'd["oldReports"]["keep"]')" = 100 ] || fail "pj check keep: $out"
 [ "$(echo "$out" | json 'd["oldReports"]["path"]')" = "$R" ] || fail "pj check path: $out"
 [ "$(echo "$out" | json '"deleted" in d["oldReports"]')" = False ] || fail "pj check carries deleted: $out"
-[ "$(ls "$R" | wc -l | tr -d ' ')" = 7 ] || fail "pj check deleted something"
-echo "ok: cleanup.sh check carries the oldReports from worktree.sh and deletes nothing"
-
-setup_pj
-mkdir -p "$WT/work-reports/2020-01-01-0000-eeeeeee"
-age 100 "$WT/work-reports/2020-01-01-0000-eeeeeee"
+[ "$(count)" = 105 ] || fail "pj check deleted something"
 out="$("$CLEANUP" run 1)"
 [ "$(echo "$out" | json 'd["status"]')" = done ] || fail "pj run status: $out"
 [ "$(echo "$out" | json 'd["worktree"]["action"]')" = removed ] || fail "pj run worktree: $out"
-exists "$R/2026-01-01-0000-aaaaaaa" && fail "pj old report kept"
-exists "$R/2026-01-02-0000-bbbbbbb" && fail "pj 14-day-old report kept"
-exists "$R/2026-01-03-0000-discarded" && fail "pj old -discarded report kept"
-exists "$R/2026-01-04-0000-ccccccc-wf-test" && fail "pj old suffixed report kept"
-exists "$R/2026-02-01-0000-ddddddd" || fail "pj 13-day-old report deleted"
+[ "$(echo "$out" | json 'd["oldReports"]["deleted"]')" = "$listed" ] || fail "pj run deleted what check did not list: $out"
+[ "$(echo "$out" | json 'd["errors"]')" = "[]" ] || fail "pj run errors: $out"
+exists "$R/$OLD_IN" && fail "pj old incoming report kept"
+exists "$R/$OLDEST-pj-1" && fail "pj incoming report renamed on a collision kept"
+[ "$(echo "$out" | json 'd["worktree"]["moved"]')" = "['$R/$OLD_IN', '$R/$OLDEST-pj-1', '$R/$NEW_IN']" ] || fail "pj run moved: $out"
+exists "$R/$NEW_IN" || fail "pj new incoming report deleted"
 exists "$R/notes" || fail "pj unstamped directory deleted"
 exists "$R/.DS_Store" || fail "pj file deleted"
-exists "$R/2026-01-05-0000-link" || fail "pj symlink deleted"
-exists "$R/2020-01-01-0000-eeeeeee" || fail "pj moved report deleted"
-python3 - "$R/2020-01-01-0000-eeeeeee" <<'PY' || fail "pj moved report mtime is not now"
-import os, sys, time
-sys.exit(0 if time.time() - os.lstat(sys.argv[1]).st_mtime < 3600 else 1)
-PY
-[ "$(echo "$out" | json 'd["oldReports"]["deleted"]')" = "['2026-01-01-0000-aaaaaaa', '2026-01-02-0000-bbbbbbb', '2026-01-03-0000-discarded', '2026-01-04-0000-ccccccc-wf-test']" ] \
-  || fail "pj run deleted: $out"
-[ "$(echo "$out" | json 'd["errors"]')" = "[]" ] || fail "pj run errors: $out"
-echo "ok: cleanup.sh run deletes the old reports and keeps a report it moved in"
+exists "$R/2000-01-01-0000-link" || fail "pj symlink deleted"
+echo "ok: pj-cleanup check lists what run deletes"
 
 setup_pj
 echo dirty > "$WT/untracked.txt"
 out="$("$CLEANUP" run 1)"
 [ "$(echo "$out" | json 'd["status"]')" = stop ] || fail "pj refused status: $out"
 [ "$(echo "$out" | json 'd["reason"]')" = discard ] || fail "pj refused reason: $out"
-[ "$(ls "$R" | wc -l | tr -d ' ')" = 7 ] || fail "pj refused run deleted something"
-exists "$R/2026-01-01-0000-aaaaaaa" || fail "pj refused run deleted an old report"
+[ "$(count)" = 105 ] || fail "pj refused run deleted something"
 echo "ok: cleanup.sh run refused for discard deletes nothing"

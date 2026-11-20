@@ -1,4 +1,4 @@
-import json, os, re, shutil, subprocess, sys
+import json, os, re, subprocess, sys
 
 PROJECT_SH, WORKTREE_SH, PANEL_SH, SUB = sys.argv[1:5]
 P = int(sys.argv[5]) if len(sys.argv) > 5 else None
@@ -110,6 +110,9 @@ def read_submodules(main, wt):
     except ValueError:
         return None, message
 
+def incoming(tree):
+    return ("--from", tree["path"]) if tree["state"] in ("clean", "dirty") else ()
+
 def plan(p):
     main, trees = located()
     parent = read_project(p)
@@ -171,7 +174,7 @@ def plan(p):
         else:
             update = {"action": "diverged", "sha": current, "to": target, "worktree": holder}
 
-    result, message = read_old_reports(main)
+    result, message = read_old_reports(main, *incoming(tree))
     if result is None or result.get("status") != "ok":
         die("worktree.sh old-reports failed: " + message)
 
@@ -201,21 +204,6 @@ def check():
     _, out = plan(P)
     emit(status="ok", **out)
 
-def move_reports(main, wt):
-    moved = []
-    dest_root = os.path.join(main, "work-reports")
-    for name in reports(wt):
-        os.makedirs(dest_root, exist_ok=True)
-        dest = os.path.join(dest_root, name)
-        if os.path.lexists(dest):
-            dest = os.path.join(dest_root, "%s-pj%d" % (name, P))
-        if os.path.lexists(dest):
-            die("cannot move %s: %s exists" % (name, dest))
-        shutil.move(os.path.join(wt, "work-reports", name), dest)
-        os.utime(dest)
-        moved.append(dest)
-    return moved
-
 def cleanup():
     main, out = plan(P)
     tree, errors = out["worktree"], []
@@ -235,8 +223,14 @@ def cleanup():
     if r.returncode != 0:
         errors.append({"step": "seats", "message": r.stderr.strip() or r.stdout.strip()})
 
+    result, message = read_old_reports(main, *incoming(tree), "--delete")
+    if result is None or result.get("status") != "done":
+        die("worktree.sh old-reports failed: " + message)
+    out["oldReports"] = result["oldReports"]
+    errors.extend(result["errors"])
+
     if tree["state"] in ("clean", "dirty"):
-        tree["moved"] = move_reports(main, tree["path"])
+        tree["moved"] = result["moved"]
         force = ["--force"] if tree["state"] == "dirty" or tree["hasSubmodules"] else []
         git(main, "worktree", "remove", *force, tree["path"])
         tree["action"] = "removed"
@@ -272,14 +266,6 @@ def cleanup():
         else:
             update["action"] = "not-updated"
             errors.append({"step": "update", "message": (r.stderr or r.stdout).strip()})
-
-    result, message = read_old_reports(main, "--delete")
-    if result is not None and result.get("status") == "done":
-        out["oldReports"] = result["oldReports"]
-        errors.extend(result["errors"])
-    else:
-        out["oldReports"]["deleted"] = []
-        errors.append({"step": "old-reports", "message": message})
 
     emit(status="done", errors=errors, **out)
 

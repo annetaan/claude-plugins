@@ -98,23 +98,43 @@ def reports(wt):
         return []
     return sorted(e for e in os.listdir(root) if os.path.isdir(os.path.join(root, e)))
 
-REPORT_DAYS = 14
+REPORTS_KEPT = 100
+STAMP = re.compile(r"\d{4}-\d{2}-\d{2}-\d{4}(-|$)")
 
-def old_reports(main):
-    root = os.path.join(main, "work-reports")
+def stamped(root):
     if not os.path.isdir(root):
         return []
-    limit = time.time() - REPORT_DAYS * 86400
+    return [e for e in os.listdir(root) if STAMP.match(e)
+            and os.path.isdir(os.path.join(root, e)) and not os.path.islink(os.path.join(root, e))]
+
+def old_reports(main, incoming=()):
+    ranked = sorted(stamped(os.path.join(main, "work-reports")) + list(incoming), reverse=True)
+    return sorted(ranked[REPORTS_KEPT:])
+
+def landings(main, wt):
+    root = os.path.join(main, "work-reports")
+    taken = set(os.listdir(root)) if os.path.isdir(root) else set()
     found = []
-    for e in os.listdir(root):
-        path = os.path.join(root, e)
-        if not re.match(r"\d{4}-\d{2}-\d{2}-\d{4}(-|$)", e):
-            continue
-        if os.path.islink(path) or not os.path.isdir(path):
-            continue
-        if os.lstat(path).st_mtime <= limit:
-            found.append(e)
-    return sorted(found)
+    for report in reports(wt):
+        dest = report if report not in taken else "%s-%s" % (report, os.path.basename(wt))
+        taken.add(dest)
+        found.append((report, dest))
+    return found
+
+def incoming(main, wt):
+    sources = stamped(os.path.join(wt, "work-reports"))
+    return [dest for report, dest in landings(main, wt) if report in sources]
+
+def move_reports(main, wt):
+    moved = []
+    for report, dest in landings(main, wt):
+        path = os.path.join(main, "work-reports", dest)
+        if os.path.lexists(path):
+            die("cannot move %s: %s exists" % (report, path))
+        os.makedirs(os.path.dirname(path), exist_ok=True)
+        shutil.move(os.path.join(wt, "work-reports", report), path)
+        moved.append(path)
+    return moved
 
 def delete_reports(main, names, errors):
     deleted = []
@@ -343,27 +363,12 @@ def plan(name):
 
     return main, {"main": main, "name": name, "state": state, "pr": pr, "base": base, "worktree": tree,
                   "branch": br, "loses": loses, "update": update,
-                  "oldReports": {"path": os.path.join(main, "work-reports"), "days": REPORT_DAYS,
-                                 "names": old_reports(main)}}
+                  "oldReports": {"path": os.path.join(main, "work-reports"), "keep": REPORTS_KEPT,
+                                 "names": old_reports(main, incoming(main, wt))}}
 
 def check():
     _, out = plan(ARGS[0])
     emit(status="ok", **out)
-
-def move_reports(main, wt, name):
-    moved = []
-    dest_root = os.path.join(main, "work-reports")
-    for report in reports(wt):
-        os.makedirs(dest_root, exist_ok=True)
-        dest = os.path.join(dest_root, report)
-        if os.path.lexists(dest):
-            dest = os.path.join(dest_root, "%s-%s" % (report, name))
-        if os.path.lexists(dest):
-            die("cannot move %s: %s exists" % (report, dest))
-        shutil.move(os.path.join(wt, "work-reports", report), dest)
-        os.utime(dest)
-        moved.append(dest)
-    return moved
 
 def cleanup():
     name = ARGS[0]
@@ -387,7 +392,7 @@ def cleanup():
         git(main, "worktree", "prune")
         tree["action"] = "pruned"
     else:
-        tree["moved"] = move_reports(main, tree["path"], name)
+        tree["moved"] = move_reports(main, tree["path"])
         force = ["--force"] if (discard and tree["state"] == "dirty") or tree["hasSubmodules"] else []
         git(main, "worktree", "remove", *force, tree["path"])
         tree["action"] = "removed"
@@ -421,6 +426,7 @@ def cleanup():
             update["action"] = "not-updated"
             errors.append({"step": "update", "message": (r.stderr or r.stdout).strip()})
 
+    out["oldReports"]["names"] = old_reports(main)
     out["oldReports"]["deleted"] = delete_reports(main, out["oldReports"]["names"], errors)
     emit(status="done", errors=errors, **out)
 
@@ -433,12 +439,16 @@ def submodules_cmd():
 
 def old_reports_cmd():
     main = located()
-    info = {"path": os.path.join(main, "work-reports"), "days": REPORT_DAYS, "names": old_reports(main)}
+    source = ARGS[1] if ARGS[:1] == ["--from"] else None
+    info = {"path": os.path.join(main, "work-reports"), "keep": REPORTS_KEPT,
+            "names": old_reports(main, incoming(main, source) if source else [])}
     if "--delete" not in ARGS:
         emit(status="ok", main=main, oldReports=info)
+    moved = move_reports(main, source) if source else []
+    info["names"] = old_reports(main)
     errors = []
     info["deleted"] = delete_reports(main, info["names"], errors)
-    emit(status="done", main=main, oldReports=info, errors=errors)
+    emit(status="done", main=main, moved=moved, oldReports=info, errors=errors)
 
 def sync():
     main = located()

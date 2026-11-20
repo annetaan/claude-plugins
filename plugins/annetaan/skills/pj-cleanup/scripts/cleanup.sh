@@ -9,7 +9,8 @@ usage: cleanup.sh list                  the projects that have a worktree in thi
        cleanup.sh check <P>             what run would do for project <P>, which must be merged
        cleanup.sh run <P> [--discard]   move the work reports out, remove the worktree, delete the base branch,
                                         fast-forward <from>. --discard removes a worktree that holds work nothing else holds.
-                                        It also deletes the old reports
+                                        It also deletes the work reports in <MAIN>/work-reports/ beyond the 100 newest
+                                        by their stamp, the ones it moved in counted
 Every subcommand prints one JSON object with "status" and exits 0. "stop" carries "reason" and "message".
 Exit 1 means a usage error or an unexpected failure.
 USAGE

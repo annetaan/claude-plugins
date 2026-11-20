@@ -89,7 +89,7 @@ and (ii) that source is not in the files now (for example no session in `session
 replace a line from before. A line now about the same act replaces the old line. Never carry a `none` line over:
 when this part has any line now, drop the previous `none`; when it has none now, follow the rules above for
 `none` and unknown, and write no `none` for a part that keeps a carried-over line. In the footer, count the sources you
-carried over as "<k> from the previous record". The reason: work reports are removed after 14 days, and conversation
+carried over as "<k> from the previous record". The reason: only the 100 newest work reports are kept, and conversation
 logs expire too.
 
 ## What the comment must never hold

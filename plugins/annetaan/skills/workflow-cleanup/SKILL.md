@@ -1,6 +1,6 @@
 ---
 name: workflow-cleanup
-description: Cleans up a workflow run or a pj-roadmap run once its pull request is merged or closed, or after a run that stopped. Moves the work reports out of the run's wf-* worktree into the main working tree, removes the worktree, deletes the run's branch locally and on origin, fast-forwards the local base branch when the pull request merged, and deletes the work reports that have been in the main working tree 14 days or more. Asks one approval question. Use it only when the user names this skill or invokes /annetaan:workflow-cleanup, because it deletes branches and removes a worktree.
+description: Cleans up a workflow run or a pj-roadmap run once its pull request is merged or closed, or after a run that stopped. Moves the work reports out of the run's wf-* worktree into the main working tree, removes the worktree, deletes the run's branch locally and on origin, fast-forwards the local base branch when the pull request merged, and deletes the work reports in the main working tree beyond the 100 newest, by the time stamp in their name. Asks one approval question. Use it only when the user names this skill or invokes /annetaan:workflow-cleanup, because it deletes branches and removes a worktree.
 ---
 
 # workflow-cleanup
@@ -114,8 +114,8 @@ Show what the cleanup does, one line per item, from the `check` output.
   - `diverged`: it holds commits origin does not have, and it is left alone
   - `absent`: there is no local `<base>`, and nothing is created
   - `none`: the pull request did not merge, so `<base>` is not touched
-- when `oldReports.names` is not empty: the reports in it are deleted from `<MAIN>/work-reports/`, because they have
-  been there 14 days or more. List the names
+- when `oldReports.names` is not empty: the reports in it are deleted from `<MAIN>/work-reports/`, because they are
+  beyond the 100 newest, by the time stamp in their name, counting the reports this cleanup moves in. List the names
 
 ```
 AskUserQuestion: Clean up <name>?
@@ -169,7 +169,7 @@ It acts as `check` said, from a fresh read. Act by `status`.
 - **Never remove uncommitted work, commits that nothing else holds, or what a submodule holds on its own, unless
   the user picked `Discard the work and clean up`.**
 - **Never switch a branch, stash, commit, reset or clean in `<MAIN>`.** `<base>` only ever fast-forwards.
-- In `<MAIN>/work-reports/`, only real directories whose names start with a timestamp and that have been there 14
-  days or more are deleted.
+- In `<MAIN>/work-reports/`, only real directories whose names start with a time stamp, and only those beyond the 100
+  newest by that stamp, are deleted.
 - Write nothing to GitHub yourself. `worktree.sh cleanup` deletes the run's branch on origin, and that is the only
   write.

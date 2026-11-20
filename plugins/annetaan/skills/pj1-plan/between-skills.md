@@ -34,7 +34,7 @@ fresh `claude -p` process per step, and lets `project.sh --next` (`state.md`, **
 
 `pj-cleanup` is not one of the four either. It runs once the user has merged a project's pull request: it closes the parent,
 removes the project's worktree after moving its work reports into the main working tree, deletes the base branch on
-origin and locally, fast-forwards the local `<from>`, and deletes the work reports that have been in the main working tree 14 days or more.
+origin and locally, fast-forwards the local `<from>`, and deletes the work reports in the main working tree beyond the 100 newest, by the time stamp in their name.
 
 `pj-roadmap` is not one of the four either. It brings the repository's roadmap file into the format (`format.md`,
 **The roadmap file**) on a branch of its own and opens a pull request that the user merges. `workflow-cleanup` tidies up

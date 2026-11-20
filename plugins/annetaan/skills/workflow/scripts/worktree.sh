@@ -12,8 +12,10 @@ usage: worktree.sh start                          check the clone, gh and the re
        worktree.sh pr [<number>]                  the open pull request <number>, or the open pull requests of the user that conflict
        worktree.sh list                           the wf-* worktrees of this clone with the state of their pull request
        worktree.sh check <name>                   what cleanup would do for the worktree <name>
-       worktree.sh old-reports [--delete]         the work reports in <MAIN>/work-reports/ that arrived 14 days ago or more; --delete removes them.
-                                                  Used by pj-cleanup
+       worktree.sh old-reports [--from <path>] [--delete]
+                                                  the work reports in <MAIN>/work-reports/ beyond the 100 newest by their stamp.
+                                                  --from counts in the reports of <path>/work-reports/ under the names they move in as;
+                                                  --delete moves those in first, then removes the old ones. Used by pj-cleanup
        worktree.sh submodules <path>              whether the worktree at <path> has submodules, and which of them hold work of their own.
                                                   Used by pj-cleanup
        worktree.sh cleanup <name> [--discard]     move the work reports out, remove the worktree, delete the branch, fast-forward the base.
@@ -33,7 +35,8 @@ case "$1" in
   ignore)     [ $# -eq 2 ] || { [ $# -eq 3 ] && [ "$3" = "--add" ]; } || usage ;;
   sync)       [ $# -eq 3 ] || usage ;;
   pr)         [ $# -le 2 ] || usage ;;
-  old-reports) [ $# -eq 1 ] || { [ $# -eq 2 ] && [ "$2" = "--delete" ]; } || usage ;;
+  old-reports) [ $# -eq 1 ] || { [ $# -eq 2 ] && [ "$2" = "--delete" ]; } || { [ $# -eq 3 ] && [ "$2" = "--from" ]; } \
+                || { [ $# -eq 4 ] && [ "$2" = "--from" ] && [ "$4" = "--delete" ]; } || usage ;;
   cleanup)    [ $# -eq 2 ] || { [ $# -eq 3 ] && [ "$3" = "--discard" ]; } || usage ;;
   *)          usage ;;
 esac

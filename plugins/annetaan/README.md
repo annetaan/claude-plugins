@@ -214,7 +214,7 @@ such as "コンフリクト解消して", with no skill named ([Conflicts](skill
 
 Every run leaves a work report behind, inside the repository under `work-reports/` so that you see them. The skill checks that git ignores `.claude/worktrees/` and `work-reports/` before it writes anything, and asks
 before adding them to `.git/info/exclude`. That file stays in your clone, so nothing is committed and `.gitignore` is
-never edited. `/annetaan:workflow-cleanup` moves the report into your clone's `work-reports/` once the run is over, and deletes the reports that have sat there for 14 days or more. It removes the two review seat worktrees beside the run's worktree as well.
+never edited. `/annetaan:workflow-cleanup` moves the report into your clone's `work-reports/` once the run is over, and deletes the reports there beyond the 100 newest, by the time stamp in their name. It removes the two review seat worktrees beside the run's worktree as well.
 
 ### pj1-plan, pj2-issues, pj3-doctor, pj4-running
 
@@ -402,7 +402,7 @@ What it needs:
 Without a number, it takes the project this conversation is on when that one is merged and has its worktree in your clone, otherwise the only merged project with a worktree there, and asks when there are several. It
 shows what it will do and asks once. Then it closes the parent when it is still open, moves the work reports out of
 the project's worktree into `work-reports/` in your clone, removes the worktree and the review seats beside it, deletes the project's branch on
-origin and locally, fast-forwards your local copy of the branch the project merged into, usually `main`, and deletes the work reports in `work-reports/` that have been there for 14 days or more.
+origin and locally, fast-forwards your local copy of the branch the project merged into, usually `main`, and deletes the work reports in `work-reports/` beyond the 100 newest, by the time stamp in their name.
 
 It never switches your branch, stashes or resets. When the branch is checked out in your clone, it moves with
 `git merge --ff-only`, which refuses rather than overwrite a local change. A local branch with commits origin does not
@@ -437,8 +437,8 @@ pull request that is already open.
 number, it lists the `wf-*` worktrees whose pull request is merged or closed, and those that have none, which is a run that
 stopped or one still going in another session. It takes the only candidate, or asks which. It shows what it will do and asks once. Then it moves the work
 reports into `work-reports/` in your clone, removes the worktree and the review seats beside it, deletes the branch locally and on origin,
-fast-forwards your local base after a merge, and deletes the work reports in `work-reports/` that have been there for
-14 days or more.
+fast-forwards your local base after a merge, and deletes the work reports in `work-reports/` beyond the 100 newest, by
+the time stamp in their name.
 
 It never switches your branch, stashes or resets. Work that nothing else holds is removed only when you choose to
 discard it. That means uncommitted changes, what a submodule in the worktree holds on its own (its uncommitted changes and the commits no remote of the submodule has), commits that are on no other branch on origin, and the branch of a closed
