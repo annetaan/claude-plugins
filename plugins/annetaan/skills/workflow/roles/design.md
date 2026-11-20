@@ -102,8 +102,10 @@ Do not argue back at the reviewer. There is no second round.
 ## Detailing a task
 
 Once the flow is running, the main session comes back before every task from task 2 onward and asks you to detail
-that one. It names the commit that closed the task before it. **Read the code as it stands now. What the earlier
-tasks actually produced outranks what you predicted when you wrote the design.**
+that one. It asks while the task before it is being committed: that task's approved change sits in the working tree,
+uncommitted, and the commit takes it unchanged. **Read the code as it stands in the working tree, untracked files
+included. Run no git command that takes the index lock, `git status` among them, while the commit runs. What the
+earlier tasks actually produced outranks what you predicted when you wrote the design.**
 
 Send back, for that one task:
 

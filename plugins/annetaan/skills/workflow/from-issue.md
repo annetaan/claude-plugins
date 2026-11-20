@@ -98,7 +98,8 @@ gh issue view <Q> --json body   # each Q
 
 ## Phases 3 and 4
 
-They run as written in SKILL.md, phase 4 (a) included: from task 2 onward the design session details each task. Each
+They run as written in SKILL.md, phase 4 (a) and (d) included: from task 2 onward the design session details each task
+while the task before it is committed. Each
 task gets a new implementation session and two new review seats, five rounds, one commit. **When the plan breaks** and a
 `Diverged:` report go to the design session with `SendMessage`. A new `Body:` from it goes through **A redrawn issue**
 again, and `Stop: ask` is the stop `decision`. Existing decisions stay byte for byte in every redraw. The prompts gain

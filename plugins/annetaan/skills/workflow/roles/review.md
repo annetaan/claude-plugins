@@ -69,7 +69,16 @@ The format and the file names are in `$FLOW/review-files.md`. Read it once. The 
 
 ## Later rounds
 
-Each later round arrives as a `SendMessage`. Read the reply file and the new evidence file the message names, then attack the new tree. Your probes of the earlier rounds are still there, and so are the dependencies you installed. **Do not raise again** a finding the earlier round files list: the main session runs those commands itself and marks them. A finding answered `fixed` that is not fixed is marked `stands` by that rerun, not by you.
+Each later round arrives as a `SendMessage`. Read the reply file and the new evidence file the message names. Your probes of the earlier rounds are still there, and so are the dependencies you installed. **Do not raise again** a finding the earlier round files list: the main session runs those commands itself and marks them. A finding answered `fixed` that is not fixed is marked `stands` by that rerun, not by you.
+
+**A later round attacks what changed since your last round, not the whole change again.** Round 1 already attacked the rest, and nothing else moved.
+
+1. Take the `snapshot` that your last `panel.sh run` of the previous round printed. That is the tree you reviewed.
+2. Run one probe, an earlier one or a new one, and take the `snapshot` it prints. That is the tree now.
+3. Read `git diff <old snapshot> <new snapshot>` in `<WT>`. Both are commits, so the diff holds the untracked files too. A plain `git diff <old snapshot>` against the working tree does not, so do not use it.
+4. Attack that delta as **What you are looking at** says for a change: the callers and the callees of every symbol it touches, the readers of any state it writes, and every acceptance criterion and flow it touches, each run again as a probe.
+
+When you ran no probe in the previous round, attack the whole change as in round 1.
 
 ## Report length
 
