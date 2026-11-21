@@ -298,7 +298,8 @@ code on the project's branch, which the issues before it have changed. It may re
 the issues left, and when it finds a decision only you can make, the run adds it to the issue and stops, so you tick
 it. When a redrawn body fails a check on its form alone, the run fixes it on the spot and goes on. Then the issue runs as one or more commits, each reviewed, with an integration review when there is more than one.
 A draft pull request follows, with the work report as its body. Then the merge into the project's branch, by squash where the
-repository allows it. pj4-running then closes the issue itself, because GitHub closes nothing on a merge into a
+repository allows it, once every check on the pull request passes, required or not. A failing check stops the run and
+leaves the draft open, for the next run to merge once the checks pass. pj4-running then closes the issue itself, because GitHub closes nothing on a merge into a
 branch other than the default. Once every sub-issue is closed, it opens the pull request from the project's branch
 into the branch it came from, for you to merge. Work nobody planned becomes a new issue. Work that has to
 come first stops the run and gets the `blocker` label. The next run picks up where this one stopped. When it finds
@@ -657,8 +658,12 @@ loaded at run time.
 
 ## Adding a skill
 
-Create `skills/<name>/SKILL.md`. Everything under `skills/` is picked up on its own. Raise `version` in
-`plugin.json` and users get it on their next update. Without a new `version`, they keep the cached copy.
+Create `skills/<name>/SKILL.md`. Everything under `skills/` is picked up on its own.
+
+Users get a change only through a new `version` in `plugin.json`, and without one they keep the cached copy, so every
+change under `plugins/annetaan/` needs one. `bash tests/plugin-version.sh` fails until the version is above the default
+branch's, and `bash tests/plugin-version.sh --bump`, run from the repository root, writes it. Nobody edits the version
+by hand.
 
 The slash form is `/annetaan:<directory name>`. The plugin name is prefixed for you, so a directory never needs an
 `annetaan-` in front of it.

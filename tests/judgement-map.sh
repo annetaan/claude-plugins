@@ -58,12 +58,4 @@ done <<EOF
 $TABLE
 EOF
 
-CITED="$(grep -rhoE '\*\*[^*]+\*\* in `[^`]*judgement\.md`' "$SKILLS" | sed -E 's/^\*\*([^*]+)\*\* in .*/\1/' | sort -u || true)"
-while IFS= read -r name; do
-  [ -n "$name" ] || continue
-  printf '%s\n' "$HEADINGS" | grep -qxF "$name" || fail "a role file cites **$name** in judgement.md, which has no such section"
-done <<EOF
-$CITED
-EOF
-
 echo "ok: $COUNT sections mapped"

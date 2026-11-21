@@ -22,11 +22,11 @@ describes them.
 
 1. Read the path given as the argument. When the file exists, read it whole. It is the material to rewrite, and
    everything it says that still serves the purpose has to survive the rewrite. Read any file the request points
-   to as well, and read `styles.md`.
+   to as well, and read `doc-meta/styles.md`.
 2. Settle three things before writing a sentence, and put all three at the top of the report:
    - **Purpose**: what the document has to get done, in one line.
    - **Reader**: who reads it, and what they already know.
-   - **Style**: one of the four in `styles.md`, chosen by how this reader will read the document.
+   - **Style**: one of the four in `doc-meta/styles.md`, chosen by how this reader will read the document.
 
    Take them from the request and from an existing document. Ask the user with `AskUserQuestion` when the reader or
    the style cannot be inferred, because every rule is judged against these two. A rewrite may change the style
@@ -34,12 +34,12 @@ describes them.
 3. Choose the language. An existing document keeps its own language. A new one is written in the language the user
    names, and otherwise in the language of the other documents in the same repository. When this session lists a
    skill about writing style or voice that covers that language, load it before writing.
-4. Write the document by the rules for every style in `styles.md` and the rules of the chosen style.
+4. Write the document by the rules for every style in `doc-meta/styles.md` and the rules of the chosen style.
 5. Read the whole draft once more, top to bottom, against those rules. Fix what you find. Reading sentence by
    sentence is not enough here. Repetition, order and broken promises only show across the whole document.
 6. Write the file.
 7. Report: the purpose, the reader and the style from step 2, every term the document explains where it first
-   appears (see "Plain words" in `styles.md`) with why no common word would do, and, for a rewrite, every fact,
+   appears (see "Plain words" in `doc-meta/styles.md`) with why no common word would do, and, for a rewrite, every fact,
    instruction or warning you dropped. Say that `/annetaan:doc-meta <path>` is the next step if the user wants to
    flag individual sentences.
 

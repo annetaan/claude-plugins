@@ -6,7 +6,7 @@ description: Brings the repository's roadmap file under the pj skills. Checks it
 # pj-roadmap
 
 `pj-roadmap` is not one of the four pj skills. It runs on a repository whose roadmap file is not in the format the pj
-skills read (`format.md`, **The roadmap file**). It rewrites that one file so that each initiative is one `## ` section,
+skills read (`pj1-plan/format.md`, **The roadmap file**). It rewrites that one file so that each initiative is one `## ` section,
 on a branch of its own, and opens a pull request that the user merges. After the merge, `/annetaan:pj1-plan` can take an
 entry by its heading.
 
@@ -76,7 +76,7 @@ A failed fetch means origin has no `<base>`: say so and stop. Otherwise act on t
   ```
 
   The first answer ends the skill as `ok` does. The second goes on to step 3 with `path` and no `reasons`.
-- A reason `no-file`: say that there is no roadmap file, that it goes at one of the six paths of `format.md`, **The
+- A reason `no-file`: say that there is no roadmap file, that it goes at one of the six paths of `pj1-plan/format.md`, **The
   roadmap file**, and what the format asks. Stop.
 - A reason `several-files`: name `files`, say that exactly one may stay, and stop. Which one to keep is the user's
   decision.

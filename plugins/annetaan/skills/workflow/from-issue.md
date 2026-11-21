@@ -15,7 +15,7 @@ These values are already in your context. Nothing arrives as an argument.
 - the issue number `n`, the parent `P`, and the issue title
 - the projects `P` waits on, `Q1, Q2, …` (`parent.waitsOn` in `project.sh`), or none
 - the base branch (the parent's `Base:` line), and the branch pj4-running just made from the tip of the base branch
-- the handover notes, from the parent's handover comment (`between-skills.md`, **The handover comment**)
+- the handover notes, from the parent's handover comment (`pj1-plan/between-skills.md`, **The handover comment**)
 - the run's worktree `<WT>`, and `<MAIN>`, the main working tree. The session is in `<WT>`, and the branch is
   checked out there
 - `attach` from pj4-running's `run.sh start`, which has run its checks: whether `--attach` works
@@ -67,7 +67,7 @@ Agent(subagent_type: "annetaan:workflow-design", description: "detail issue #<n>
 
 `annetaan:workflow-design` has its model and effort pinned in `agents/*.md`. **When it cannot start** (a weekly limit, a rate limit,
 the model is unavailable), spawn it again with the same prompt and `model: "opus"`. Collapse
-the `..` in the two paths into `<skills>/pj1-plan/...`, as SKILL.md says for `$RUNNING`.
+the `..` in the two paths into `<skills>/pj1-plan/...`, as `pj4-running/SKILL.md` says for `$RUNNING`.
 
 By what comes back:
 
@@ -92,7 +92,7 @@ gh issue view <Q> --json body   # each Q
 
 - **The approved design**, for every prompt in phases 3 to 5: the issue as it now reads on GitHub, with `## Decisions`
   cut down to the checked option, the lines under its box and the `Decided:` line of each, plus the parent's
-  `## Design` and the `## Design` of each `Q`, which holds the boundaries those projects define (`format.md`, **The
+  `## Design` and the `## Design` of each `Q`, which holds the boundaries those projects define (`pj1-plan/format.md`, **The
   parent issue body**).
 - **The plan and the detail of task 1**: the design session's.
 - **The commit**: in phase 4 (d), ask for a subject that follows the repository's style and names the task. A plan of
@@ -120,7 +120,7 @@ Keep the handover lines from phase 4 (d) for pj4-running.
 
 - **`Unplanned:` with `later`**: hand it to pj4-running's **Unplanned work** as soon as it arrives. The task goes on.
 - **`Unplanned:` with `blocking`**: take the stop procedure, then hand the report to pj4-running's **When workflow
-  returns** in `issues.md`.
+  returns** in `pj4-running/issues.md`.
 - **`Diverged:`**: send it to the design session with `SendMessage`, and tell the implementation session to wait. The
   answer is a redraw of the plan, a new `Body:` for **A redrawn issue**, or `Stop: ask`. After a redraw, the
   implementation session goes on or a new one starts, as the plan breaking in SKILL.md says.
@@ -140,7 +140,7 @@ Keep the handover lines from phase 4 (d) for pj4-running.
    > List the adaptations the implementation session made to the issue's design under what changed, and what the detail
    > pass redrew in the issue.
 
-   The head is the one in `between-skills.md` **Pull requests**.
+   The head is the one in `pj1-plan/between-skills.md` **Pull requests**.
 2. **`changes.diff` and the `Level:` line** as written in `finish.md`. The `level` and `source` come from the
    `level.sh show` JSON pj4-running settled.
 3. **Push, then open the pull request.**

@@ -34,8 +34,8 @@ Collapse the `..` in a path to a sibling skill, so that the command text names `
 `pj-auto` shows name the collapsed path. This holds in the prompts for sub-agents too.
 
 **Read `$RUNNING/../pj1-plan/between-skills.md` and `$RUNNING/../pj1-plan/state.md` before anything else.**
-`between-skills.md` holds the labels, the base branch, the handover comment, the blockers, the comments, the pull
-requests and the format-only fixes. Its table of the four skills says where this one sits. `state.md` is how `project.sh` reads a project and
+`pj1-plan/between-skills.md` holds the labels, the base branch, the handover comment, the blockers, the comments, the pull
+requests and the format-only fixes. Its table of the four skills says where this one sits. `pj1-plan/state.md` is how `project.sh` reads a project and
 when an issue is ready and workable. Everything below refers to them. `$RUNNING/../pj1-plan/format.md` describes the
 issues and their bodies, and is read only at the sections this file names: **The run order**, **Stubs**, **Fixed
 tokens** and **Writing bodies**.
@@ -53,7 +53,7 @@ This skill uses four more things:
 Parts of this skill live in files next to this one, named by their bare name from here on: `$RUNNING/issues.md` (phases 1 to 4) and `$RUNNING/project-pr.md` (**The project's pull request**). Phase 5 is in this file.
 
 **Language**: talk to the user in the user's language. Write issue, comment and pull request text in the repository's
-language (`format.md`, **Writing bodies**). The tokens in (`format.md`, **Fixed tokens**) stay in English.
+language (`pj1-plan/format.md`, **Writing bodies**). The tokens in (`pj1-plan/format.md`, **Fixed tokens**) stay in English.
 
 ## Before you start
 
@@ -64,7 +64,7 @@ a run like any other: every sub-issue is closed, so `start` returns `done`, and 
 review, pushes the merge to `<base>`, and finds the pull request `exists`. The request to resolve it is the
 invocation, and the run asks nothing.
 
-**The project.** Pick it as `between-skills.md` says under **Picking the project**. The project picked is `<P>`. In an unattended run, only rule 1 of **Picking the project** applies (`between-skills.md`, **Unattended runs**). Print
+**The project.** Pick it as `pj1-plan/between-skills.md` says under **Picking the project**. The project picked is `<P>`. In an unattended run, only rule 1 of **Picking the project** applies (`pj1-plan/between-skills.md`, **Unattended runs**). Print
 `project #<P>` once, with ` unattended` after it in an unattended run, as **Picking the project** says. A number given picks the project, a sub-issue's number its parent, and the run still covers
 the whole order of the project picked.
 
@@ -81,7 +81,7 @@ $RUNNING/scripts/run.sh start <P>
 
 `start` checks the clone, `gh` and the repository, and reads the project with `project.sh`. It creates the base
 branch from the tip of `<from>` when the base branch is missing and every project `<P>` waits on is merged, as
-`between-skills.md` says under **The base branch**. Then it fetches the base branch and reads the rules on it.
+`pj1-plan/between-skills.md` says under **The base branch**. Then it fetches the base branch and reads the rules on it.
 
 **First close each parent in `close`**, as **Closing a merged project** says, whatever the status. Then act by
 `status`.
@@ -125,10 +125,8 @@ AskUserQuestion: Can a pull request be merged here with no approving review?
 
 On Stop, stop the run. An unattended run does not ask: it treats this as Stop and ends as needs-user.
 
-`rules.requiredChecks` says whether the base branch requires status checks: `yes`, `no` or `unknown`. The merge in
-**When workflow returns** in `issues.md` waits by it. With `unknown` the merge waits for a required check as with `yes`, and merges
-when none registers, because GitHub still refuses a merge that a required check blocks. `rules.mergeMethod` is the
-merge method, the first of squash, merge and rebase that the repository and the rules on the base branch allow.
+`rules.mergeMethod` is the merge method, the first of squash, merge and rebase that the repository and the rules on
+the base branch allow.
 
 A dirty `<MAIN>` does not stop the run. The run never works in it.
 
@@ -246,7 +244,7 @@ uncommitted work, so the report names that work with `git -C <WT> diff` in place
 ### The level
 
 The repository's level picks the model and the effort of workflow's implementation session and its two review seats.
-Run `level.sh` once, in `<WT>`, as **The level** in the workflow skill's `SKILL.md` says, with `<n>` from `level=<n>`
+Run `level.sh` once, in `<WT>`, as **The level** in `workflow/SKILL.md` says, with `<n>` from `level=<n>`
 in the args, left out when the args carry none.
 
 ```bash
@@ -261,7 +259,7 @@ message, and leave `<WT>` as phase 5 step 2 says. An unattended run ends as need
 
 workflow hands over to this section by name. An `Unplanned:` report marked `later` arrives while the task goes on.
 
-1. Write `$TMP/stub-<j>.md` in the shape of `format.md` **Stubs**. Its `## Goal` holds what was found, why it matters,
+1. Write `$TMP/stub-<j>.md` in the shape of `pj1-plan/format.md` **Stubs**. Its `## Goal` holds what was found, why it matters,
    and "found while working on #<k>".
 2. File it with no label and no edges. pj3-doctor sets the edges and places it in the run order when it has it
    drawn.
@@ -275,7 +273,7 @@ workflow hands over to this section by name. An `Unplanned:` report marked `late
 ## Folding the handover lines
 
 Fold the handover lines into the notes. Merge duplicates, keep fifteen lines at most, and drop the oldest
-first. Rewrite the parent's handover comment as `between-skills.md` says under "The handover comment": read
+first. Rewrite the parent's handover comment as `pj1-plan/between-skills.md` says under "The handover comment": read
 its `updated_at` again first, and keep any change a human made since. Create it when there is none.
 
 ## Before workflow runs
@@ -288,8 +286,8 @@ Take this with an entry name, `<entry>`, which is `From an issue` or `From a syn
    Skill(skill: "annetaan:workflow", args: "<entry>, driven by pj4-running")
    ```
 
-   Follow that entry's file in the workflow skill, `from-issue.md` or `from-sync.md`. **Load it again, and read the entry file again, when a context summary has dropped it.**
-2. Read the handover comment with the command in `between-skills.md` under "The handover comment". Keep its lines
+   Follow that entry's file, `workflow/from-issue.md` or `workflow/from-sync.md`. **Load it again, and read the entry file again, when a context summary has dropped it.**
+2. Read the handover comment with the command in `pj1-plan/between-skills.md` under "The handover comment". Keep its lines
    as the handover notes. With no comment, the notes are empty. Every fold writes the notes back to the comment, so
    reading it again loses nothing and picks up a human's edit.
 
@@ -358,7 +356,7 @@ Every way the run ends comes here: the run order is done, the run stopped, or th
 
 ## Ending an unattended run
 
-An unattended run prints its last line as `between-skills.md` says under **Unattended runs**. These endings are
+An unattended run prints its last line as `pj1-plan/between-skills.md` says under **Unattended runs**. These endings are
 `unattended: done`:
 
 - `start` returned `empty`.

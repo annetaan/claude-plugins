@@ -118,8 +118,8 @@ A stop before every commit of the plan has passed review pushes nothing. pj4-run
 point, commits included, to `stopped.diff` in the run's work report and puts the worktree back on the start point. The
 next run redoes the issue. A stop once the last commit and its integration review are done can only come during the
 finish step, so the run finishes it: the report, the push and the draft pull request. A pull request exists only for
-commits that passed review. The shape of the issues is in [format.md](../pj1-plan/format.md), and the shape
-of the pull requests in [between-skills.md](../pj1-plan/between-skills.md).
+commits that passed review. The shape of the issues is in [pj1-plan/format.md](../pj1-plan/format.md), and the shape
+of the pull requests in [pj1-plan/between-skills.md](../pj1-plan/between-skills.md).
 
 Once every sub-issue of a project is closed, pj4-running merges the branch the project came from into the project's
 branch before it opens the project's pull request. When that merge stops on conflicts, pj4-running runs this skill

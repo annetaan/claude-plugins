@@ -35,7 +35,7 @@ This skill uses these files:
 This skill starts runs that edit issues, push, and merge pull requests into the project's base branch. **Start it only
 when the user names it or invokes `/annetaan:pj-auto`.**
 
-Run these as three calls, each one command (**Commands** in `between-skills.md`):
+Run these as three calls, each one command (**Commands** in `pj1-plan/between-skills.md`):
 
 ```bash
 git rev-parse --show-toplevel
@@ -51,7 +51,7 @@ command -v claude
 
 Any of these failing stops the skill. Say which one and stop.
 
-**The project.** Pick it as `between-skills.md` says under **Picking the project**, with the candidates of `pj3-doctor`
+**The project.** Pick it as `pj1-plan/between-skills.md` says under **Picking the project**, with the candidates of `pj3-doctor`
 and `pj4-running`. The project picked is `<P>`. Print `project #<P>` once, as that section says.
 
 **The level.** `<root>` is what `git rev-parse --show-toplevel` printed, and `<n>` comes from `level=<n>` in the args,
@@ -61,13 +61,13 @@ left out when the args carry none.
 $AUTO/../workflow/scripts/level.sh show <root> [<n>]
 ```
 
-Print `level <level> (<source>)` once, and `warning` on a line of its own when it is set, as **The level** in the
-workflow skill's `SKILL.md` says. A non-zero exit, such as `level=<n>` outside 1 to 3, stops the skill: quote its
+Print `level <level> (<source>)` once, and `warning` on a line of its own when it is set, as **The level** in
+`workflow/SKILL.md` says. A non-zero exit, such as `level=<n>` outside 1 to 3, stops the skill: quote its
 message.
 
 ## The next step
 
-Run `project.sh <P> --next` once and read it (`state.md`, **What comes next**).
+Run `project.sh <P> --next` once and read it (`pj1-plan/state.md`, **What comes next**).
 
 When `next` is `user` or `done`, ask nothing and start nothing. Write what the user does next, as **Report to the
 user** says for that reason, and end.
@@ -83,7 +83,7 @@ Runs only when a step would run. The runs cannot ask, so show the user what thei
    `CLAUDE.md`, `AGENTS.md` and `CONTRIBUTING.md`; the root manifest and lockfile that name the package manager
    (`package.json` scripts with `pnpm-lock.yaml`, `package-lock.json`, `yarn.lock` or `bun.lockb`; `Makefile`;
    `pyproject.toml`; `Cargo.toml`; `go.mod`); the CI workflows under `.github/workflows/`. Also the parent's handover
-   comment, read with the command in `between-skills.md`, **The handover comment**. Each command becomes
+   comment, read with the command in `pj1-plan/between-skills.md`, **The handover comment**. Each command becomes
    `Bash(<program>:*)`, such as `Bash(pnpm:*)` for `pnpm install`. Write a narrower `Bash(<program> <subcommand>:*)`
    only when the user's rules are already written that way.
 3. Judge each rule, the seven base rules and those of step 2, against the lists of every file:
@@ -135,7 +135,7 @@ Under the bullets, one sentence: missing or blocked rules do not stop the questi
 settings first and answers `Do not start`, or starts anyway and the drive stops at the first run that needs one.
 
 Then call `AskUserQuestion`: `Start the drive on #<P>?` with the options `Start the drive` and `Do not start`. On
-`Do not start`, stop. The approval covers the whole drive (`between-skills.md`, **Principle**).
+`Do not start`, stop. The approval covers the whole drive (`pj1-plan/between-skills.md`, **Principle**).
 
 ## The drive
 

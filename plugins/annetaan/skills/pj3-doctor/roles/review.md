@@ -8,13 +8,13 @@ whole project after the user has ticked boxes in it, and you say what no longer 
 Read the repository's own instructions before anything else. `CLAUDE.md`, `AGENTS.md` and `CONTRIBUTING.md` at the
 root. **The repository's conventions outrank this file.**
 
-Read the two files at the paths the prompt gives. `format.md` describes the parent, the sub-issue body, the decisions
-and the run order. `state.md` describes how `project.sh` reads the project and when an issue is ready.
+Read the two files at the paths the prompt gives. `pj1-plan/format.md` describes the parent, the sub-issue body, the decisions
+and the run order. `pj1-plan/state.md` describes how `project.sh` reads the project and when an issue is ready.
 
-The prompt also gives the path of `between-skills.md`, what the skills agree on between them. Look up only its
+The prompt also gives the path of `pj1-plan/between-skills.md`, what the skills agree on between them. Look up only its
 **Blockers**.
 
-Then read `judgement.md` at the path the prompt gives. Its opening table lists every section and what it asks of your role. Yours is the `Project review` column.
+Then read `workflow/judgement.md` at the path the prompt gives. Its opening table lists every section and what it asks of your role. Yours is the `Project review` column.
 
 ## What you get
 
@@ -50,8 +50,8 @@ the code. Then read the issues against each other.
    or its file list contradicts this one (`an open blocker deletes it`, `adds it too`). That is a kind 7 finding on
    that blocker, saying which side changes. An issue not in `excusers` that makes the name: a missing edge, kind 9.
    A `roadmap entry not found` premise failure means the entry left the roadmap by another hand. Report it as needing
-   the user: a human closes the task as not planned (`format.md`, **The roadmap task**). No redraw fixes it.
-6. **A stub**, and **an issue labelled `blocker`**, with which case of `between-skills.md` **Blockers** it is.
+   the user: a human closes the task as not planned (`pj1-plan/format.md`, **The roadmap task**). No redraw fixes it.
+6. **A stub**, and **an issue labelled `blocker`**, with which case of `pj1-plan/between-skills.md` **Blockers** it is.
 7. **A mismatch between issues.** A name, a type, a file or a behaviour that one issue adds and another uses
    differently. Say which side should change, and why.
    - The roadmap task does not fix a name that another issue of the project renames or removes and another roadmap
@@ -74,12 +74,12 @@ the code. Then read the issues against each other.
      `remove #P blocked by #Q`, and what `P` needed from it becomes a finding on the issues that use it, a change to
      their design or a stub in `P`. Report these only while `parent.baseExists` is false.
 10. **A question only a human can answer**, raised by a ticked option or by the code, that is no decision yet. It
-    passes **What a human is asked** in `judgement.md`, and the finding gives the `Only you know:` line. A question
+    passes **What a human is asked** in `workflow/judgement.md`, and the finding gives the `Only you know:` line. A question
     that does not pass is no finding, or kind 14 when it already stands as an open decision.
-11. **An issue that is two tasks**: a reviewer could judge each of two parts without the other (**Where to split** in `judgement.md`). Size alone is no finding, and neither is a long file list.
+11. **An issue that is two tasks**: a reviewer could judge each of two parts without the other (**Where to split** in `workflow/judgement.md`). Size alone is no finding, and neither is a long file list.
 12. **A parent assumption that no longer holds.**
     - **Triggers.** The parent's `## Design` keeps a branch whose assumption the project changes and names no one it
-      serves (**Assumptions** in `judgement.md`). Or two or more issues carry the same
+      serves (**Assumptions** in `workflow/judgement.md`). Or two or more issues carry the same
       workaround for one consequence of the parent's design.
     - **Report.** A finding in the parent's block that gives the sentence the parent's `## Design` will carry
       instead. Each issue that carries the workaround gets a kind 8 line that repeats that sentence and says to drop
@@ -95,7 +95,7 @@ the code. Then read the issues against each other.
     where the cause is.
 14. **An open decision a model can settle.** An open decision with no `Only you know:` line, or whose line names
     something the code or the history answers. Never a ticked one.
-15. **Transitional code, or a breakage nobody closes** (**No transitional code** in `judgement.md`). A body that keeps
+15. **Transitional code, or a breakage nobody closes** (**No transitional code** in `workflow/judgement.md`). A body that keeps
     an old path, an adapter or a shim for a later issue: say which issue leaves which check broken and which closes it.
     An entry of `breakage.unclosed`: name the issue that has to carry the check in its acceptance criteria. It never
     asks for two issues to be merged: the earlier one declares the check and the later one closes it.
