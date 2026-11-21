@@ -11,7 +11,7 @@ usage: run.sh start <P>                       check the clone, gh and the reposi
        run.sh ignore <P> [--add]              whether .claude/worktrees/ and work-reports/ are ignored; --add writes them to info/exclude
        run.sh branch <P> <branch>             create <branch> in the run's worktree from the tip of origin/<base>
        run.sh merge <P> <k> <m> --comment <file> [--wait <seconds>]
-                                              wait for the required checks, merge #<m> into the base branch, close #<k>, delete the head branch
+                                              wait for every check on #<m>, merge it into the base branch, close #<k>, delete the head branch; --wait is how long to wait for a first check to register when one is expected
        run.sh sync <P> [--push]               merge origin/<from> into the base branch in the run's worktree and push it; --push pushes a merge committed after a conflict
        run.sh pr <P> --body <file>            open the pull request from the base branch into <from>, once every sub-issue is closed and the base contains <from>
        run.sh save <P> --to <file> --since <sha>

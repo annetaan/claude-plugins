@@ -237,7 +237,8 @@ phase 5. The pull request stays a draft, and the next run merges it.
 
 1. Write `$TMP/<k>-closed.md` worded as in the `merged` case of phase 4 step 2, naming `#<m>`. The merge into the base
    branch closes nothing, so `run.sh merge` closes the issue with it.
-2. Merge the pull request, close `#<k>`, move `<WT>` onto the merged base and delete the head branch. Run this as a
+2. Merge the pull request, close `#<k>`, move `<WT>` onto the merged base and delete the head branch. The merge waits
+   for every check on the pull request to pass, required or not. Run this as a
    background command and wait for it to exit, because waiting on the checks can outlast a foreground command. The
    output goes to files, because the background task's own output file lies outside the run's working directories and
    an unattended run cannot read it. Then read `$TMP/<k>-merge.json` with Read and act on that JSON. On a non-zero exit, read `$TMP/<k>-merge.err` with
@@ -249,7 +250,8 @@ phase 5. The pull request stays a draft, and the next run merges it.
 
    - **`stop`** with `review`, `conflict`, `merge-failed` or `not-the-pr`: say so, quote `message`, and go to phase 5.
    - **`stop`** with `no-checks`, `checks-unreadable` or `checks-failed`: quote `message`. The pull request stays a
-     draft, and the next run merges it. Go to phase 5.
+     draft, and the next run merges it. After `checks-failed` the next run stops again until the checks pass, from a
+     push to the branch or a rerun of the failed jobs (`gh run rerun <id> --failed`). Go to phase 5.
    - **`merged`** with a non-empty `errors`: the merge went through, and a later step failed. Report each `step` with
      its `message`, fold the handover lines as step 3 says, then go to phase 5. When `close` failed, the issue stays
      open with its pull request merged, and the next run closes it.

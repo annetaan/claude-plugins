@@ -303,8 +303,9 @@ declares it as the last subsection of `## Design`:
   closed as completed, and whose `## Acceptance criteria` has a bullet carrying the same backticked span.
 - **`project.sh`** reports each entry in `parent.breakage` with its closers and its state, and `--check` fails with
   `breakage.unclosed` for an entry no closer carries (`state.md`, **Reading a project**).
-- **A check the base branch requires for a merge cannot be declared.** GitHub refuses the merge, and `run.sh merge`
-  never uses `--admin`, so the tasks are one task.
+- **A check that runs on the sub-issue's pull request cannot be declared**, required or not, such as a test that CI
+  runs on every pull request. `run.sh merge` stops on any failing check and never uses `--admin`, so the
+  tasks are one task.
 - **`pj4-running` runs every declared check** in the project's worktree before it opens the project's pull request
   (`pj4-running/project-pr.md`, **The declared checks**).
 
