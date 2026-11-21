@@ -130,7 +130,7 @@ it against the code as it stands on the base branch before anything runs**. It r
 **How to split** and `$FLOW/judgement.md`.
 
 **What the prompt carries**: the issue `#<n>`, the parent `#<P>`, the parents it `Waits on:`, the absolute paths of
-`format.md` and `project.sh`, the `project.sh <P>` JSON, the `project.sh <P> --check <n>` JSON, "Left broken on the base
+`pj1-plan/format.md` and `project.sh`, the `project.sh <P>` JSON, the `project.sh <P> --check <n>` JSON, "Left broken on the base
 branch", the handover notes, a `Scratch:` line and the worktree line.
 
 **What to read**: the issue, the parent and each waited parent with `gh issue view <k> --json title,body` (bodies only,
@@ -147,10 +147,10 @@ checked decisions. There is no `Breaking changes:` line.
    - `ask`: the run cannot go on without the user. It fires for a change to the parent's `## Design` or a waited
      parent's, to the issue's `## Goal`, or to a checked decision, and for a fork that passes **What a human is asked**.
      `Body:` then carries the issue's body with one decision appended, `### D<k>.` numbered after the highest `D<n>`, in
-     the decision shape of `format.md`: its `Only you know:` line, 2 to 4 options that each say what they change (the
+     the decision shape of `pj1-plan/format.md`: its `Only you know:` line, 2 to 4 options that each say what they change (the
      parent's sentence as it would read, included), one `(recommended)`, no box checked. Nothing else in the body
      changes, and no plan follows. The lint prints `decisions-open` alone.
-2. `Body:` `unchanged`, or the whole body in the sub-issue shape of `format.md` with one line per change.
+2. `Body:` `unchanged`, or the whole body in the sub-issue shape of `pj1-plan/format.md` with one line per change.
    - `## Goal` is copied byte for byte, and so is every existing entry of `## Decisions`, boxes as ticked.
    - The design is written for the ticked options, and its file list is true to the code as it stands now.
    - Lint the body with `project.sh --lint` until it prints no reason.

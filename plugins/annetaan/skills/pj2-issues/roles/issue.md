@@ -13,11 +13,11 @@ from `pj3-doctor`. Follow the section for your mode.
 Read the repository's own instructions before anything else. `CLAUDE.md`, `AGENTS.md` and `CONTRIBUTING.md` at the
 root. **The repository's conventions outrank this file.**
 
-Read the project format at the path the prompt gives (`format.md`). **Your body follows the sub-issue shape in it
+Read the project format at the path the prompt gives (`pj1-plan/format.md`). **Your body follows the sub-issue shape in it
 exactly**, the file list and the decisions included. The prompt also gives the path of `project.sh`, which lints a
 body.
 
-Then read `judgement.md` at the path the prompt gives. Its opening table lists every section and what it asks of your role. Yours is the `Design` column. An experiment runs the code
+Then read `workflow/judgement.md` at the path the prompt gives. Its opening table lists every section and what it asks of your role. Yours is the `Design` column. An experiment runs the code
 the "Read the code" line names. At a ref, copy the files you need with `git show <ref>:<path>` into your scratch
 directory, or record `not run`.
 
@@ -31,7 +31,7 @@ the other tasks at the same time. Stay inside yours.
    You find the files, the functions and the patterns, by name. Read them where the prompt's "Read the code" line
    says: in the working tree, or at `origin/<from>` through `git show`, `git grep` and `git ls-tree`. In
    `Mode: revise` there is no such line. Read where **Revising an issue** says.
-2. **Draw the task.** `## Design` opens with the file list from `format.md`, one entry per file, tests included. A
+2. **Draw the task.** `## Design` opens with the file list from `pj1-plan/format.md`, one entry per file, tests included. A
    `changed` entry on a code file names the existing symbols it rides on, and only names that exist in that file go in
    backticks. An entry on a document needs no symbol: say what the document says afterwards.
    A file name in backticks, including one at the root such as `package.json`, is a path and not a symbol: name that
@@ -40,7 +40,7 @@ the other tasks at the same time. Stay inside yours.
    task draws no code for an input nobody sends (**Remove before adding**), and a new layer names its second user
    (**Reader load**), and no code that exists only to keep the tests green until a later task (**No transitional
    code**). When the split line says `leaves broken`, the body ends `## Design` with `### Left broken`, one bullet per
-   check (`format.md`, **Declared breakage**). When the split says another task leaves a check for yours to close, an
+   check (`pj1-plan/format.md`, **Declared breakage**). When the split says another task leaves a check for yours to close, an
    acceptance criterion carries that check in backticks, written exactly as the split gives it.
    "Exist" means at the tip of the base branch once every task of this project your task is blocked by has merged.
    The base branch is cut from `<from>` later, so the code step 1 reads is where it starts. The projects in
@@ -51,21 +51,21 @@ the other tasks at the same time. Stay inside yours.
    it in that file's entry in your own body, so the later task's `--check` can count it. In a `changed` entry a new
    symbol goes without backticks, as above. An `added` entry names the file or symbol it follows. The boundaries to match are in the parent's `## Design` and in the `## Design` of each parent in
    `Waits on:`, read with `gh issue view <Q> --json body`. Prose after the list says how the pieces fit. A branch
-   your own task keeps from existing code follows `format.md`, **Behaviour kept under a changed assumption**, and
-   **Assumptions** and **Why existing behaviour is there** in `judgement.md`: name who it serves in that prose, or
+   your own task keeps from existing code follows `pj1-plan/format.md`, **Behaviour kept under a changed assumption**, and
+   **Assumptions** and **Why existing behaviour is there** in `workflow/judgement.md`: name who it serves in that prose, or
    settle it from history. When your task's own writes fire the outward rule of **Assumptions**, add the `### Shared
    state` list at the end of `## Design`, with the readers found by searching the code where step 1 reads it. A
    bug-fix task names the symptom, the cause and what showed it in the prose, and the reproducing test in the
-   criteria (**Root cause** in `judgement.md`). The criteria include the user flows the task touches.
+   criteria (**Root cause** in `workflow/judgement.md`). The criteria include the user flows the task touches.
    Every acceptance criterion carries a backticked anchor: a test name, a command, or a file or symbol whose state
    is checked. **Write the design for the recommended option of every decision, and leave nothing in it that
-   another option would make untrue.** What another option changes goes under that option's box (`format.md`,
+   another option would make untrue.** What another option changes goes under that option's box (`pj1-plan/format.md`,
    **Decisions**). The user decides by ticking a box on GitHub, and a later redraw keeps every decision as it is
    ticked, so the design and the lines under the ticked box together are what the worker builds.
    **The bar is complete for its day: a worker who reads this body and today's code finds nothing left to design,
    whichever box is ticked.**
 3. **Pick out what a human has to decide.** A decision belongs in the issue only when it passes **What a human is
-   asked** in `judgement.md`: the code and the history cannot answer it, the answers lead to different code, and you
+   asked** in `workflow/judgement.md`: the code and the history cannot answer it, the answers lead to different code, and you
    can write the line `Only you know: <that thing>`. Put that line on its own before the options. For each one, give
    **2 to 4 options** as they really are in this code, and your recommendation. Under each option's box, say what it
    changes: the behaviour, the names, and every file it adds to the file list or takes out. The user reads only this.
@@ -76,7 +76,7 @@ the other tasks at the same time. Stay inside yours.
 5. **Lint the body** with the `project.sh` path from the prompt, and fix it until the only reason left is
    `decisions-open`, or none. When the same lint code is still there after two rewrites, apply **After two failed
    fixes** before the third: write one sentence on what both rewrites took for granted (for example, that the code
-   is about the file list's format), and test it against `format.md`'s description of that code or by linting a
+   is about the file list's format), and test it against `pj1-plan/format.md`'s description of that code or by linting a
    minimal body holding only the offending line. When the false assumption belongs to the split or the parent,
    say "the split does not hold" or "the parent does not hold" (see those sections) instead of working around it.
 
@@ -88,7 +88,7 @@ the other tasks at the same time. Stay inside yours.
 
 ### The roadmap task
 
-This applies when your task's only path is the path on the parent body's `Roadmap:` line. Read `format.md`, **The
+This applies when your task's only path is the path on the parent body's `Roadmap:` line. Read `pj1-plan/format.md`, **The
 roadmap task**. The parent body in the prompt holds that line with the path and the heading.
 
 - The file list is one `changed` entry, the roadmap file.
@@ -98,7 +98,7 @@ roadmap task**. The parent body in the prompt holds that line with the path and 
   the `## Design` of each parent in `Waits on:` renamed or removed. For a name another entry mentions that the code no
   longer has, run `git log -S<name> origin/<from>`, or `HEAD` when the prompt says to read the working tree. A name that left the code through a project of this initiative counts. A name the
   roadmap plans to add is not stale, and neither is one that left by other work.
-- The acceptance criteria are the commands `format.md` gives.
+- The acceptance criteria are the commands `pj1-plan/format.md` gives.
 - Out of scope is anything else in the roadmap, and all code.
 - It usually has no decision: `None.`
 
@@ -129,8 +129,8 @@ wrong, and the other writers patch it again.
 ### What to return
 
 - **Title**, one line, in the language the repository uses, without the decision count. The skills add it
-  (`format.md`, **The title**). Never end a title with ` (<n>/<m>)`.
-- **Body**, in the sub-issue shape from `format.md`, in the language the repository uses. Write `None.` under
+  (`pj1-plan/format.md`, **The title**). Never end a title with ` (<n>/<m>)`.
+- **Body**, in the sub-issue shape from `pj1-plan/format.md`, in the language the repository uses. Write `None.` under
   `## Decisions` when there are none.
 - **One line to the main session**, in the language the user is using: how many decisions and how many model
   decisions, and anything about the other tasks the main session should know.
@@ -153,7 +153,7 @@ gh issue view <Q> --json title,body,labels,comments,updatedAt
 ```
 
 `<Q>` is each parent in `parent.waitsOn` of the `project.sh <P>` JSON. Their `## Design` holds the boundaries those
-projects define, which this project matches (`format.md`, **The parent issue body**). Read the sibling issues the
+projects define, which this project matches (`pj1-plan/format.md`, **The parent issue body**). Read the sibling issues the
 findings name the same way. A marked comment says why `ready` came off. **A comment with no marker is a human speaking.** An answer written there, or an option line a human added and ticked, is worked into the body.
 
 **Read the code where `--check` read it.** It fetched both branches it needs. When `baseExists` in the JSON is true,
@@ -191,7 +191,7 @@ Each finding says what is wrong. Fix all of them in one body.
 - **A human comment that overturns an entry of `### Model decisions`**: redraw the design to the comment and remove
   the entry.
 - **Kind 13, an assumption elsewhere that the issue breaks**: add or correct the `### Shared state` list and move the
-  fix to the cause (**Root cause** in `judgement.md`). When the cause is outside this task, return a stub or name the
+  fix to the cause (**Root cause** in `workflow/judgement.md`). When the cause is outside this task, return a stub or name the
   parent.
 - **Kind 15**: drop the transitional code from the design and declare the check under `### Left broken`, or add the check to the acceptance criteria when this issue is the closer the finding names.
 - **Kind 14, an open decision a model can settle**: settle it, remove it from `## Decisions` (its `D<n>` is never
@@ -200,7 +200,7 @@ Each finding says what is wrong. Fix all of them in one body.
 - **A question only a human can answer**: add it as a new decision, numbered after the highest `D<n>` in the body, or
   under the `D<k>` the finding names, with its `Only you know:` line, passing the tests of drafting steps 3 and 4. It stays open. **Never ask it in your return.** The user ticks it on
   GitHub.
-- **For a parent**: keep its shape from `format.md`, its `Base:` line, its `Roadmap:` line and its `## Order` as they are. Change
+- **For a parent**: keep its shape from `pj1-plan/format.md`, its `Base:` line, its `Roadmap:` line and its `## Order` as they are. Change
   `## Design` only. A merged project's boundary is code now. Change that in a sub-issue or a stub. A finding that
   gives the sentence `## Design` carries instead is written as given, as is a line `decided in #<n> D<k>`.
 
@@ -214,11 +214,11 @@ impossible, leave the box ticked, say why in your return, and the main session t
   title read from GitHub carries one. Lint the body as drafting step 5 says.
   `decisions-open` is allowed when a decision is still open.
 - **A split**, instead, when the issue is two tasks: each part's title, without the count, and body, part 1 keeping
-  `n`'s number, and how the edges move. **Return a split only where a reviewer can judge each part on its own** (**Where to split** in `judgement.md`). The main session asks the user
+  `n`'s number, and how the edges move. **Return a split only where a reviewer can judge each part on its own** (**Where to split** in `workflow/judgement.md`). The main session asks the user
   before anything is filed.
 - **Edges to add or remove**, one per line as `#a blocked by #b`, with `part k` for a new part, only between
   sub-issues of this project. When the project needs another project's work and `baseExists` is false, return
-  `#<P> blocked by #<Q>` instead, and never make the projects wait on each other (`format.md`, **Projects**). Once
+  `#<P> blocked by #<Q>` instead, and never make the projects wait on each other (`pj1-plan/format.md`, **Projects**). Once
   the base branch exists, the work becomes a stub in this project.
 - **A stub to file**, when merged code has to change outside this task: its title and body in the stub shape.
 - **A blocker to close**: `#b`, resolved by your rewrite.
@@ -243,5 +243,5 @@ and return the whole body with `updatedAt`.
 - **Never untick a box a human ticked.** Kind 14 never touches a ticked decision.
 - No checkbox outside `## Decisions`. Acceptance criteria are a plain list.
 - Each decision has 2 to 4 options and exactly one `(recommended)`.
-- The fixed tokens from `format.md` stay in English: `Roadmap:`, the headings, `### D<n>.`, `(recommended)`, `Decided:`,
+- The fixed tokens from `pj1-plan/format.md` stay in English: `Roadmap:`, the headings, `### D<n>.`, `(recommended)`, `Decided:`,
   `Only you know:`, `### Model decisions`, `### Shared state`, `### Left broken`, `None.`, `To be drawn.`, `## Order` and the kinds `added`, `changed` and `deleted`.

@@ -24,9 +24,9 @@ Collapse the `..` in a path to a sibling skill, so that the command text names `
 `pj-auto` shows name the collapsed path. This holds in the prompts for sub-agents too.
 
 **Read `$DOCTOR/../pj1-plan/format.md`, `$DOCTOR/../pj1-plan/state.md` and `$DOCTOR/../pj1-plan/between-skills.md`
-before anything else.** `format.md` is the only description of the parent issue, the run order, the sub-issue body,
-the decisions and the relationships. `state.md` is how `project.sh` reads a project and when an issue is ready.
-`between-skills.md` holds the labels, the blockers, the comments, picking the project and the format-only fixes.
+before anything else.** `pj1-plan/format.md` is the only description of the parent issue, the run order, the sub-issue body,
+the decisions and the relationships. `pj1-plan/state.md` is how `project.sh` reads a project and when an issue is ready.
+`pj1-plan/between-skills.md` holds the labels, the blockers, the comments, picking the project and the format-only fixes.
 Everything below refers to them.
 
 This skill uses these files:
@@ -39,7 +39,7 @@ This skill uses these files:
   `<skills>/workflow/judgement.md` in their prompts, with `<skills>` the directory that holds `$DOCTOR`, as the real
   absolute path)
 
-**Language**: talk to the user in the user's language. Write issue text in the repository's language, as `format.md`
+**Language**: talk to the user in the user's language. Write issue text in the repository's language, as `pj1-plan/format.md`
 says.
 
 ## Before you start
@@ -58,7 +58,7 @@ gh repo view --json nameWithOwner,hasIssuesEnabled,defaultBranchRef
   issues turned off. Say which one and stop. The clone is needed because `project.sh --check` runs inside one.
 - A dirty working tree does not matter. This skill reads the code and changes nothing in it.
 
-**The project.** Pick it as `between-skills.md` says under **Picking the project**. The project picked is `<P>`. In an unattended run, only rule 1 of **Picking the project** applies (`between-skills.md`, **Unattended runs**). Print
+**The project.** Pick it as `pj1-plan/between-skills.md` says under **Picking the project**. The project picked is `<P>`. In an unattended run, only rule 1 of **Picking the project** applies (`pj1-plan/between-skills.md`, **Unattended runs**). Print
 `project #<P>` once, with ` unattended` after it in an unattended run, as **Picking the project** says.
 
 When the args carry `tmp=<dir>`, `$TMP` below is that directory. Otherwise run `mktemp -d` once and use the
@@ -74,7 +74,7 @@ $DOCTOR/../workflow/scripts/level.sh show <root> [<level>]
 ```
 
 Keep the JSON, and print `level <level> (<source>)` once and `warning` on a line of its own when it is set, as
-**The level** in the workflow skill's `SKILL.md` says. A non-zero exit, such as `level=<level>` outside 1 to 3, stops
+**The level** in `workflow/SKILL.md` says. A non-zero exit, such as `level=<level>` outside 1 to 3, stops
 the skill: quote its message.
 
 ## Phase 1: the diagnosis
@@ -86,7 +86,7 @@ the skill: quote its message.
    $DOCTOR/../pj1-plan/scripts/project.sh <P> --order
    ```
 
-   Read `project.sh`'s output whole, as `between-skills.md` says under **Commands**.
+   Read `project.sh`'s output whole, as `pj1-plan/between-skills.md` says under **Commands**.
 
    When `project.sh` fails, for instance with `has no Base: line` or `is blocked by #<X>, which is no project`, quote
    its message and stop. On `is blocked by #<X>, which is no project`, a human has to remove that relationship on
@@ -129,7 +129,7 @@ the roadmap task's edges and the run order may still change.
 An unattended run asks none of these. When any is due, it writes nothing and ends as needs-user, naming the questions.
 
 Ask the user only what is not a task decision. **Never ask a task decision in the conversation.** An open decision
-is ticked on GitHub, and a question the reviewer raised that passes **What a human is asked** in `judgement.md`
+is ticked on GitHub, and a question the reviewer raised that passes **What a human is asked** in `workflow/judgement.md`
 becomes a new decision in the issue (kind 10 in `roles/review.md`). A question a model can settle is settled by the
 writer (kind 14) and never asked.
 
@@ -168,7 +168,7 @@ $DOCTOR/../pj1-plan/scripts/project.sh --lint "$TMP/<n>.md"
 ```
 
 Accept a clear lint, or `decisions-open` when a decision is still open. Read each parent's body against the parent
-shape in `format.md` instead: its headings, no line numbers, its `Base:` line, its `Roadmap:` line and its `## Order` unchanged. Send a
+shape in `pj1-plan/format.md` instead: its headings, no line numbers, its `Base:` line, its `Roadmap:` line and its `## Order` unchanged. Send a
 body that fails back to its writer with `SendMessage` and say what to fix.
 
 **When a writer could not fix something** that needs the user, ask it as phase 2 says, and send the answer back to
@@ -213,9 +213,9 @@ $DOCTOR/../pj1-plan/scripts/project.sh <Q>
   one more line: `pj4-running` does not start this project until `#<Q>` is merged
 - the blockers to close
 - the titles to change, as `#<n> <title> -> <wantedTitle>`. An issue rewritten or filed in this run has no
-  `wantedTitle` yet, so take its count from the decisions in its new body (`format.md`, **The title**)
+  `wantedTitle` yet, so take its count from the decisions in its new body (`pj1-plan/format.md`, **The title**)
 - `ready` to add and `ready` to take off, each with why
-- `doing` to add to #<P>, when `parent.labels` lacks it (`between-skills.md`, **Labels**)
+- `doing` to add to #<P>, when `parent.labels` lacks it (`pj1-plan/between-skills.md`, **Labels**)
 - the new `## Order`, one line per issue as it will read
 
 ```
@@ -226,7 +226,7 @@ AskUserQuestion: Write these changes to GitHub?
 
 An unattended run skips this question, prints the same summary, and writes as on Write them.
 
-The approval covers this run only (`between-skills.md`, **Principle**).
+The approval covers this run only (`pj1-plan/between-skills.md`, **Principle**).
 
 **`ready` goes on an issue** when it is open and all of these hold:
 
@@ -246,7 +246,7 @@ the numbers.
    ```
 
    When it moved, someone changed the issue in the meantime. Send the current body to its writer to merge, lint the
-   new body, and go on (`between-skills.md`, **Writing to GitHub**).
+   new body, and go on (`pj1-plan/between-skills.md`, **Writing to GitHub**).
 2. **File what is new.** For a split, file parts 2 to N and keep a map from each part to its number. A stub is filed
    blocking the issue it was found in. Both go under `<P>`.
 
@@ -270,7 +270,7 @@ the numbers.
    **Sub-issue edges** run only between sub-issues of `<P>`. An edge whose other end is not a sub-issue of `<P>` is
    never added. One that already exists is removed, as kind 9 in `roles/review.md` says.
 
-   **Parent edges**, `#<P> blocked by #<Q>`, change only while `parent.baseExists` is false (`format.md`,
+   **Parent edges**, `#<P> blocked by #<Q>`, change only while `parent.baseExists` is false (`pj1-plan/format.md`,
    **Projects**). Write only the ones the approval showed. The check before the approval dropped the rest, and the
    report names them with why.
 
@@ -281,7 +281,7 @@ the numbers.
    gh issue edit <P> --remove-blocked-by <Q>
    ```
 
-   **The roadmap task's edges** (`format.md`, **The roadmap task**). Read the project again, because step 2 filed
+   **The roadmap task's edges** (`pj1-plan/format.md`, **The roadmap task**). Read the project again, because step 2 filed
    new issues, and add one edge per number in `parent.roadmap.missing`. With `parent.roadmap` null or its `task`
    null, there are none. These come before the `--order` run below, which then covers them.
 
@@ -304,7 +304,7 @@ the numbers.
    gh issue close <b> --reason completed
    ```
 
-6. **The titles.** Run the sync in `between-skills.md` under **Titles** for `<P>`, now that the bodies, the new
+6. **The titles.** Run the sync in `pj1-plan/between-skills.md` under **Titles** for `<P>`, now that the bodies, the new
    issues and the closed blockers are written. Every issue that gets `ready` in the next step then has a title with
    no count.
 
@@ -314,7 +314,7 @@ the numbers.
    ```
 
 7. **The labels.** Make sure `ready` exists, and `doing` when the parent lacks it, with the commands in
-   `between-skills.md` under "Labels".
+   `pj1-plan/between-skills.md` under "Labels".
 
    **When the phase 1 `project.sh <P>` shows `parent.labels` without `doing`**, add it to the parent.
 
@@ -338,7 +338,7 @@ the numbers.
    ```
 
    **When the check fails on `symbol never in the file`, or on a lint reason backticks and whitespace alone clear**,
-   fix the body as `between-skills.md` says under **Format-only fixes**, once, before `ready` goes on. Read the
+   fix the body as `pj1-plan/between-skills.md` says under **Format-only fixes**, once, before `ready` goes on. Read the
    body now. That read is the re-read **Writing to GitHub** asks for.
 
    ```bash
@@ -366,7 +366,7 @@ the numbers.
    **An issue that carries `blocker` loses it in the same command.** A check whose lint or premises still fail, or
    whose `breakage.unclosed` is not empty, leaves `ready` off, and the report names the failures.
 
-   **Whoever takes `ready` off leaves a comment** (`between-skills.md`, **Labels**). It starts with
+   **Whoever takes `ready` off leaves a comment** (`pj1-plan/between-skills.md`, **Labels**). It starts with
    `**[pj3-doctor]**` and says what changed and why.
 
    ```bash
@@ -376,7 +376,7 @@ the numbers.
 
 8. **The run order.** Read it again, now that the edges and the issues have changed, and write `list` under the
    parent's `## Order`, one line per number as `1. #<n>`, with `--order-body`. Its own read of the parent is the
-   re-read **Writing to GitHub** asks for, and `state.md` says what it keeps.
+   re-read **Writing to GitHub** asks for, and `pj1-plan/state.md` says what it keeps.
 
    ```bash
    $DOCTOR/../pj1-plan/scripts/project.sh <P> --order
@@ -410,7 +410,7 @@ the numbers.
 
 ## Ending an unattended run
 
-An unattended run prints its last line as `between-skills.md` says under **Unattended runs**. Only one ending is
+An unattended run prints its last line as `pj1-plan/between-skills.md` says under **Unattended runs**. Only one ending is
 `unattended: done`: the run reached the Report to the user above, including when there was nothing to write.
 
 Every other ending is `unattended: needs-user <one line>`. That covers a **Before you start** failure, a `project.sh`

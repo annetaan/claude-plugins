@@ -212,7 +212,7 @@ A `pj3-doctor` or `pj4-running` run is unattended when its args carry the word `
 - **Its directory.** `tmp=<dir>` in the args names an existing directory, and the run keeps its files there as `$TMP`.
   `pj-auto` passes one per run, at `<LOG>/<i>-<run>`. Without `tmp=`, `$TMP` comes from `mktemp -d`, as in a manual run.
 - **The level.** `level=<n>` in the args, 1, 2 or 3, overrides the repository's level for the run (**The level** in
-  the workflow skill's `SKILL.md`). `pj-auto` passes it to every run when it was given one. Without it, each run reads
+  `workflow/SKILL.md`). `pj-auto` passes it to every run when it was given one. Without it, each run reads
   the level from origin's default branch.
 - **The mode.** `pj-auto` starts every run with `--permission-mode acceptEdits`, and adds the run's directory with
   `--add-dir`. File edits and file-writing shell commands then run without asking inside the main working tree, the

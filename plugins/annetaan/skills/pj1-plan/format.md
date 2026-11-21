@@ -1,7 +1,7 @@
 # The issues of a project
 
 This file holds how a project is laid out as issues: the parent body, the sub-issue body, the decisions and the run
-order, and the format of the roadmap file. The planners and the issue writer read this file and `judgement.md` of the `workflow` skill, whose path their prompt gives. The project reviewer, `pj1-plan`, `pj2-issues` and
+order, and the format of the roadmap file. The planners and the issue writer read this file and `workflow/judgement.md`, whose path their prompt gives. The project reviewer, `pj1-plan`, `pj2-issues` and
 `pj3-doctor` read this file first too, and `pj4-running` and the `workflow` skill look up sections of it. How `project.sh` judges a project is
 in `state.md`, and what the skills agree on between them is in `between-skills.md`, both next to this file.
 
@@ -26,7 +26,7 @@ One request to `pj1-plan`, usually one initiative, can become several projects, 
 `pj2-issues` numbers the tasks of one project `T1…Tn`. Every project from one request is made from the same branch.
 
 **A request becomes several projects for three reasons only.** The split raises review accuracy (a reviewer can judge
-each project on its own, **Where to split** in `judgement.md`), the projects can run in parallel, or a part is worth
+each project on its own, **Where to split** in `workflow/judgement.md`), the projects can run in parallel, or a part is worth
 landing in `<from>` first, because it is of value on its own or because another project waits on it. **Size alone is
 never a reason**, and no count of tasks is a limit. Work that can only go one way, each part waiting on the one before
 it, stays one project unless one of those reasons holds: a cut there runs nothing in parallel, and it costs a pull
@@ -144,7 +144,7 @@ the `## Design` of every parent in `waitsOn`.
 
 **Behaviour kept under a changed assumption.** For each kept branch whose assumption the project changes, `## Design`
 names the assumption and says who the branch still serves. For a change to shared state it holds the `### Shared state`
-list. The rules are **Assumptions** and **Why existing behaviour is there** in `judgement.md`. A branch nobody can be
+list. The rules are **Assumptions** and **Why existing behaviour is there** in `workflow/judgement.md`. A branch nobody can be
 named for goes through the history lookup first, and becomes a decision only when history is silent. A line that a
 human fork replaced reads `decided in #<n> D<k>`, which keeps the boundary in the parent.
 
@@ -265,14 +265,14 @@ every existing decision stay as they are, and it may append one decision when on
   allowed. The list ends at the first line that is neither a bullet nor indented.
 - Prose after the list is optional.
 
-**The list is not bounded by size.** A task holds what is coupled in code (**Where to split** in `judgement.md`), so a
+**The list is not bounded by size.** A task holds what is coupled in code (**Where to split** in `workflow/judgement.md`), so a
 rename that reaches many files stays one task.
 
 ### Shared state and model decisions
 
 Both are optional subsections at the end of `## Design`, after the file list and the prose.
 
-- **`### Shared state`** appears when the change fires the outward rule of **Assumptions** in `judgement.md`. An entry
+- **`### Shared state`** appears when the change fires the outward rule of **Assumptions** in `workflow/judgement.md`. An entry
   is the state and the write. One indented line per reader follows it: the `symbol` in `path`, the lifetime it assumes,
   and whether that still holds.
 - **`### Model decisions`** holds each fork a model settled and a reader would notice: what was chosen over what, why,
@@ -286,7 +286,7 @@ Both are optional subsections at the end of `## Design`, after the file list and
 ### Declared breakage
 
 A task that a reviewer can judge alone may still leave a check of the repository failing on the project's base
-branch until a later task of the same project closes it (**No transitional code** in `judgement.md`). The task
+branch until a later task of the same project closes it (**No transitional code** in `workflow/judgement.md`). The task
 declares it as the last subsection of `## Design`:
 
 ```markdown
@@ -330,7 +330,7 @@ read `Add retry settings (0/2)`, then `Add retry settings (1/2)`, then `Add retr
 ("1 of 3 tasks"), so that count reads as how many decisions are settled. Acceptance criteria are a plain list for that
 reason.
 
-- **A decision exists only when it passes **What a human is asked** in `judgement.md`**, and it carries
+- **A decision exists only when it passes **What a human is asked** in `workflow/judgement.md`**, and it carries
   `Only you know: <that thing>` on a line of its own before the options.
 - Each decision is `### D<n>. <question>`, then why it matters, then **2 to 4 options** as `- [ ]` lines.
 - **An option says what it changes** on indented lines under its box: the behaviour, the names, the files. The
