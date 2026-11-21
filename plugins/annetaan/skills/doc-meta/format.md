@@ -17,7 +17,7 @@ whose name already ends in `.doc-meta.md` is a sidecar, not a document, and gets
 ## Header comment
 
 The first line of the sidecar is always this comment, generated fresh each time, not copied from anywhere. `Format:`
-carries this file's own absolute path (`$DOCMETA/format.md` at generation time), not the bare name, since a
+carries this file's own absolute path (the absolute path of this `format.md` at generation time), not the bare name, since a
 sidecar can sit anywhere next to anything and a bare `format.md` would not resolve from there:
 
 ```

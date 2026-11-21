@@ -1,6 +1,6 @@
 # How to judge a fork, a change and a fix
 
-> This file is read by every role of the workflow skill and of the pj skills, after the repository's own instructions. The role file says where each record goes and how a human overturns it. **The repository's conventions outrank this file.** Roles of the workflow skill find it as `$FLOW/judgement.md`. The pj roles get its absolute path in their prompt.
+> This file is read by every role of the workflow skill and of the pj skills, after the repository's own instructions. The role file says where each record goes and how a human overturns it. **The repository's conventions outrank this file.** Roles of the workflow skill find it as `$FLOW/judgement.md`, where `$FLOW` is the directory their own opening line names. The pj roles get its absolute path in their prompt.
 
 ## Where each section applies
 
