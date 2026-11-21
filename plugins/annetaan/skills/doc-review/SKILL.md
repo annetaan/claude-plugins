@@ -25,13 +25,13 @@ The styles are described in `$DOCREVIEW/../doc-meta/styles.md`.
 ## Steps
 
 1. Read the path given as the argument. It names one document. Derive the sidecar path by the naming rule in
-   `format.md`, and read the document, the sidecar, `format.md` and `styles.md`. Every answer below is judged by
+   `doc-meta/format.md`, and read the document, the sidecar, `doc-meta/format.md` and `doc-meta/styles.md`. Every answer below is judged by
    the rules of the style the sidecar's `## Document` names.
 
    **If the sidecar does not exist, say so and stop.** Tell the user to run `/annetaan:doc-meta` on this document
    first. There is nothing to answer without it.
 2. For every block that carries a non-empty `flag:`, verify it against the document by the procedure in
-   `format.md`'s "Verifying a block against the document". A sidecar can go stale between the last `doc-meta` run
+   `doc-meta/format.md`'s "Verifying a block against the document". A sidecar can go stale between the last `doc-meta` run
    and now. **Skip a block that fails this check**, and say so in the report. Do not guess at what the block used
    to say.
 3. For every flagged block that passes the check, write its `review:` line:
@@ -49,10 +49,10 @@ The styles are described in `$DOCREVIEW/../doc-meta/styles.md`.
    - `[question]`: an answer to the free text question, from what the document and the sidecar show.
 
    **A `review:` line that names another block's id carries a quote from that block**, the same rule `## Whole
-   document` bullets follow in `format.md`. Writing the quote is what forces opening the block instead of
+   document` bullets follow in `doc-meta/format.md`. Writing the quote is what forces opening the block instead of
    answering from memory.
 
-   Write `review:` in the language the user is using in conversation, per `format.md`. A quote of another block's
+   Write `review:` in the language the user is using in conversation, per `doc-meta/format.md`. A quote of another block's
    source text keeps that source's own language, unchanged.
 4. **Touch only `review:` lines.** A block that step 2 skipped gets nothing written on it at all.
 5. Report: how many blocks were answered, broken down by flag kind (`[keep]` / `[delete]` / `[edit]` / `[question]`

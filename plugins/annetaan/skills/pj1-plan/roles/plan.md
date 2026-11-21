@@ -17,7 +17,7 @@ root, and the design documents they point at. **The repository's conventions out
 
 Read the project format at the path the prompt gives (`format.md`). The parent issue bodies you return follow it.
 
-Then read `judgement.md` at the path the prompt gives. Its opening table lists every section and what it asks of your role. Yours is the `Design` column.
+Then read `workflow/judgement.md` at the path the prompt gives. Its opening table lists every section and what it asks of your role. Yours is the `Design` column.
 
 Your prompt carries a line `Breaking changes: accepted` or `Breaking changes: not accepted`. That line is the limit **As if it was always required** speaks of.
 
@@ -36,8 +36,8 @@ Your prompt carries a line `Breaking changes: accepted` or `Breaking changes: no
        tasks or the tasks of a later project have to match. A boundary is written only in the parent of the project
        that defines it, and never repeated in another (`format.md`, **The parent issue body**). This layer binds
        every task, so it gets settled here. If the project adds a new abstraction, say in one sentence why the
-       existing ones fall short. It says what the project leaves without a user and removes, which existing types, names and special cases change shape, and the files outside the project that move, by path and count, or "nothing" (**Remove before adding** and **As if it was always required** in `judgement.md`). A new abstraction names its second user, and each value the project stores says where it lives and what writes it (**Reader load**). When the project changes an assumption existing behaviour relies on, `## Design`
-       follows `format.md`, **Behaviour kept under a changed assumption**, and **Assumptions** in `judgement.md`.
+       existing ones fall short. It says what the project leaves without a user and removes, which existing types, names and special cases change shape, and the files outside the project that move, by path and count, or "nothing" (**Remove before adding** and **As if it was always required** in `workflow/judgement.md`). A new abstraction names its second user, and each value the project stores says where it lives and what writes it (**Reader load**). When the project changes an assumption existing behaviour relies on, `## Design`
+       follows `format.md`, **Behaviour kept under a changed assumption**, and **Assumptions** in `workflow/judgement.md`.
        Add the `### Shared state` list (`format.md`, **Shared state and model decisions**) when the outward rule fires
        at the level of a boundary, and `### Model decisions` for the forks you settled in this project.
      - `## Decisions` holds the questions of item 5 that belong to this project, in the decision shape from
@@ -55,7 +55,7 @@ Your prompt carries a line `Breaking changes: accepted` or `Breaking changes: no
    printed, or `Roadmap: none` when the prompt's roadmap is `none` or the request is no entry of it.
 5. **Open questions**: the forks a human has to settle before the plan can hold. Only the ones that change the cut
    into projects, an edge, or a parent's `## Design`, and only the ones that pass **What a human is asked** in
-   `judgement.md`. Each carries an `Only you know: <that thing>` line. A fork whose line cannot be written is settled by
+   `workflow/judgement.md`. Each carries an `Only you know: <that thing>` line. A fork whose line cannot be written is settled by
    you and recorded under `### Model decisions` of its project. Each one has **2 to 4 options** as they really are in this
    code, what each changes, your recommendation, and the id of the project it belongs to. A question that only
    changes how one project splits into tasks waits for `pj2-issues`. The design review's leftovers land here too (see
@@ -65,7 +65,7 @@ Your prompt carries a line `Breaking changes: accepted` or `Breaking changes: no
 
 - **A project is merged into `<from>` as one piece**, so it has to leave `<from>` whole on its own.
 - **Cut into projects only where a reviewer can judge each project on its own** (**Where to split** in
-  `judgement.md`), where the projects can run in parallel, or where a part is worth landing in `<from>` first, because
+  `workflow/judgement.md`), where the projects can run in parallel, or where a part is worth landing in `<from>` first, because
   it is of value on its own or because another project waits on it (`format.md`, **Projects**). Size alone is never a
   reason, and no count of tasks is a limit. A request with none of the three is one project. A chain in which each
   piece only waits on the one before it stays in one project, whichever kind of edge would join them, unless one of

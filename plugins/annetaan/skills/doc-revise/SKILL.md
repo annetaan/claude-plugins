@@ -25,12 +25,12 @@ it. The styles are described in `$DOCREVISE/../doc-meta/styles.md`.
 ## Steps
 
 1. Read the path given as the argument. It names one document. Derive the sidecar path by the naming rule in
-   `format.md`, and read the document, the sidecar, `format.md` and `styles.md`.
+   `doc-meta/format.md`, and read the document, the sidecar, `doc-meta/format.md` and `doc-meta/styles.md`.
 
    **If the sidecar does not exist, say so and stop.** Tell the user to run `/annetaan:doc-meta` first.
 
    **If no block carries a flag at all, say so and stop.**
-2. For every flagged block, verify it against the document by the procedure in `format.md`'s "Verifying a block
+2. For every flagged block, verify it against the document by the procedure in `doc-meta/format.md`'s "Verifying a block
    against the document", the same one `doc-review` uses. **Skip a block that fails this check**, and report it.
    Acting on a flag whose text has moved under it would edit the wrong sentence.
 3. Apply what survived step 2, and record the id of every block you delete or edit as you apply it:

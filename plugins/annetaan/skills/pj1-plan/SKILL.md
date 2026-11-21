@@ -94,7 +94,7 @@ When the plan comes back:
 - **Run the design review** (see **The design review** below) the first time the planner returns `yes`, before any
   open question is asked.
 - **An open question with no `Only you know:` line** goes back with `SendMessage`, to be decided and recorded under
-  `### Model decisions` (`judgement.md`, **What a human is asked**).
+  `### Model decisions` (`workflow/judgement.md`, **What a human is asked**).
 - **Ask the open questions now**, with `AskUserQuestion`, **four to a call**, in as many calls as it takes: the
   planner's own first, then those marked `(from the design review)`, in the order the reviewer ranked them. These are
   the plan-level questions, the ones that change the cut into projects, an edge between projects, or a parent's
