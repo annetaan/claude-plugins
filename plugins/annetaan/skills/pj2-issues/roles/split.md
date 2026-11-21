@@ -83,7 +83,8 @@ becomes part of this split, or you say that it needs a request of its own.
   - The check is one command run from the repository root.
   - The closer waits on the breaker and comes as soon as the dependencies allow, because every task between them
     inherits the failure.
-  - A check the base branch requires for a merge cannot be left broken (`pj1-plan/format.md`, **Declared breakage**).
+  - A check that runs on the sub-issue's pull request cannot be left broken, required or not, such as a test that CI
+    runs on every pull request (`pj1-plan/format.md`, **Declared breakage**).
 - **Parts a reviewer can judge alone stay apart.** A task that holds two such parts is split where the design gives
   it a seam.
 - **When the "Roadmap task:" line says yes, the last task is the roadmap task** (`pj1-plan/format.md`, **The roadmap task**).

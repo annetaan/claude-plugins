@@ -125,10 +125,8 @@ AskUserQuestion: Can a pull request be merged here with no approving review?
 
 On Stop, stop the run. An unattended run does not ask: it treats this as Stop and ends as needs-user.
 
-`rules.requiredChecks` says whether the base branch requires status checks: `yes`, `no` or `unknown`. The merge in
-**When workflow returns** in `issues.md` waits by it. With `unknown` the merge waits for a required check as with `yes`, and merges
-when none registers, because GitHub still refuses a merge that a required check blocks. `rules.mergeMethod` is the
-merge method, the first of squash, merge and rebase that the repository and the rules on the base branch allow.
+`rules.mergeMethod` is the merge method, the first of squash, merge and rebase that the repository and the rules on
+the base branch allow.
 
 A dirty `<MAIN>` does not stop the run. The run never works in it.
 
