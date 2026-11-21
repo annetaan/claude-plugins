@@ -657,8 +657,12 @@ loaded at run time.
 
 ## Adding a skill
 
-Create `skills/<name>/SKILL.md`. Everything under `skills/` is picked up on its own. Raise `version` in
-`plugin.json` and users get it on their next update. Without a new `version`, they keep the cached copy.
+Create `skills/<name>/SKILL.md`. Everything under `skills/` is picked up on its own.
+
+Users get a change only through a new `version` in `plugin.json`, and without one they keep the cached copy, so every
+change under `plugins/annetaan/` needs one. `bash tests/plugin-version.sh` fails until the version is above the default
+branch's, and `bash tests/plugin-version.sh --bump`, run from the repository root, writes it. Nobody edits the version
+by hand.
 
 The slash form is `/annetaan:<directory name>`. The plugin name is prefixed for you, so a directory never needs an
 `annetaan-` in front of it.
