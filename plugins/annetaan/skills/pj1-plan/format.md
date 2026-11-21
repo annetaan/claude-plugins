@@ -142,7 +142,9 @@ Before that, the lines above are followed by `## Goal`.
 project's parent. Whoever reads the parent's `## Design`, the issue writer and the `workflow` skill alike, also reads
 the `## Design` of every parent in `waitsOn`.
 
-**Behaviour kept under a changed assumption.** For each kept branch whose assumption the project changes, `## Design`
+### Behaviour kept under a changed assumption
+
+For each kept branch whose assumption the project changes, `## Design`
 names the assumption and says who the branch still serves. For a change to shared state it holds the `### Shared state`
 list. The rules are **Assumptions** and **Why existing behaviour is there** in `workflow/judgement.md`. A branch nobody can be
 named for goes through the history lookup first, and becomes a decision only when history is silent. A line that a
