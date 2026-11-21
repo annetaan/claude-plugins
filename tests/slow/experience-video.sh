@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-VIDEO="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)/plugins/annetaan/skills/experience-video"
+VIDEO="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)/plugins/annetaan/skills/experience-video"
 VIDEO="${VIDEO_DIR:-$VIDEO}"
 EV="$VIDEO/renderer/bin/ev.js"
 
