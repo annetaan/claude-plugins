@@ -11,7 +11,7 @@ These values are already in your context. Nothing arrives as an argument.
 - the parent `P`, the base branch `<base>`, and `<from>`
 - the conflicted files
 - `<START>`: the tip of the base branch the merge started from
-- the handover notes, from the parent's handover comment (`between-skills.md`, **The handover comment**)
+- the handover notes, from the parent's handover comment (`pj1-plan/between-skills.md`, **The handover comment**)
 - the run's worktree `<WT>`, and `<MAIN>`, the main working tree. The session is in `<WT>`, on a detached HEAD
 - the `level.sh show` JSON, from **The level** in pj4-running. The worker and the two seats take their `model` and
   `effort` from it
@@ -45,4 +45,4 @@ worded "found while merging `<from>` into `<base>`". The merge task says that a 
 
 ## What it hands back to pj4-running
 
-What **The merge task** in `merge-task.md` hands back, to pj4-running's **Bringing `<from>` in** in `project-pr.md`.
+What **The merge task** in `merge-task.md` hands back, to pj4-running's **Bringing `<from>` in** in `pj4-running/project-pr.md`.

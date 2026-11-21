@@ -23,8 +23,8 @@ Collapse the `..` in a path to a sibling skill, so that the command text names `
 `pj-auto` shows name the collapsed path. This holds in the prompts for sub-agents too.
 
 **Read `$ISSUES/../pj1-plan/format.md`, `$ISSUES/../pj1-plan/state.md` and `$ISSUES/../pj1-plan/between-skills.md`
-before anything else.** `format.md` is the only description of the parent issue, the run order, the sub-issue body,
-the decisions and the relationships. `state.md` is how `project.sh` reads a project. `between-skills.md` holds the
+before anything else.** `pj1-plan/format.md` is the only description of the parent issue, the run order, the sub-issue body,
+the decisions and the relationships. `pj1-plan/state.md` is how `project.sh` reads a project. `pj1-plan/between-skills.md` holds the
 labels, the titles and picking the project. Everything below refers to them.
 
 This skill uses these files:
@@ -37,7 +37,7 @@ This skill uses these files:
   `<skills>/workflow/judgement.md` in their prompts, with `<skills>` the directory that holds `$ISSUES`, as the real
   absolute path)
 
-**Language**: talk to the user in the user's language. Write issue text in the repository's language, as `format.md`
+**Language**: talk to the user in the user's language. Write issue text in the repository's language, as `pj1-plan/format.md`
 says.
 
 ## Before you start
@@ -57,11 +57,11 @@ git branch --show-current
   issues turned off. Say which one and stop.
 - Keep the current branch's name for phase 1. A detached HEAD prints no current branch.
 - A dirty working tree does not matter. This skill reads the code and changes nothing in it. It creates no branch
-  either: `pj4-running` creates the project's base branch (`between-skills.md`, **The base branch**).
+  either: `pj4-running` creates the project's base branch (`pj1-plan/between-skills.md`, **The base branch**).
 
 ## The project
 
-1. Pick it as `between-skills.md` says under **Picking the project**. The project picked is `<P>`. Print
+1. Pick it as `pj1-plan/between-skills.md` says under **Picking the project**. The project picked is `<P>`. Print
    `project #<P>` once, as **Picking the project** says. Run `mktemp -d` once for the whole run. `$TMP`
    below is the directory it printed. A shell variable does not outlive one command, so write the path in full each
    time. Run `git status --porcelain` once and keep its output. The checks in phases 1 and 3 compare against it.
@@ -101,7 +101,7 @@ git branch --show-current
    ```
 
    Keep the JSON, and print `level <level> (<source>)` once and `warning` on a line of its own when it is set, as
-   **The level** in the workflow skill's `SKILL.md` says. A non-zero exit stops the skill: quote its message.
+   **The level** in `workflow/SKILL.md` says. A non-zero exit stops the skill: quote its message.
 
 ## Phase 1: the split
 
@@ -118,7 +118,7 @@ When `<from>` is the branch checked out here, the tree is clean and both SHAs ma
 tree. Otherwise their prompt says to read the code at `origin/<from>`.
 
 **The roadmap task**, only when `parent.roadmap` in the `project.sh <P>` JSON is not null. The parent carries the
-roadmap entry `parent.roadmap.entry` of `parent.roadmap.path`, and the split ends with the roadmap task (`format.md`,
+roadmap entry `parent.roadmap.entry` of `parent.roadmap.path`, and the split ends with the roadmap task (`pj1-plan/format.md`,
 **The roadmap task**). Read the roadmap as it stands on `<from>`:
 
 ```bash
@@ -152,7 +152,7 @@ When the split comes back:
 - **If feasibility is "no"**, hand that to the user and stop. **If it is "conditional"** with `#<P> blocked by #<Q>`,
   go to phase 2 and ask the question for that case.
 - **An open question with no `Only you know:` line** goes back with `SendMessage`, to be decided and recorded under
-  `### Model decisions` of the parent (`judgement.md`, **What a human is asked**).
+  `### Model decisions` of the parent (`workflow/judgement.md`, **What a human is asked**).
 - **Ask the open questions now**, with `AskUserQuestion`, **four to a call**, in as many calls as it takes. These are
   the split-level questions, the ones that change the split or the parent's `## Design`. Send the answers back with
   `SendMessage`. The revised report carries each answer as a settled decision in the parent's `## Decisions`.
@@ -181,7 +181,7 @@ Show:
 - the change to the parent body as the `diff -u` above, or "unchanged"
 - the parent's model decisions that the split added or changed, one line each
 - the changes to the parent's edges, each with the planner's reason, or "none"
-- each task's one line: what a reviewer can judge in it without the other tasks (**Where to split** in `judgement.md`)
+- each task's one line: what a reviewer can judge in it without the other tasks (**Where to split** in `workflow/judgement.md`)
 - one line on the roadmap: the last task removes the roadmap entry `<heading>` from `<path>`, or the line kept in phase 1
   saying why there is no roadmap task
 - one line saying the parent gets the `doing` label once the sub-issues are filed
@@ -208,7 +208,7 @@ only the edges checked here.
 $ISSUES/../pj1-plan/scripts/project.sh <Q>
 ```
 
-When it fails, for instance with `has no Base: line`, `#<Q>` is no project and gets no edge (`format.md`,
+When it fails, for instance with `has no Base: line`, `#<Q>` is no project and gets no edge (`pj1-plan/format.md`,
 **Relationships**). `parent.merged` in its output says whether `#<Q>` is merged. A `#<Q>` whose `parent.state` is
 `CLOSED` and that is not `merged` was closed without a merge. It never merges, so it gets no edge either. Send the
 line back to the planner with `SendMessage` when `#<Q>` is no project, when it was closed without a merge, or when it
@@ -251,7 +251,7 @@ Agent(subagent_type: "annetaan:pj-issue-writer", description: "issue T<k>",
 effort from the level, `agents.pj-issue-writer` of the `level.sh` JSON. It is told never to change the repository and to write only under its `Scratch:` directory, by
 instruction.
 
-Each writer sends back a title and a body in the shape `format.md` gives a sub-issue, or a statement that the split
+Each writer sends back a title and a body in the shape `pj1-plan/format.md` gives a sub-issue, or a statement that the split
 or the parent does not hold.
 
 **When a writer says the split does not hold**, send what it found to the planner with `SendMessage` and have it
@@ -278,7 +278,7 @@ Accept a body only when the lint reports no reason, or `decisions-open` alone. T
 see: no line numbers, no checkbox outside
 `## Decisions`, no dependencies written into the body, lines under every option saying what it changes, an
 `Only you know:` line on every decision, and a `### Shared state` list in a body whose task writes shared state
-(**Assumptions** in `judgement.md`). Send a
+(**Assumptions** in `workflow/judgement.md`). Send a
 body that fails back to its writer with `SendMessage` and say what to fix. Write the fixed body over the same file.
 
 Once every writer has returned, run `git status --porcelain` once more. When it differs from the output kept in **The
@@ -323,7 +323,7 @@ The sub-issue bodies sit in `$TMP` from phase 3, and the parent body in `$TMP/<P
    gh issue create --parent <P> --blocked-by <n>,<m> --title "<title>" --body-file "$TMP/T<k>.md"
    ```
 
-5. **The label.** Make sure `doing` exists with the command in `between-skills.md` under **Labels**, then put it on
+5. **The label.** Make sure `doing` exists with the command in `pj1-plan/between-skills.md` under **Labels**, then put it on
    the parent.
 
    ```bash
@@ -332,7 +332,7 @@ The sub-issue bodies sit in `$TMP` from phase 3, and the parent body in `$TMP/<P
 
 6. **The run order.** Write `list` under `## Order`, one line `1. #<n>` per number, with `--order-body`. Its own read of the
    parent is the re-read **Writing to GitHub** asks for. When there is no `## Order` yet, it puts the list between the
-   `Base:` line and `## Goal` (`format.md`, **The run order**).
+   `Base:` line and `## Goal` (`pj1-plan/format.md`, **The run order**).
 
    ```bash
    $ISSUES/../pj1-plan/scripts/project.sh <P> --order
@@ -340,7 +340,7 @@ The sub-issue bodies sit in `$TMP` from phase 3, and the parent body in `$TMP/<P
    gh issue edit <P> --body-file "$TMP/<P>-order.md"
    ```
 
-7. **The titles.** Run the sync in `between-skills.md` under **Titles** for `<P>`.
+7. **The titles.** Run the sync in `pj1-plan/between-skills.md` under **Titles** for `<P>`.
 
    ```bash
    $ISSUES/../pj1-plan/scripts/project.sh <P>
@@ -360,7 +360,7 @@ $ISSUES/../pj1-plan/scripts/project.sh <P>
 $ISSUES/../pj1-plan/scripts/project.sh <P> --order
 ```
 
-The fields are in `state.md` under **Reading a project**. Every task of the split is there, and its `blockedBy`
+The fields are in `pj1-plan/state.md` under **Reading a project**. Every task of the split is there, and its `blockedBy`
 matches the split, with `<P>` as the `parent` of every blocker. The decision counts and the lint match the bodies.
 Every sub-issue's `title` equals its `wantedTitle`. `parent.orderCheck.ok` is true with `missing` empty, and
 `parent.baseExists` is false. `parent.labels` holds `doing`. `--order` finds no cycle. When the split ended with the roadmap task,
@@ -392,11 +392,11 @@ Then the next steps, in this order:
   lines above `## Goal` as they are and write `## Order`, and add nothing else. Titles come from the writers and from
   `wantedTitle` only.
 - **Nothing reaches GitHub before the phase 2 approval.**
-- **You create no branch.** `pj4-running` creates the base branch (`between-skills.md`, **The base branch**).
+- **You create no branch.** `pj4-running` creates the base branch (`pj1-plan/between-skills.md`, **The base branch**).
 - **Only you write to GitHub.** The sub-agents only read it, so the order and the numbers stay in one place.
 - **Sub-issue edges stay inside the project.** Never between a parent and a sub-issue, and never between sub-issues
   of different projects.
-- **A parent edge changes only with the user's approval, and only while `parent.baseExists` is false** (`format.md`,
+- **A parent edge changes only with the user's approval, and only while `parent.baseExists` is false** (`pj1-plan/format.md`,
   **Projects**).
 - **Always pass a body with `--body-file`.**
 - **Re-read `updatedAt` before every edit.**

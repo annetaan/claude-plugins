@@ -63,7 +63,7 @@ lowest-numbered one.
 - **None**: print the entries, say that no project with a worktree here is merged, and stop. A project with no
   worktree is cleaned up by giving its number.
 
-Otherwise, for a run given no number, decide as `between-skills.md` says under **Picking the project**.
+Otherwise, for a run given no number, decide as `pj1-plan/between-skills.md` says under **Picking the project**.
 
 Print `project #<P>` once, as that section says.
 

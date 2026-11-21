@@ -124,6 +124,131 @@ def rules(repo, base, view, main):
     return {"selfMerge": self_merge, "blockedBy": blocked, "requiredChecks": checks,
             "mergeMethod": methods[0] if methods else None}
 
+TRIGGER = re.compile(r"""^(\s*)(?:-\s*)?["']?(pull_request(?:_target)?)["']?\s*(:|$)""")
+ON = re.compile(r"""^["']?on["']?\s*:(.*)$""")
+FILTER = re.compile(r"""^(\s*)(branches|branches-ignore)\s*:\s*(.*)$""")
+
+def glob(pattern):
+    out, i = "", 0
+    while i < len(pattern):
+        c = pattern[i]
+        if pattern.startswith("**", i):
+            out, i = out + ".*", i + 2
+            continue
+        if c == "*":
+            out += "[^/]*"
+        elif c in "?+":
+            out += c
+        elif c == "[" and "]" in pattern[i:]:
+            j = pattern.index("]", i)
+            out, i = out + pattern[i:j + 1], j
+        elif c == "\\" and i + 1 < len(pattern):
+            i += 1
+            out += re.escape(pattern[i])
+        else:
+            out += re.escape(c)
+        i += 1
+    return out
+
+def flow_list(text):
+    items, item, quote, depth = [], "", None, 0
+    for c in text:
+        if quote:
+            if c == quote:
+                quote = None
+            else:
+                item += c
+            continue
+        if c in "'\"":
+            quote = c
+            continue
+        if c == "[":
+            depth += 1
+            if depth == 1:
+                continue
+        elif c == "]":
+            depth -= 1
+            if depth == 0:
+                return [s.strip() for s in items + [item] if s.strip()], True
+        elif c == "," and depth == 1:
+            items, item = items + [item], ""
+            continue
+        item += c
+    return [], False
+
+def lets_through(kind, patterns, base):
+    hits = [not p.startswith("!") for p in patterns if re.fullmatch(glob(p.lstrip("!")), base)]
+    if kind == "branches-ignore":
+        return not hits
+    return bool(hits) and hits[-1]
+
+def uncommented(line):
+    quote = None
+    for i, c in enumerate(line):
+        if quote:
+            if c == quote:
+                quote = None
+        elif c in "'\"":
+            quote = c
+        elif c == "#" and (i == 0 or line[i - 1].isspace()):
+            return line[:i].rstrip()
+    return line.rstrip()
+
+def triggers(text, base):
+    lines = [uncommented(l) for l in text.splitlines()]
+    for n, line in enumerate(lines):
+        m = ON.match(line)
+        if m and re.search(r"\bpull_request(_target)?\b", m.group(1)):
+            return True
+        m = TRIGGER.match(line)
+        if not m:
+            continue
+        indent = len(m.group(1))
+        kind, patterns, child, collecting, flow = None, [], None, False, None
+        for below in lines[n + 1:]:
+            if not below.strip():
+                continue
+            depth = len(below) - len(below.lstrip())
+            if depth <= indent:
+                break
+            if flow is not None:
+                flow += " " + below.strip()
+                patterns, closed = flow_list(flow)
+                if closed:
+                    flow = None
+                continue
+            if child is None:
+                child = depth
+            f = FILTER.match(below)
+            if f and depth == child:
+                kind, value = f.group(2), f.group(3).strip()
+                patterns, collecting = [value.strip("'\"")] if value else [], not value
+                if value.startswith("["):
+                    patterns, closed = flow_list(value)
+                    flow = None if closed else value
+                continue
+            if collecting and depth >= child and below.strip().startswith("- "):
+                patterns.append(below.strip()[2:].strip().strip("'\""))
+                continue
+            collecting = False
+        if kind is None or lets_through(kind, patterns, base):
+            return True
+    return False
+
+def pull_request_workflow(main, ref, base):
+    r = run("git", "-C", main, "ls-tree", "--name-only", ref, "--", ".github/workflows/")
+    if r.returncode != 0:
+        return None
+    for path in r.stdout.splitlines():
+        if not path.endswith((".yml", ".yaml")):
+            continue
+        shown = run("git", "-C", main, "show", "%s:%s" % (ref, path))
+        if shown.returncode != 0:
+            return None
+        if triggers(shown.stdout, base):
+            return True
+    return False
+
 def due(proj, n):
     parent = proj["parent"]
     if n == parent["number"]:
@@ -185,16 +310,11 @@ def has_branch(where, branch):
     return run("git", "-C", where, "rev-parse", "--verify", "--quiet", "refs/heads/" + branch).returncode == 0
 
 NO_CHECKS = "no checks reported on the"
-NO_REQUIRED = "no required checks reported on the"
-
-def nothing_required(text):
-    return NO_CHECKS in text or NO_REQUIRED in text
 
 def registered(m):
-    r = run("gh", "pr", "checks", str(m), "--required", "--json", "name")
+    r = run("gh", "pr", "checks", str(m), "--json", "name")
     if r.returncode != 0:
-        text = r.stdout + r.stderr
-        if nothing_required(text):
+        if NO_CHECKS in r.stdout + r.stderr:
             return 0, None
         return None, r.stderr.strip() or r.stdout.strip() or "gh pr checks exited %d" % r.returncode
     try:
@@ -282,7 +402,7 @@ def start():
              blockedBy=found["blockedBy"], **out)
     if found["mergeMethod"] is None:
         stop("no-merge-method", "the rules on %s leave no merge method that %s allows" % (base, repo), **out)
-    emit(status="run", rules={k: found[k] for k in ("selfMerge", "requiredChecks", "mergeMethod")}, **out)
+    emit(status="run", rules={k: found[k] for k in ("selfMerge", "mergeMethod")}, **out)
 
 def close():
     n, comment_file = int(ARGS[0]), ARGS[2]
@@ -532,7 +652,12 @@ def merge():
         if method is None:
             stop("no-merge-method", "the rules on %s leave no merge method that %s allows"
                  % (base, view["nameWithOwner"]), pr=m)
-        if found["requiredChecks"] != "no":
+        if not fetch(main, b):
+            stop("checks-unreadable", "cannot fetch %s from origin to read its workflows" % b, pr=m)
+        workflow = pull_request_workflow(main, "origin/" + b, base)
+        if workflow is None:
+            stop("checks-unreadable", "cannot read the workflows on origin/%s" % b, pr=m)
+        if found["requiredChecks"] != "no" or workflow:
             deadline = time.monotonic() + wait
             while True:
                 n, error = registered(m)
@@ -543,11 +668,12 @@ def merge():
             if n is None:
                 stop("checks-unreadable", "cannot read the checks on #%d: %s" % (m, error), pr=m)
             if n == 0 and found["requiredChecks"] == "yes":
-                stop("no-checks", "no required check registered on #%d within %d seconds" % (m, wait), pr=m)
-            r = run("gh", "pr", "checks", str(m), "--required", "--watch", "--fail-fast")
-            text = r.stdout + r.stderr
-            if r.returncode != 0 and not nothing_required(text):
-                stop("checks-failed", "\n".join(text.strip().splitlines()[-5:]), pr=m)
+                stop("no-checks", "%s requires a check, and none registered on #%d within %d seconds"
+                     % (base, m, wait), pr=m)
+        r = run("gh", "pr", "checks", str(m), "--watch", "--fail-fast")
+        text = r.stdout + r.stderr
+        if r.returncode != 0 and NO_CHECKS not in text:
+            stop("checks-failed", "\n".join(text.strip().splitlines()[-5:]), pr=m)
         if pv.get("isDraft"):
             r = run("gh", "pr", "ready", str(m))
             if r.returncode != 0:

@@ -1,0 +1,44 @@
+name: test
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - run: bash tests/run.sh
+
+  video:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - id: paths
+        env:
+          BASE: ${{ github.event.pull_request.base.sha || github.event.before }}
+        run: |
+          if git diff --quiet "$BASE" HEAD -- plugins/annetaan/skills/experience-video/ tests/slow/ .github/workflows/test.yml; then
+            echo "video=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "video=true" >> "$GITHUB_OUTPUT"
+          fi
+      - if: steps.paths.outputs.video == 'true'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ffmpeg fonts-noto-cjk
+      - if: steps.paths.outputs.video == 'true'
+        run: bash tests/slow/experience-video.sh

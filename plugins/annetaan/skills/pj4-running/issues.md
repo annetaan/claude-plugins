@@ -11,17 +11,17 @@
    $RUNNING/../pj1-plan/scripts/project.sh <P> --order
    ```
 
-   Read `project.sh`'s output whole, as `between-skills.md` says under **Commands**.
+   Read `project.sh`'s output whole, as `pj1-plan/between-skills.md` says under **Commands**.
 
    **When `--order` fails on a cycle**, within the project or between projects, show the user the cycle it names
    and stop.
 2. **Build the run order.** First put every open issue whose `pr.state` is `MERGED` at the front, whatever its labels
    and blockers. Its pull request has merged and only the close is left. Then walk `parent.order` from the top and
-   skip the closed issues. Take each open issue while it is workable (`state.md`, **When an issue is workable**), with
+   skip the closed issues. Take each open issue while it is workable (`pj1-plan/state.md`, **When an issue is workable**), with
    the issues already taken counting as closed. **Stop the walk at the first
    open issue that is not.** Nothing after it is taken, even when it is workable, because the order is the user's
-   (`format.md`, **The run order**). The roadmap task is not workable while `parent.roadmap.missing` is not empty
-   (`state.md`, **When an issue is workable**), whatever the walk has already taken.
+   (`pj1-plan/format.md`, **The run order**). The roadmap task is not workable while `parent.roadmap.missing` is not empty
+   (`pj1-plan/state.md`, **When an issue is workable**), whatever the walk has already taken.
    - **`parent.order` is empty, or `parent.orderCheck.ok` is false**: the run order is the merged-pull-request issues
      alone, and the walk does not start. Show what `orderCheck` names, and give the next step, `/annetaan:pj3-doctor`.
      With no such issue the run order is empty and phase 1 ends here (step 4).
@@ -71,11 +71,11 @@ AskUserQuestion: Start the run?
 
 An unattended run skips this question, prints the same summary, and starts.
 
-The approval covers this run only (`between-skills.md`, **Principle**).
+The approval covers this run only (`pj1-plan/between-skills.md`, **Principle**).
 
 ## Phase 3: before the first issue
 
-Take **Before workflow runs** in SKILL.md with From an issue. Its entry, `from-issue.md` in the workflow skill, is followed for every issue.
+Take **Before workflow runs** in SKILL.md with From an issue. Its entry, `workflow/from-issue.md`, is followed for every issue.
 
 ## Phase 4: one issue at a time
 
@@ -83,7 +83,7 @@ Nothing runs in parallel. There is one worktree, `<WT>`. For each issue `<k>` in
 
 1. **Re-read the project** with `project.sh <P>`.
    - The issue is closed: skip it.
-   - The issue is no longer workable (`state.md`, **When an issue is workable**), and its `pr` is not merged, as when a
+   - The issue is no longer workable (`pj1-plan/state.md`, **When an issue is workable**), and its `pr` is not merged, as when a
      human took `ready` off or a stub was filed during this run: the run stops here, as the walk in phase 1 would have.
      Tell the user the reason, put no label on the issue, give `/annetaan:pj3-doctor` as the next step, and go to
      phase 5.
@@ -201,7 +201,7 @@ workflow hands over to this section by name, with the design session's `Body:`, 
 
 5. **Check the issue again.** Run `project.sh <P> --check <k>` and require `lint.ok`, an empty `premises.failures` and an
    empty `breakage.unclosed`. The last list is project-wide, so a redraw that drops a closer's criterion is caught here.
-6. **A failure.** A failure that is format-only you fix yourself first, as `between-skills.md` says under
+6. **A failure.** A failure that is format-only you fix yourself first, as `pj1-plan/between-skills.md` says under
    **Format-only fixes**: a lint reason in step 1, or `symbol never in the file` or a lint reason in step 5. `<before>`
    is `$TMP/<k>-redrawn.md` and `<after>` is `$TMP/<k>-form.md`.
 
@@ -237,7 +237,8 @@ phase 5. The pull request stays a draft, and the next run merges it.
 
 1. Write `$TMP/<k>-closed.md` worded as in the `merged` case of phase 4 step 2, naming `#<m>`. The merge into the base
    branch closes nothing, so `run.sh merge` closes the issue with it.
-2. Merge the pull request, close `#<k>`, move `<WT>` onto the merged base and delete the head branch. Run this as a
+2. Merge the pull request, close `#<k>`, move `<WT>` onto the merged base and delete the head branch. The merge waits
+   for every check on the pull request to pass, required or not. Run this as a
    background command and wait for it to exit, because waiting on the checks can outlast a foreground command. The
    output goes to files, because the background task's own output file lies outside the run's working directories and
    an unattended run cannot read it. Then read `$TMP/<k>-merge.json` with Read and act on that JSON. On a non-zero exit, read `$TMP/<k>-merge.err` with
@@ -249,7 +250,8 @@ phase 5. The pull request stays a draft, and the next run merges it.
 
    - **`stop`** with `review`, `conflict`, `merge-failed` or `not-the-pr`: say so, quote `message`, and go to phase 5.
    - **`stop`** with `no-checks`, `checks-unreadable` or `checks-failed`: quote `message`. The pull request stays a
-     draft, and the next run merges it. Go to phase 5.
+     draft, and the next run merges it. After `checks-failed` the next run stops again until the checks pass, from a
+     push to the branch or a rerun of the failed jobs (`gh run rerun <id> --failed`). Go to phase 5.
    - **`merged`** with a non-empty `errors`: the merge went through, and a later step failed. Report each `step` with
      its `message`, fold the handover lines as step 3 says, then go to phase 5. When `close` failed, the issue stays
      open with its pull request merged, and the next run closes it.
@@ -292,7 +294,7 @@ the work so far, commits included, is saved on the machine that ran this, at `fi
 issue, and which paths of `left` stay in `<WT>` when there are any. After a `save` that failed or stopped, it says that
 the work stays in `<WT>`.
 
-- **`blocking`**: make sure `blocker` exists. File the stub in the shape of `format.md` **Stubs**, from the
+- **`blocking`**: make sure `blocker` exists. File the stub in the shape of `pj1-plan/format.md` **Stubs**, from the
   `Unplanned:` text, blocking `#<k>`.
 
   ```bash
@@ -307,7 +309,7 @@ the work stays in `<WT>`.
   gh issue edit <k> --remove-label ready
   ```
 
-  Bring the title to `wantedTitle` from `project.sh <P>` (`between-skills.md`, **Titles**) with
+  Bring the title to `wantedTitle` from `project.sh <P>` (`pj1-plan/between-skills.md`, **Titles**) with
   `gh issue edit <k> --title "<wantedTitle>"`. Post a comment on `#<k>` that names `#<k> D<d>`, says what the design
   session found and that the issue is held until it is settled, and says to tick it and run `/annetaan:pj3-doctor`.
   `--next` reads `user` / `decisions`, and after the tick `doctor` / `not-ready`.

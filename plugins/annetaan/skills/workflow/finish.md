@@ -1,5 +1,7 @@
 # The work report and the pull request
 
+> This file is read by the main session that loaded the workflow skill. The paths it uses are the ones **Paths: `$FLOW`** in SKILL.md gives.
+
 ## The work report
 
 **A session that worked on the code writes the work report, in every mode. Do not write it yourself.**
