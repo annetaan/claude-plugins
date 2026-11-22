@@ -111,8 +111,26 @@ Nothing runs in parallel. There is one worktree, `<WT>`. For each issue `<k>` in
      - **`ok`**: go to step 3. A leftover `<branch>` with no commits of its own was deleted and made again.
      - **`stop`** with `unpushed`: stop the run. Name `<branch>` and the number in `commits`, and say that
        `git -C <WT> log origin/<base>..<branch>` shows them. A `finish` stop in an earlier run leaves exactly this.
-       The user picks the way out. A draft pull request from `<branch>` into `<base>` with the work report's `log.md`
-       as its body makes the next run merge it. Deleting `<branch>` makes the next run redo the issue.
+       The `log.md` of the work report has its `Implements #<k>` head only once `record` has run, which a finish
+       that stopped early did not do, so run `status` first:
+
+       ```bash
+       $RUNNING/../workflow/scripts/panel.sh status <WT>
+       ```
+
+       When it prints `ok` with an `issue` equal to `<k>`, run `record`, which leaves a head already there as it is:
+
+       ```bash
+       $RUNNING/../workflow/scripts/panel.sh record <WT>
+       ```
+
+       - **`record` prints `ok`**: the user picks the way out. Pushing `<branch>` with
+         `git -C <WT> push -u origin <branch>` and opening a draft pull request from it into `<base>` with
+         `<workdir>/log.md` as its body (`workdir` from `status`) makes the next run merge it. Deleting `<branch>`
+         makes the next run redo the issue.
+       - **Anything else**: `status` printed `stop` or exited non-zero, its `issue` is not `<k>`, or `record`
+         printed `stop` or exited non-zero. Quote the `message` (stderr on a non-zero exit). Deleting `<branch>` is
+         the only way out, and it makes the next run redo the issue.
      - **`stop`** with `checked-out`: stop the run, and name the worktree in `worktree` that holds `<branch>`.
 3. **Read the check** on the `null` path, after `run.sh branch`, and keep the JSON. Nothing stops on it. The design
    session reads it in the detail pass.
