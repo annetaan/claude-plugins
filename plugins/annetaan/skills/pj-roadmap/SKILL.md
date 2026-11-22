@@ -25,9 +25,9 @@ the user. Collapse the `..` in a path to a sibling skill, so that the command te
 This skill uses these files:
 
 - the script `<skills>/pj1-plan/scripts/project.sh`, written `project.sh` below, for `--roadmap`, and with `<P>` to read an open parent's `Roadmap:` line
-- the script `<skills>/workflow/scripts/worktree.sh`, written `worktree.sh` below, for `start`, `create`, `ignore` and, in **Ending before approval**, `check`
+- the script `<skills>/workflow/scripts/worktree.sh`, written `worktree.sh` below, for `start`, `create`, `ignore` and, in **Ending with nothing changed**, `check`
 - `<skills>/workflow/worktree.md`, which you read for **The start check**, steps 3 to 5 of **The worktree** and
-  **Ending before approval**. `$FLOW` in that file means `<skills>/workflow`
+  **Ending with nothing changed**. `$FLOW` in that file means `<skills>/workflow`
 - `<skills>/pj1-plan/format.md`: **The roadmap file** and **Writing bodies**
 - `<skills>/pj1-plan/between-skills.md`: **Issues in a report**, for how a URL stands in a report
 
@@ -105,14 +105,14 @@ Draw it, do not write it yet. Read `<WT>/<path>` whole. Work out the entries and
   every `parent.roadmap.entry` whose `path` is this file. Those headings are **named**. A named heading keeps its text
   and its place as one entry: it is never dissolved and never renamed, whatever the rules below say. Show each in the
   approval as kept because `#<P>` names it. A named `## ` heading that holds `###` headings stays one entry with them
-  inside. When `project.sh <P>` fails on a parent, quote its error and stop, taking **Ending before approval**: that
+  inside. When `project.sh <P>` fails on a parent, quote its error and stop, taking **Ending with nothing changed**: that
   parent may name a heading, and skipping it could dissolve the heading.
 - Change the structure only. Every sentence stays, in an entry or in the preamble.
 - What a grouping said, such as a `## Later` over `###` items, becomes a line in each entry that was under it.
 - A `## ` heading that stays one initiative keeps its text, unless it is a duplicate. A `## ` heading over `###`
   initiatives is a grouping, and the rule above dissolves it, unless it is named.
 - A duplicate heading: ask what each of them should be called, with `AskUserQuestion`. A named one keeps its text, and
-  only the other is asked about. When two duplicates are both named, say so and stop, taking **Ending before approval**: one of
+  only the other is asked about. When two duplicates are both named, say so and stop, taking **Ending with nothing changed**: one of
   the parents has to change.
 - A leading front matter block stays where it is.
 
@@ -128,7 +128,7 @@ AskUserQuestion: Rewrite the roadmap and open the pull request?
   - Stop
 ```
 
-`Change something first`: redraw and ask again. `Stop`: take **Ending before approval** in
+`Change something first`: redraw and ask again. `Stop`: take **Ending with nothing changed** in
 `<skills>/workflow/worktree.md`.
 
 ## 7. Write and check
@@ -175,7 +175,7 @@ Leave the worktree first: `ExitWorktree(action: "keep")`, or `cd <MAIN>` where t
 
 - Change the roadmap file only, and never in `<MAIN>`.
 - Write nothing before the approval of step 6.
-- A stop from step 5 to the approval of step 6 takes **Ending before approval** in `<skills>/workflow/worktree.md`,
+- A stop from step 5 to the approval of step 6 takes **Ending with nothing changed** in `<skills>/workflow/worktree.md`,
   because `<WT>` exists by then. Steps 1 to 3 stop before any worktree exists, and need nothing removed.
 - Never merge, and never update an open pull request.
 - Never drop a sentence.

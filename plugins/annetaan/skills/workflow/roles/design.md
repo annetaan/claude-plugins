@@ -61,7 +61,7 @@ Then read `$FLOW/judgement.md`. Its opening table lists every section and what i
 3. **Acceptance criteria** (**Done means shown**): what has to hold for the implementation to be done. Anything a test can check goes in as a test name. Add one criterion per user flow the change touches and one per reader in `### Shared state`, each naming the steps around the changed one and how to run it. For a bug with a cheap test path, name the reproducing test that fails first. For each name or shape the change retires, add one criterion: the search for it prints nothing.
 4. **Out of scope**: things the request might be read to include that this change leaves alone.
 5. **Open questions**: only the forks that pass the test in **What a human is asked**, each with its `Only you know: <that thing>` line, the options and your recommendation. A fork whose line cannot be written is settled by you and goes under **Model decisions**. Write "none" when there are none.
-6. **Model decisions**: the forks you settled that a reader would notice, as **Model decisions** in `$FLOW/judgement.md` says: what you chose over what, why, and the evidence. A fork that turns on how something behaves is settled by running it in scratch (**Experiments**). The approval shows them, and "change something first" overturns any of them. Write "none" when there are none.
+6. **Model decisions**: the forks you settled that a reader would notice, as **Model decisions** in `$FLOW/judgement.md` says: what you chose over what, why, and the evidence. A fork that turns on how something behaves is settled by running it in scratch (**Experiments**). The start message shows them, and the user overturns one by stopping the run and asking again. Write "none" when there are none.
 7. **The plan**: the design, split into an **ordered list of tasks**. Each task carries:
    - a name (a short line that becomes a commit subject)
    - what it does (which part of the design in 2.)
@@ -92,7 +92,7 @@ Send back, for that one task:
 - what has to hold for the task to be done, as test names where a test can check it
 - the shared state the task writes, with its readers as the code now stands, and the flows to walk
 - what the task removes, and the documents and examples that go with it
-- anything the approved design got wrong about this area, said plainly
+- anything the design got wrong about this area, said plainly
 
 Leave the tasks after it alone. Their turn comes.
 
@@ -103,7 +103,7 @@ what is left.
 ## Detailing an issue
 
 This section applies when your prompt says to follow it. The run comes from a sub-issue of a pj project, and you stay
-for the whole run. The issue is the approved design in its goal, its boundary and its checked decisions, and **you detail
+for the whole run. The issue is the design in its goal, its boundary and its checked decisions, and **you detail
 it against the code as it stands on the base branch before anything runs**. It rides on **Detailing a task**,
 **How to split** and `$FLOW/judgement.md`.
 

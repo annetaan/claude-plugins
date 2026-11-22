@@ -15,7 +15,7 @@ marketplace in `/plugin`.
 
 ### workflow is the core
 
-`workflow` runs one implementation for one request: a design, your approval, then each task implemented, reviewed
+`workflow` runs one implementation for one request: a design, then each task implemented, reviewed
 and committed, and at the end a pull request. Everything in this plugin that writes code goes through it.
 While it runs, its state lives in the session and in its work report under `work-reports/` on disk. Nothing reaches
 GitHub until the finish step pushes and opens a pull request. It works in a worktree of its own.
@@ -140,11 +140,11 @@ request is the exception: asking to resolve the conflicts of a pull request, in 
 
 Runs one implementation through sessions with different jobs. A design session writes the plan, then details each
 task as its turn comes. The design is drawn as if the request had always been required and moves existing code,
-contracts included, where that gives the better shape, and what moves is in the design you approve. An implementation session writes the code for one task. Review seats try to break it and write what they prove, each by a probe they run through `panel.sh`, to a file. A repository below level 3 has one seat, and level 3 has two, on different models. The implementation session and the review seats are new for every task. You approve once, near the start, and
-the approval message names the branch and the base. The run happens in `.claude/worktrees/wf-<stamp>`.
+contracts included, where that gives the better shape, and what moves is in the design you approve. An implementation session writes the code for one task. Review seats try to break it and write what they prove, each by a probe they run through `panel.sh`, to a file. A repository below level 3 has one seat, and level 3 has two, on different models. The implementation session and the review seats are new for every task. It asks for no approval: you
+answer only the questions it cannot go on without, and a start message names the branch and the base. The run happens in `.claude/worktrees/wf-<stamp>`.
 
 The sessions follow [the judgement rules](skills/workflow/judgement.md). The design session settles what it can from
-the code, the history or a throwaway experiment, and lists those as model decisions, which the approval shows. You are
+the code, the history or a throwaway experiment, and lists those as model decisions, which the start message shows. You are
 asked only what turns on something only you know. The implementation session shows each acceptance criterion by running
 it and walks the flows the change touches. A review seat reports only what it proved by a run: a command, what it
 printed, and what the design requires. The main session runs each command again, keeps a finding only when the failure
@@ -168,9 +168,8 @@ which record what the implementation session ran.
 ```mermaid
 flowchart TD
     req(["your request"]) --> wt["worktree on the tip of the base<br/>work-reports/ and .claude/worktrees/ ignored?"] --> design["design session<br/>boundaries, acceptance criteria,<br/>plan of tasks"]
-    design --> ask["one approval<br/>proceed with this plan?<br/>branch and base named"]
-    ask -->|rework| redo["design session<br/>revises"] --> ask
-    ask -->|approved| setup["branch in the worktree<br/>record START"]
+    design --> ask["open questions, only when there are any<br/>start message, no approval<br/>branch and base named"]
+    ask --> setup["branch in the worktree<br/>record START"]
     setup --> detail
 
     subgraph task["per task"]
@@ -201,7 +200,7 @@ flowchart TD
 ```
 
 The "per task" block repeats for every task in the plan, and nothing inside it runs in parallel, because there is one
-worktree. Everything after the approval runs on its own. A task that passes review becomes one commit, so the
+worktree. Everything after the open questions runs on its own. A task that passes review becomes one commit, so the
 commit list reads back as the plan. A task that does not settle in five rounds comes back to you with the open
 points laid out, and its changes stay uncommitted in the run's worktree. When the base moved during the run and the
 branch now conflicts with it, the finish step merges the base in and resolves the conflicts as one more reviewed task

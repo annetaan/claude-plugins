@@ -88,7 +88,7 @@ Required: the retry stops at zero attempts (acceptance criterion 2)
 - `npm run e2e -- signin`: needs a browser that is not here
 ```
 
-- A finding has a title and three lines. `Command:` is always one `panel.sh run` line with real paths, the one the seat ran. The main session runs it again word for word from `<WT>`, and so does the implementation session after a fix. `Printed:` is the exit and the decisive lines, three lines at most. `Required:` is what the approved design, its criteria, the plan or the task detail requires.
+- A finding has a title and three lines. `Command:` is always one `panel.sh run` line with real paths, the one the seat ran. The main session runs it again word for word from `<WT>`, and so does the implementation session after a fix. `Printed:` is the exit and the decisive lines, three lines at most. `Required:` is what the design, its criteria, the plan or the task detail requires.
 - A search that is a finding is a probe too: its `run.sh` holds the search.
 - `## Findings` reads `None.` when the seat proved nothing.
 - `## Not run` holds each `not run:` entry of the evidence file that the seat could not run either, with the reason. It reads `None.` when there is none.
