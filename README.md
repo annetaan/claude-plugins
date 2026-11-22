@@ -38,7 +38,7 @@ Or let Claude Code do it. Open `/plugin`, go to Marketplaces, pick `annetaan` an
   [pj-cleanup](plugins/annetaan/README.md#pj-cleanup) tidies up once you have merged it.
   [pj-roadmap](plugins/annetaan/README.md#pj-roadmap) brings your roadmap file into the format they read, through a pull request.
 - [level](plugins/annetaan/README.md#level) proposes the repository's level, which sets how much model the
-  implementation and review get, through a pull request.
+  design, the implementation and the review get, through a pull request.
 - [doc-write](plugins/annetaan/README.md#doc-write) and
   [doc-meta, doc-review and doc-revise](plugins/annetaan/README.md#doc-meta) write and revise documents.
 - [experience-video](plugins/annetaan/README.md#experience-video) interviews you about your customer's experience and

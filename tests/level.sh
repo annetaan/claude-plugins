@@ -52,11 +52,11 @@ one_warning_line() { [ "$(field '"warning"' | wc -l | tr -d ' ')" = 1 ] || fail 
 field() { printf '%s\n' "$OUT" | json "d[$1]"; }
 
 show
-[ "$(field '"level"')" = 3 ] || fail "no file: level is not 3: $OUT"
+[ "$(field '"level"')" = 2 ] || fail "no file: level is not 2: $OUT"
 [ "$(field '"source"')" = default ] || fail "no file: source is not default: $OUT"
 [ "$(field '"warning"')" = None ] || fail "no file: a warning was printed: $OUT"
 [ "$(field '"ref"')" = origin/trunk ] || fail "no file: ref is not origin/trunk: $OUT"
-echo "ok: show: no file on origin gives level 3 from default with no warning"
+echo "ok: show: no file on origin gives level 2 from default with no warning"
 
 publish "$(level_file 2 2026-11-20 2099-02-18)"
 show
@@ -85,17 +85,17 @@ echo "ok: show: a past review-by warns and keeps the level"
 
 publish "$(level_file 5 2026-11-20 2099-02-18)"
 show
-[ "$(field '"level"') $(field '"source"')" = "3 default" ] || fail "invalid file: expected level 3 from default: $OUT"
+[ "$(field '"level"') $(field '"source"')" = "2 default" ] || fail "invalid file: expected level 2 from default: $OUT"
 field '"warning"' | grep -qF "origin/trunk:$FILE: level is not 1, 2 or 3; ignored" || fail "invalid file: no warning: $OUT"
-publish "$(level_file 2 yesterday 2099-02-18)"
+publish "$(level_file 3 yesterday 2099-02-18)"
 show
-[ "$(field '"level"') $(field '"source"')" = "3 default" ] || fail "invalid date: expected level 3 from default: $OUT"
+[ "$(field '"level"') $(field '"source"')" = "2 default" ] || fail "invalid date: expected level 2 from default: $OUT"
 field '"warning"' | grep -qF "ignored" || fail "invalid date: no warning: $OUT"
-publish "$(level_file $'2\xe9' 2026-11-20 2099-02-18)"
+publish "$(level_file $'3\xe9' 2026-11-20 2099-02-18)"
 show
-[ "$(field '"level"') $(field '"source"')" = "3 default" ] || fail "non-UTF-8 level: expected level 3 from default: $OUT"
+[ "$(field '"level"') $(field '"source"')" = "2 default" ] || fail "non-UTF-8 level: expected level 2 from default: $OUT"
 one_warning_line "non-UTF-8 level"
-echo "ok: show: an invalid file falls back to 3 with a warning"
+echo "ok: show: an invalid file falls back to 2 with a warning"
 
 publish "$(level_file 2 2026-11-20 2099-02-18)"$'\nRationale: caf\xe9 in latin-1'
 show
@@ -104,17 +104,18 @@ echo "ok: show: a byte that is not UTF-8 in the rationale keeps the file's level
 
 git -C "$CLONE" remote set-url origin "$TMP/gone.git"
 show
-[ "$(field '"level"') $(field '"source"')" = "3 default" ] || fail "unreachable origin: expected level 3 from default: $OUT"
+[ "$(field '"level"') $(field '"source"')" = "2 default" ] || fail "unreachable origin: expected level 2 from default: $OUT"
 field '"warning"' | grep -qF "cannot read origin's default branch" || fail "unreachable origin: no warning: $OUT"
+field '"warning"' | grep -qF "; level 2 unless overridden" || fail "unreachable origin: the warning does not name level 2: $OUT"
 one_warning_line "unreachable origin"
 show 2
 [ "$(field '"level"') $(field '"source"')" = "2 override" ] || fail "unreachable origin: the override was lost: $OUT"
 git -C "$CLONE" remote set-url origin "$ORIGIN"
 git init -q "$TMP/no-origin"
 OUT="$("$SCRIPT" show "$TMP/no-origin")" || fail "a clone with no origin exited non-zero"
-[ "$(field '"level"') $(field '"source"')" = "3 default" ] || fail "no origin: expected level 3 from default: $OUT"
+[ "$(field '"level"') $(field '"source"')" = "2 default" ] || fail "no origin: expected level 2 from default: $OUT"
 one_warning_line "no origin"
-echo "ok: show: an unreachable origin falls back to 3 with a one-line warning"
+echo "ok: show: an unreachable origin falls back to 2 with a one-line warning"
 
 if "$SCRIPT" show "$CLONE" 4 >/dev/null 2>&1; then fail "show <dir> 4 exited 0"; fi
 mkdir -p "$TMP/plain"
@@ -126,18 +127,24 @@ for n in 1 2 3; do
   printf '%s\n' "$OUT" | python3 -c '
 import json, sys
 want = {
-    "1": {"workflow-worker": ("sonnet", "high"), "pj-issue-writer": ("sonnet", "high"),
-          "workflow-reviewer-a": ("opus", "medium"), "workflow-reviewer-b": ("fable", "medium")},
-    "2": {"workflow-worker": ("opus", "medium"), "pj-issue-writer": ("opus", "medium"),
-          "workflow-reviewer-a": ("opus", "high"), "workflow-reviewer-b": ("fable", "medium")},
-    "3": {"workflow-worker": ("opus", "high"), "pj-issue-writer": ("opus", "high"),
-          "workflow-reviewer-a": ("opus", "high"), "workflow-reviewer-b": ("fable", "medium")},
+    "1": {"workflow-design": ("sonnet", "high"), "pj-planner": ("sonnet", "high"),
+          "pj-reviewer": ("sonnet", "high"), "workflow-worker": ("sonnet", "medium"),
+          "pj-issue-writer": ("sonnet", "medium"), "workflow-reviewer-a": ("sonnet", "medium"),
+          "workflow-reviewer-b": ("fable", "medium")},
+    "2": {"workflow-design": ("opus", "medium"), "pj-planner": ("opus", "medium"),
+          "pj-reviewer": ("opus", "medium"), "workflow-worker": ("sonnet", "high"),
+          "pj-issue-writer": ("sonnet", "high"), "workflow-reviewer-a": ("opus", "medium"),
+          "workflow-reviewer-b": ("fable", "medium")},
+    "3": {"workflow-design": ("fable", "medium"), "pj-planner": ("fable", "medium"),
+          "pj-reviewer": ("fable", "medium"), "workflow-worker": ("opus", "medium"),
+          "pj-issue-writer": ("opus", "medium"), "workflow-reviewer-a": ("opus", "high"),
+          "workflow-reviewer-b": ("fable", "medium")},
 }[sys.argv[1]]
 got = {k: (v["model"], v["effort"]) for k, v in json.load(sys.stdin)["agents"].items()}
 assert got == want, got
 ' "$n" || fail "agents at level $n: $OUT"
 done
-echo "ok: show: agents holds the four levelled agents with the table's values at each level"
+echo "ok: show: agents holds the seven levelled agents with the table's values at each level"
 
 WD="$TMP/wd"
 mkdir -p "$WD/review"

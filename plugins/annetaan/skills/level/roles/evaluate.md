@@ -18,8 +18,8 @@ worktree `<WT>` to read the code in.
 
 ## What the levels mean
 
-The level picks how much model the implementation session, the two review seats and the issue writer get. The design
-and the planners never change with it. The `agents` of each level in your prompt say which model and
+The level picks how much model the design session, the planners, the project reviewer, the implementation session,
+the two review seats and the issue writer get. The `agents` of each level in your prompt say which model and
 effort each of those agents gets. That is the only place to read them from.
 
 - **Level 1** is the least model. It fits a repository whose design leads the implementation by the hand: clear
@@ -39,7 +39,7 @@ effort each of those agents gets. That is the only place to read them from.
    `override` group shows how a level other than the file's did, and it weighs as evidence for that level. A group of
    a handful of runs is weak evidence, and you say so.
 
-With no history (`runs` empty), judge from the code alone. When in doubt, propose 3.
+With no history (`runs` empty), judge from the code alone. When in doubt, propose 2.
 
 ## What you return
 

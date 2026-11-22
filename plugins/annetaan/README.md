@@ -590,21 +590,21 @@ report has since gone. A pull request that another account has recorded is left 
 ## Agents
 
 These are the sub-agents the skills spawn. Anything under `agents/` becomes callable as `annetaan:<name>`.
-The frontmatter holds the model and the effort, the level-3 values for the four agents of **Levels** below. For those
-four, `workflow`, `pj2-issues`, `pj3-doctor` and `pj4-running` pass the values of the repository's level with each
-call. Every other agent runs as its frontmatter says. When a Fable agent cannot start, the skill spawns it again on
+The frontmatter holds the model and the effort. For the seven agents of **Levels** below, those are the values at the
+default level, level 2, and `workflow`, `pj1-plan`, `pj2-issues`, `pj3-doctor` and `pj4-running` pass the values of the
+repository's level with each call. Every other agent runs as its frontmatter says. When a Fable agent cannot start, the skill spawns it again on
 opus at the same effort. The two review seats run on different models at every level, and a seat that returns no report is a
 dropout: the round goes on with the other.
 
 | Agent | Model | Effort | Role |
 | --- | --- | --- | --- |
-| `annetaan:workflow-design` | fable | medium | design. returns the design and the plan, and tries a doubtful point in a throwaway experiment. In a pj run it also details one sub-issue against the code and may return its body redrawn |
-| `annetaan:workflow-worker` | opus | high | implementation, for every task. shows each acceptance criterion by running it and writes the evidence file |
-| `annetaan:workflow-reviewer-a` | opus | high | review seat a, for every task, and the integration review when the plan has more than one task. tries to break the change and proves each finding by a run of a probe it wrote |
+| `annetaan:workflow-design` | opus | medium | design. returns the design and the plan, and tries a doubtful point in a throwaway experiment. In a pj run it also details one sub-issue against the code and may return its body redrawn |
+| `annetaan:workflow-worker` | sonnet | high | implementation, for every task. shows each acceptance criterion by running it and writes the evidence file |
+| `annetaan:workflow-reviewer-a` | opus | medium | review seat a, for every task, and the integration review when the plan has more than one task. tries to break the change and proves each finding by a run of a probe it wrote |
 | `annetaan:workflow-reviewer-b` | fable | medium | review seat b, the same job as seat a on another model |
-| `annetaan:pj-planner` | fable | medium | planning for `pj1-plan` and `pj2-issues`. the projects, their designs and the waits between them, then one project's split into tasks. tries a doubtful point in a throwaway experiment |
-| `annetaan:pj-issue-writer` | opus | high | one sub-issue, drawn against the code. drafts it for `pj2-issues`, revises it for `pj3-doctor`, and tries a doubtful point in a throwaway experiment |
-| `annetaan:pj-reviewer` | fable | medium | project review for `pj3-doctor`. reads the whole project against the ticked boxes, the code and each issue |
+| `annetaan:pj-planner` | opus | medium | planning for `pj1-plan` and `pj2-issues`. the projects, their designs and the waits between them, then one project's split into tasks. tries a doubtful point in a throwaway experiment |
+| `annetaan:pj-issue-writer` | sonnet | high | one sub-issue, drawn against the code. drafts it for `pj2-issues`, revises it for `pj3-doctor`, and tries a doubtful point in a throwaway experiment |
+| `annetaan:pj-reviewer` | opus | medium | project review for `pj3-doctor`. reads the whole project against the ticked boxes, the code and each issue |
 | `annetaan:experience-video-producer` | fable | medium | production for `experience-video`. fills in the cuts, fragments and music of a story, renders it, and checks its frames |
 | `annetaan:pr-humans-writer` | sonnet | medium | one comment for `pr-humans`. reads only the gathered files. drafts how people took part in one pull request |
 | `annetaan:doc-meta-overview` | opus | high | overview for `doc-meta`. finds what a per-sentence flag misses |
@@ -621,9 +621,10 @@ that path out of the prompt the main session hands it.
 
 ### Levels
 
-A repository's level says how much model the implementation, the review and the issue writing get. It lives in
+A repository's level says how much model the design, the planning, the project review, the implementation, the review
+and the issue writing get. It lives in
 `.claude/annetaan-level.md` on the default branch of `origin`, and only there: a copy in the working tree or on another
-branch is never read. With no file, the level is 3. `level=<n>` in the args of `workflow`, `pj3-doctor`,
+branch is never read. With no file, the level is 2. `level=<n>` in the args of `workflow`, `pj3-doctor`,
 `pj4-running` or `pj-auto` sets it for one run. A file past its `review-by` date still counts, with a warning.
 Each workflow run ends its pull request body with a `Level:` line: the level it ran at, its source, and how many tasks,
 task rounds, integration rounds and findings it had. `/annetaan:level` proposes a new level from those lines and the
@@ -631,10 +632,13 @@ code.
 
 | Agent | Level 1 | Level 2 | Level 3 |
 | --- | --- | --- | --- |
-| `workflow-worker` | sonnet / high | opus / medium | opus / high |
-| `workflow-reviewer-a` | opus / medium | opus / high | opus / high |
+| `workflow-design` | sonnet / high | opus / medium | fable / medium |
+| `pj-planner` | sonnet / high | opus / medium | fable / medium |
+| `pj-reviewer` | sonnet / high | opus / medium | fable / medium |
+| `workflow-worker` | sonnet / medium | sonnet / high | opus / medium |
+| `pj-issue-writer` | sonnet / medium | sonnet / high | opus / medium |
+| `workflow-reviewer-a` | sonnet / medium | opus / medium | opus / high |
 | `workflow-reviewer-b` | fable / medium | fable / medium | fable / medium |
-| `pj-issue-writer` | sonnet / high | opus / medium | opus / high |
 
 ## Credits
 

@@ -44,8 +44,8 @@ exit is quoted and stops the run, the same way.
 
 ## The level
 
-The repository's level picks the model and the effort of the implementation session and the two review seats. The
-script `$FLOW/scripts/level.sh` is written `level.sh` in this skill's files. It reads the level from
+The repository's level picks the model and the effort of the design session, the implementation session and the two
+review seats. The script `$FLOW/scripts/level.sh` is written `level.sh` in this skill's files. It reads the level from
 `.claude/annetaan-level.md` on origin's default branch, and from nowhere else.
 
 ```bash
@@ -58,8 +58,8 @@ $FLOW/scripts/level.sh show <WT> [<n>]
 - **From an issue and From a sync** do not run it. They take the JSON pj4-running settled.
 
 It prints `status: ok` with `level`, `source` (`file`, `override` or `default`), `ref`, `evaluated`, `reviewBy`,
-`warning` and `agents`. `agents.<name>` holds the `model` and the `effort` of `workflow-worker`,
-`workflow-reviewer-a`, `workflow-reviewer-b` and `pj-issue-writer`. Keep the JSON. Print `level <level> (<source>)`
+`warning` and `agents`. `agents.<name>` holds the `model` and the `effort` of `workflow-design`,
+`workflow-worker`, `workflow-reviewer-a`, `workflow-reviewer-b`, `pj-planner`, `pj-reviewer` and `pj-issue-writer`. Keep the JSON. Print `level <level> (<source>)`
 once, and `warning` on a line of its own when it is set. A warning never stops the run. The finish writes `level` and
 `source` into `log.md` with `level.sh record` (`finish.md`, **The work report**), and `/annetaan:level` reads them back
 from the merged pull requests.
@@ -97,7 +97,8 @@ worked in, and that travels as the handover notes (phase 4 (d)).
 review, seats `a` and `b` of the review panel. There is no per-task choice to make.
 All three ship with this plugin. **Every `Agent` call for `annetaan:workflow-worker`, `annetaan:workflow-reviewer-a`
 and `annetaan:workflow-reviewer-b` passes `model` and `effort` from `agents.<name>` of the level JSON** (see **The
-level**), so the calls below carry them.
+level**), so the calls below carry them. The design session runs on `annetaan:workflow-design`, which ships with
+this plugin too, and its call passes `model` and `effort` from `agents.workflow-design` the same way.
 
 **Seat `b` that cannot start** (a weekly limit, a rate limit, the model is unavailable) is spawned again as
 `annetaan:workflow-reviewer-b` with `model: "opus"` and the same `effort`. **A seat that returns no report is a dropout**: the round goes on

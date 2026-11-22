@@ -21,7 +21,8 @@ nothing.
 Collapse the `..` in a path to a sibling skill, so that the command text names `<skills>/workflow/judgement.md` and not
 `<skills>/pj1-plan/../workflow/judgement.md`. A permission rule matches the text of the command. This holds in the prompts for
 sub-agents too. `<skills>` means the directory that holds `$PLAN`. Like `$PLAN`, write it as the real absolute path, never
-literally. One file of the `workflow` skill is read from here: `<skills>/workflow/judgement.md`.
+literally. Two files of the `workflow` skill are used from here: `<skills>/workflow/judgement.md`, and the script
+`<skills>/workflow/scripts/level.sh`, written `level.sh` below.
 
 **Read `$PLAN/format.md` and `$PLAN/between-skills.md` before anything else.** `format.md` is the only description
 of the parent issue, the sub-issue body, the decisions and the relationships. `between-skills.md` holds the labels,
@@ -53,6 +54,18 @@ git branch --show-current
   write the path in full each time.
 - Run `git status --porcelain` and keep its output. Phase 1 compares against it.
 
+### The level
+
+The repository's level picks the model and the effort of the planner. `<root>` is what `git rev-parse
+--show-toplevel` printed.
+
+```bash
+<skills>/workflow/scripts/level.sh show <root>
+```
+
+Keep the JSON, and print `level <level> (<source>)` once and `warning` on a line of its own when it is set, as
+**The level** in `workflow/SKILL.md` says. A non-zero exit stops the skill: quote its message.
+
 ### The roadmap
 
 ```bash
@@ -70,12 +83,13 @@ Hand the user's request to the planner as it was written.
 
 ```
 Agent(subagent_type: "annetaan:pj-planner", description: "project plan",
+      model: "<agents.pj-planner.model>", effort: "<agents.pj-planner.effort>",
       prompt: "Read $PLAN/roles/plan.md first and follow the role it describes. The project format is in $PLAN/format.md. The judgement rules are in <skills>/workflow/judgement.md.\n\nThe request:\n<the user's request, verbatim>\n\nThe roadmap:\n<the --roadmap JSON | none>\n\nScratch: $TMP/scratch/plan")
 ```
 
-`annetaan:pj-planner` ships with this plugin and has its model and effort pinned in `agents/*.md`. It is told never to change the repository and to write only under its `Scratch:` directory, by instruction.
-**When it cannot start** (a weekly limit, a rate limit, the model is unavailable), spawn it again with the same
-prompt and `model: "opus"`.
+`annetaan:pj-planner` ships with this plugin and takes its model and effort from the level, `agents.pj-planner` of the `level.sh` JSON. It is told never to change the repository and to write only under its `Scratch:` directory, by instruction.
+**When its model is `fable` and it cannot start** (a weekly limit, a rate limit, the model is unavailable),
+spawn it again with the same prompt, `model: "opus"` and the same `effort`.
 
 When the plan comes back:
 
@@ -243,3 +257,4 @@ Then the next steps, in this order:
   `format.md`.
 - **Never create a label with `--force`.**
 - **Always pass a body with `--body-file`.**
+- After a context summary, run `level.sh show <root>` again.

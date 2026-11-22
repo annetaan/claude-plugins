@@ -11,12 +11,13 @@ Hand the user's request to the design session as it was written, with the worktr
 
 ```
 Agent(subagent_type: "annetaan:workflow-design", description: "design",
+      model: "<agents.workflow-design.model>", effort: "<agents.workflow-design.effort>",
       prompt: "Read $FLOW/roles/design.md first and follow the role it describes.\n\nThe request:\n<the user's request, verbatim>\n\n<the worktree line>\n\nScratch: <WT>/work-reports/<stamp>-design")
 ```
 
-`annetaan:workflow-design` ships with this plugin and has its model and effort pinned in `agents/*.md`. It is told never to change the repository and to write only under its `Scratch:` directory, by instruction.
-**When it cannot start** (a weekly limit, a rate limit, the model is unavailable), spawn it again with the same
-prompt and `model: "opus"`.
+`annetaan:workflow-design` ships with this plugin and takes its model and effort from the level, `agents.workflow-design` of the level JSON. It is told never to change the repository and to write only under its `Scratch:` directory, by instruction.
+**When its model is `fable` and it cannot start** (a weekly limit, a rate limit, the model is unavailable),
+spawn it again with the same prompt, `model: "opus"` and the same `effort`.
 
 When the design comes back:
 
@@ -48,7 +49,7 @@ The approval message states:
 - the name of the new branch, and `base: <base>`
 - the worktree `<WT>`, and that `<MAIN>` is not touched
 - that `<WT>` lacks `<MAIN>`'s ignored files (dependencies, `.env`), so the first worker prepares what the tests need and records the steps in the handover notes
-- `level <n> (<source>)`, the model and effort it gives the implementation session and the two review seats, and that `level=<n>` on a new run changes it
+- `level <n> (<source>)`, the model and effort it gives the design session, the implementation session and the two review seats, and that `level=<n>` on a new run changes it
 - that everything after this runs on its own: per-task implementation and review rounds, the integration review when the plan has more than one task, the push and the pull request
 
 **You pick the branch name yourself.** Match the naming the repository already uses (`git branch -a`), choose one that `git branch -a` does not list yet, and write it into the approval message, so the user can correct it there. Do not spend a question on it.

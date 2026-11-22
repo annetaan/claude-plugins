@@ -5,10 +5,15 @@ ARGS = sys.argv[2:]
 
 PATH_IN_REPO = ".claude/annetaan-level.md"
 
+DEFAULT_LEVEL = 2
+
 AGENTS = {
-    "workflow-worker": [("sonnet", "high"), ("opus", "medium"), ("opus", "high")],
-    "pj-issue-writer": [("sonnet", "high"), ("opus", "medium"), ("opus", "high")],
-    "workflow-reviewer-a": [("opus", "medium"), ("opus", "high"), ("opus", "high")],
+    "workflow-design": [("sonnet", "high"), ("opus", "medium"), ("fable", "medium")],
+    "pj-planner": [("sonnet", "high"), ("opus", "medium"), ("fable", "medium")],
+    "pj-reviewer": [("sonnet", "high"), ("opus", "medium"), ("fable", "medium")],
+    "workflow-worker": [("sonnet", "medium"), ("sonnet", "high"), ("opus", "medium")],
+    "pj-issue-writer": [("sonnet", "medium"), ("sonnet", "high"), ("opus", "medium")],
+    "workflow-reviewer-a": [("sonnet", "medium"), ("opus", "medium"), ("opus", "high")],
     "workflow-reviewer-b": [("fable", "medium"), ("fable", "medium"), ("fable", "medium")],
 }
 
@@ -86,9 +91,9 @@ def clone_dir():
 def show():
     where = clone_dir()
     ref, text, problem = read_file(where)
-    level, source, evaluated, review_by, warning = 3, "default", None, None, None
+    level, source, evaluated, review_by, warning = DEFAULT_LEVEL, "default", None, None, None
     if problem is not None:
-        warning = "cannot read origin's default branch: %s; level 3 unless overridden" % problem
+        warning = "cannot read origin's default branch: %s; level %d unless overridden" % (problem, DEFAULT_LEVEL)
     elif text is not None:
         found, evaluated, review_by, invalid = parse(text)
         if invalid is not None:
