@@ -3,8 +3,10 @@ import fcntl, json, os, re, shutil, subprocess, sys, tempfile, time
 SEATS = ("a", "b")
 TAIL = 40
 STAMP = re.compile(r"\d{4}-\d{2}-\d{2}-\d{4}(-|$)")
-ROUND_NAME = re.compile(r"(task-[1-9]\d*|integration|merge)-round-([1-9]\d*)(?:-(a|b|reply|evidence))?\.md")
+SCOPE = r"task-[1-9]\d*|integration|merge"
+ROUND_NAME = re.compile(r"(%s)-round-([1-9]\d*)(?:-(a|b|reply|evidence))?\.md" % SCOPE)
 FIRST_EVIDENCE_NAME = re.compile(r"(task-[1-9]\d*|merge)-evidence\.md")
+CAP = 5
 FENCE = re.compile(r"\s*```")
 FINDING_SECTIONS = ("Findings", "New findings")
 ROUND_SECTIONS = ["Earlier findings", "New findings", "Dropped", "Not run", "Verdict"]
@@ -204,10 +206,13 @@ def current_run(wt):
     with open(os.path.join(workdir, "run.json")) as f:
         return workdir, json.load(f)
 
-def status(wt):
+def status(wt, scope=None):
+    if scope is not None and not re.fullmatch(SCOPE, scope):
+        die("no such scope: " + scope)
     workdir, record = current_run(wt)
+    state = scope_state(os.path.join(workdir, "review"), scope) if scope is not None else {}
     emit(status="ok", start=record["start"], workdir=workdir, level=record["level"], source=record["source"],
-         issue=record["issue"], parent=record["parent"])
+         issue=record["issue"], parent=record["parent"], **state)
 
 def review_kind(name):
     m = ROUND_NAME.fullmatch(name)
@@ -290,6 +295,22 @@ def approve_blockers(review, scope, r, open_ids):
     if not evidence:
         blockers.append("approve-no-evidence")
     return blockers
+
+def scope_state(review, scope):
+    kinds = [review_kind(name) for name in os.listdir(review)]
+    rounds = sorted(k["round"] for k in kinds if k and k["kind"] == "round" and k["scope"] == scope)
+    files = [parse_review(os.path.join(review, "%s-round-%d.md" % (scope, r))) for r in rounds]
+    last = rounds[-1] if rounds else 0
+    verdict = (section(files[-1], "Verdict")["lines"] or [None])[0] if files else None
+    still = list(open_after(files[-1])) if files else []
+    marks = [open_after(f) for f in files]
+    reply = os.path.join(review, "%s-round-%d-reply.md" % (scope, last))
+    answers = {i: answer for i, answer, _ in answered(parse_review(reply))} if os.path.isfile(reply) else {}
+    blockers = approve_blockers(review, scope, last + 1, still)
+    return {"scope": scope, "round": last + 1, "cap": len(rounds) >= CAP and verdict != "approve", "verdict": verdict,
+            "open": [{"id": i, "stood": sum(m.get(i) in ("stands", "stands again") for m in marks),
+                      "reply": answers.get(i)} for i in still],
+            "approve": {"allowed": not blockers, "why": blockers}}
 
 def run_args(line):
     words = line.split()

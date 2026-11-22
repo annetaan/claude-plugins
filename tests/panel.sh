@@ -788,3 +788,79 @@ refused lint
 refused lint relative.md
 refused lint "$D/notes.md" "$D/notes.md"
 echo "ok: lint stops on a missing file and names a file outside Names"
+
+scoped() {
+  local out
+  out="$("$SCRIPT" status "$WT" "$1")"
+  echo "$out" | json "$2"
+}
+
+setup
+R="$("$SCRIPT" begin "$WT" --level 3 --source default | json 'd["workdir"]')/review"
+plain="$("$SCRIPT" status "$WT")"
+[ "$(echo "$plain" | json 'list(d)')" = "['status', 'start', 'workdir', 'level', 'source', 'issue', 'parent']" ] || fail "status without a scope: $plain"
+[ "$(scoped task-1 '[d["scope"], d["round"], d["cap"], d["verdict"], d["open"], d["approve"]]')" = "['task-1', 1, False, None, [], {'allowed': False, 'why': ['approve-no-evidence']}]" ] || fail "status before round 1"
+[ "$(scoped task-1 '[d["start"], d["level"], d["source"]]')" = "['$(git -C "$WT" rev-parse HEAD)', 3, 'default']" ] || fail "status with a scope lost the run's keys"
+evidence_file "$R/task-1-evidence.md"
+[ "$(scoped task-1 'd["approve"]')" = "{'allowed': True, 'why': []}" ] || fail "status before round 1 with the evidence"
+round_file "$R/task-1-round-1.md" None. "$(finding R1.1)
+$(finding R1.2)" changes-requested
+[ "$(scoped task-1 '[d["round"], d["cap"], d["verdict"], d["open"], d["approve"]]')" = "[2, False, 'changes-requested', [{'id': 'R1.1', 'stood': 0, 'reply': None}, {'id': 'R1.2', 'stood': 0, 'reply': None}], {'allowed': False, 'why': ['approve-open']}]" ] || fail "status after round 1"
+evidence_file "$R/task-1-round-1-evidence.md"
+reply_file "$R/task-1-round-1-reply.md" "- R1.1 $FIXED" "- R1.2 disagree: the value is meant to stay"
+[ "$(scoped task-1 'd["open"]')" = "[{'id': 'R1.1', 'stood': 0, 'reply': 'fixed'}, {'id': 'R1.2', 'stood': 0, 'reply': 'disagree'}]" ] || fail "status after the reply to round 1"
+round_file "$R/task-1-round-2.md" "- R1.1 resolved
+- R1.2 stands: ran: $CMD; saw: exit 1. The value has to go." None. changes-requested
+[ "$(scoped task-1 '[d["round"], d["verdict"], d["open"], d["approve"]]')" = "[3, 'changes-requested', [{'id': 'R1.2', 'stood': 1, 'reply': None}], {'allowed': False, 'why': ['approve-open']}]" ] || fail "status after round 2"
+reply_file "$R/task-1-round-2-reply.md" "- R1.2 disagree: the value is meant to stay"
+round_file "$R/task-1-round-3.md" "- R1.2 stands again: ran: $CMD; saw: exit 1; the value still has to go." None. changes-requested
+[ "$(scoped task-1 '[d["round"], d["cap"], d["open"]]')" = "[4, False, [{'id': 'R1.2', 'stood': 2, 'reply': None}]]" ] || fail "status after round 3"
+for bad in task-x task-0 review; do
+  out="$("$SCRIPT" status "$WT" "$bad" 2>&1)" && fail "status $bad exited 0: $out"
+  [ "$out" = "panel: no such scope: $bad" ] || fail "status $bad: $out"
+done
+refused status "$WT" task-1 task-2
+refused status relative/wt task-1
+echo "ok: status reports round, cap, verdict, open and approve for a scope"
+
+rounds() {
+  local scope="$1" r earlier
+  for r in $(seq "$2" "$3"); do
+    earlier=None.
+    [ "$r" = 1 ] || earlier="- R$((r - 1)).1 resolved"
+    round_file "$R/$scope-round-$r.md" "$earlier" "$(finding "R$r.1")" changes-requested
+  done
+}
+
+setup
+R="$("$SCRIPT" begin "$WT" --level 3 --source default | json 'd["workdir"]')/review"
+for scope in task-1 integration merge; do
+  rounds "$scope" 1 4
+  [ "$(scoped "$scope" '[d["round"], d["cap"]]')" = "[5, False]" ] || fail "$scope cap after four rounds"
+  rounds "$scope" 5 5
+  [ "$(scoped "$scope" '[d["round"], d["cap"], d["verdict"]]')" = "[6, True, 'changes-requested']" ] || fail "$scope cap after five rounds"
+  rounds "$scope" 6 6
+  [ "$(scoped "$scope" '[d["round"], d["cap"]]')" = "[7, True]" ] || fail "$scope cap after six rounds"
+  rm "$R/$scope-round-6.md"
+  round_file "$R/$scope-round-5.md" "- R4.1 resolved" None. approve
+  [ "$(scoped "$scope" '[d["round"], d["cap"], d["verdict"], d["open"]]')" = "[6, False, 'approve', []]" ] || fail "$scope cap when round 5 approves"
+done
+[ "$(scoped task-2 '[d["round"], d["cap"], d["verdict"], d["open"]]')" = "[1, False, None, []]" ] || fail "rounds of task-1 counted for task-2"
+echo "ok: status counts the cap the same for task, integration and merge"
+
+setup
+R="$("$SCRIPT" begin "$WT" --level 3 --source default | json 'd["workdir"]')/review"
+[ "$(scoped integration '[d["round"], d["verdict"], d["approve"]]')" = "[1, None, {'allowed': False, 'why': ['approve-no-evidence']}]" ] || fail "integration before round 1 with no seat file"
+seat_file "$R/integration-round-1-a.md" none
+[ "$(scoped integration 'd["approve"]')" = "{'allowed': False, 'why': ['approve-no-evidence']}" ] || fail "integration with a seat file and no walk"
+seat_file "$R/integration-round-1-b.md" none "$WALK"
+[ "$(scoped integration 'd["approve"]')" = "{'allowed': True, 'why': []}" ] || fail "integration with a walk"
+[ ! -e "$R/integration-evidence.md" ] || fail "an evidence file was written"
+echo "ok: status allows approve in integration round 1 from a walk"
+
+setup
+out="$("$SCRIPT" status "$WT" task-1)"
+[ "$(echo "$out" | json 'd["reason"]')" = no-run ] || fail "status task-1 before begin: $out"
+out="$("$SCRIPT" status "$WT" task-x 2>&1)" && fail "status task-x before begin exited 0: $out"
+[ "$out" = "panel: no such scope: task-x" ] || fail "status task-x before begin: $out"
+echo "ok: status refuses a bad scope before begin, and stops with no-run on a good one"
