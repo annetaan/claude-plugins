@@ -170,6 +170,7 @@ work-reports/2026-09-19-1346-a1b2c3d/
   log.md         what changed, how it was verified, the checks wanted, what the review changed, the screenshots,
                  and last one `Level:` line with the level, its source and the review counts
   changes.diff   the diff from the start commit to HEAD
+  run.json       the start commit, the level and its source, the issue and the parent, written once by panel.sh begin
   review/        one file per review round, the reply to each, and the evidence files
     task-1-evidence.md
     task-1-round-1-a.md         what seat a proved in round 1, and `-b` for seat b
@@ -183,8 +184,9 @@ work-reports/2026-09-19-1346-a1b2c3d/
   after.png
 ```
 
-The directory name is the local time the run started, plus the short SHA of the commit it started from. The newest
-run sorts last, so there is never a question about which report is the current one. The design session's throwaway
+The directory name is the local time the run started, plus the short SHA of the commit it started from. A second run
+of the same minute and commit gets `-2`, `-3` after the name. `panel.sh status` names the current run, the one whose
+`run.json` was written last. The design session's throwaway
 experiments go in `work-reports/<stamp>-design/`, next to the report directory and not inside it.
 
 **These live inside the repository so that you see them.** A cleanup deletes the ones in your clone's
@@ -248,8 +250,8 @@ screenshots it could not attach.
 | `scripts/level.sh` | reads the repository's level from origin's default branch and prints the model and effort it gives the implementation session, the two review seats and pj's issue writer |
 | `scripts/level.py` | the code `level.sh` runs, and the one place the level table lives |
 | `scripts/comments.py` | fails on a comment outside the four kinds, or a silenced check the change adds, in the files a change touches. The implementation and review sessions run it |
-| `scripts/panel.sh` | runs a review seat's probe in a git worktree beside the run's, at a snapshot of the working tree, and removes the seats at cleanup |
-| `scripts/panel.py` | the code `panel.sh` runs |
+| `scripts/panel.sh` | makes the run's work directory and reads it back, runs a review seat's probe in a git worktree beside the run's, at a snapshot of the working tree, and removes the seats at cleanup |
+| `scripts/panel.py` | the code `panel.sh` runs. `worktree.py` imports the stamp rules of the work directory names from it |
 | `review-files.md` | the shape of the review files and the evidence files, read by the seats, the main session and the implementation session |
 
 The design, implementation and review sessions run on agents that ship with the plugin (`../../agents/`). Design is

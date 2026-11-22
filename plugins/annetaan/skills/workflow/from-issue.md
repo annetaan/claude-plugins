@@ -25,8 +25,7 @@ These values are already in your context. Nothing arrives as an argument.
   `effort` from it
 
 pj4-running has already run its checks (`gh`) on `<WT>` and confirmed that `work-reports/` is ignored there.
-Every command below runs in `<WT>`, so `<ROOT>` and `<WORKDIR>` come from there. Never touch
-`<MAIN>`. The user works in it during the run.
+Every command below runs in `<WT>`. Never touch `<MAIN>`. The user works in it during the run.
 
 ## What it runs of phases 2 to 5
 
@@ -34,26 +33,26 @@ This entry asks nothing and writes nothing to memory. Its ending is **What it ha
 
 - **Phase 1** does not run. **The detail pass** below takes its place.
 - **Phase 2 (a)** does not run. pj4-running owns the branch.
-- **Phase 2 (b)** runs as a guard only, because (d) needs `<ROOT>` from the first command.
+- **Phase 2 (b)** runs right after pj4-running made the branch and before **The detail pass**, with `<level>` and
+  `<source>` from the `level.sh show` JSON pj4-running settled:
 
   ```bash
-  git rev-parse --show-toplevel
-  git -C <ROOT> check-ignore -q work-reports/
+  $FLOW/scripts/panel.sh begin <WT> --level <level> --source <source> --issue <n> --parent <P>
   ```
 
-  On exit 1, take the stop procedure with the reason `work-reports`. Never ask about `.gitignore` here.
-- **Phase 2 (c) and (d)**, **The detail pass**, and **phases 3 and 4** run as **Start point and work directory**,
-  **The detail pass** and **Phases 3 and 4** below say.
+  A `stop` with `not-ignored` takes the stop procedure with the reason `work-reports`. Never ask about `.gitignore`
+  here.
+
+  After a context summary, `panel.sh status <WT>` names this run only when its `issue` is `n`. A `no-run`, or an
+  `issue` other than `n`, null included, is an earlier run's work directory in the reused `<WT>`: phase 2 (b) has not
+  run, its `start` and `workdir` are not taken, and the level is the JSON pj4-running settled (**The level** in
+  SKILL.md).
+- **The detail pass** and **phases 3 and 4** run as **The detail pass** and **Phases 3 and 4** below say.
 - **Phase 5** runs after the last task when the plan has two or more tasks, as **Phase 5: integration review** in
   `standalone.md` says, with its round cap ending in **The stop procedure** below. With one task it does not run, and
   the task's implementation session stays alive as the standalone flow keeps it, because it writes the work report in
   **Phase 6 from an issue**. Its seat sessions end as usual.
 - **The round cap**, and the user saying stop, end in **The stop procedure**, with no question to the user.
-
-## Start point and work directory
-
-Phase 2 (c) takes `<START>` from `git rev-parse HEAD`, right after pj4-running made the branch. Phase 2 (d) runs as
-written.
 
 ## The detail pass
 
@@ -162,8 +161,8 @@ Keep the handover lines from phase 4 (d) for pj4-running.
 ## The stop procedure
 
 It runs on the round cap, an `Unplanned:` with `blocking`, a `Stop: ask` or a redraw that did not pass
-(**The detail pass**, **Phases 3 and 4**), a human edit that **A redrawn issue** found (the stop `user`), the
-`work-reports/` guard, or the user saying stop. The reasons it hands back are
+(**The detail pass**, **Phases 3 and 4**), a human edit that **A redrawn issue** found (the stop `user`), `begin`
+stopping with `not-ignored`, or the user saying stop. The reasons it hands back are
 `round cap`, `blocking`, `decision`, `detail`, `work-reports`, `user` and `finish`.
 
 The case is decided by whether every task of the plan is committed and the integration review, when it runs, has
@@ -185,7 +184,7 @@ approved. Look for the commits in `git log --oneline <START>..HEAD`.
 - **`finished`**: the pull request number `m`, the SHA of the last commit, the handover lines, the paths of any
   screenshots that could not be attached, and `stop requested` (yes or no).
 - **`stopped`**: the reason (`round cap`, `blocking`, `decision`, `detail`, `user`, `work-reports` or `finish`),
-  `<WORKDIR>` (the absolute path, when phase 2 (d) made it, otherwise none), `<START>`, and the text of the `Unplanned:`
+  `<WORKDIR>` (the absolute path, when phase 2 (b) made it, otherwise none), `<START>`, and the text of the `Unplanned:`
   report, the decision `#<n> D<k>` the design session asked, or the failing lint or `--check` JSON, or for `finish` the
   step that failed, its message and the path of `log.md` when there is one. A run that returns `stopped` has opened no
   pull request, and pj4-running saves everything since `<START>`, commits included. The next run redoes the issue.

@@ -116,7 +116,7 @@ A corrected branch name just replaces the name.
 
 Phases 2 to 4 in SKILL.md run as written, with these settled here.
 
-- **Phase 2** starts after approval and runs all four steps, (a) to (d). Exit 1 in (b): stop and report, because **The worktree** step 4 in `worktree.md` should have settled it.
+- **Phase 2** starts after approval and runs (a), then (b) as `$FLOW/scripts/panel.sh begin <WT> --level <level> --source <source>`, both from the `level.sh show` JSON **The level** in SKILL.md read. On a `stop` with `not-ignored`, stop and report, because **The worktree** step 4 in `worktree.md` should have settled it.
 - **After the last task's commit in phase 4 (d)**: when phase 5 does not run (see **Phase 5**), keep that task's implementation session alive, because it writes the work report in phase 6. Its seat sessions end as usual. After the last task, go to phase 5, or to phase 6 when the plan has one task (see **Phase 5**).
 - **The round cap**: if round five does not come back `approve`, stop and report to the user. Lay out what is still open and what each side said, and ask for a decision. **That task's changes are sitting uncommitted in `<WT>`.** Say that, say that the worktree stays as it is, and say that `/annetaan:workflow-cleanup` removes it, discarding the work, once the user decides. If the user says keep going after the cap, keep going.
 - **When the user says stop** at any point, stop and report.
