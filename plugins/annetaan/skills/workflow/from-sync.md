@@ -13,7 +13,7 @@ These values are already in your context. Nothing arrives as an argument.
 - `<START>`: the tip of the base branch the merge started from
 - the handover notes, from the parent's handover comment (`pj1-plan/between-skills.md`, **The handover comment**)
 - the run's worktree `<WT>`, and `<MAIN>`, the main working tree. The session is in `<WT>`, on a detached HEAD
-- the `level.sh show` JSON, from **The level** in pj4-running. The worker and the two seats take their `model` and
+- the `level.sh show` JSON, from **The level** in pj4-running. The worker and the review seats take their `model` and
   `effort` from it
 
 pj4-running has already confirmed that `work-reports/` is ignored in `<WT>`. Every command below runs in `<WT>`.
@@ -21,7 +21,7 @@ Never touch `<MAIN>`.
 
 ## What it runs of phases 2 to 4
 
-This entry asks nothing and writes nothing to memory. Its ending is **What it hands back to pj4-running** below, which replaces any report to the user and any part of the finish.
+This entry asks nothing. Its ending is **What it hands back to pj4-running** below, which replaces any report to the user and any part of the finish.
 
 - **Phase 2 (a) and (c)** do not run. pj4-running settled `<WT>` and `<START>`.
 - **Phase 2 (b)** runs as a guard only, because (d) needs `<ROOT>` from the first command.

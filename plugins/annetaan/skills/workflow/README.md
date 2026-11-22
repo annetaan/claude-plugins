@@ -1,7 +1,6 @@
 # workflow
 
-This skill runs one implementation as **design, a design review in every repository (it moves existing code only where breaking changes are welcome),
-approval, then per task (implement, review rounds, one commit), then an integration review when the plan has more than
+This skill runs one implementation as **design, approval, then per task (implement, review rounds, one commit), then an integration review when the plan has more than
 one task, then a finish step**, with each role in a session of its own. The review rounds run through Markdown files
 in the run's work report directory, one per round and one reply to each, so the whole review stays readable after the
 run. A standalone run works in a worktree of its own under `.claude/worktrees/`, so your own working tree stays free
@@ -27,33 +26,16 @@ several sessions and adds commits.
 /annetaan:workflow add filter conditions to the search form
 ```
 
-**The design gets one review before you see it.** After the design comes back and before the approval, a separate
-session reads it with one question: would we design it this way from a blank slate? It points out boundaries (the
-contracts, the types, the names) that fall short of their ideal shape, places where moving existing code would make
-the design cleaner, abstractions that are too many or too few, and behaviour the design keeps from existing code
-after the change altered what that behaviour relies on, a shared-state change whose readers the design misses, and a
-bug fix that guards the symptom. Each finding says how far existing code moves.
-There is one round. What the design session does not take in, it settles by evidence and lists under model decisions.
-Only a point that turns on something only you know comes to you as an open question before the approval.
-
-**The review runs in every repository.** What differs is how far the design and the design review may move existing code. The skill settles that
-before design starts, in `breaking-changes.md`: what `CLAUDE.md` or `AGENTS.md` says, then the memory Claude Code keeps
-for this repository, then a question whose answer it saves to memory. Where breaking changes are accepted, such as a
-pre-release product or a library you control, the review reports everything it finds. Where they are not, it reports
-only the findings that move no existing code. The skill never edits `CLAUDE.md` or `AGENTS.md`. When one of those
-files or memory decides, you get one line saying so before design starts, and that is where you stop a memory that has
-gone stale. A request for a minimal change, such as an urgent fix, skips the review and the question, and writes
-nothing to memory. When the design review session cannot start, because of the weekly limit for example, the review is skipped and the
-approval message says so.
+The design is drawn as if the request had always been required and moves existing code, contracts included, where
+that gives the better shape, and what moves is in the design you approve.
 
 There is one approval point. You get the design summary and the **plan**, an ordered list of tasks, and one
-question: proceed with this design and plan? The open questions come first, on every run: the design's own, and the
-design review's points that turn on something only you know, marked `(from the design review)`. Each says what only you
-know. The approval also shows the model decisions, and "change something first" overturns any of them.
+question: proceed with this design and plan? The open questions come first, on every run, and each says what
+only you know. The approval also shows the model decisions, and "change something first" overturns any of them.
 
 Each task's implementation session shows every acceptance criterion by running it, on the tree under review, and writes
-the runs to an evidence file. A bug fix with a cheap test path starts with a failing test. Two review seats try to break the change and prove every finding by a run of a probe they wrote: a command, what it
-printed, and what the design requires. The main session runs each command again, keeps only a failure that breaks the
+the runs to an evidence file. A bug fix with a cheap test path starts with a failing test. Review seats try to break the change and prove every finding by a run of a probe they wrote: a command, what it
+printed, and what the design requires. A repository below level 3 has one seat, and level 3 has two, on different models. The main session runs each command again, keeps only a failure that breaks the
 design, and writes the round and its verdict. From round 2 on, the main session reruns the open findings itself, and
 each seat attacks only what changed since the tree it reviewed last. What no seat could run is listed in the pull
 request under its own heading.
@@ -67,7 +49,7 @@ task. A check that belongs outside the task is reported as `check wanted:`, and 
 in `log.md`, so they reach the pull request body. Code carries no comment beyond a licence header, a note in a configuration file, an instruction to a tool and a doc comment on a published library's public API, and the comments in a file a task changes leave with it. `scripts/comments.py` fails a task that adds one or silences a check, and both sessions run it. An existing workaround is never a pattern to copy, and a change adds no explaining document the request did not ask for.
 
 The approval message names the new branch and `base: <branch>`. Correct either one there. A base corrected at approval
-recreates the worktree on the new base and runs the design again. The design review does not run a second time.
+recreates the worktree on the new base and runs the design again.
 
 The base is the branch your request names, otherwise the repository's default branch. A base that is missing on origin
 stops the run. If you want to be asked every time, put a line like this in `CLAUDE.md`:
@@ -93,7 +75,7 @@ tasks actually produced. A plan that turns out to be wrong surfaces there, befor
 **Five review rounds per task, fixed.** A task that does not settle in five comes back to you with the open points
 laid out, and its changes stay uncommitted in the run's worktree. Saying "stop" partway through the rounds works too.
 
-The implementation session and the two review seats **start fresh for every task**, each on its own agent,
+The implementation session and the review seats **start fresh for every task**, each on its own agent,
 whatever the task. A task boundary is a cheap place to
 start over. The code is in git, the plan is with the orchestrator, and every review finding is resolved. What is left
 is how this repository wants to be worked in, and that rides along as **handover notes**: five lines from each
@@ -104,8 +86,8 @@ session, folded together, capped at fifteen.
 pj4-running works through a project's sub-issues one at a time and runs each one through this skill. The issue's text
 is the approved design in its goal, its boundary and its decisions you ticked. A design session first **details the
 issue against the code on the project's base branch**, which earlier issues have changed since the issue was drawn,
-and it may redraw the issue's body and the order of the issues left. It stays for the whole run. That run has no design
-review, no approval and no questions. The detail becomes a plan of one or more tasks, each one reviewed commit, and an
+and it may redraw the issue's body and the order of the issues left. It stays for the whole run. That run has no approval
+and no questions. The detail becomes a plan of one or more tasks, each one reviewed commit, and an
 integration review follows when the plan has more than one. When only you can settle what the detail found, the run
 adds that decision to the issue, stops, and leaves the box for you to tick.
 
@@ -131,7 +113,7 @@ pushes it. A stop before that commit leaves the merge in progress in the worktre
 **When the pull request would conflict from the start**, the finish step settles it before the push. The base may have
 moved while the tasks ran. When the branch merges into it cleanly, nothing happens and GitHub merges it later. When it
 conflicts, the run merges the base into the branch and resolves the conflicts as one more task, with a new
-implementation session and the two review seats and the same five-round cap, and its commit is the merge commit. The
+implementation session and the review seats and the same five-round cap, and its commit is the merge commit. The
 review rounds are `merge-round-<r>.md` in the work report.
 
 **When an open pull request conflicts later**, ask for it in plain words, such as "resolve the conflicts on #12" or
@@ -148,7 +130,7 @@ clone. The worktree has none of your clone's ignored files, such as dependencies
 them. A run that ends before approval removes its worktree. Every other run leaves it, whether it opened a pull request
 or stopped midway.
 
-The two review seats are git worktrees of their own, `review-wf-<stamp>-a` and `-b` beside the run's. No session works
+The review seats are git worktrees of their own, `review-wf-<stamp>-<seat>` beside the run's. No session works
 inside one: a seat writes its probes under `seats/` in the work report, and `panel.sh run` snapshots the run's working
 tree, puts the seat's worktree at it and runs the probe there. A seat lives as long as the run's worktree, so the
 dependencies a probe installed in it serve every later task and round. The cleanup removes it.
@@ -172,12 +154,12 @@ work-reports/2026-09-19-1346-a1b2c3d/
   changes.diff   the diff from the start commit to HEAD
   review/        one file per review round, the reply to each, and the evidence files
     task-1-evidence.md
-    task-1-round-1-a.md         what seat a proved in round 1, and `-b` for seat b
+    task-1-round-1-a.md         what seat a proved in round 1, and `-b` for seat b at level 3
     task-1-round-1.md           the main session's round, from the seat files
     task-1-round-1-reply.md
     task-1-round-1-evidence.md  after a round that changed code
-    integration-round-1.md      plans of two or more tasks, with its two seat files
-  seats/         the probes of the two review seats, `a/<name>/run.sh` and its `tree/`
+    integration-round-1.md      plans of two or more tasks, with one file per seat
+  seats/         the probes of the review seats, `a/<name>/run.sh` and its `tree/`
   scratch/       throwaway scripts of the implementation session
   before.png     before and after, when the change shows on screen
   after.png
@@ -230,9 +212,8 @@ screenshots it could not attach.
 | File | What it is |
 | --- | --- |
 | `SKILL.md` | the procedure for the orchestrator, which is the main session: which file each entry reads, the worktree line, the agents, phases 2 to 4 and the rules every entry shares |
-| `standalone.md` | the standalone run: design, the design review and approval, the integration review and the finish |
+| `standalone.md` | the standalone run: design and approval, the integration review and the finish |
 | `judgement.md` | the rules every role of workflow and the pj skills reads. It opens with a table that maps each section to the roles that apply it, and holds what a human is asked, model decisions, experiments, assumptions, root cause, evidence, removing before adding, designing as if always required, reader load, comments, documents, existing workarounds, what two failed fixes share, and turning a repeated lesson into the strongest check that holds it |
-| `breaking-changes.md` | the check that settles whether the repository accepts breaking changes, for the standalone run and pj1-plan |
 | `from-pr.md` | resolving the conflicts of a pull request that is already open |
 | `from-issue.md` | one sub-issue, detailed against the code and run as a plan of one or more commits, for pj4-running |
 | `from-sync.md` | a merge of the source branch into a project's base branch that stopped on conflicts, for pj4-running |
@@ -240,18 +221,16 @@ screenshots it could not attach.
 | `worktree.md` | the start check and the run's worktree, for the standalone run and from-pr |
 | `finish.md` | the work report and the pull request, for the standalone run and from-issue |
 | `roles/design.md` | the role for the design session, which returns the design and the plan |
-| `roles/design-review.md` | the role for the design review session, which pushes the design toward its ideal shape once, before approval |
 | `roles/work.md` | the role for the implementation session |
 | `roles/review.md` | the role for a review seat |
 | `scripts/worktree.sh` | creates the run's worktree and checks its ignore rules. `workflow-cleanup` uses it to clean up |
 | `scripts/worktree.py` | the code `worktree.sh` runs |
-| `scripts/level.sh` | reads the repository's level from origin's default branch and prints the model and effort it gives the implementation session, the two review seats and pj's issue writer |
+| `scripts/level.sh` | reads the repository's level from origin's default branch and prints the model and effort it gives the design session, the implementation session, the review seats and pj's planner, project reviewer and issue writer |
 | `scripts/level.py` | the code `level.sh` runs, and the one place the level table lives |
 | `scripts/comments.py` | fails on a comment outside the four kinds, or a silenced check the change adds, in the files a change touches. The implementation and review sessions run it |
 | `scripts/panel.sh` | runs a review seat's probe in a git worktree beside the run's, at a snapshot of the working tree, and removes the seats at cleanup |
 | `review-files.md` | the shape of the review files and the evidence files, read by the seats, the main session and the implementation session |
 
 The design, implementation and review sessions run on agents that ship with the plugin (`../../agents/`). Design is
-`annetaan:workflow-design`. The design review is
-`annetaan:workflow-design-review`, once before approval. Implementation is `annetaan:workflow-worker`
-and review is the two seats `annetaan:workflow-reviewer-a` and `annetaan:workflow-reviewer-b`, on different models at every level. The models and efforts are in the agent table of [the plugin README](../../README.md), and those of the implementation session and the two seats at each level of the repository in its level table.
+`annetaan:workflow-design`. Implementation is `annetaan:workflow-worker`
+and review is seat `annetaan:workflow-reviewer-a`, joined at level 3 by `annetaan:workflow-reviewer-b` on another model. The models and efforts are in the agent table of [the plugin README](../../README.md), and those of the design session, the implementation session and the review seats at each level of the repository in its level table.

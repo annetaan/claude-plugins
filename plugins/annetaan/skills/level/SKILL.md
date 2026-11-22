@@ -1,6 +1,6 @@
 ---
 name: level
-description: Proposes the repository's level, which sets the model and effort that workflow's implementation and review and the pj issue writer get. Reads the `Level:` lines of the pull requests merged since the last evaluation and has an evaluator read the code, asks one question with the three levels, then writes `.claude/annetaan-level.md` in a git worktree of its own, commits it on a new branch, pushes it and opens a pull request into the default branch, and leaves its merge to the user. /annetaan:workflow-cleanup removes the worktree and the branch afterwards. Use it only when the user names this skill or invokes /annetaan:level, because it pushes a branch and opens a pull request on GitHub.
+description: Proposes the repository's level, which sets the model and effort that workflow's design, implementation and review and the pj planner, project reviewer and issue writer get. Reads the `Level:` lines of the pull requests merged since the last evaluation and has an evaluator read the code, asks one question with the three levels, then writes `.claude/annetaan-level.md` in a git worktree of its own, commits it on a new branch, pushes it and opens a pull request into the default branch, and leaves its merge to the user. /annetaan:workflow-cleanup removes the worktree and the branch afterwards. Use it only when the user names this skill or invokes /annetaan:level, because it pushes a branch and opens a pull request on GitHub.
 ---
 
 # level
@@ -172,8 +172,8 @@ Leave the worktree first: `ExitWorktree(action: "keep")`, or `cd <MAIN>` where t
 
 - the pull request URL, standing between spaces as **Issues in a report** says
 - the chosen level, and the proposed one when they differ
-- the next steps, in order: merge the pull request, after which the next run of `workflow`, `pj2-issues`,
-  `pj3-doctor`, `pj4-running` or `pj-auto` reads the new level from the default branch; then
+- the next steps, in order: merge the pull request, after which the next run of `workflow`, `pj1-plan`,
+  `pj2-issues`, `pj3-doctor`, `pj4-running` or `pj-auto` reads the new level from the default branch; then
   `/annetaan:workflow-cleanup <PR number>`, which removes the worktree and the branch
 
 ## Rules

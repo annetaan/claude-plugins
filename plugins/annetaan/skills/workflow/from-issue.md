@@ -4,7 +4,7 @@
 
 pj4-running loads this skill to run one sub-issue of a project. The issue is the approved design in its goal, its
 boundary and its checked decisions. A design session details it against the code on the base branch first, may
-redraw its body, and stays for the whole run. This entry has no design review, no approval and no questions. The shape
+redraw its body, and stays for the whole run. This entry has no approval and no questions. The shape
 of the issue is in `$FLOW/../pj1-plan/format.md`, and the shape of its pull request in
 `$FLOW/../pj1-plan/between-skills.md` under **Pull requests**.
 
@@ -21,8 +21,8 @@ These values are already in your context. Nothing arrives as an argument.
 - `attach` from pj4-running's `run.sh start`, which has run its checks: whether `--attach` works
 - the `project.sh <P>` JSON from pj4-running's re-read, and the `project.sh <P> --check <n>` JSON it read after making
   the branch
-- the `level.sh show` JSON, from **The level** in pj4-running. The worker and the two seats take their `model` and
-  `effort` from it
+- the `level.sh show` JSON, from **The level** in pj4-running. The design session, the worker and the review seats take
+  their `model` and `effort` from it
 
 pj4-running has already run its checks (`gh`) on `<WT>` and confirmed that `work-reports/` is ignored there.
 Every command below runs in `<WT>`, so `<ROOT>` and `<WORKDIR>` come from there. Never touch
@@ -30,7 +30,7 @@ Every command below runs in `<WT>`, so `<ROOT>` and `<WORKDIR>` come from there.
 
 ## What it runs of phases 2 to 5
 
-This entry asks nothing and writes nothing to memory. Its ending is **What it hands back to pj4-running** below, which replaces any report to the user.
+This entry asks nothing. Its ending is **What it hands back to pj4-running** below, which replaces any report to the user.
 
 - **Phase 1** does not run. **The detail pass** below takes its place.
 - **Phase 2 (a)** does not run. pj4-running owns the branch.
@@ -62,11 +62,13 @@ Read `$FLOW/roles/design.md` only to name it in the prompt. The design session r
 
 ```
 Agent(subagent_type: "annetaan:workflow-design", description: "detail issue #<n>",
+      model: "<agents.workflow-design.model>", effort: "<agents.workflow-design.effort>",
       prompt: "Read $FLOW/roles/design.md first and follow the role it describes, and within it **Detailing an issue**.\n\nThe issue: #<n>, \"<issue title>\"\nThe parent: #<P>\nWaits on: <#Q1, #Q2, or none>\nThe format of an issue: $FLOW/../pj1-plan/format.md\nThe script that reads a project: $FLOW/../pj1-plan/scripts/project.sh\n\nproject.sh <P>:\n<the JSON>\n\nproject.sh <P> --check <n>:\n<the JSON>\n\nLeft broken on the base branch:\n<the same lines the implementation prompts carry, or none>\n\nHandover notes from the earlier sessions:\n<the notes, or none>\n\nScratch: <WORKDIR>/scratch/design\n\n<the worktree line>")
 ```
 
-`annetaan:workflow-design` has its model and effort pinned in `agents/*.md`. **When it cannot start** (a weekly limit, a rate limit,
-the model is unavailable), spawn it again with the same prompt and `model: "opus"`. Collapse
+`annetaan:workflow-design` takes its model and effort from the level, `agents.workflow-design` of the level JSON.
+**When its model is `fable` and it cannot start** (a weekly limit, a rate limit, the model is unavailable),
+spawn it again with the same prompt, `model: "opus"` and the same `effort`. Collapse
 the `..` in the two paths into `<skills>/pj1-plan/...`, as `pj4-running/SKILL.md` says for `$RUNNING`.
 
 By what comes back:
@@ -102,7 +104,7 @@ gh issue view <Q> --json body   # each Q
 
 They run as written in SKILL.md, phase 4 (a) and (d) included: from task 2 onward the design session details each task
 while the task before it is committed. Each
-task gets a new implementation session and two new review seats, five rounds, one commit. **When the plan breaks** and a
+task gets a new implementation session and new review seats, five rounds, one commit. **When the plan breaks** and a
 `Diverged:` report go to the design session with `SendMessage`. A new `Body:` from it goes through **A redrawn issue**
 again, and `Stop: ask` is the stop `decision`. Existing decisions stay byte for byte in every redraw. The prompts gain
 a line each.

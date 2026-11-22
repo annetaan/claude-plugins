@@ -18,9 +18,10 @@ worktree `<WT>` to read the code in.
 
 ## What the levels mean
 
-The level picks how much model the implementation session, the two review seats and the issue writer get. The design,
-the design review and the planners never change with it. The `agents` of each level in your prompt say which model and
-effort each of those agents gets. That is the only place to read them from.
+The level picks how much model the design session, the planners, the project reviewer, the implementation session,
+the review seats and the issue writer get. The `agents` of each level in your prompt say which model and
+effort each of those agents gets. That is the only place to read them from. A level whose `agents` name no
+`workflow-reviewer-b` reviews with one seat.
 
 - **Level 1** is the least model. It fits a repository whose design leads the implementation by the hand: clear
   boundaries, one way of doing each thing, fast tests that catch a slip.
@@ -37,9 +38,11 @@ effort each of those agents gets. That is the only place to read them from.
 3. **The numbers.** The `groups` of `history`. They show a direction only, with no threshold: few send-backs and
    findings per task at a level make it a candidate to go lower, and many make it a candidate to go higher. An
    `override` group shows how a level other than the file's did, and it weighs as evidence for that level. A group of
-   a handful of runs is weak evidence, and you say so.
+   a handful of runs is weak evidence, and you say so. Findings per task are counted over a different number of seats
+   on either side of the level where `workflow-reviewer-b` joins, so they do not compare across that line.
+   Send-backs per task is the number that compares across levels.
 
-With no history (`runs` empty), judge from the code alone. When in doubt, propose 3.
+With no history (`runs` empty), judge from the code alone. When in doubt, propose 2.
 
 ## What you return
 

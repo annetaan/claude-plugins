@@ -1,6 +1,6 @@
 # Review files
 
-The review rounds run through Markdown files under `<WORKDIR>/review/`. The two review seats, the main session and the
+The review rounds run through Markdown files under `<WORKDIR>/review/`. The review seats, the main session and the
 implementation session each write their own files, and nobody edits a file once it is written. The directory is the
 whole conversation of the review, in order, and it stays next to the work report. The seats' probes sit beside it, under
 `<WORKDIR>/seats/` (see **A probe**).
@@ -11,9 +11,9 @@ whole conversation of the review, in order, and it stays next to the work report
 
 | File | Written by |
 | --- | --- |
-| `task-<k>-round-<r>-<seat>.md` | seat `a` or `b`, what it found in round `r` of task `k` |
-| `integration-round-<r>-<seat>.md` | seat `a` or `b`, what it found in round `r` of the integration review |
-| `merge-round-<r>-<seat>.md` | seat `a` or `b`, what it found in round `r` of a merge that resolves conflicts |
+| `task-<k>-round-<r>-<seat>.md` | a seat, what it found in round `r` of task `k` |
+| `integration-round-<r>-<seat>.md` | a seat, what it found in round `r` of the integration review |
+| `merge-round-<r>-<seat>.md` | a seat, what it found in round `r` of a merge that resolves conflicts |
 | `task-<k>-round-<r>.md` | the main session, round `r` of task `k`, from the seat files |
 | `task-<k>-round-<r>-reply.md` | the implementation session, its answer to that round |
 | `integration-round-<r>.md` | the main session, round `r` of the integration review |
@@ -125,14 +125,14 @@ Breaks: the second sign-in on one page load never fetches the value
 
 ## Not run
 
-- `npm run e2e -- signout`: no browser here, in either seat
+- `npm run e2e -- signout`: no browser here, in any seat
 
 ## Verdict
 
 changes-requested
 ```
 
-- `Seats:` names the model each seat ran on. A fallback (seat `b` on opus) and a dropout (a seat that returned no report) are said here.
+- `Seats:` names the model each seat ran on. A round with one seat reads, for example, `Seats: a on opus`. A fallback (seat `b` on opus) and a dropout (a seat that returned no report) are said here.
 - A finding's id is `R<round>.<n>`, and it never changes. A finding points with a path and a symbol, never a line number.
 - `Found by:` names every seat that raised it. Findings with one root cause are one entry. `Command:` is the line the main session ran again, with the probe of the seat that found it, and `Breaks:` is what the failure breaks in the intent.
 - `## Dropped` gives per seat the count of findings left out and why: the failure did not show, it does not break the intent, or the command could not be run again.

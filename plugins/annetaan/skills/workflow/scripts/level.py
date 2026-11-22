@@ -5,11 +5,16 @@ ARGS = sys.argv[2:]
 
 PATH_IN_REPO = ".claude/annetaan-level.md"
 
+DEFAULT_LEVEL = 2
+
 AGENTS = {
-    "workflow-worker": [("sonnet", "high"), ("opus", "medium"), ("opus", "high")],
-    "pj-issue-writer": [("sonnet", "high"), ("opus", "medium"), ("opus", "high")],
-    "workflow-reviewer-a": [("opus", "medium"), ("opus", "high"), ("opus", "high")],
-    "workflow-reviewer-b": [("fable", "medium"), ("fable", "medium"), ("fable", "medium")],
+    "workflow-design": [("sonnet", "high"), ("opus", "medium"), ("fable", "medium")],
+    "pj-planner": [("sonnet", "high"), ("opus", "medium"), ("fable", "medium")],
+    "pj-reviewer": [("sonnet", "high"), ("opus", "medium"), ("fable", "medium")],
+    "workflow-worker": [("sonnet", "medium"), ("sonnet", "high"), ("opus", "medium")],
+    "pj-issue-writer": [("sonnet", "medium"), ("sonnet", "high"), ("opus", "medium")],
+    "workflow-reviewer-a": [("sonnet", "medium"), ("opus", "medium"), ("opus", "high")],
+    "workflow-reviewer-b": [None, None, ("fable", "medium")],
 }
 
 RECORD_RE = re.compile(
@@ -86,9 +91,9 @@ def clone_dir():
 def show():
     where = clone_dir()
     ref, text, problem = read_file(where)
-    level, source, evaluated, review_by, warning = 3, "default", None, None, None
+    level, source, evaluated, review_by, warning = DEFAULT_LEVEL, "default", None, None, None
     if problem is not None:
-        warning = "cannot read origin's default branch: %s; level 3 unless overridden" % problem
+        warning = "cannot read origin's default branch: %s; level %d unless overridden" % (problem, DEFAULT_LEVEL)
     elif text is not None:
         found, evaluated, review_by, invalid = parse(text)
         if invalid is not None:
@@ -100,11 +105,12 @@ def show():
                     ref, PATH_IN_REPO, review_by.isoformat())
     if len(ARGS) > 1:
         level, source = int(ARGS[1]), "override"
+    agents = {name: {"model": levels[level - 1][0], "effort": levels[level - 1][1]}
+              for name, levels in AGENTS.items() if levels[level - 1] is not None}
     emit(status="ok", level=level, source=source, ref=ref,
          evaluated=evaluated and evaluated.isoformat(), reviewBy=review_by and review_by.isoformat(),
-         warning=warning,
-         agents={name: {"model": levels[level - 1][0], "effort": levels[level - 1][1]}
-                 for name, levels in AGENTS.items()})
+         warning=warning, agents=agents,
+         seats=[name[len("workflow-reviewer-"):] for name in agents if name.startswith("workflow-reviewer-")])
 
 def new_findings(path):
     found, inside = 0, False

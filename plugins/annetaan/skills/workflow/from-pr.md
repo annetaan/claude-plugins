@@ -9,7 +9,7 @@ worktree is cleaned up.
 
 ## What it runs of phases 2 to 4
 
-It asks nothing beyond the questions below, and writes nothing to memory.
+It asks nothing beyond the questions below.
 
 - **Phase 2 (a)** does not run. The branch is `<head>`.
 - **Phase 2 (b), (c) and (d)** run as written, at the end of **The worktree** below. Exit 1 in (b): stop and report, because **The worktree** step 4 in `worktree.md` should have settled it.

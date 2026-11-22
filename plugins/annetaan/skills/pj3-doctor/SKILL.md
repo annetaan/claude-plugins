@@ -65,7 +65,7 @@ When the args carry `tmp=<dir>`, `$TMP` below is that directory. Otherwise run `
 directory it printed. Print `tmp <dir>` once, so that a context summary can find it again. A shell variable does
 not outlive one command, so write the path in full each time.
 
-**The level.** The repository's level picks the model and the effort of the issue writers. `<root>` is what `git
+**The level.** The repository's level picks the model and the effort of the project reviewer and the issue writers. `<root>` is what `git
 rev-parse --show-toplevel` printed, and `<level>` is the number of `level=<level>` in the args, left out when the args
 carry none.
 
@@ -106,12 +106,13 @@ the skill: quote its message.
 
    ```
    Agent(subagent_type: "annetaan:pj-reviewer", description: "review #<P>",
+         model: "<agents.pj-reviewer.model>", effort: "<agents.pj-reviewer.effort>",
          prompt: "Read $DOCTOR/roles/review.md first and follow the role it describes. The project format is in $DOCTOR/../pj1-plan/format.md. The state of a project is in $DOCTOR/../pj1-plan/state.md. The agreements between the skills are in $DOCTOR/../pj1-plan/between-skills.md. The judgement rules are in <skills>/workflow/judgement.md.\n\nParent: #<P>\n\nproject.sh <P>:\n<the JSON>\n\nproject.sh <P> --check, per issue:\n<each JSON>")
    ```
 
-   `annetaan:pj-reviewer` ships with this plugin and ships its model and effort in `agents/*.md` and has code changes disabled.
-   **When it cannot start** (a weekly limit, a rate limit, the model is unavailable), spawn it again with the same
-   prompt and `model: "opus"`.
+   `annetaan:pj-reviewer` ships with this plugin, takes its model and effort from the level, `agents.pj-reviewer` of the `level.sh` JSON, and has code changes disabled.
+   **When its model is `fable` and it cannot start** (a weekly limit, a rate limit, the model is unavailable),
+   spawn it again with the same prompt, `model: "opus"` and the same `effort`.
    **Keep it alive until phase 4 ends.** Phase 3 sends it the rewritten bodies.
 4. **Show the user the diagnosis**, one line per open sub-issue, in `--order` order:
    - number and title, and `ready`, `blocker` or `stub` when it is one
