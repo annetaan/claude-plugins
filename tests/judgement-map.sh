@@ -13,7 +13,6 @@ fail() { echo "FAIL: $*" >&2; exit 1; }
 column_files() {
   case "$1" in
     Design) echo "workflow/roles/design.md pj1-plan/roles/plan.md pj2-issues/roles/split.md pj2-issues/roles/issue.md" ;;
-    "Design review") echo "workflow/roles/design-review.md" ;;
     "Project review") echo "pj3-doctor/roles/review.md" ;;
     Implementation) echo "workflow/roles/work.md" ;;
     Review) echo "workflow/roles/review.md" ;;

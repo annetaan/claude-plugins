@@ -7,7 +7,7 @@ description: Cleans up after the user has merged a project's pull request, the o
 
 `pj-cleanup` is not one of the four pj skills. It runs once a project is `merged`, after the user has merged the pull request
 that `pj4-running` opened from the base branch into `<from>`, and tidies up what the project left behind: the open
-parent, the worktree, the two review seat worktrees beside it, the base branch, and a local `<from>` that is now behind origin.
+parent, the worktree, the review seat worktrees beside it, the base branch, and a local `<from>` that is now behind origin.
 
 The script `cleanup.sh` does the git work. **You close the parent and write nothing else to GitHub yourself.**
 

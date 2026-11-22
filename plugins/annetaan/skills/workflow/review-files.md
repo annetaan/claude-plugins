@@ -1,6 +1,6 @@
 # Review files
 
-The review rounds run through Markdown files under `<WORKDIR>/review/`. The two review seats, the main session and the
+The review rounds run through Markdown files under `<WORKDIR>/review/`. The review seats, the main session and the
 implementation session each write their own files. A file is final once its writer has linted it (see **The lint**) and
 reported, and nobody edits it after that. The directory is the whole conversation of the review, in order, and it stays
 next to the work report. The seats' probes sit beside it, under
@@ -13,9 +13,9 @@ next to the work report. The seats' probes sit beside it, under
 
 | File | Written by |
 | --- | --- |
-| `task-<k>-round-<r>-<seat>.md` | seat `a` or `b`, what it found in round `r` of task `k` |
-| `integration-round-<r>-<seat>.md` | seat `a` or `b`, what it found in round `r` of the integration review |
-| `merge-round-<r>-<seat>.md` | seat `a` or `b`, what it found in round `r` of a merge that resolves conflicts |
+| `task-<k>-round-<r>-<seat>.md` | a seat, what it found in round `r` of task `k` |
+| `integration-round-<r>-<seat>.md` | a seat, what it found in round `r` of the integration review |
+| `merge-round-<r>-<seat>.md` | a seat, what it found in round `r` of a merge that resolves conflicts |
 | `task-<k>-round-<r>.md` | the main session, round `r` of task `k`, from the seat files |
 | `task-<k>-round-<r>-reply.md` | the implementation session, its answer to that round |
 | `integration-round-<r>.md` | the main session, round `r` of the integration review |
@@ -93,7 +93,7 @@ Required: the retry stops at zero attempts (acceptance criterion 2)
 - `npm run e2e -- signin`: needs a browser that is not here
 ```
 
-- A finding has a title and three lines. `Command:` is always one `panel.sh run` line with real paths, the one the seat ran, in backticks. `panel.sh verify` runs it again word for word for the main session, and the implementation session runs it after a fix. `Printed:` is the exit and the decisive lines, three lines at most. `Required:` is what the approved design, its criteria, the plan or the task detail requires.
+- A finding has a title and three lines. `Command:` is always one `panel.sh run` line with real paths, the one the seat ran, in backticks. `panel.sh verify` runs it again word for word for the main session, and the implementation session runs it after a fix. `Printed:` is the exit and the decisive lines, three lines at most. `Required:` is what the design, its criteria, the plan or the task detail requires.
 - A search that is a finding is a probe too: its `run.sh` holds the search, followed by `test $? -eq 1`, so that the probe exits 1 while the search finds something.
 - `## Findings` reads `None.` when the seat proved nothing.
 - `## Not run` holds each `not run:` entry of the evidence file that the seat could not run either, with the reason. It reads `None.` when there is none.
@@ -171,14 +171,14 @@ Breaks: the second sign-in on one page load never fetches the value
 
 ## Not run
 
-- `npm run e2e -- signout`: no browser here, in either seat
+- `npm run e2e -- signout`: no browser here, in any seat
 
 ## Verdict
 
 changes-requested
 ```
 
-- `Seats:` names the model each seat ran on. A fallback (seat `b` on opus) and a dropout (a seat that returned no report) are said here.
+- `Seats:` names the model each seat ran on. A round with one seat reads, for example, `Seats: a on opus`. A fallback (seat `b` on opus) and a dropout (a seat that returned no report) are said here.
 - A finding's id is `R<round>.<n>`, and it never changes. A finding points with a path and a symbol, never a line number.
 - A new finding copies its `Command:` and `Printed:` from a finding of the draft, and adds `Required:` and `Breaks:`, what the failure breaks in the intent. `Found by:` names every seat that raised it. Findings with one root cause are one entry, which keeps the `Command:` and `Printed:` of one of them, as `R2.1` above keeps seat `a`'s and drops the draft's `R2.2`. The ids count from 1 again over the findings kept.
 - `## Dropped` copies the draft's lines, which give per seat the findings whose failure did not show and those whose command could not be run again. The main session adds a line per seat for a finding it leaves out because the failure does not break the intent, with the reason.

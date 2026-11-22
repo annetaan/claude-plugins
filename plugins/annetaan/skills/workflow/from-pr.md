@@ -9,7 +9,7 @@ worktree is cleaned up.
 
 ## What it runs of phases 2 to 4
 
-It asks nothing beyond the questions below, and writes nothing to memory.
+It asks nothing beyond the questions below.
 
 - **Phase 2 (a)** does not run. The branch is `<head>`.
 - **Phase 2 (b)** runs at the end of **The worktree** below. On a `stop` with `not-ignored`, stop and report, because **The worktree** step 4 in `worktree.md` should have settled it.
@@ -46,7 +46,7 @@ Run steps 3 to 6 of **The worktree** in `worktree.md` with `<head>` in place of 
 worktree on the tip of `origin/<head>`, detached, so a worktree that already has `<head>` checked out, such as the
 one the run that opened the pull request left, is not in the way. A stop there ends this entry, as it would a
 standalone run. Then run **The level** in SKILL.md, and when `level.sh show` exits non-zero, quote the message and leave
-the worktree as **Ending before approval** in `worktree.md` says. Then run phase 2 (b), with `<level>` and `<source>`
+the worktree as **Ending with nothing changed** in `worktree.md` says. Then run phase 2 (b), with `<level>` and `<source>`
 from the JSON **The level** read, before **The merge**, so that `start` is the pull request's head:
 
 ```bash
@@ -66,7 +66,7 @@ $FLOW/scripts/worktree.sh sync <name> <base>
   **The merge task** with `<incoming>` as `origin/<base>`, `<into>` as `<head>`, `<M>` as `start`, and as `<intent>`:
   "the change pull request #<n> makes, as its title and body describe it", followed by the title, the body and the
   issue's design when there is one.
-- **`stop`**: quote `message`, and leave the worktree as **Ending before approval** in `worktree.md` says.
+- **`stop`**: quote `message`, and leave the worktree as **Ending with nothing changed** in `worktree.md` says.
 
 ## The push
 

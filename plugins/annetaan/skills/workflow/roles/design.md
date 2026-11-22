@@ -10,8 +10,6 @@ Read the repository's own instructions before anything else. `CLAUDE.md`, `AGENT
 
 Then read `$FLOW/judgement.md`. Its opening table lists every section and what it asks of your role. Yours is the `Design` column.
 
-Your prompt carries a line `Breaking changes: accepted` or `Breaking changes: not accepted`. That line is the limit **As if it was always required** speaks of.
-
 ## What to return
 
 1. **Feasibility**: `yes`, `conditional` or `no`. For `conditional` or `no`, write what is missing, concretely.
@@ -62,8 +60,8 @@ Your prompt carries a line `Breaking changes: accepted` or `Breaking changes: no
    **Detailing a task** says what to send back.
 3. **Acceptance criteria** (**Done means shown**): what has to hold for the implementation to be done. Anything a test can check goes in as a test name. Add one criterion per user flow the change touches and one per reader in `### Shared state`, each naming the steps around the changed one and how to run it. For a bug with a cheap test path, name the reproducing test that fails first. For each name or shape the change retires, add one criterion: the search for it prints nothing.
 4. **Out of scope**: things the request might be read to include that this change leaves alone.
-5. **Open questions**: only the forks that pass the test in **What a human is asked**, each with its `Only you know: <that thing>` line, the options and your recommendation. A fork whose line cannot be written is settled by you and goes under **Model decisions**. The design review's leftovers land here only when they pass the same test (see **Answering the design review**). Write "none" when there are none.
-6. **Model decisions**: the forks you settled that a reader would notice, as **Model decisions** in `$FLOW/judgement.md` says: what you chose over what, why, and the evidence. The approval shows them, and "change something first" overturns any of them. Write "none" when there are none.
+5. **Open questions**: only the forks that pass the test in **What a human is asked**, each with its `Only you know: <that thing>` line, the options and your recommendation. A fork whose line cannot be written is settled by you and goes under **Model decisions**. Write "none" when there are none.
+6. **Model decisions**: the forks you settled that a reader would notice, as **Model decisions** in `$FLOW/judgement.md` says: what you chose over what, why, and the evidence. A fork that turns on how something behaves is settled by running it in scratch (**Experiments**). The start message shows them, and the user overturns one by stopping the run and asking again. Write "none" when there are none.
 7. **The plan**: the design, split into an **ordered list of tasks**. Each task carries:
    - a name (a short line that becomes a commit subject)
    - what it does (which part of the design in 2.)
@@ -78,26 +76,6 @@ Your prompt carries a line `Breaking changes: accepted` or `Breaking changes: no
    their own stay apart. Order follows the dependencies, so a later task rests only on what earlier tasks produced.
    A task that removes goes before the task that builds on what is left. A request with nothing to gain from a
    split is a plan with one task.
-
-## Answering the design review
-
-Before approval, the main session may send you a design review report. It comes once. A reviewer read your design
-and the code and asked "would we design it this way from a blank slate?"
-
-**Read each finding against the code.**
-
-- **What you agree with, take in**, into the design and into the plan. List what you took in.
-- **What you do not agree with is settled by evidence first.** Read the code the finding cites, or build both shapes
-  in scratch (**Experiments**), and let that decide. Either way the result goes under **Model decisions**, marked
-  `(from the design review)`, with the reviewer's proposal, how far existing code moves (copied from the finding),
-  your reason and the evidence.
-- **Only what passes the test in "What a human is asked" becomes an open question**, marked
-  `(from the design review)`, one item per finding in the reviewer's order, with its `Only you know:` line, the
-  reviewer's proposal, how far existing code moves, your reason and your recommendation.
-
-Do not argue back at the reviewer. There is no second round.
-
-**Return the whole report**, revised, and not a diff against the old one. That report is what goes to approval.
 
 ## Detailing a task
 
@@ -114,7 +92,7 @@ Send back, for that one task:
 - what has to hold for the task to be done, as test names where a test can check it
 - the shared state the task writes, with its readers as the code now stands, and the flows to walk
 - what the task removes, and the documents and examples that go with it
-- anything the approved design got wrong about this area, said plainly
+- anything the design got wrong about this area, said plainly
 
 Leave the tasks after it alone. Their turn comes.
 
@@ -125,7 +103,7 @@ what is left.
 ## Detailing an issue
 
 This section applies when your prompt says to follow it. The run comes from a sub-issue of a pj project, and you stay
-for the whole run. The issue is the approved design in its goal, its boundary and its checked decisions, and **you detail
+for the whole run. The issue is the design in its goal, its boundary and its checked decisions, and **you detail
 it against the code as it stands on the base branch before anything runs**. It rides on **Detailing a task**,
 **How to split** and `$FLOW/judgement.md`.
 
@@ -137,7 +115,7 @@ branch", the handover notes, a `Scratch:` line and the worktree line.
 never comments), the open issues after `#<n>` in `parent.order`, the body of a closed sub-issue when the code it left
 bears on this one, and the code in the worktree, which sits on the tip of the base branch. **The code outranks the
 body.** The limit of **As if it was always required** here is the parent's `## Design`, the issue's `## Goal` and its
-checked decisions. There is no `Breaking changes:` line.
+checked decisions.
 
 **What to return**:
 
@@ -165,7 +143,7 @@ checked decisions. There is no `Breaking changes:` line.
    the flows to walk, and the forks you settled. A fork you settled is also written into the body's `### Model decisions`
    when the body is redrawn.
 
-**There is no design review, no approval and no open question.** A fork that passes **What a human is asked** is
+**There is no approval and no open question.** A fork that passes **What a human is asked** is
 `Stop: ask`.
 
 **Later messages in the same run**:

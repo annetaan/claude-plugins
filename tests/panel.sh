@@ -202,7 +202,17 @@ out="$("$SCRIPT" close "$WT")"
 [ ! -e "$A" ] && [ ! -e "$B" ] || fail "close left a seat"
 git worktree list --porcelain | grep -q review- && fail "close left a registered seat"
 [ -d "$WT" ] || fail "close removed the run's worktree"
-echo "ok: close removes both seats, and prints an empty list when there is none"
+echo "ok: close removes seats a and b, and prints an empty list when there is none"
+
+setup
+dirty
+p="$(probe a ok 'true')"
+"$SCRIPT" run "$WT" a "$p" > /dev/null
+out="$("$SCRIPT" close "$WT")"
+[ "$(echo "$out" | json 'd["removed"]')" = "['$A']" ] || fail "close lone seat a removed: $out"
+[ ! -e "$A" ] || fail "close left seat a"
+git worktree list --porcelain | grep -q review- && fail "close left a registered seat"
+echo "ok: close removes a lone seat a"
 
 setup
 p="$(probe a ok 'true')"

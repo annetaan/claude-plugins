@@ -20,7 +20,7 @@ git log --oneline <M>..MERGE_HEAD
 git diff --name-only --diff-filter=U
 ```
 
-- **The approved design**, for every prompt below: "Merge `<incoming>` into `<into>`. Resolve every conflict so that
+- **The design**, for every prompt below: "Merge `<incoming>` into `<into>`. Resolve every conflict so that
   both sides hold: what `<incoming>` brings, as it is, and `<intent>` on top of it. Change nothing beyond the
   resolution and what the build and the tests need on the merged code." As acceptance criteria: no conflict marker is
   left, `git diff --name-only --diff-filter=U` prints nothing, and the tests and the type checks pass.
@@ -29,7 +29,7 @@ git diff --name-only --diff-filter=U
 
 ## The rounds
 
-Phases 3 and 4 run as written for task 1, with a new implementation session and the two review seats, five rounds,
+Phases 3 and 4 run as written for task 1, with a new implementation session and the review seats, five rounds,
 and the worktree line in every prompt, except for these.
 
 - The phase 3 prompt: "Start point START: `<M>`. Branch: `<into>`. This is a merge in progress. Resolve the

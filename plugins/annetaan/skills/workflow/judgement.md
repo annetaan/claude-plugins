@@ -4,28 +4,28 @@
 
 ## Where each section applies
 
-| Section | Design | Design review | Project review | Implementation | Review |
-| --- | --- | --- | --- | --- | --- |
-| What a human is asked | every open question | which leftovers reach a human | a question it raises, an open decision a model can settle | - | - |
-| Model decisions | every fork it settles | - | - | - | - |
-| Experiments | a fork that turns on behaviour | - | - | - | - |
-| Assumptions | kept branches, shared state | both, in the design | a parent's kept branch, an issue's missing reader | a write the design did not cover | a reader the diff breaks, shown by a run |
-| Why existing behaviour is there | a branch nobody is named for | - | - | - | - |
-| Remove before adding | what leaves, and in which task | a check or an option for an input nobody sends | - | nothing for an input nobody is shown to send, dead code out | - |
-| As if it was always required | the shape, and what moves with it | its one question | - | everything in the task that states the old shape | what a search still finds stating the old shape |
-| Reader load | each new layer, each home of state | every layer the change adds | - | the code it writes | - |
-| Comments | a design that needs one is redrawn; the comments in a task's files leave with it | - | - | writes none outside the four kinds, removes those in the files it changes, runs the check | a comment outside the four kinds, shown by `comments.py`; a `@ts-expect-error` outside a type test, shown by a run without it |
-| Documents | no explaining document the request did not ask for | - | - | - | - |
-| Where to split | the plan, the split into tasks, the cut into projects | - | an issue that is two tasks | - | - |
-| No transitional code | a split that stays green only with it is one task; breakage a project declares | - | a shim in a body, a breakage nobody closes | no shim to stay green | an old path a search still finds, a check failing undeclared |
-| Existing workarounds | never a pattern to ride on; one in the task's files leaves | a workaround the design rides on | - | copies none, reports one outside the task | an `existing` entry of `comments.py` the design does not account for |
-| Root cause | the fix sits at the cause | a fix that guards | a fix drawn as a guard | no guard in place of the cause, no silenced check | the bad state reached past a guard, a silenced check shown by `comments.py` |
-| After two failed fixes | a symptom fixed twice before, a lint failing after two fixes | - | - | a test failing after two fixes, `stands again` | - |
-| A lesson becomes a check | a repeated fix, a rule in the request, the strongest check that holds it | - | - | a second finding of one kind, a repeated note | - |
-| Done means shown | the criteria and the flows | - | - | the evidence file | reads it, tries each `not run:`, walks the whole design in integration round 1 |
-| Proven by a run | - | - | - | answers with the finding's command | every finding |
+| Section | Design | Project review | Implementation | Review |
+| --- | --- | --- | --- | --- |
+| What a human is asked | every open question | a question it raises, an open decision a model can settle | - | - |
+| Model decisions | every fork it settles | - | - | - |
+| Experiments | a fork that turns on behaviour | - | - | - |
+| Assumptions | kept branches, shared state | a parent's kept branch, an issue's missing reader | a write the design did not cover | a reader the diff breaks, shown by a run |
+| Why existing behaviour is there | a branch nobody is named for | - | - | - |
+| Remove before adding | what leaves, and in which task | - | nothing for an input nobody is shown to send, dead code out | - |
+| As if it was always required | the shape, and what moves with it | - | everything in the task that states the old shape | what a search still finds stating the old shape |
+| Reader load | each new layer, each home of state | - | the code it writes | - |
+| Comments | a design that needs one is redrawn; the comments in a task's files leave with it | - | writes none outside the four kinds, removes those in the files it changes, runs the check | a comment outside the four kinds, shown by `comments.py`; a `@ts-expect-error` outside a type test, shown by a run without it |
+| Documents | no explaining document the request did not ask for | - | - | - |
+| Where to split | the plan, the split into tasks, the cut into projects | an issue that is two tasks | - | - |
+| No transitional code | a split that stays green only with it is one task; breakage a project declares | a shim in a body, a breakage nobody closes | no shim to stay green | an old path a search still finds, a check failing undeclared |
+| Existing workarounds | never a pattern to ride on; one in the task's files leaves | - | copies none, reports one outside the task | an `existing` entry of `comments.py` the design does not account for |
+| Root cause | the fix sits at the cause | a fix drawn as a guard | no guard in place of the cause, no silenced check | the bad state reached past a guard, a silenced check shown by `comments.py` |
+| After two failed fixes | a symptom fixed twice before, a lint failing after two fixes | - | a test failing after two fixes, `stands again` | - |
+| A lesson becomes a check | a repeated fix, a rule in the request, the strongest check that holds it | - | a second finding of one kind, a repeated note | - |
+| Done means shown | the criteria and the flows | - | the evidence file | reads it, tries each `not run:`, walks the whole design in integration round 1 |
+| Proven by a run | - | - | answers with the finding's command | every finding |
 
-Design is the design session of workflow, the planners of pj1-plan and pj2-issues, and the issue writer. Design review is the design review session, for workflow and for pj1-plan. Project review is the project reviewer of pj3-doctor. Implementation and Review are the workflow sessions. `-` means the section asks nothing of that role.
+Design is the design session of workflow, the planners of pj1-plan and pj2-issues, and the issue writer. Project review is the project reviewer of pj3-doctor. Implementation and Review are the workflow sessions. `-` means the section asks nothing of that role.
 
 ## What a human is asked
 
@@ -95,11 +95,15 @@ A layer the change itself adds is measured under **Reader load**, not here.
 
 **A new requirement is drawn as the code would look had it been required from the first day**, not attached to the shape that was there. Ask what in the existing shape is there only because the requirement was absent: a type that cannot say the new case, a name that now says too little, a special case beside the general path. The design changes those.
 
-**How far existing code moves has a limit, and the role file names it.** A role told whether the repository accepts breaking changes follows that answer: where it does not, a contract that code outside the change relies on stays, and the shape it would have had is recorded under **Model decisions**. A role working under an approved design (a parent's `## Design`, an issue body, a detail design) moves what that design moves and no more.
+**Existing code never limits the shape.** Breaking changes are always accepted: the design moves a contract that other code relies on, and its callers with it. A contract that code outside the repository relies on (a published API, a file format, a command line) is named in the design with what breaks for its users. In a pj project that is the parent's `## Design`, the one place a person reads it.
+
+Two things do limit how far the change reaches. A request that itself asks for the smallest change, such as a hotfix or "just make it work", is designed to that size. A role working under a given design (a parent's `## Design`, an issue body, a detail design) moves what that design moves and no more.
+
+Getting it wrong: a design keeps a flag parameter and adds an optional one beside it, because three callers outside the change pass the flag. From a blank slate the flag would not exist, so the design drops it and moves the three callers.
 
 **The change then reaches everything that states the old shape**: the callers, the types, the tests, the documents, the examples, and the records that give the reason. Find them by search and read each one. One that still describes the old shape after the change is unfinished work, not a follow-up. A comment that states the old shape is removed, not rewritten (**Comments**).
 
-The design holds the whole shape, and the plan delivers it in tasks that each pass. The design review asks the same question of the finished design.
+The design holds the whole shape, and the plan delivers it in tasks that each pass.
 
 ## Reader load
 
@@ -163,7 +167,7 @@ Getting it wrong: a rename that reaches 80 files, cut into four tasks "to keep t
 **A task never carries code whose only job is to keep the tests green until a later task.** That is an old path kept beside the new one, an adapter, a shim, a re-export, or a flag that picks between the two. The callers move and the old API leaves in the same task.
 
 - **A split that stays green only with such code is one task.**
-- **A contract that code outside the change relies on is not transitional.** It stays or goes by **As if it was always required** and its limit.
+- **A contract that code outside the change relies on is not transitional.** It stays or goes as the design decides under **As if it was always required**.
 - **In a project of the pj skills, the base branch holds planned breakage.** A task merged into it may leave a check failing when its issue declares the check under `### Left broken` and a later task of the same project closes it. Nothing undeclared may fail, and every declared check is run again before the project's pull request opens. A standalone workflow run has no such container: every task passes.
 
 Getting it wrong: task 1 adds `fetchUserV2` and keeps `fetchUser` forwarding to it, so that task 2 can move the callers. The forwarder serves the plan and no user.
@@ -222,6 +226,6 @@ A bug fix with a cheap test path (an existing test file or harness for that modu
 
 **A review finding is a command, what it printed, and what the intent requires.** The command runs against the real code: a failing test, a repro script, a command whose output shows the wrong behaviour. What was not run is not a finding.
 
-The main session runs each command again and keeps a finding only when the failure shows and breaks the intent. The intent is the approved design, its acceptance criteria, the plan and the task's detail design. A command that cannot be run again is dropped.
+The main session runs each command again and keeps a finding only when the failure shows and breaks the intent. The intent is the design, its acceptance criteria, the plan and the task's detail design. A command that cannot be run again is dropped.
 
 The worker answers a finding with the same command, which runs on its tree as it is at that moment: `fixed` always carries `ran:` and `saw:` from it, and a `disagree` gives the reason, which the main session judges against the intent.

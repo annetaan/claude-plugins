@@ -52,6 +52,18 @@ print("" if a is None else a["model"] + " " + a["effort"])
 ' "$TMP/level-$1.json" "$2"
 }
 
+frontmatter_level() {
+  python3 -c '
+import json, sys
+tmp, name = sys.argv[1], sys.argv[2]
+default = json.load(open("%s/level-none.json" % tmp))
+if name in default["agents"]:
+    print(default["level"])
+else:
+    print(next(n for n in (1, 2, 3) if name in json.load(open("%s/level-%d.json" % (tmp, n)))["agents"]))
+' "$TMP" "$1"
+}
+
 agents=0
 for f in "$PLUGIN"/agents/*.md; do
   name="$(basename "$f" .md)"
@@ -60,31 +72,39 @@ for f in "$PLUGIN"/agents/*.md; do
   [ -n "$model" ] || fail "$name has no model"
   [ -n "$effort" ] || fail "$name has no effort"
   if [ "$(levelled "$name")" = yes ]; then
-    front "$f" description | grep -qF "(level 3: $model / effort $effort" \
-      || fail "$name: the description does not hold (level 3: $model / effort $effort"
+    n="$(frontmatter_level "$name")"
+    front "$f" description | grep -qF "(level $n: $model / effort $effort" \
+      || fail "$name: the description does not hold (level $n: $model / effort $effort"
   else
     front "$f" description | grep -qF "($model / effort $effort)" \
       || fail "$name: the description does not hold ($model / effort $effort)"
   fi
   agents=$((agents + 1))
 done
-echo "ok: $agents agents have a model, an effort and a matching description, levelled ones as level 3"
+echo "ok: $agents agents have a model, an effort and a matching description, levelled ones with their level"
 
 python3 -c '
 import json, sys
-for n in ("3", "none"):
-    d = json.load(open("%s/level-%s.json" % (sys.argv[1], n)))
-    assert d["level"] == 3, d
-' "$TMP" || fail "level.sh show without a file or with 3 is not level 3"
-for name in $(python3 -c 'import json,sys; print(" ".join(json.load(open(sys.argv[1]))["agents"]))' "$TMP/level-3.json"); do
+tmp = sys.argv[1]
+d = json.load(open("%s/level-none.json" % tmp))
+assert (d["level"], d["source"]) == (2, "default"), d
+assert d["agents"] == json.load(open("%s/level-2.json" % tmp))["agents"], d
+' "$TMP" || fail "level.sh show without a file is not level 2 from default"
+echo "ok: level.sh show without a file is level 2 from default"
+for name in $(python3 -c '
+import json, sys
+names = {}
+for n in (1, 2, 3):
+    names.update(dict.fromkeys(json.load(open("%s/level-%d.json" % (sys.argv[1], n)))["agents"]))
+print(" ".join(names))
+' "$TMP"); do
   f="$PLUGIN/agents/$name.md"
   [ -f "$f" ] || fail "level.sh names $name, which has no file under agents/"
   want="$(front "$f" model) $(front "$f" effort)"
-  for n in 3 none; do
-    [ "$(at_level "$n" "$name")" = "$want" ] || fail "$name: level.sh show ($n) gives '$(at_level "$n" "$name")', the frontmatter says '$want'"
-  done
+  n="$(frontmatter_level "$name")"
+  [ "$(at_level "$n" "$name")" = "$want" ] || fail "$name: level.sh show $n gives '$(at_level "$n" "$name")', the frontmatter says '$want'"
 done
-echo "ok: every agent level.sh names has a file, and its level-3 values are its frontmatter"
+echo "ok: every agent level.sh names has a file, and its frontmatter is its value at the default level"
 
 rows=0
 for f in "$PLUGIN"/agents/*.md; do
@@ -105,32 +125,35 @@ import json, re, sys
 readme, tmp = sys.argv[1], sys.argv[2]
 rows = {}
 for line in open(readme):
-    m = re.match(r"^\| `([a-z-]+)` \| (\w+) / (\w+) \| (\w+) / (\w+) \| (\w+) / (\w+) \|$", line.rstrip("\n"))
+    cell = r" (?:(\w+) / (\w+)|-) \|"
+    m = re.match(r"^\| `([a-z-]+)` \|" + cell * 3 + "$", line.rstrip("\n"))
     if m:
         assert m.group(1) not in rows, "two README level rows for " + m.group(1)
         g = m.groups()
-        rows[g[0]] = [(g[1], g[2]), (g[3], g[4]), (g[5], g[6])]
-want = {}
-for n in (1, 2, 3):
-    for name, a in json.load(open("%s/level-%d.json" % (tmp, n)))["agents"].items():
-        want.setdefault(name, []).append((a["model"], a["effort"]))
+        rows[g[0]] = [None if g[i] is None else (g[i], g[i + 1]) for i in (1, 3, 5)]
+levels = [json.load(open("%s/level-%d.json" % (tmp, n)))["agents"] for n in (1, 2, 3)]
+want = {name: [None if name not in agents else (agents[name]["model"], agents[name]["effort"])
+               for agents in levels]
+        for name in {name for agents in levels for name in agents}}
 assert rows == want, (rows, want)
 ' "$README" "$TMP" || fail "the README level table does not match level.sh show 1, 2 and 3"
 echo "ok: the README level table matches level.sh show at each level"
 
-review="$(front "$PLUGIN/agents/workflow-design-review.md" model)"
-for other in workflow-design pj-planner; do
-  [ "$review" != "$(front "$PLUGIN/agents/$other.md" model)" ] || fail "workflow-design-review runs on the model of $other"
-done
-echo "ok: the design review runs on another model than the design and the planner"
-
-for n in 1 2 3; do
-  a="$(at_level "$n" workflow-reviewer-a)"
-  b="$(at_level "$n" workflow-reviewer-b)"
-  [ -n "$a" ] && [ -n "$b" ] || fail "level $n does not name both review seats"
-  [ "${a%% *}" != "${b%% *}" ] || fail "at level $n workflow-reviewer-a and workflow-reviewer-b run on the same model"
-done
-echo "ok: the two review seats run on different models at every level"
+python3 -c '
+import json, sys
+tmp = sys.argv[1]
+for n in (1, 2, 3):
+    d = json.load(open("%s/level-%d.json" % (tmp, n)))
+    agents = d["agents"]
+    if n < 3:
+        assert "workflow-reviewer-a" in agents and "workflow-reviewer-b" not in agents, (n, agents)
+        assert d["seats"] == ["a"], (n, d["seats"])
+    else:
+        a, b = agents["workflow-reviewer-a"], agents["workflow-reviewer-b"]
+        assert a["model"] != b["model"], (n, a, b)
+        assert d["seats"] == ["a", "b"], (n, d["seats"])
+' "$TMP" || fail "the review seats per level are not seat a below level 3, and a and b on different models at level 3"
+echo "ok: one review seat below level 3, and two on different models at level 3"
 
 if grep -rnE '(opus|sonnet|fable|haiku) / (low|medium|high|xhigh|max)|pinned to (Fable|fable|opus|sonnet|haiku) at' "$PLUGIN/skills"; then
   fail "a skill states a pin"

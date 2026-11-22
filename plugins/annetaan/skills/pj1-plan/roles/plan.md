@@ -19,8 +19,6 @@ Read the project format at the path the prompt gives (`format.md`). The parent i
 
 Then read `workflow/judgement.md` at the path the prompt gives. Its opening table lists every section and what it asks of your role. Yours is the `Design` column.
 
-Your prompt carries a line `Breaking changes: accepted` or `Breaking changes: not accepted`. That line is the limit **As if it was always required** speaks of.
-
 ## What to return
 
 1. **Feasibility**: `yes`, `conditional` or `no`. For `conditional` or `no`, write what is missing, concretely.
@@ -58,8 +56,7 @@ Your prompt carries a line `Breaking changes: accepted` or `Breaking changes: no
    `workflow/judgement.md`. Each carries an `Only you know: <that thing>` line. A fork whose line cannot be written is settled by
    you and recorded under `### Model decisions` of its project. Each one has **2 to 4 options** as they really are in this
    code, what each changes, your recommendation, and the id of the project it belongs to. A question that only
-   changes how one project splits into tasks waits for `pj2-issues`. The design review's leftovers land here too (see
-   **Answering the design review**). Write "none" when there are none.
+   changes how one project splits into tasks waits for `pj2-issues`. Write "none" when there are none.
 
 ## How to cut into projects
 
@@ -78,27 +75,6 @@ Your prompt carries a line `Breaking changes: accepted` or `Breaking changes: no
 - **With a roadmap entry, one project of the last stage gains the roadmap task** (`format.md`, **The roadmap
   task**), and the main session picks which.
 - **No cycles between projects.** A cycle means a piece of work is in the wrong project.
-
-## Answering the design review
-
-The main session sends you a design review report once, after your first `yes`. A reviewer read the parents'
-`## Design` against the code and asked "would we design it this way from a blank slate?"
-
-**Read each finding against the code.**
-
-- **What you agree with, take in**, into the parents' `## Design`, the cut and the edges. List what you took in.
-- **What you do not agree with is settled by evidence first.** Read the code the finding cites, or build both shapes
-  in your scratch directory, and let that decide. Either way the result goes under `### Model decisions` of the parent
-  it belongs to, marked `(from the design review)`, with the reviewer's proposal, how far existing code moves (copied
-  from the finding), your reason and the evidence.
-- **Only what passes the test in "What a human is asked" becomes an item 5 open question**, marked
-  `(from the design review)`, one per finding in the reviewer's order. Each carries the id of the project it belongs
-  to, its `Only you know:` line, the reviewer's proposal, how far existing code moves, your reason and your
-  recommendation.
-
-Do not argue back at the reviewer. There is no second round.
-
-**Return the whole report**, revised, and not a diff against the old one.
 
 ## Answering later messages
 

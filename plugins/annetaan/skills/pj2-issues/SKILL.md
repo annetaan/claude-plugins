@@ -93,7 +93,7 @@ git branch --show-current
      ```
 
      Otherwise stop, and say that those projects have to be merged into `<from>` first.
-3. Read the level. The repository's level picks the model and the effort of the issue writers. `<root>` is what
+3. Read the level. The repository's level picks the model and the effort of the planner and the issue writers. `<root>` is what
    `git rev-parse --show-toplevel` printed.
 
    ```bash
@@ -134,6 +134,7 @@ $ISSUES/../pj1-plan/scripts/project.sh --roadmap origin/<from>
 
 ```
 Agent(subagent_type: "annetaan:pj-planner", description: "split #<P>",
+      model: "<agents.pj-planner.model>", effort: "<agents.pj-planner.effort>",
       prompt: "Read $ISSUES/roles/split.md first and follow the role it describes. The project format is in $ISSUES/../pj1-plan/format.md. The judgement rules are in <skills>/workflow/judgement.md.\n\nParent: #<P>\n\nproject.sh <P>:\n<the JSON>\n\nRemoved waits: <#Q, #R | none>\n\nRoadmap task: <yes, the entry \"<heading>\" of <path> | none, <why> | none>\n\nRead the code: <the working tree | at origin/<from>>\n\nScratch: $TMP/scratch/split")
 ```
 
@@ -141,9 +142,9 @@ Agent(subagent_type: "annetaan:pj-planner", description: "split #<P>",
 the first form, with `parent.roadmap.path` as `<path>`, when the split ends with the roadmap task, the second with the line kept above, and `none` for a parent
 with no `Roadmap:` line.
 
-`annetaan:pj-planner` ships with this plugin and has its model and effort pinned in `agents/*.md`. It is told never to change the repository and to write only under its `Scratch:` directory, by instruction.
-**When it cannot start** (a weekly limit, a rate limit, the model is unavailable), spawn it again with the same
-prompt and `model: "opus"`.
+`annetaan:pj-planner` ships with this plugin and takes its model and effort from the level, `agents.pj-planner` of the `level.sh` JSON. It is told never to change the repository and to write only under its `Scratch:` directory, by instruction.
+**When its model is `fable` and it cannot start** (a weekly limit, a rate limit, the model is unavailable),
+spawn it again with the same prompt, `model: "opus"` and the same `effort`.
 
 When the split comes back:
 

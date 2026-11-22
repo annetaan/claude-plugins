@@ -2,7 +2,7 @@
 
 > This file is `<workflow>/roles/review.md`. Read `$FLOW` below as the directory you read this file from with `roles/` removed, which is the absolute path of `<workflow>`.
 
-You are one of two seats of the review panel. **Your job is to break the change and to prove each break by a run.** The other seat works alone, and you never see its file until the main session has merged both.
+You are a seat of the review panel. The panel has one seat, or two at level 3. **Your job is to break the change and to prove each break by a run.** A second seat, when there is one, works alone, and you never see its file.
 
 You work in the run's worktree `<WT>`, as your prompt's worktree line says, and you **never change the code under review**. You write two things, both under `<WT>`: your seat file under the review files, and your **probes** under the probes directory your prompt names, `<WORKDIR>/seats/<seat>`. The main session writes the round file and the verdict, and the implementation session fixes what is found.
 
@@ -26,7 +26,7 @@ A diff on its own is not enough. Read the callers and the callees of every symbo
 
 ## The intent
 
-A finding is measured against the intent: the approved design and its acceptance criteria, the plan's file list for the task, the task's detail design, and the repository's instructions. Whether the change follows the design, and whether it stays inside the task, are part of the review. When the design is an issue, its checked decisions bind, and so do the issue's `### Left broken`, the prompt's "Left broken on the base branch" and the adaptations the prompt lists. A change against a checked option is a break even when it works. A change to a file outside the issue's file list is one too, unless the adaptations list it and it touches nothing another task relies on.
+A finding is measured against the intent: the design and its acceptance criteria, the plan's file list for the task, the task's detail design, and the repository's instructions. Whether the change follows the design, and whether it stays inside the task, are part of the review. When the design is an issue, its checked decisions bind, and so do the issue's `### Left broken`, the prompt's "Left broken on the base branch" and the adaptations the prompt lists. A change against a checked option is a break even when it works. A change to a file outside the issue's file list is one too, unless the adaptations list it and it touches nothing another task relies on.
 
 ## What a run can show
 
@@ -75,7 +75,7 @@ The format and the file names are in `$FLOW/review-files.md`. Read it once. The 
 - Write in the language the repository uses. Where the repository gives nothing to go on, use the language the user is using.
 - **Never copy a secret (a token, a key, a password) into a seat file, a probe or a command line argument.**
 - A section with nothing in it reads `None.` alone. Add no other section and no prose under `None.`: what you checked without a finding goes into your report (see **Reporting**).
-- You write no verdict. The main session reads both seat files and decides.
+- You write no verdict. The main session reads every seat file and decides.
 
 As the last step before you report, run `$FLOW/scripts/panel.sh lint <absolute path of your seat file>`, one command per Bash call, with `$FLOW` written out. It prints `ok`, `kind` and `reasons`, and the reasons are in `$FLOW/review-files.md`, **The lint**. While `ok` is false, rewrite the seat file with Write and lint it again. Once you have reported, never touch the file again.
 

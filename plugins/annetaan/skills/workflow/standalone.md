@@ -2,21 +2,8 @@
 
 > This file is read by the main session that loaded the workflow skill. The paths it uses are the ones **Paths: `$FLOW`** in SKILL.md gives.
 
-Read `worktree.md` and run **The start check** first. Then decide **Does this repository accept breaking changes?** below, run **The worktree** in `worktree.md`, then **The level** in SKILL.md, phase 1 below, phases 2 to 4 in SKILL.md as **Phases 2 to 4 in the standalone flow** below settles them, and phases 5 and 6 below. When `level.sh show` exits non-zero, the worktree already exists: quote
-the message and take **Ending before approval** in `worktree.md`.
-
-## Does this repository accept breaking changes?
-
-Decide this before **The worktree** in `worktree.md`. It decides how far the design and the design review may move existing code
-(see **The design review**). **The answer is a sentence you keep**, not a shell variable. The design prompt, the review prompt and the
-approval message need it.
-
-**When the request asks for a minimal change** (an urgent fix, a hotfix, "just make it work"), skip this check and ask
-nothing. You judge that from the request. Say one line before design starts: design review skipped for this run: the
-request asks for a minimal change. **Write nothing to memory.** A minimal change is a property of this request, not
-of the repository.
-
-Otherwise read `breaking-changes.md` and follow it.
+Read `worktree.md` and run **The start check** first. Then run **The worktree** in `worktree.md`, then **The level** in SKILL.md, phase 1 below, phases 2 to 4 in SKILL.md as **Phases 2 to 4 in the standalone flow** below settles them, and phases 5 and 6 below. When `level.sh show` exits non-zero, the worktree already exists: quote
+the message and take **Ending with nothing changed** in `worktree.md`.
 
 ## Phase 1: design
 
@@ -24,99 +11,54 @@ Hand the user's request to the design session as it was written, with the worktr
 
 ```
 Agent(subagent_type: "annetaan:workflow-design", description: "design",
-      prompt: "Read $FLOW/roles/design.md first and follow the role it describes.\n\nThe request:\n<the user's request, verbatim>\n\nBreaking changes: <accepted | not accepted>\n\n<the worktree line>\n\nScratch: <WT>/work-reports/<stamp>-design")
+      model: "<agents.workflow-design.model>", effort: "<agents.workflow-design.effort>",
+      prompt: "Read $FLOW/roles/design.md first and follow the role it describes.\n\nThe request:\n<the user's request, verbatim>\n\n<the worktree line>\n\nScratch: <WT>/work-reports/<stamp>-design")
 ```
 
-A run for a minimal change sends `Breaking changes: not accepted`.
-
-`annetaan:workflow-design` ships with this plugin and has its model and effort pinned in `agents/*.md`. It is told never to change the repository and to write only under its `Scratch:` directory, by instruction.
-**When it cannot start** (a weekly limit, a rate limit, the model is unavailable), spawn it again with the same
-prompt and `model: "opus"`.
+`annetaan:workflow-design` ships with this plugin and takes its model and effort from the level, `agents.workflow-design` of the level JSON. It is told never to change the repository and to write only under its `Scratch:` directory, by instruction.
+**When its model is `fable` and it cannot start** (a weekly limit, a rate limit, the model is unavailable),
+spawn it again with the same prompt, `model: "opus"` and the same `effort`.
 
 When the design comes back:
 
 - **If feasibility is "no" or "conditional"**, hand that to the user and wait. Do not walk past it.
 - **An open question with no `Only you know:` line goes back.** `SendMessage` the design session to decide it and record it under Model decisions.
 - **Keep the plan.** It is an ordered list of tasks, each with the files it touches. If the plan is missing, use `SendMessage` to make the design session produce it.
-- **The round cap is five per scope, a task or the integration review, and it is fixed.** Mention it once at approval. Do not negotiate the number (see **The round cap** in SKILL.md).
+- **The round cap is five per scope, a task or the integration review, and it is fixed.** Mention it once in the start message. Do not negotiate the number (see **The round cap** in SKILL.md).
 
 **Keep the design session alive for the whole flow.** You go back to it twice. Before every task from task 2
-onward, to have it detail that task against the approved tree of the task before, while that task is committed (phase
+onward, to have it detail that task against the tree the task before left, while that task is committed (phase
 4 (d)). And whenever the plan breaks,
 to have it redraw the remaining tasks.
 
-### The design review
+### The open questions and the start message
 
-**It runs once, after feasibility has passed and before the open questions**, in every repository except for a
-minimal-change run (see **Does this repository accept breaking changes?**). Hand the reviewer the request as it was
-written, whether breaking changes are accepted, and the design report in full.
+**The flow asks for no approval.** It asks the user only what it cannot go on without: the open questions here, a
+feasibility of "no" or "conditional" above, and the round cap and the failures below. Everything else runs to the
+pull request on its own.
 
-```
-Agent(subagent_type: "annetaan:workflow-design-review", description: "design review",
-      prompt: "Read $FLOW/roles/design-review.md first and follow the role it describes.\n\nThe request:\n<the user's request, verbatim>\n\nBreaking changes: <accepted | not accepted>\n\nThe design:\n<the full design report>\n\n<the worktree line>")
-```
+**Ask the open questions**, when the design has any. They go to the user with `AskUserQuestion`. **One call holds
+four questions at most**, so ask in as many calls as it takes, in the order the design gives them. Send the answers
+back with `SendMessage` so the design session can settle them. Each question carries its `Only you know:` line. With
+no open question, ask nothing.
 
-`annetaan:workflow-design-review` ships with this plugin and has its model and effort pinned in `agents/*.md` and cannot edit
-files. It is pinned to another model than the design session.
+Then present the design summary and the plan in one **start message**, and go on to phase 2 in the same turn,
+without waiting for an answer. The start message states:
 
-**When it cannot start** (a weekly limit, a rate limit, the model is unavailable), skip the review and go on. **Do not
-substitute another agent.** Keep the reason for the approval message.
-
-When the report comes back, `SendMessage` it to the design session.
-
-> <the design review report, in full>
->
-> Follow **Answering the design review** in your role instruction. Return the whole revised report.
-
-The revised report replaces the design and the plan you kept. **The revised design does not go back to the
-reviewer**, and neither does a rework the user asks for at approval, a corrected base included. The design review session ends with its one
-report. Never `SendMessage` it. The points the design session did not settle by evidence reach the user as open questions only
-when they carry an `Only you know:` line (see **The approval dialog**). The rest are under Model decisions.
-
-### The approval dialog
-
-**Before the approval question, ask the open questions**, on every run. The design's own questions and, when the
-design review ran, the points that passed the test in `judgement.md` and that the design session left open, marked
-`(from the design review)`, go to the user with `AskUserQuestion`. **One call holds four questions at most**, so ask in as many calls as it takes: the
-design's own first, then the review's, in the order the reviewer ranked them. Send the answers back with
-`SendMessage` so the design session can settle them.
-Each question carries its `Only you know:` line. The approval is one question, so this is where the review's leftovers get decided.
-
-This is the only approval point in the flow. Present the design summary and the plan, then ask **one `AskUserQuestion`**.
-
-**Proceed with this design and plan?** (approve / change something first)
-
-The approval message states:
-
-- the Model decisions, one line each, and that "change something first" overturns any of them
-
+- the Model decisions, one line each
 - the name of the new branch, and `base: <base>`
 - the worktree `<WT>`, and that `<MAIN>` is not touched
 - that `<WT>` lacks `<MAIN>`'s ignored files (dependencies, `.env`), so the first worker prepares what the tests need and records the steps in the handover notes
-- `level <n> (<source>)`, the model and effort it gives the implementation session and the two review seats, and that `level=<n>` on a new run changes it
-- that everything after this runs on its own: per-task implementation and review rounds, the integration review when the plan has more than one task, the push and the pull request
+- `level <n> (<source>)`, the model and effort it gives the design session, the implementation session and the review seats, how many seats the level runs, and that `level=<n>` on a new run changes it
+- that everything after this runs on its own: per-task implementation and review rounds, the integration review when the plan has more than one task, the push and the pull request, and that saying stop ends the run
 
-**You pick the branch name yourself.** Match the naming the repository already uses (`git branch -a`), choose one that `git branch -a` does not list yet, and write it into the approval message, so the user can correct it there. Do not spend a question on it.
-
-**Say what happened to the design review, in one line of the approval message.** When it ran: whether breaking
-changes are accepted, N findings taken in, K settled by the design session, M decided by you in the open questions above. When it did not run, the
-reason: the design review session could not start, or the request asks for a minimal change.
-
-**When the user corrects the base at approval**, the design was written against the wrong code:
-
-1. Leave and remove the worktree as **Ending before approval** in `worktree.md` says.
-2. Run steps 3 to 6 of **The worktree** in `worktree.md` with the new base.
-3. Start a new design session from the design call.
-4. Run no second design review, as for any rework at approval.
-5. Ask the open questions again, then ask for approval again.
-
-A corrected branch name just replaces the name.
+**You pick the branch name yourself.** Match the naming the repository already uses (`git branch -a`), choose one that `git branch -a` does not list yet, and write it into the start message. Do not spend a question on it.
 
 ## Phases 2 to 4 in the standalone flow
 
 Phases 2 to 4 in SKILL.md run as written, with these settled here.
 
-- **Phase 2** starts after approval and runs (a), then (b) as `$FLOW/scripts/panel.sh begin <WT> --level <level> --source <source>`, both from the `level.sh show` JSON **The level** in SKILL.md read. On a `stop` with `not-ignored`, stop and report, because **The worktree** step 4 in `worktree.md` should have settled it.
+- **Phase 2** starts right after the start message and runs (a), then (b) as `$FLOW/scripts/panel.sh begin <WT> --level <level> --source <source>`, both from the `level.sh show` JSON **The level** in SKILL.md read. On a `stop` with `not-ignored`, stop and report, because **The worktree** step 4 in `worktree.md` should have settled it.
 - **After the last task's commit in phase 4 (d)**: when phase 5 does not run (see **Phase 5**), keep that task's implementation session alive, because it writes the work report in phase 6. Its seat sessions end as usual. After the last task, go to phase 5, or to phase 6 when the plan has one task (see **Phase 5**).
 - **The round cap**: when `cap` of `$FLOW/scripts/panel.sh status <WT> <scope>` is true, stop and report to the user. Lay out what is still open and what each side said, and ask for a decision. **That task's changes are sitting uncommitted in `<WT>`.** Say that, say that the worktree stays as it is, and say that `/annetaan:workflow-cleanup` removes it, discarding the work, once the user decides. If the user says keep going after the cap, keep going: `cap` stays true from then on, and no longer stops the run.
 - **When the user says stop** at any point, stop and report.
@@ -139,14 +81,14 @@ The target is the working tree against `START` (`git diff <START>` plus untracke
 together. The working tree should be empty at this point. Fixes from the integration review land uncommitted in the
 working tree, so later rounds see them in the same diff.
 
-**The integration review starts two new seats**, model and effort included, with the steps of phase 4 (b) in SKILL.md: both seats in one message, `panel.sh verify`, the round file. `<scope>` is `integration`, so the files are `integration-round-<r>-<seat>.md` and `integration-round-<r>.md`. The prompt is the phase 4 (b) prompt with the plan carrying the commit that closed each task (the matching `git log --oneline` lines) in place of the task detail, and this request in place of "Under review":
+**The integration review starts new seats**, model and effort included, with the steps of phase 4 (b) in SKILL.md: every seat in one message, `panel.sh verify`, the round file. `<scope>` is `integration`, so the files are `integration-round-<r>-<seat>.md` and `integration-round-<r>.md`. The prompt is the phase 4 (b) prompt with the plan carrying the commit that closed each task (the matching `git log --oneline` lines) in place of the task detail, and this request in place of "Under review":
 
 > Every task is committed. This is the integration review. The target is `git diff <START>` plus untracked files, read in `<WT>`. Write round 1 as `integration-round-1-<seat>.md`. The tasks were reviewed one at a time, so look at **the boundaries**: types and contracts between functions that call each other across tasks, names that do not match, duplicated implementations, and acceptance criteria for the whole design that are still unmet. No evidence file exists before round 1, because the tree is clean. Record the walk of every acceptance criterion and every flow of the whole design under `## Walk`, each run as a probe, with `ran:` and `saw:`, or `not run:`.
 
 **`changes-requested` starts a new implementation session as well**, with the phase 3 call, model and effort included, and its `Scratch:` line, and each reply that changes code comes with `integration-round-<r>-evidence.md`. The progress is every task, the handover notes are everything you have collected, and the request is to
 answer the integration review. From there the (b), (c) loop is the same as phase 4, with the `integration-round-<r>`
 files, and the `integration` scope has the same cap, counted the same way, by `cap` of
-`$FLOW/scripts/panel.sh status <WT> integration`. No session gets rebuilt during those rounds. Fixes become **one commit** after approval, with a
+`$FLOW/scripts/panel.sh status <WT> integration`. No session gets rebuilt during those rounds. Fixes become **one commit** after the review approves, with a
 subject that says what it is, such as "integration review fixes". No fixes means no commit.
 
 Review says `approve`, every finding is resolved, tests pass. Phase 6 starts when all three hold.
@@ -167,8 +109,8 @@ $FLOW/scripts/worktree.sh sync <name> <base>
   branch gets no merge commit it does not need. Go on.
 - **`conflict`**: the merge of `origin/<base>` stopped on conflicts in `files`, and stays in progress in `<WT>`.
   Print `<base> conflicts with <branch> in <n> file(s)`, then read `merge-task.md` and run **The merge task** with `<incoming>` as
-  `origin/<base>`, `<into>` as `<branch>`, `<M>` as `start`, and as `<intent>`: "the approved design, as the commits
-  since `<START>` implement it", followed by the approved design.
+  `origin/<base>`, `<into>` as `<branch>`, `<M>` as `start`, and as `<intent>`: "the design, as the commits
+  since `<START>` implement it", followed by the design.
   - **`finished`**: go on. That implementation session is alive, and it writes the work report. Keep the `later`
     reports for **Report to the user**.
   - **`stopped`**: push nothing. Go to **Report to the user**, and say that the task commits are on the branch and
@@ -184,12 +126,12 @@ Read `finish.md` and run **The work report**, then **The pull request**.
 
 **First leave the worktree**: `ExitWorktree(action: "keep")`, or `cd <MAIN>` where that tool is not available.
 
-Every standalone run that got past approval ends here, finished or stopped (round cap, user stop, a failed finish). Close with: `START`, the commits stacked on it matched against the tasks in the plan, the design summary, and what the review changed. Then:
+Every standalone run that got past the start message ends here, finished or stopped (round cap, user stop, a failed finish). Close with: `START`, the commits stacked on it matched against the tasks in the plan, the design summary, and what the review changed. Then:
 
 - **how the base came in**: already in, merging cleanly, or merged after the merge task resolved the files it names, or why it did not
 
 - **the pull request URL**, when one was opened
-- **the worktree `<WT>`**, and that the work report lives under it until cleanup, and the two review seat worktrees beside it, `review-<name of WT>-a` and `-b`, which the same cleanup removes. The probes of the seats are under `<WORKDIR>/seats/`
+- **the worktree `<WT>`**, and that the work report lives under it until cleanup, and the review seat worktrees beside it, `review-<name of WT>-<seat>`, which the same cleanup removes. The probes of the seats are under `<WORKDIR>/seats/`
 - **the path of the work report** (`<WORKDIR>/log.md`), which opens in an editor with the screenshots inline
 - the review files, under `<WORKDIR>/review/`
 - the screenshot paths, when the change shows on screen
