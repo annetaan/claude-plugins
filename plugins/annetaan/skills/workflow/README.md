@@ -251,7 +251,7 @@ screenshots it could not attach.
 | `scripts/level.sh` | reads the repository's level from origin's default branch and prints the model and effort it gives the implementation session, the two review seats and pj's issue writer |
 | `scripts/level.py` | the code `level.sh` runs, and the one place the level table lives |
 | `scripts/comments.py` | fails on a comment outside the four kinds, or a silenced check the change adds, in the files a change touches. The implementation and review sessions run it |
-| `scripts/panel.sh` | makes the run's work directory and reads it back, runs a review seat's probe in a git worktree beside the run's, at a snapshot of the working tree, removes the seats at cleanup, and lints a review file |
+| `scripts/panel.sh` | makes the run's work directory and reads it back, reports a scope's round, cap, open findings and whether `approve` is allowed, runs a review seat's probe in a git worktree beside the run's, at a snapshot of the working tree, removes the seats at cleanup, and lints a review file |
 | `scripts/panel.py` | the code `panel.sh` runs. `worktree.py` imports the stamp rules of the work directory names from it |
 | `review-files.md` | the shape of the review files and the evidence files, read by the seats, the main session and the implementation session |
 

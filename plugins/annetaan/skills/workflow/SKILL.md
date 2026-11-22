@@ -38,7 +38,9 @@ and stop. The standalone flow and From a pull request call it. From an issue and
 
 Every entry also uses `$FLOW/scripts/panel.sh`, written `panel.sh`, which owns the run's work directory and the two
 review seats, one git worktree each beside `<WT>`. `panel.sh begin` makes the work directory (phase 2 (b)), and
-`panel.sh status <WT>` reads it back. A seat reaches its worktree only through `panel.sh run <WT> <seat> <probe dir>`,
+`panel.sh status <WT>` reads it back. With a scope, `panel.sh status <WT> <scope>` also reports where that scope's
+review stands: the next round, whether the cap is reached, the last verdict, the open findings and whether `approve`
+is allowed (phase 4 (b)). A seat reaches its worktree only through `panel.sh run <WT> <seat> <probe dir>`,
 which runs a probe the seat wrote (see `$FLOW/review-files.md`, **A probe**), and `panel.sh close <WT>` removes the
 seats at the cleanup. `panel.sh lint <file>` checks one review file against `$FLOW/review-files.md`, and each writer
 runs it on its own file before it reports. `<WT>` is the absolute path, and `lint` takes the absolute path of the file.
@@ -203,8 +205,16 @@ Check that the tests pass before you send anything to review, and that the evide
 
 The same steps run for a task, for the integration review and for the merge task. `<scope>` is `task-<k>`, `integration` or `merge`. Every session, yours and the seats', stays in `<WT>`. Only `panel.sh` enters a seat's worktree.
 
-1. **Later rounds only**: run again the command of every open earlier finding, one `panel.sh run` line per Bash call, before you message the seats.
-2. **Start both seats in one message.** Round 1 is `Agent`, with the diff to read depending on the review: a task reads `git diff HEAD` plus the untracked files, the integration review `git diff <START>` plus the untracked files, and a merge the files named by `merge-task.md`.
+The scope's values come from the script, not from counting files:
+
+```bash
+$FLOW/scripts/panel.sh status <WT> <scope>
+```
+
+It prints what `status <WT>` prints, with `scope`, `round`, `cap`, `verdict`, `open` and `approve` added. `round` is the next round, and it is the `<r>` of every file name in (b) and in the `SendMessage` of later rounds. `verdict` is the verdict of the last round file, null before round 1. `open` lists the findings the last round left open, each with its `id`, `stood` (how many round files marked it `stands` or `stands again`) and `reply` (`fixed` or `disagree` from the last round's reply, null when that reply or its line is missing). `approve` holds `allowed` and `why`, the reasons `approve-open` and `approve-no-evidence` of the lint (see `$FLOW/review-files.md`, **The lint**). `cap` is read after step 6.
+
+1. **Later rounds only**: run again the command of each finding in `open`, one `panel.sh run` line per Bash call, before you message the seats. A finding's `Command:` line is in the round file that raised it: `R<j>.<n>` in `<scope>-round-<j>.md`.
+2. **Start both seats in one message.** Each seat writes `<scope>-round-<r>-<seat>.md`, the seat file of round `round`. Round 1 is `Agent`, with the diff to read depending on the review: a task reads `git diff HEAD` plus the untracked files, the integration review `git diff <START>` plus the untracked files, and a merge the files named by `merge-task.md`.
 
 ```
 Agent(subagent_type: "annetaan:workflow-reviewer-a", description: "review, task k, seat a",
@@ -214,14 +224,16 @@ Agent(subagent_type: "annetaan:workflow-reviewer-a", description: "review, task 
 
 The call for seat `b` is the same with `annetaan:workflow-reviewer-b`, its `model` and `effort` from `agents.workflow-reviewer-b`, `You are seat b`, `Probes:` under `seats/b`, `panel.sh run <WT> b <probe dir>` and `<scope>-round-1-b.md`. Write `$FLOW` and `<WT>` out as absolute paths. Both calls go in one message, so the seats run in parallel. In a run from an issue each prompt also carries the lines `from-issue.md` adds, and in a merge the lines `merge-task.md` gives.
 
-**Every round after that goes to each seat with `SendMessage`**, in one message for both: "the tree has been updated, and the reply is `<scope>-round-<r>-reply.md`, with the evidence in `<scope>-round-<r>-evidence.md` when the reply changed code, and the round file of the last round is `<scope>-round-<r>.md`. Attack what changed since your last round, as **Later rounds** in your role instruction says, and write `<scope>-round-<r+1>-<seat>.md`." The seats live for one task, so each remembers what it tried, its probes are still there, and it diffs the tree it reviewed last against the tree now.
+**Every round after that goes to each seat with `SendMessage`**, in one message for both, `<r>` being `round`: "the tree has been updated, and the reply is `<scope>-round-<r-1>-reply.md`, with the evidence in `<scope>-round-<r-1>-evidence.md` when the reply changed code, and the round file of the last round is `<scope>-round-<r-1>.md`. Attack what changed since your last round, as **Later rounds** in your role instruction says, and write `<scope>-round-<r>-<seat>.md`." The seats live for one task, so each remembers what it tried, its probes are still there, and it diffs the tree it reviewed last against the tree now.
 
 3. **When both have reported**, read the two seat files and run each finding's `Command:` again, word for word, from `<WT>`, one command per Bash call. Each run snapshots the tree as it is and prints `exit` and `output`.
 4. **Keep, drop, merge.** Keep a finding when `exit` and `output` show the failure and the failure breaks the intent: the approved design, its criteria, the plan and the task detail. **Drop the rest with the reason**, a command that cannot be run again included. Findings with one root cause become one entry that names every seat. **There is no judge.** The round file holds every verified finding of both seats. Anything under `## Not run` that no seat could run goes to the round file's `## Not run`.
-5. **Earlier findings.** The failure gone is `resolved`. The failure still shown is `stands`, and `stands again` from the second time on. A `disagree` whose reason shows the failure does not break the intent is `resolved`, with the reason quoted.
-6. **Write the round file** `<scope>-round-<r>.md` with Write, in the shape `$FLOW/review-files.md` gives: `Seats:` (the model each seat ran on, a fallback and a dropout said here), `## Earlier findings`, `## New findings`, `## Dropped`, `## Not run` and `## Verdict`. The verdict is yours, and when `approve` is allowed is in `$FLOW/review-files.md`, **A review round**. Then run `$FLOW/scripts/panel.sh lint <absolute path of the round file>` and rewrite the round file until `ok` is true, before the verdict goes to (c) or (d). An `approve` the rule does not allow shows as `approve-open` or `approve-no-evidence`. With `approve-open` the verdict is `changes-requested`. With `approve-no-evidence` alone, `SendMessage` the implementation session for the evidence file the rule names, as (a) does for a missing evidence file, and lint the round file again once it is there.
+5. **Earlier findings.** The failure gone is `resolved`. The failure still shown is `stands` when the finding's `stood` is 0, and `stands again` when it is 1 or more. A finding whose `reply` is `disagree` is judged against the intent: a `disagree` whose reason shows the failure does not break the intent is `resolved`, with the reason quoted.
+6. **Write the round file** `<scope>-round-<r>.md` with Write, in the shape `$FLOW/review-files.md` gives: `Seats:` (the model each seat ran on, a fallback and a dropout said here), `## Earlier findings`, `## New findings`, `## Dropped`, `## Not run` and `## Verdict`. The verdict is yours, and when `approve` is allowed is in `$FLOW/review-files.md`, **A review round**. Before the Write, run `$FLOW/scripts/panel.sh status <WT> <scope>` and read `approve`. `approve-no-evidence` in `why` rules `approve` out until the implementation session writes the evidence file the rule names: `SendMessage` it for that file, as (a) does for a missing evidence file, and run status again once it is there. `approve-open` in `why` means `approve` needs every finding in `open` marked `resolved` in this round's `## Earlier findings`, and `## New findings` reading `None.`. Otherwise the verdict is `changes-requested`. After the Write, run `$FLOW/scripts/panel.sh lint <absolute path of the round file>` and rewrite the round file until `ok` is true, before the verdict goes to (c) or (d). An `approve` over a finding the file itself leaves open shows there as `approve-open`, and the verdict is then `changes-requested`.
 
-`approve` goes to (d). Anything else goes to (c).
+`approve` goes to (d). After a round file that is not `approve`, run `$FLOW/scripts/panel.sh status <WT> <scope>` again and read `cap`: true stops as **The round cap** says, false goes to (c).
+
+**After a context summary in the middle of (b)**, `$FLOW/scripts/panel.sh status <WT> <scope>` gives the scope's state back. Seat files of round `round` already under `<WORKDIR>/review/` mean the seats have reported, so (b) goes on at step 3. A `verdict` of `approve` means (d). `changes-requested` is read by `cap` as after step 6, and with `cap` false, a finding in `open` whose `reply` is null means the reply of the last round is not in yet, so ask the implementation session for it. `stop` with `no-run` is read as **The level** says.
 
 **(c) Respond**
 
@@ -229,7 +241,7 @@ The call for seat `b` is the same with `annetaan:workflow-reviewer-b`, its `mode
 
 > The review is `<WORKDIR>/review/task-<k>-round-<r>.md`. Fix what needs fixing, and write your answer to every open finding in `task-<k>-round-<r>-reply.md` next to it. Each finding's `Command:` is a `panel.sh run` line with the seat's probe, which you can read: run that line after your fix, and a `fixed` always carries its `ran:` and `saw:`. Answer `disagree` with your reasoning when you disagree. Answer a finding marked `stands again` as **After two failed fixes** in `$FLOW/judgement.md` says. A reply that changes code comes with `task-<k>-round-<r>-evidence.md`, a full pass. **Do not commit yet.** Report back once the tests pass.
 
-Go back to (b). Count one round.
+Go back to (b).
 
 **(d) Commit on approve**
 
@@ -262,10 +274,10 @@ When the detail pass in (a) says the boundary no longer holds, or the implementa
 
 ### The round cap
 
-**Five rounds per task. Fixed.** It does not move at approval.
-Each (b) counts as one round, and the count resets when the task changes.
+**Five round files of one scope without `approve`, counted by `cap`, for every scope**: `task-<k>`, `integration`
+and `merge`. **Fixed.** It does not move at approval.
 
-If round five does not come back `approve`, stop as the entry's file says. Do not keep the rounds going forever.
+When `cap` of `$FLOW/scripts/panel.sh status <WT> <scope>` is true after a round file that is not `approve`, stop as the entry's file says. Do not keep the rounds going forever.
 
 **If the user says stop at any point, stop** as the entry's file says. The cap is a brake, and it is not a promise.
 
