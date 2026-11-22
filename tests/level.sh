@@ -139,55 +139,6 @@ assert got == want, got
 done
 echo "ok: show: agents holds the four levelled agents with the table's values at each level"
 
-WD="$TMP/wd"
-mkdir -p "$WD/review"
-printf '## New findings\n\n### R1.1 a\n\n### R1.2 b\n\n## Dropped\n\n### R9.9 z\n' > "$WD/review/task-1-round-1.md"
-printf '## New findings\n\nNone.\n' > "$WD/review/task-1-round-2.md"
-printf '## New findings\n\n### R1.1 c\n' > "$WD/review/task-2-round-1.md"
-printf '## New findings\n\n### R1.1 d\n' > "$WD/review/integration-round-1.md"
-printf '## New findings\n\nNone.\n' > "$WD/review/integration-round-2.md"
-printf '## New findings\n\n### R1.1 merge\n' > "$WD/review/merge-round-1.md"
-printf '## New findings\n\n### R5.5 seat\n' > "$WD/review/task-1-round-1-a.md"
-printf '## New findings\n\n### R5.6 reply\n' > "$WD/review/task-1-round-1-reply.md"
-printf '## New findings\n\n### R5.7 evidence\n' > "$WD/review/task-1-round-1-evidence.md"
-printf '## New findings\n\n### R5.8 evidence\n' > "$WD/review/task-1-evidence.md"
-printf 'Implements #3\nPart of #1\n\n## What changed\n\nthe body\n\n\n' > "$WD/log.md"
-LINE="Level: 2 (file) · tasks 2 · task rounds 3 · integration rounds 2 · findings 4"
-
-OUT="$("$SCRIPT" record "$WD" 2 file)" || fail "record exited non-zero"
-[ "$(field '"status"')" = ok ] || fail "record: status is not ok: $OUT"
-[ "$(field '"line"')" = "$LINE" ] || fail "record: the line is wrong: $OUT"
-[ "$(tail -n 1 "$WD/log.md")" = "$LINE" ] || fail "record: log.md does not end with the line: $(cat "$WD/log.md")"
-[ "$(tail -n 2 "$WD/log.md" | head -n 1)" = "" ] || fail "record: no blank line before the line: $(cat "$WD/log.md")"
-[ "$(tail -n 3 "$WD/log.md" | head -n 1)" = "the body" ] || fail "record: the trailing blank lines were not stripped: $(cat "$WD/log.md")"
-[ "$(head -n 1 "$WD/log.md")" = "Implements #3" ] || fail "record: the head moved: $(cat "$WD/log.md")"
-echo "ok: record: writes the line at the end of log.md"
-
-"$SCRIPT" record "$WD" 2 file > /dev/null || fail "record a second time exited non-zero"
-[ "$(grep -c '^Level: ' "$WD/log.md")" = 1 ] || fail "record twice: not exactly one line: $(cat "$WD/log.md")"
-[ "$(tail -n 1 "$WD/log.md")" = "$LINE" ] || fail "record twice: log.md does not end with the line: $(cat "$WD/log.md")"
-cp "$WD/log.md" "$TMP/recorded-log.md"
-echo "ok: record: run twice leaves one line"
-
-mkdir -p "$TMP/no-log/review"
-OUT="$("$SCRIPT" record "$TMP/no-log" 2 file)" || fail "record without log.md exited non-zero"
-[ "$(field '"status"') $(field '"reason"')" = "stop no-log" ] || fail "record without log.md: expected stop no-log: $OUT"
-[ -n "$(field '"message"')" ] || fail "record without log.md: no message: $OUT"
-echo "ok: record: no log.md gives stop no-log"
-
-mkdir -p "$TMP/no-review"
-echo body > "$TMP/no-review/log.md"
-OUT="$("$SCRIPT" record "$TMP/no-review" 2 file)" || fail "record without review/ exited non-zero"
-[ "$(field '"status"') $(field '"reason"')" = "stop no-review" ] || fail "record without review/: expected stop no-review: $OUT"
-[ -n "$(field '"message"')" ] || fail "record without review/: no message: $OUT"
-[ "$(cat "$TMP/no-review/log.md")" = body ] || fail "record without review/: log.md changed"
-echo "ok: record: no review/ gives stop no-review"
-
-if "$SCRIPT" record "$WD" 4 file >/dev/null 2>&1; then fail "record with level 4 exited 0"; fi
-if "$SCRIPT" record "$WD" 2 other >/dev/null 2>&1; then fail "record with source other exited 0"; fi
-if "$SCRIPT" record "$WD" 2 >/dev/null 2>&1; then fail "record with no source exited 0"; fi
-echo "ok: record: level 4 or source other exits 1"
-
 mkdir -p "$TMP/bin"
 cat > "$TMP/bin/gh" <<'GH'
 #!/usr/bin/env bash
@@ -260,20 +211,6 @@ FX_GH_JSON='not json'
 list_history
 [ "$(field '"status"') $(field '"reason"')" = "stop gh" ] || fail "history with gh printing no JSON: expected stop gh: $OUT"
 echo "ok: history: gh failing gives stop gh"
-
-FX_GH_JSON="$(python3 -c '
-import json, sys
-body = open(sys.argv[1], encoding="utf-8").read()
-print(json.dumps([{"number": 9, "url": "u9", "mergedAt": "2026-11-12T00:00:00Z", "body": body}]))
-' "$TMP/recorded-log.md")"
-list_history
-printf '%s\n' "$OUT" | python3 -c '
-import json, sys
-d = json.load(sys.stdin)
-got = [(r["pr"], r["level"], r["source"], r["tasks"], r["taskRounds"], r["integrationRounds"], r["findings"]) for r in d["runs"]]
-assert got == [(9, 2, "file", 2, 3, 2, 4)], d["runs"]
-' || fail "history: the log.md record wrote was not read back: $OUT"
-echo "ok: history: reads a log.md that record wrote"
 
 if "$SCRIPT" history >/dev/null 2>&1; then fail "history with no <dir> exited 0"; fi
 rm -f "$FX_GH_ARGS"

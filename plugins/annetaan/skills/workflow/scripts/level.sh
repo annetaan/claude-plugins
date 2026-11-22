@@ -8,8 +8,6 @@ usage() {
 usage: level.sh show <dir> [<n>]                    the level of the clone at <dir>, read from .claude/annetaan-level.md on
                                                     origin's default branch, and the model and effort it gives each levelled
                                                     agent. <n>, 1, 2 or 3, overrides it
-       level.sh record <WORKDIR> <level> <source>   append the line that records the run's level and its review counts to
-                                                    <WORKDIR>/log.md. <level> is 1, 2 or 3, <source> is file, override or default
        level.sh history <dir>                       the Level: lines of the pull requests merged since the level file's
                                                     evaluated date, grouped by level and source
 Every subcommand prints one JSON object with "status" and exits 0.
@@ -26,10 +24,6 @@ case "$1" in
       3) case "$3" in 1|2|3) ;; *) usage ;; esac ;;
       *) usage ;;
     esac ;;
-  record)
-    [ $# -eq 4 ] || usage
-    case "$3" in 1|2|3) ;; *) usage ;; esac
-    case "$4" in file|override|default) ;; *) usage ;; esac ;;
   history)
     [ $# -eq 2 ] || usage ;;
   *) usage ;;

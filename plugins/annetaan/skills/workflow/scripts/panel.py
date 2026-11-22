@@ -23,6 +23,10 @@ SUB_BULLET = re.compile(r"\s+- (ran|saw|not run):")
 FORBIDDEN = set("$\"';&|<>()`")
 REASONS = ("sections", "id", "finding", "command", "entry", "seats", "no-round", "mark", "earlier-missing", "verdict",
            "approve-open", "approve-no-evidence", "draft", "line", "missing", "ran", "assumed", "no-evidence")
+RECORD_RE = re.compile(
+    r"^Level: ([123]) \((file|override|default)\) · tasks (\d+) · task rounds (\d+)"
+    r" · integration rounds (\d+) · findings (\d+)$")
+HEAD_LINE = re.compile(r"(Implements|Part of) #\d+\s*")
 
 def run(*cmd, cwd=None, env=None):
     return subprocess.run(cmd, capture_output=True, text=True, cwd=cwd, env=env)
@@ -542,9 +546,42 @@ def verify(wt, scope):
             scope, r, "\n".join(earlier_lines) or "None.", "\n\n".join(new_blocks) or "None.", "\n".join(dropped_lines)))
     emit(status="ok", scope=scope, round=r, draft=draft, dropouts=dropouts, earlier=earlier, new=new, dropped=dropped)
 
+def record_line(level, source, tasks, task_rounds, integration_rounds, findings):
+    return "Level: %d (%s) · tasks %d · task rounds %d · integration rounds %d · findings %d" % (
+        level, source, tasks, task_rounds, integration_rounds, findings)
+
+def record(wt):
+    workdir, run_record = current_run(wt)
+    log, review = os.path.join(workdir, "log.md"), os.path.join(workdir, "review")
+    if not os.path.isfile(log):
+        stop("no-log", "no log.md in " + workdir)
+    if not os.path.isdir(review):
+        stop("no-review", "no review/ in " + workdir)
+    rounds = sorted((k["scope"], k["round"], name) for name in os.listdir(review)
+                    for k in [review_kind(name)] if k and k["kind"] == "round")
+    failed = ["%s: %s" % (name, ", ".join(reasons)) for _, _, name in rounds
+              for reasons in [lint_reasons(os.path.join(review, name))[1]] if reasons]
+    if failed:
+        stop("malformed", "round files that fail lint: " + "; ".join(failed))
+    counted = [(scope, name) for scope, _, name in rounds if scope != "merge"]
+    tasks = {scope for scope, _ in counted if scope != "integration"}
+    integration_rounds = sum(scope == "integration" for scope, _ in counted)
+    findings = sum(len(section(parse_review(os.path.join(review, name)), "New findings")["blocks"]) for _, name in counted)
+    entry = record_line(run_record["level"], run_record["source"], len(tasks), len(counted) - integration_rounds,
+                        integration_rounds, findings)
+    with open(log, encoding="utf-8", errors="replace", newline="") as f:
+        lines = [line for line in f.read().split("\n") if not RECORD_RE.match(line.rstrip("\r"))]
+    if run_record["issue"] is not None:
+        while lines and (not lines[0].strip() or HEAD_LINE.fullmatch(lines[0].rstrip("\r"))):
+            lines.pop(0)
+        lines = ["Implements #%d" % run_record["issue"], "Part of #%d" % run_record["parent"], ""] + lines
+    with open(log, "w", encoding="utf-8", newline="") as f:
+        f.write("\n".join(lines).rstrip("\r\n") + "\n\n" + entry + "\n")
+    emit(status="ok", line=entry)
+
 def main(sub, path, *args):
     table = {"run": lambda *given: emit(**run_probe(*given)), "close": close, "begin": begin, "status": status,
-             "lint": lint, "verify": verify}
+             "lint": lint, "verify": verify, "record": record}
     try:
         table[sub](os.path.normpath(path), *args)
     except Stop as s:

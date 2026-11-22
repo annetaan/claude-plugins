@@ -1132,3 +1132,95 @@ passes "$R/task-1-round-2.md" round
 mv "$W/drafts/task-1-round-2.md" "$TMP/draft-2.md"
 gives "$R/task-1-round-2.md" "['draft']"
 echo "ok: lint holds a round file to the draft"
+
+LEVEL_SH="$(dirname "$SCRIPT")/level.sh"
+
+recorded() {
+  "$SCRIPT" record "$WT" > "$TMP/record.out" || fail "record exited non-zero: $(cat "$TMP/record.out")"
+  json "$1" < "$TMP/record.out"
+}
+
+reviewed() {
+  R="$W/review"
+  evidence_file "$R/task-1-evidence.md"
+  round_file "$R/task-1-round-1.md" None. "$(finding R1.1; echo; finding R1.2)" changes-requested
+  round_file "$R/task-1-round-2.md" "- R1.1 resolved
+- R1.2 resolved" None. approve
+  round_file "$R/task-2-round-1.md" None. "$(finding R1.1)" changes-requested
+  seat_file "$R/integration-round-1-a.md" none "$WALK"
+  round_file "$R/integration-round-1.md" None. "$(finding R1.1)" changes-requested
+  round_file "$R/integration-round-2.md" "- R1.1 resolved" None. approve
+  round_file "$R/merge-round-1.md" None. "$(finding R1.1)" changes-requested
+  seat_file "$R/task-1-round-1-a.md"
+  reply_file "$R/task-1-round-1-reply.md" "- R1.1 disagree: meant" "- R1.2 disagree: meant"
+  for f in "$R"/*-round-[0-9].md; do passes "$f" round; done
+}
+
+setup
+W="$("$SCRIPT" begin "$WT" --level 2 --source file --issue 3 --parent 1 | json 'd["workdir"]')"
+reviewed
+printf '## What changed\n\nthe body\n\n\n' > "$W/log.md"
+LINE="Level: 2 (file) · tasks 2 · task rounds 3 · integration rounds 2 · findings 4"
+[ "$(recorded '[d["status"], d["line"]]')" = "['ok', '$LINE']" ] || fail "record: $(cat "$TMP/record.out")"
+printf 'Implements #3\nPart of #1\n\n## What changed\n\nthe body\n\n%s\n' "$LINE" > "$TMP/log.want"
+diff "$TMP/log.want" "$W/log.md" || fail "record: log.md is not the head, the body and the Level: line"
+echo "ok: record: writes the head from --issue and --parent and the Level: line with the counts"
+
+[ "$(recorded 'd["status"]')" = ok ] || fail "record twice: $(cat "$TMP/record.out")"
+diff "$TMP/log.want" "$W/log.md" || fail "record twice: log.md changed"
+[ "$(grep -c '^Implements ' "$W/log.md") $(grep -c '^Level: ' "$W/log.md")" = "1 1" ] || fail "record twice: $(cat "$W/log.md")"
+echo "ok: record: run twice leaves one head and one Level: line"
+
+printf 'Implements #99\n\nPart of #98\n\n## What changed\n\nthe body\n' > "$W/log.md"
+[ "$(recorded 'd["status"]')" = ok ] || fail "record on a copied head: $(cat "$TMP/record.out")"
+diff "$TMP/log.want" "$W/log.md" || fail "record on a copied head: log.md is not the head from run.json"
+echo "ok: record: a head copied from another pull request is replaced"
+
+mkdir -p "$TMP/bin"
+printf '#!/usr/bin/env bash\nprintf "%%s\\n" "$FX_GH_JSON"\n' > "$TMP/bin/gh"
+chmod +x "$TMP/bin/gh"
+gh_json="$(python3 -c '
+import json, sys
+print(json.dumps([{"number": 9, "url": "u9", "mergedAt": "2026-11-12T00:00:00Z", "body": open(sys.argv[1], encoding="utf-8").read()}]))
+' "$W/log.md")"
+out="$(FX_GH_JSON="$gh_json" PATH="$TMP/bin:$PATH" "$LEVEL_SH" history "$WT")" || fail "history exited non-zero: $out"
+[ "$(echo "$out" | json '[d["since"]] + [(r["pr"], r["level"], r["source"], r["tasks"], r["taskRounds"], r["integrationRounds"], r["findings"]) for r in d["runs"]]')" = "[None, (9, 2, 'file', 2, 3, 2, 4)]" ] || fail "history did not read the recorded log.md back: $out"
+echo "ok: record: level.sh history reads the recorded log.md back"
+
+before="$(cksum < "$W/log.md")"
+swap "$R/task-2-round-1.md" "### R1.1 the" "### F1. the"
+[ "$(recorded '[d["status"], d["reason"], d["message"]]')" = "['stop', 'malformed', 'round files that fail lint: task-2-round-1.md: id']" ] || fail "record on a ### F1. finding: $(cat "$TMP/record.out")"
+swap "$R/task-2-round-1.md" "### F1. the" "### R1.1 the"
+swap "$R/merge-round-1.md" "changes-requested" "changes requested: R1.1"
+[ "$(recorded '[d["reason"], d["message"]]')" = "['malformed', 'round files that fail lint: merge-round-1.md: verdict']" ] || fail "record on a merge round file: $(cat "$TMP/record.out")"
+swap "$R/merge-round-1.md" "changes requested: R1.1" "changes-requested"
+mv "$W/drafts/integration-round-2.md" "$TMP/draft.md"
+[ "$(recorded '[d["reason"], d["message"]]')" = "['malformed', 'round files that fail lint: integration-round-2.md: draft']" ] || fail "record on a round file with no draft: $(cat "$TMP/record.out")"
+mv "$TMP/draft.md" "$W/drafts/integration-round-2.md"
+[ "$(cksum < "$W/log.md")" = "$before" ] || fail "record changed log.md on a malformed round file"
+echo "ok: record: a round file that fails lint gives stop malformed and leaves log.md unchanged"
+
+rm -r "$R"
+[ "$(recorded '[d["status"], d["reason"]]')" = "['stop', 'no-review']" ] || fail "record without review/: $(cat "$TMP/record.out")"
+[ "$(cksum < "$W/log.md")" = "$before" ] || fail "record without review/ changed log.md"
+rm "$W/log.md"
+mkdir "$R"
+[ "$(recorded '[d["status"], d["reason"]]')" = "['stop', 'no-log']" ] || fail "record without log.md: $(cat "$TMP/record.out")"
+[ ! -e "$W/log.md" ] || fail "record without log.md wrote one"
+echo "ok: record: no log.md gives stop no-log, no review/ gives stop no-review"
+
+setup
+W="$("$SCRIPT" begin "$WT" --level 3 --source default | json 'd["workdir"]')"
+printf 'Implements #7\r\n\r\nbody\r\nLevel: 2 (file) · tasks 1 · task rounds 1 · integration rounds 0 · findings 0\r\n' > "$W/log.md"
+LINE="Level: 3 (default) · tasks 0 · task rounds 0 · integration rounds 0 · findings 0"
+[ "$(recorded 'd["line"]')" = "$LINE" ] || fail "record standalone: $(cat "$TMP/record.out")"
+printf 'Implements #7\r\n\r\nbody\n\n%s\n' "$LINE" > "$TMP/log.want"
+cmp "$TMP/log.want" "$W/log.md" || fail "record standalone: the top of log.md moved: $(od -c "$W/log.md")"
+echo "ok: record: without --issue the top of log.md is left alone"
+
+setup
+[ "$(recorded '[d["status"], d["reason"]]')" = "['stop', 'no-run']" ] || fail "record before begin: $(cat "$TMP/record.out")"
+refused record
+refused record relative/wt
+refused record "$WT" extra
+echo "ok: record: no run.json gives stop no-run, and a missing, relative or extra argument exits 1"

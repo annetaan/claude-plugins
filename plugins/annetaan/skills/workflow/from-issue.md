@@ -127,21 +127,12 @@ Keep the handover lines from phase 4 (d) for pj4-running.
 
 ## Phase 6 from an issue
 
-1. **The work report.** Read `finish.md`. The request in **The work report** in `finish.md` gains this, with the values filled in:
+1. **The work report.** Read `finish.md`. The request in **The work report** in `finish.md` gains this:
 
-   > Begin `log.md` with this head, exactly, then the report:
-   >
-   > ```markdown
-   > Implements #<n>
-   > Part of #<P>
-   > ```
-   >
    > List the adaptations the implementation session made to the issue's design under what changed, and what the detail
    > pass redrew in the issue.
-
-   The head is the one in `pj1-plan/between-skills.md` **Pull requests**.
-2. **`changes.diff` and the `Level:` line** as written in `finish.md`. The `level` and `source` come from the
-   `level.sh show` JSON pj4-running settled.
+2. **`changes.diff`, then `panel.sh record`**, as written in `finish.md`. It writes the head of
+   `pj1-plan/between-skills.md` **Pull requests** from the `--issue` and `--parent` that `begin` got.
 3. **Push, then open the pull request.**
 
    ```bash
@@ -176,7 +167,7 @@ approved. Look for the commits in `git log --oneline <START>..HEAD`.
   `run.sh save` when it gets the hand-back, and puts `<WT>` back on `<START>`. The next run redoes the issue. The seats'
   worktrees stay beside `<WT>`, and the next run's `panel.sh run` re-points them.
 - **A step of phase 6 fails before the pull request exists.** Return `stopped` with the reason `finish`, the step
-  that failed, its error message, and the path of `log.md` when step 1 wrote it. A `stop` from `level.sh record` in
+  that failed, its error message, and the path of `log.md` when step 1 wrote it. A `stop` from `panel.sh record` in
   step 2 is such a failure, with step 2 named and its `message` as the error.
 
 ## What it hands back to pj4-running
