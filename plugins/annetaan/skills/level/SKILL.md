@@ -23,9 +23,9 @@ This skill uses these files:
 
 - the script `<skills>/workflow/scripts/level.sh`, written `level.sh` below, for `show` and `history`
 - the script `<skills>/workflow/scripts/worktree.sh`, written `worktree.sh` below, for `start`, `create`, `ignore` and,
-  in **Ending before approval**, `check`
+  in **Ending with nothing changed**, `check`
 - `<skills>/workflow/worktree.md`, which you read for **The start check**, steps 3 to 5 of **The worktree** and
-  **Ending before approval**. `$FLOW` in that file means `<skills>/workflow`
+  **Ending with nothing changed**. `$FLOW` in that file means `<skills>/workflow`
 - `<skills>/pj1-plan/between-skills.md`: **Issues in a report**, for how a URL stands in a report
 - `$LEVEL/roles/evaluate.md`, the role of the evaluator
 
@@ -72,7 +72,7 @@ Run steps 3 to 5 of **The worktree** in `<skills>/workflow/worktree.md` with `<b
 <skills>/workflow/scripts/level.sh history <WT>
 ```
 
-A `stop` with `gh`: quote `message` and take **Ending before approval** in `<skills>/workflow/worktree.md`.
+A `stop` with `gh`: quote `message` and take **Ending with nothing changed** in `<skills>/workflow/worktree.md`.
 
 ## 5. The evaluator
 
@@ -92,7 +92,7 @@ Agent(subagent_type: "annetaan:level-evaluator", description: "evaluate the leve
 `<the worktree line>` is **The worktree line** in `<skills>/workflow/SKILL.md`, with the real paths for `<WT>` and
 `<MAIN>`. The evaluator runs as its frontmatter says, so the call passes no `model` and no `effort`.
 
-When it cannot start, say why and take **Ending before approval**. There is no fallback, because the evaluation is the
+When it cannot start, say why and take **Ending with nothing changed**. There is no fallback, because the evaluation is the
 whole skill. Keep the session alive until step 7.
 
 ## 6. The question
@@ -116,7 +116,7 @@ AskUserQuestion: Which level should this repository run at?
   - Level 3
 ```
 
-The proposed level carries `(Recommended)`. Other means stop: take **Ending before approval**. This is the only
+The proposed level carries `(Recommended)`. Other means stop: take **Ending with nothing changed**. This is the only
 question.
 
 ## 7. Write
@@ -179,7 +179,7 @@ Leave the worktree first: `ExitWorktree(action: "keep")`, or `cd <MAIN>` where t
 ## Rules
 
 - Write the level file only, and never in `<MAIN>`.
-- Write nothing before the answer of step 6. A stop from step 3 up to that answer takes **Ending before approval** in
+- Write nothing before the answer of step 6. A stop from step 3 up to that answer takes **Ending with nothing changed** in
   `<skills>/workflow/worktree.md`, because `<WT>` exists by then. Steps 1 and 2 stop before any worktree exists, and
   need nothing removed.
 - Never merge, and never update an open pull request.

@@ -52,8 +52,8 @@ The standalone flow works in a git worktree of its own, `.claude/worktrees/wf-<s
    ```
 
    On the first answer, run `$FLOW/scripts/worktree.sh ignore <name> --add` and act on what it prints as here. On
-   `stop` with `still-not-ignored`, a `.gitignore` rule overrides the exclude file: say so and take **Ending before
-   approval**. On Stop, take **Ending before approval**. **Never edit `.gitignore`.**
+   `stop` with `still-not-ignored`, a `.gitignore` rule overrides the exclude file: say so and take **Ending with
+   nothing changed**. On Stop, take **Ending with nothing changed**. **Never edit `.gitignore`.**
 5. **Enter it, once.**
 
    ```
@@ -66,9 +66,9 @@ The standalone flow works in a git worktree of its own, `.claude/worktrees/wf-<s
 6. **The worktree line.** From here on, every sub-agent prompt ends with **The worktree line** in SKILL.md: the design, the implementation, the review seats, the integration review seats and the report session.
 7. `<WT>` has none of `<MAIN>`'s ignored files, such as installed dependencies or a `.env`. The first worker prepares what the tests need and leaves the steps in the handover notes, so later tasks find them there. The submodules of `<WT>` are not initialized either. When the build or the tests need one, the first worker runs `git submodule update --init` in `<WT>` and leaves that in the handover notes too.
 
-### Ending before approval
+### Ending with nothing changed
 
-When the run ends before approval, leave the worktree and remove it.
+When the run ends before phase 2 creates its branch, leave the worktree and remove it.
 
 1. When you have entered `<WT>` (**The worktree** step 5), `ExitWorktree(action: "keep")`, or `cd <MAIN>` where that tool is not available. A stop at step 4 comes before that: skip this step.
 2. `git -C <MAIN> worktree remove <WT>`
@@ -81,4 +81,4 @@ When the run ends before approval, leave the worktree and remove it.
    - `ok` with an empty `loses`: the repository has submodules, which git refuses whatever the state of the worktree, and nothing in `<WT>` is lost. Run `git -C <MAIN> worktree remove --force <WT>`.
    - `ok` with `loses` not empty, or any `stop`: quote git's refusal (and `message` on a `stop`), name `<WT>`, and point to `/annetaan:workflow-cleanup`.
 
-The reasons: the Stop answer at the ignore question, a feasibility of "no" or "conditional" the user does not pursue, any answer at approval that ends the flow, and the user saying stop. Design sessions never change code, so step 2 has no `--force`. The session never decides on `--force` from git's message text or from `git status`: `check` decides.
+The reasons: the Stop answer at the ignore question, a feasibility of "no" or "conditional" the user does not pursue, an open question whose answer ends the flow, and the user saying stop. Design sessions never change code, so step 2 has no `--force`. The session never decides on `--force` from git's message text or from `git status`: `check` decides.

@@ -26,7 +26,7 @@ A diff on its own is not enough. Read the callers and the callees of every symbo
 
 ## The intent
 
-A finding is measured against the intent: the approved design and its acceptance criteria, the plan's file list for the task, the task's detail design, and the repository's instructions. Whether the change follows the design, and whether it stays inside the task, are part of the review. When the design is an issue, its checked decisions bind, and so do the issue's `### Left broken`, the prompt's "Left broken on the base branch" and the adaptations the prompt lists. A change against a checked option is a break even when it works. A change to a file outside the issue's file list is one too, unless the adaptations list it and it touches nothing another task relies on.
+A finding is measured against the intent: the design and its acceptance criteria, the plan's file list for the task, the task's detail design, and the repository's instructions. Whether the change follows the design, and whether it stays inside the task, are part of the review. When the design is an issue, its checked decisions bind, and so do the issue's `### Left broken`, the prompt's "Left broken on the base branch" and the adaptations the prompt lists. A change against a checked option is a break even when it works. A change to a file outside the issue's file list is one too, unless the adaptations list it and it touches nothing another task relies on.
 
 ## What a run can show
 

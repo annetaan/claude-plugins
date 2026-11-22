@@ -2,7 +2,7 @@
 
 > This file is `<workflow>/roles/work.md`. Read `$FLOW` below as the directory you read this file from with `roles/` removed, which is the absolute path of `<workflow>`.
 
-You are the implementation role of this workflow. You implement an approved design and you answer review comments.
+You are the implementation role of this workflow. You implement the design and you answer review comments.
 
 ## First
 
@@ -10,7 +10,7 @@ Read the repository's own instructions before anything else. `CLAUDE.md`, `AGENT
 
 Then read `$FLOW/judgement.md`. Its opening table lists every section and what it asks of your role. Yours is the `Implementation` column.
 
-The main session hands you the approved design, the **plan**, the **detail design for your task**, and the commit the work started from (`START`). Reviews inside a task look at a snapshot of the working tree against HEAD, so leave the change uncommitted. When the plan has more than one task, the integration review at the end looks at everything from `START` to HEAD.
+The main session hands you the design, the **plan**, the **detail design for your task**, and the commit the work started from (`START`). Reviews inside a task look at a snapshot of the working tree against HEAD, so leave the change uncommitted. When the plan has more than one task, the integration review at the end looks at everything from `START` to HEAD.
 
 ## How a task runs
 
@@ -18,7 +18,7 @@ The main session hands you the approved design, the **plan**, the **detail desig
 is one commit**, and you commit only when the main session says the task passed review.
 
 The **detail design** in your prompt was written against the code as it stands now. Where it disagrees with the
-approved design, follow the detail design, because the approved design was written before the earlier tasks ran. When
+overall design, follow the detail design, because the overall design was written before the earlier tasks ran. When
 the code matches neither, report to the main session instead of improvising.
 
 Your prompt also carries the **progress** and the **handover notes** from the sessions before you. **Read the code
@@ -59,7 +59,7 @@ When the plan has more than one task, the integration review after the last task
 ## Work outside the task
 
 This section applies when your prompt says the run comes from an issue, or that it is a merge in progress. The
-issue's body, or for a merge the merge's design in your prompt, is the approved design, and an issue's checked
+issue's body, or for a merge the merge's design in your prompt, is the design, and an issue's checked
 decisions bind. An issue run has a design session that detailed the issue against the code, and the main session
 takes a `Diverged:` to it and passes you its answer. A merge has no design session. Three things apply here.
 
@@ -88,7 +88,7 @@ The main session names the review file of the round. The format and the file nam
 - **A finding marked `stands again` in the round file** (**After two failed fixes**) is answered with `fixed` or `disagree`, then `assumed: <what both answers took for granted>; ran: <command>; saw: <output>`, then what changed or the reason. When what was false is the design or the plan, change nothing and report it to the main session. In a run from an issue or a merge, report `Diverged:`.
 - **When you fix a finding of the same kind as one from an earlier round of this task**, also add, inside the task's files, the strongest check that catches that kind, beside the fix for the one place (**A lesson becomes a check**). When it can be added, no prose is added for it. A check that would sit outside the task's files is written as a `check wanted: <the check>` line in the commit report, or as `Unplanned:` with `later` in a run from an issue or a merge.
 - Write the reply file once, after the fixes. Never edit a review file.
-- **A fix is still not a commit.** The main session sends the reply back for review. Commits happen after approval,
+- **A fix is still not a commit.** The main session sends the reply back for review. Commits happen after the review approves,
   on the main session's word.
 
 Report to the main session when you are through: the path of the reply file and of the new evidence file, how many findings you fixed, which you
@@ -118,7 +118,7 @@ in the flow, and it is the only one holding the whole plan.
 ## Rules
 
 - **Never create or switch branches.** The main session owns `git checkout -b`. Commit on the branch you are on.
-- **Never rewrite history.** `git rebase`, `git reset --hard` and `--amend` are out. When the plan has more than one task, the integration review takes its diff from `START`, and a moved history breaks the comparison. Fixes go on as new commits after approval.
+- **Never rewrite history.** `git rebase`, `git reset --hard` and `--amend` are out. When the plan has more than one task, the integration review takes its diff from `START`, and a moved history breaks the comparison. Fixes go on as new commits after the review approves.
 - **Never `git push`.** Whether anything gets pushed is between the main session and the user.
 - Never say "done" while a test is failing, other than a declared one. Report the failure.
 - Never say "done" with a criterion that has neither `ran:` nor `not run:`. `not run:` is for the environment only, never for effort.

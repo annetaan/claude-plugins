@@ -97,7 +97,7 @@ A layer the change itself adds is measured under **Reader load**, not here.
 
 **Existing code never limits the shape.** Breaking changes are always accepted: the design moves a contract that other code relies on, and its callers with it. A contract that code outside the repository relies on (a published API, a file format, a command line) is named in the design with what breaks for its users. In a pj project that is the parent's `## Design`, the one place a person reads it.
 
-Two things do limit how far the change reaches. A request that itself asks for the smallest change, such as a hotfix or "just make it work", is designed to that size. A role working under an approved design (a parent's `## Design`, an issue body, a detail design) moves what that design moves and no more.
+Two things do limit how far the change reaches. A request that itself asks for the smallest change, such as a hotfix or "just make it work", is designed to that size. A role working under a given design (a parent's `## Design`, an issue body, a detail design) moves what that design moves and no more.
 
 Getting it wrong: a design keeps a flag parameter and adds an optional one beside it, because three callers outside the change pass the flag. From a blank slate the flag would not exist, so the design drops it and moves the three callers.
 
@@ -226,6 +226,6 @@ A bug fix with a cheap test path (an existing test file or harness for that modu
 
 **A review finding is a command, what it printed, and what the intent requires.** The command runs against the real code: a failing test, a repro script, a command whose output shows the wrong behaviour. What was not run is not a finding.
 
-The main session runs each command again and keeps a finding only when the failure shows and breaks the intent. The intent is the approved design, its acceptance criteria, the plan and the task's detail design. A command that cannot be run again is dropped.
+The main session runs each command again and keeps a finding only when the failure shows and breaks the intent. The intent is the design, its acceptance criteria, the plan and the task's detail design. A command that cannot be run again is dropped.
 
 The worker answers a finding with the same command, which runs on its tree as it is at that moment: `fixed` always carries `ran:` and `saw:` from it, and a `disagree` gives the reason, which the main session judges against the intent.

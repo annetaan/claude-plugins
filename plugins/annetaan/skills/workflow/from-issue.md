@@ -2,7 +2,7 @@
 
 > This file is read by the main session that loaded the workflow skill. The paths it uses are the ones **Paths: `$FLOW`** in SKILL.md gives.
 
-pj4-running loads this skill to run one sub-issue of a project. The issue is the approved design in its goal, its
+pj4-running loads this skill to run one sub-issue of a project. The issue is the design in its goal, its
 boundary and its checked decisions. A design session details it against the code on the base branch first, may
 redraw its body, and stays for the whole run. This entry has no approval and no questions. The shape
 of the issue is in `$FLOW/../pj1-plan/format.md`, and the shape of its pull request in
@@ -92,7 +92,7 @@ gh issue view <P> --json body
 gh issue view <Q> --json body   # each Q
 ```
 
-- **The approved design**, for every prompt in phases 3 to 5: the issue as it now reads on GitHub, with `## Decisions`
+- **The design**, for every prompt in phases 3 to 5: the issue as it now reads on GitHub, with `## Decisions`
   cut down to the checked option, the lines under its box and the `Decided:` line of each, plus the parent's
   `## Design` and the `## Design` of each `Q`, which holds the boundaries those projects define (`pj1-plan/format.md`, **The
   parent issue body**).
