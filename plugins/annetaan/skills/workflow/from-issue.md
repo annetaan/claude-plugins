@@ -21,7 +21,7 @@ These values are already in your context. Nothing arrives as an argument.
 - `attach` from pj4-running's `run.sh start`, which has run its checks: whether `--attach` works
 - the `project.sh <P>` JSON from pj4-running's re-read, and the `project.sh <P> --check <n>` JSON it read after making
   the branch
-- the `level.sh show` JSON, from **The level** in pj4-running. The design session, the worker and the two seats take
+- the `level.sh show` JSON, from **The level** in pj4-running. The design session, the worker and the review seats take
   their `model` and `effort` from it
 
 pj4-running has already run its checks (`gh`) on `<WT>` and confirmed that `work-reports/` is ignored there.
@@ -104,7 +104,7 @@ gh issue view <Q> --json body   # each Q
 
 They run as written in SKILL.md, phase 4 (a) and (d) included: from task 2 onward the design session details each task
 while the task before it is committed. Each
-task gets a new implementation session and two new review seats, five rounds, one commit. **When the plan breaks** and a
+task gets a new implementation session and new review seats, five rounds, one commit. **When the plan breaks** and a
 `Diverged:` report go to the design session with `SendMessage`. A new `Body:` from it goes through **A redrawn issue**
 again, and `Stop: ask` is the stop `decision`. Existing decisions stay byte for byte in every redraw. The prompts gain
 a line each.

@@ -129,12 +129,10 @@ import json, sys
 want = {
     "1": {"workflow-design": ("sonnet", "high"), "pj-planner": ("sonnet", "high"),
           "pj-reviewer": ("sonnet", "high"), "workflow-worker": ("sonnet", "medium"),
-          "pj-issue-writer": ("sonnet", "medium"), "workflow-reviewer-a": ("sonnet", "medium"),
-          "workflow-reviewer-b": ("fable", "medium")},
+          "pj-issue-writer": ("sonnet", "medium"), "workflow-reviewer-a": ("sonnet", "medium")},
     "2": {"workflow-design": ("opus", "medium"), "pj-planner": ("opus", "medium"),
           "pj-reviewer": ("opus", "medium"), "workflow-worker": ("sonnet", "high"),
-          "pj-issue-writer": ("sonnet", "high"), "workflow-reviewer-a": ("opus", "medium"),
-          "workflow-reviewer-b": ("fable", "medium")},
+          "pj-issue-writer": ("sonnet", "high"), "workflow-reviewer-a": ("opus", "medium")},
     "3": {"workflow-design": ("fable", "medium"), "pj-planner": ("fable", "medium"),
           "pj-reviewer": ("fable", "medium"), "workflow-worker": ("opus", "medium"),
           "pj-issue-writer": ("opus", "medium"), "workflow-reviewer-a": ("opus", "high"),
@@ -143,8 +141,18 @@ want = {
 got = {k: (v["model"], v["effort"]) for k, v in json.load(sys.stdin)["agents"].items()}
 assert got == want, got
 ' "$n" || fail "agents at level $n: $OUT"
+  printf '%s\n' "$OUT" | python3 -c '
+import json, sys
+assert ("workflow-reviewer-b" in json.load(sys.stdin)["agents"]) == (sys.argv[1] == "3")
+' "$n" || fail "seat b in agents at level $n: $OUT"
+  printf '%s\n' "$OUT" | python3 -c '
+import json, sys
+assert json.load(sys.stdin)["seats"] == (["a", "b"] if sys.argv[1] == "3" else ["a"])
+' "$n" || fail "seats at level $n: $OUT"
 done
 echo "ok: show: agents holds the seven levelled agents with the table's values at each level"
+echo "ok: show: seat b is in agents only at level 3"
+echo "ok: show: seats is a below level 3 and a, b at level 3"
 
 WD="$TMP/wd"
 mkdir -p "$WD/review"

@@ -36,7 +36,7 @@ The standalone flow also uses the script `$FLOW/scripts/worktree.sh`, written `w
 prints one JSON object with a `status`. A non-zero exit is a usage error or an unexpected failure: quote its message
 and stop. The standalone flow and From a pull request call it. From an issue and From a sync never do.
 
-Every entry also uses `$FLOW/scripts/panel.sh`, written `panel.sh`, which owns the two review seats, one git worktree
+Every entry also uses `$FLOW/scripts/panel.sh`, written `panel.sh`, which owns the review seats, one git worktree
 each beside `<WT>`. A seat reaches its worktree only through `panel.sh run <WT> <seat> <probe dir>`, which runs a
 probe the seat wrote (see `$FLOW/review-files.md`, **A probe**), and `panel.sh close <WT>` removes the seats at the
 cleanup. `<WT>` is the absolute path. Both print one JSON object with a `status`, as `worktree.sh` does. A non-zero
@@ -44,7 +44,7 @@ exit is quoted and stops the run, the same way.
 
 ## The level
 
-The repository's level picks the model and the effort of the design session, the implementation session and the two
+The repository's level picks the model and the effort of the design session, the implementation session and the
 review seats. The script `$FLOW/scripts/level.sh` is written `level.sh` in this skill's files. It reads the level from
 `.claude/annetaan-level.md` on origin's default branch, and from nowhere else.
 
@@ -58,8 +58,10 @@ $FLOW/scripts/level.sh show <WT> [<n>]
 - **From an issue and From a sync** do not run it. They take the JSON pj4-running settled.
 
 It prints `status: ok` with `level`, `source` (`file`, `override` or `default`), `ref`, `evaluated`, `reviewBy`,
-`warning` and `agents`. `agents.<name>` holds the `model` and the `effort` of `workflow-design`,
-`workflow-worker`, `workflow-reviewer-a`, `workflow-reviewer-b`, `pj-planner`, `pj-reviewer` and `pj-issue-writer`. Keep the JSON. Print `level <level> (<source>)`
+`warning`, `agents` and `seats`. `agents.<name>` holds the `model` and the `effort` of `workflow-design`,
+`workflow-worker`, `workflow-reviewer-a`, `workflow-reviewer-b`, `pj-planner`, `pj-reviewer` and `pj-issue-writer`,
+for each of them the level runs. `seats` lists the review seats this level runs, `a` alone below level 3 and `a` and
+`b` at level 3, and `agents` names a `workflow-reviewer-<seat>` for exactly those. Keep the JSON. Print `level <level> (<source>)`
 once, and `warning` on a line of its own when it is set. A warning never stops the run. The finish writes `level` and
 `source` into `log.md` with `level.sh record` (`finish.md`, **The work report**), and `/annetaan:level` reads them back
 from the merged pull requests.
@@ -78,7 +80,7 @@ sync.** `level=<n>` in the args, 1, 2 or 3, sets the repository's level for this
 
 ## The worktree line
 
-A sub-session does not start in `<WT>` by itself. **Every sub-agent prompt, once `<WT>` is entered, ends with this line**: the design, the implementation, the two review seats of every review, the integration review included, and the report session.
+A sub-session does not start in `<WT>` by itself. **Every sub-agent prompt, once `<WT>` is entered, ends with this line**: the design, the implementation, the review seats of every review, the integration review included, and the report session.
 
 > Your working directory must be the worktree `<WT>`. Run `git rev-parse --show-toplevel` first. When it prints anything else, call `EnterWorktree(path: "<WT>")` before anything else, or, when that tool is not available, start every command with `cd <WT>` and keep Edit and Write paths under `<WT>`. Never touch `<MAIN>`.
 
@@ -86,23 +88,25 @@ Write the real path for `<WT>` and `<MAIN>` when you send it.
 
 ## Agents
 
-**The implementation session and the two review seats start fresh for every task.**
+**The implementation session and the review seats start fresh for every task.**
 
 **A task boundary throws away almost nothing.** The code is in git, the design and the plan are in your hands, and
 every finding is resolved because the task was approved. What is left is how this repository wants to be
 worked in, and that travels as the handover notes (phase 4 (d)).
 
-**Every task, and the integration review when the plan has more than one task, run on the same three agents**:
-`annetaan:workflow-worker` for implementation, and `annetaan:workflow-reviewer-a` and `annetaan:workflow-reviewer-b` for
-review, seats `a` and `b` of the review panel. There is no per-task choice to make.
-All three ship with this plugin. **Every `Agent` call for `annetaan:workflow-worker`, `annetaan:workflow-reviewer-a`
-and `annetaan:workflow-reviewer-b` passes `model` and `effort` from `agents.<name>` of the level JSON** (see **The
+**Every task, and the integration review when the plan has more than one task, run on the same agents**:
+`annetaan:workflow-worker` for implementation, and one `annetaan:workflow-reviewer-<seat>` for each seat of `seats`,
+the review panel. There is no per-task choice to make.
+They ship with this plugin. **Every `Agent` call for `annetaan:workflow-worker` and for an
+`annetaan:workflow-reviewer-<seat>` passes `model` and `effort` from `agents.<name>` of the level JSON** (see **The
 level**), so the calls below carry them. The design session runs on `annetaan:workflow-design`, which ships with
 this plugin too, and its call passes `model` and `effort` from `agents.workflow-design` the same way.
 
-**Seat `b` that cannot start** (a weekly limit, a rate limit, the model is unavailable) is spawned again as
-`annetaan:workflow-reviewer-b` with `model: "opus"` and the same `effort`. **A seat that returns no report is a dropout**: the round goes on
-with the other seat, and the `Seats:` line of the round file says so.
+**Seat `b` that cannot start**, at the level that runs it (a weekly limit, a rate limit, the model is unavailable), is
+spawned again as `annetaan:workflow-reviewer-b` with `model: "opus"` and the same `effort`. **A seat that returns no
+report is a dropout**: the round goes on with the seats that reported, and the `Seats:` line of the round file says so.
+When no seat reported, start the seats of that round again with the round 1 call, once. When none reports again, stop
+as the entry's file says for the round cap.
 
 ## Phase 2: branch, guard, start point
 
@@ -202,7 +206,7 @@ Check that the tests pass before you send anything to review, and that the evide
 The same steps run for a task, for the integration review and for the merge task. `<scope>` is `task-<k>`, `integration` or `merge`. Every session, yours and the seats', stays in `<WT>`. Only `panel.sh` enters a seat's worktree.
 
 1. **Later rounds only**: run again the command of every open earlier finding, one `panel.sh run` line per Bash call, before you message the seats.
-2. **Start both seats in one message.** Round 1 is `Agent`, with the diff to read depending on the review: a task reads `git diff HEAD` plus the untracked files, the integration review `git diff <START>` plus the untracked files, and a merge the files named by `merge-task.md`.
+2. **Start every seat of `seats` in one message.** Round 1 is `Agent`, with the diff to read depending on the review: a task reads `git diff HEAD` plus the untracked files, the integration review `git diff <START>` plus the untracked files, and a merge the files named by `merge-task.md`.
 
 ```
 Agent(subagent_type: "annetaan:workflow-reviewer-a", description: "review, task k, seat a",
@@ -210,12 +214,12 @@ Agent(subagent_type: "annetaan:workflow-reviewer-a", description: "review, task 
       prompt: "Read $FLOW/roles/review.md first and follow the role it describes.\n\nYou are seat a.\n\nApproved design and acceptance criteria:\n<the full design>\n\nPlan:\n<the full plan>\n\nDetail design for this task:\n<the same one the implementation session got>\n\nProgress:\n<the tasks already done and the commit that closed each. \"none\" for task 1>\n\nHandover notes from the earlier sessions:\n<the notes, or none>\n\nReview files: <absolute path of WORKDIR>/review\nProbes: <absolute path of WORKDIR>/seats/a\nRun a probe with: $FLOW/scripts/panel.sh run <WT> a <probe dir>\n\nUnder review: task k, \"<task name>\". The diff sits between the working tree and HEAD (`git diff HEAD` plus untracked files). The evidence is `task-<k>-evidence.md`. Write your seat file as `<scope>-round-1-a.md` under the review files.\n\n<the worktree line>")
 ```
 
-The call for seat `b` is the same with `annetaan:workflow-reviewer-b`, its `model` and `effort` from `agents.workflow-reviewer-b`, `You are seat b`, `Probes:` under `seats/b`, `panel.sh run <WT> b <probe dir>` and `<scope>-round-1-b.md`. Write `$FLOW` and `<WT>` out as absolute paths. Both calls go in one message, so the seats run in parallel. In a run from an issue each prompt also carries the lines `from-issue.md` adds, and in a merge the lines `merge-task.md` gives.
+The call for another seat is the same with its agent `annetaan:workflow-reviewer-<seat>`, its `model` and `effort` from `agents.workflow-reviewer-<seat>`, its letter in `You are seat <seat>`, `Probes:` under `seats/<seat>`, `panel.sh run <WT> <seat> <probe dir>` and `<scope>-round-1-<seat>.md`. Write `$FLOW` and `<WT>` out as absolute paths. All calls go in one message, so the seats run in parallel. In a run from an issue each prompt also carries the lines `from-issue.md` adds, and in a merge the lines `merge-task.md` gives.
 
-**Every round after that goes to each seat with `SendMessage`**, in one message for both: "the tree has been updated, and the reply is `<scope>-round-<r>-reply.md`, with the evidence in `<scope>-round-<r>-evidence.md` when the reply changed code, and the round file of the last round is `<scope>-round-<r>.md`. Attack what changed since your last round, as **Later rounds** in your role instruction says, and write `<scope>-round-<r+1>-<seat>.md`." The seats live for one task, so each remembers what it tried, its probes are still there, and it diffs the tree it reviewed last against the tree now.
+**Every round after that goes to each seat with `SendMessage`**, all in one message: "the tree has been updated, and the reply is `<scope>-round-<r>-reply.md`, with the evidence in `<scope>-round-<r>-evidence.md` when the reply changed code, and the round file of the last round is `<scope>-round-<r>.md`. Attack what changed since your last round, as **Later rounds** in your role instruction says, and write `<scope>-round-<r+1>-<seat>.md`." The seats live for one task, so each remembers what it tried, its probes are still there, and it diffs the tree it reviewed last against the tree now.
 
-3. **When both have reported**, read the two seat files and run each finding's `Command:` again, word for word, from `<WT>`, one command per Bash call. Each run snapshots the tree as it is and prints `exit` and `output`.
-4. **Keep, drop, merge.** Keep a finding when `exit` and `output` show the failure and the failure breaks the intent: the approved design, its criteria, the plan and the task detail. **Drop the rest with the reason**, a command that cannot be run again included. Findings with one root cause become one entry that names every seat. **There is no judge.** The round file holds every verified finding of both seats. Anything under `## Not run` that no seat could run goes to the round file's `## Not run`.
+3. **When every seat has reported**, read the seat files and run each finding's `Command:` again, word for word, from `<WT>`, one command per Bash call. Each run snapshots the tree as it is and prints `exit` and `output`.
+4. **Keep, drop, merge.** Keep a finding when `exit` and `output` show the failure and the failure breaks the intent: the approved design, its criteria, the plan and the task detail. **Drop the rest with the reason**, a command that cannot be run again included. Findings with one root cause become one entry that names every seat. **There is no judge.** The round file holds every verified finding of every seat. Anything under `## Not run` that no seat could run goes to the round file's `## Not run`.
 5. **Earlier findings.** The failure gone is `resolved`. The failure still shown is `stands`, and `stands again` from the second time on. A `disagree` whose reason shows the failure does not break the intent is `resolved`, with the reason quoted.
 6. **Write the round file** `<scope>-round-<r>.md` with Write, in the shape `$FLOW/review-files.md` gives: `Seats:` (the model each seat ran on, a fallback and a dropout said here), `## Earlier findings`, `## New findings`, `## Dropped`, `## Not run` and `## Verdict`. The verdict is yours. `approve` needs no verified finding open and the evidence file of the latest code change. In integration round 1, where no evidence file exists, a `## Walk` in at least one seat file takes its place.
 
@@ -251,7 +255,7 @@ outlives a session.
 
 **Give the user a one-line progress report**: `task k/N done: <short SHA> <commit subject> (commit k since START <short SHA>)`. A long context can be summarised away, and the plan, `START` and the progress all rebuild from that line. When the commit report had a `check wanted:` line (task or integration fix commit), pass it on to the user as a line of its own after the progress line, word for word, so that a summary still leaves a copy.
 
-**This task's implementation session and the two seat sessions are finished here.** Do not send them anything after this. The next
+**This task's implementation session and the seat sessions are finished here.** Do not send them anything after this. The next
 task starts new ones, and the seats' worktrees stay beside `<WT>`, re-pointed by the next `panel.sh run`. After the last task's commit, the entry's file says what comes next, and whether that task's implementation session stays alive. The seat sessions end here either way.
 
 ### When the plan breaks
@@ -272,7 +276,7 @@ If round five does not come back `approve`, stop as the entry's file says. Do no
 - **You do not write code.** The implementation session implements and the seats review. Code you write yourself never passes through a review.
 - **A seat never changes the tree of `<WT>`.** It writes only its probes under `<WORKDIR>/seats/<seat>/` and its seat file, and executes only through `panel.sh run`. You write the round file and no other file of the review, and the implementation session fixes what is found. The seats' worktrees stay beside `<WT>` until the cleanup removes them.
 - **The review files are written once.** Each round and each reply is a new file under `<WORKDIR>/review/`, in the shape `$FLOW/review-files.md` gives. The evidence files are written once too. Nobody edits one after it is written.
-- **The design session lives for the whole flow, in the standalone flow and in From an issue. An implementation session and the two seat sessions live for one task.** Inside a task they continue through `SendMessage`, because throwing the context away between rounds repeats arguments that were already settled. At the commit they are finished, and the next task starts new ones. The implementation session of a one-task plan also writes the work report.
+- **The design session lives for the whole flow, in the standalone flow and in From an issue. An implementation session and the seat sessions live for one task.** Inside a task they continue through `SendMessage`, because throwing the context away between rounds repeats arguments that were already settled. At the commit they are finished, and the next task starts new ones. The implementation session of a one-task plan also writes the work report.
 - **Keep the reports from the sub-agents short.** The role instructions cap them. A report that pastes a diff or a log fills the one context that holds the whole plan, which is yours. When a long one arrives, say so, and ask for the gist next time.
 - **One task is one commit, and a commit happens only after approval.** A commit mid-round drops the diff out of the working-tree view the review reads.
 - **No branches, no history rewriting from the sub-sessions.** The main session owns `git checkout -b`, run in `<WT>`. `git rebase`, `git reset --hard` and `--amend` break the `START` comparison. The role instructions say the same.

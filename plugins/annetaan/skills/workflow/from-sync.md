@@ -13,7 +13,7 @@ These values are already in your context. Nothing arrives as an argument.
 - `<START>`: the tip of the base branch the merge started from
 - the handover notes, from the parent's handover comment (`pj1-plan/between-skills.md`, **The handover comment**)
 - the run's worktree `<WT>`, and `<MAIN>`, the main working tree. The session is in `<WT>`, on a detached HEAD
-- the `level.sh show` JSON, from **The level** in pj4-running. The worker and the two seats take their `model` and
+- the `level.sh show` JSON, from **The level** in pj4-running. The worker and the review seats take their `model` and
   `effort` from it
 
 pj4-running has already confirmed that `work-reports/` is ignored in `<WT>`. Every command below runs in `<WT>`.

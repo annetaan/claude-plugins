@@ -29,7 +29,7 @@ git diff --name-only --diff-filter=U
 
 ## The rounds
 
-Phases 3 and 4 run as written for task 1, with a new implementation session and the two review seats, five rounds,
+Phases 3 and 4 run as written for task 1, with a new implementation session and the review seats, five rounds,
 and the worktree line in every prompt, except for these.
 
 - The phase 3 prompt: "Start point START: `<M>`. Branch: `<into>`. This is a merge in progress. Resolve the

@@ -7,7 +7,7 @@ description: Cleans up a workflow run, a pj-roadmap run or a level run once its 
 
 `workflow-cleanup` is no step of the workflow. It runs after the user has merged or closed the pull request that
 `workflow` opened, or after a run that stopped midway, and tidies up what the run left behind: the worktree
-`.claude/worktrees/wf-<stamp>`, the two review seat worktrees beside it, the run's branch, and a local base branch that is now behind origin. It also runs after
+`.claude/worktrees/wf-<stamp>`, the review seat worktrees beside it, the run's branch, and a local base branch that is now behind origin. It also runs after
 the user has merged or closed the pull request that `pj-roadmap` or `level` opened, each of which works in a `wf-*`
 worktree too.
 

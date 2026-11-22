@@ -244,7 +244,7 @@ uncommitted work, so the report names that work with `git -C <WT> diff` in place
 ### The level
 
 The repository's level picks the model and the effort of workflow's design session, its implementation session and
-its two review seats.
+its review seats.
 Run `level.sh` once, in `<WT>`, as **The level** in `workflow/SKILL.md` says, with `<n>` from `level=<n>`
 in the args, left out when the args carry none.
 

@@ -14,7 +14,7 @@ AGENTS = {
     "workflow-worker": [("sonnet", "medium"), ("sonnet", "high"), ("opus", "medium")],
     "pj-issue-writer": [("sonnet", "medium"), ("sonnet", "high"), ("opus", "medium")],
     "workflow-reviewer-a": [("sonnet", "medium"), ("opus", "medium"), ("opus", "high")],
-    "workflow-reviewer-b": [("fable", "medium"), ("fable", "medium"), ("fable", "medium")],
+    "workflow-reviewer-b": [None, None, ("fable", "medium")],
 }
 
 RECORD_RE = re.compile(
@@ -105,11 +105,12 @@ def show():
                     ref, PATH_IN_REPO, review_by.isoformat())
     if len(ARGS) > 1:
         level, source = int(ARGS[1]), "override"
+    agents = {name: {"model": levels[level - 1][0], "effort": levels[level - 1][1]}
+              for name, levels in AGENTS.items() if levels[level - 1] is not None}
     emit(status="ok", level=level, source=source, ref=ref,
          evaluated=evaluated and evaluated.isoformat(), reviewBy=review_by and review_by.isoformat(),
-         warning=warning,
-         agents={name: {"model": levels[level - 1][0], "effort": levels[level - 1][1]}
-                 for name, levels in AGENTS.items()})
+         warning=warning, agents=agents,
+         seats=[name[len("workflow-reviewer-"):] for name in agents if name.startswith("workflow-reviewer-")])
 
 def new_findings(path):
     found, inside = 0, False

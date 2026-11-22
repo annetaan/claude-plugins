@@ -49,7 +49,7 @@ The approval message states:
 - the name of the new branch, and `base: <base>`
 - the worktree `<WT>`, and that `<MAIN>` is not touched
 - that `<WT>` lacks `<MAIN>`'s ignored files (dependencies, `.env`), so the first worker prepares what the tests need and records the steps in the handover notes
-- `level <n> (<source>)`, the model and effort it gives the design session, the implementation session and the two review seats, and that `level=<n>` on a new run changes it
+- `level <n> (<source>)`, the model and effort it gives the design session, the implementation session and the review seats, how many seats the level runs, and that `level=<n>` on a new run changes it
 - that everything after this runs on its own: per-task implementation and review rounds, the integration review when the plan has more than one task, the push and the pull request
 
 **You pick the branch name yourself.** Match the naming the repository already uses (`git branch -a`), choose one that `git branch -a` does not list yet, and write it into the approval message, so the user can correct it there. Do not spend a question on it.
@@ -90,7 +90,7 @@ The target is the working tree against `START` (`git diff <START>` plus untracke
 together. The working tree should be empty at this point. Fixes from the integration review land uncommitted in the
 working tree, so later rounds see them in the same diff.
 
-**The integration review starts two new seats**, model and effort included, with the steps of phase 4 (b) in SKILL.md: both seats in one message, the rerun of each command, the round file. `<scope>` is `integration`, so the files are `integration-round-<r>-<seat>.md` and `integration-round-<r>.md`. The prompt is the phase 4 (b) prompt with the plan carrying the commit that closed each task (the matching `git log --oneline` lines) in place of the task detail, and this request in place of "Under review":
+**The integration review starts new seats**, model and effort included, with the steps of phase 4 (b) in SKILL.md: every seat in one message, the rerun of each command, the round file. `<scope>` is `integration`, so the files are `integration-round-<r>-<seat>.md` and `integration-round-<r>.md`. The prompt is the phase 4 (b) prompt with the plan carrying the commit that closed each task (the matching `git log --oneline` lines) in place of the task detail, and this request in place of "Under review":
 
 > Every task is committed. This is the integration review. The target is `git diff <START>` plus untracked files, read in `<WT>`. Write round 1 as `integration-round-1-<seat>.md`. The tasks were reviewed one at a time, so look at **the boundaries**: types and contracts between functions that call each other across tasks, names that do not match, duplicated implementations, and acceptance criteria for the whole design that are still unmet. No evidence file exists before round 1, because the tree is clean. Record the walk of every acceptance criterion and every flow of the whole design under `## Walk`, each run as a probe, with `ran:` and `saw:`, or `not run:`.
 
@@ -140,7 +140,7 @@ Every standalone run that got past approval ends here, finished or stopped (roun
 - **how the base came in**: already in, merging cleanly, or merged after the merge task resolved the files it names, or why it did not
 
 - **the pull request URL**, when one was opened
-- **the worktree `<WT>`**, and that the work report lives under it until cleanup, and the two review seat worktrees beside it, `review-<name of WT>-a` and `-b`, which the same cleanup removes. The probes of the seats are under `<WORKDIR>/seats/`
+- **the worktree `<WT>`**, and that the work report lives under it until cleanup, and the review seat worktrees beside it, `review-<name of WT>-<seat>`, which the same cleanup removes. The probes of the seats are under `<WORKDIR>/seats/`
 - **the path of the work report** (`<WORKDIR>/log.md`), which opens in an editor with the screenshots inline
 - the review files, under `<WORKDIR>/review/`
 - the screenshot paths, when the change shows on screen

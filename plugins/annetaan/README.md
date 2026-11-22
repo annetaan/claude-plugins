@@ -140,7 +140,7 @@ request is the exception: asking to resolve the conflicts of a pull request, in 
 
 Runs one implementation through sessions with different jobs. A design session writes the plan, then details each
 task as its turn comes. The design is drawn as if the request had always been required and moves existing code,
-contracts included, where that gives the better shape, and what moves is in the design you approve. An implementation session writes the code for one task. Two review seats try to break it and write what they prove, each by a probe they run through `panel.sh`, to a file. Those last three are new for every task. You approve once, near the start, and
+contracts included, where that gives the better shape, and what moves is in the design you approve. An implementation session writes the code for one task. Review seats try to break it and write what they prove, each by a probe they run through `panel.sh`, to a file. A repository below level 3 has one seat, and level 3 has two, on different models. The implementation session and the review seats are new for every task. You approve once, near the start, and
 the approval message names the branch and the base. The run happens in `.claude/worktrees/wf-<stamp>`.
 
 The sessions follow [the judgement rules](skills/workflow/judgement.md). The design session settles what it can from
@@ -177,7 +177,7 @@ flowchart TD
         direction TB
         detail["design session<br/>details this task against the code<br/>the task before left, while it commits"]
         impl["implementation session<br/>new for this task<br/>writes it, evidence file,<br/>commits nothing"]
-        review["two review seats<br/>new for this task<br/>read the tree in the run's worktree,<br/>prove each finding by a probe run,<br/>main session reruns and writes the round"]
+        review["review seats<br/>new for this task<br/>read the tree in the run's worktree,<br/>prove each finding by a probe run,<br/>main session reruns and writes the round"]
         respond["implementation session<br/>fixes, then writes a reply file"]
         commit["one commit<br/>plus 5 lines of handover notes"]
         detail --> impl --> review
@@ -213,7 +213,7 @@ such as "コンフリクト解消して", with no skill named ([Conflicts](skill
 
 Every run leaves a work report behind, inside the repository under `work-reports/` so that you see them. The skill checks that git ignores `.claude/worktrees/` and `work-reports/` before it writes anything, and asks
 before adding them to `.git/info/exclude`. That file stays in your clone, so nothing is committed and `.gitignore` is
-never edited. `/annetaan:workflow-cleanup` moves the report into your clone's `work-reports/` once the run is over, and deletes the reports there beyond the 100 newest, by the time stamp in their name. It removes the two review seat worktrees beside the run's worktree as well.
+never edited. `/annetaan:workflow-cleanup` moves the report into your clone's `work-reports/` once the run is over, and deletes the reports there beyond the 100 newest, by the time stamp in their name. It removes the review seat worktrees beside the run's worktree as well.
 
 ### pj1-plan, pj2-issues, pj3-doctor, pj4-running
 
@@ -591,17 +591,17 @@ report has since gone. A pull request that another account has recorded is left 
 
 These are the sub-agents the skills spawn. Anything under `agents/` becomes callable as `annetaan:<name>`.
 The frontmatter holds the model and the effort. For the seven agents of **Levels** below, those are the values at the
-default level, level 2, and `workflow`, `pj1-plan`, `pj2-issues`, `pj3-doctor` and `pj4-running` pass the values of the
+default level, level 2, or for `workflow-reviewer-b`, which runs only at level 3, its values at level 3, and `workflow`, `pj1-plan`, `pj2-issues`, `pj3-doctor` and `pj4-running` pass the values of the
 repository's level with each call. Every other agent runs as its frontmatter says. When a Fable agent cannot start, the skill spawns it again on
-opus at the same effort. The two review seats run on different models at every level, and a seat that returns no report is a
-dropout: the round goes on with the other.
+opus at the same effort. Below level 3 the review has one seat; at level 3 it has two, on different models. A seat that returns no report is a
+dropout: the round goes on with the seats that reported.
 
 | Agent | Model | Effort | Role |
 | --- | --- | --- | --- |
 | `annetaan:workflow-design` | opus | medium | design. returns the design and the plan, and tries a doubtful point in a throwaway experiment. In a pj run it also details one sub-issue against the code and may return its body redrawn |
 | `annetaan:workflow-worker` | sonnet | high | implementation, for every task. shows each acceptance criterion by running it and writes the evidence file |
 | `annetaan:workflow-reviewer-a` | opus | medium | review seat a, for every task, and the integration review when the plan has more than one task. tries to break the change and proves each finding by a run of a probe it wrote |
-| `annetaan:workflow-reviewer-b` | fable | medium | review seat b, the same job as seat a on another model |
+| `annetaan:workflow-reviewer-b` | fable | medium | review seat b, at level 3 only. the same job as seat a on another model |
 | `annetaan:pj-planner` | opus | medium | planning for `pj1-plan` and `pj2-issues`. the projects, their designs and the waits between them, then one project's split into tasks. tries a doubtful point in a throwaway experiment |
 | `annetaan:pj-issue-writer` | sonnet | high | one sub-issue, drawn against the code. drafts it for `pj2-issues`, revises it for `pj3-doctor`, and tries a doubtful point in a throwaway experiment |
 | `annetaan:pj-reviewer` | opus | medium | project review for `pj3-doctor`. reads the whole project against the ticked boxes, the code and each issue |
@@ -610,7 +610,7 @@ dropout: the round goes on with the other.
 | `annetaan:doc-meta-overview` | opus | high | overview for `doc-meta`. finds what a per-sentence flag misses |
 | `annetaan:level-evaluator` | opus | high | evaluation for `level`. reads the code and the review counts and proposes a level |
 
-`annetaan:workflow-design`, `annetaan:pj-planner` and `annetaan:pj-issue-writer` can write files, and their roles confine that to a scratch directory. The two reviewers write only their probes and their seat file, and run code only through `panel.sh`.
+`annetaan:workflow-design`, `annetaan:pj-planner` and `annetaan:pj-issue-writer` can write files, and their roles confine that to a scratch directory. The reviewers write only their probes and their seat file, and run code only through `panel.sh`.
 
 `pj4-running` has no agents of its own. It runs workflow's.
 
@@ -638,14 +638,16 @@ code.
 | `workflow-worker` | sonnet / medium | sonnet / high | opus / medium |
 | `pj-issue-writer` | sonnet / medium | sonnet / high | opus / medium |
 | `workflow-reviewer-a` | sonnet / medium | opus / medium | opus / high |
-| `workflow-reviewer-b` | fable / medium | fable / medium | fable / medium |
+| `workflow-reviewer-b` | - | - | fable / medium |
+
+`-` means the level does not run that agent.
 
 ## Credits
 
 Several of the judgement rules in [`skills/workflow/judgement.md`](skills/workflow/judgement.md) were learned from
 pstack in [cursor/plugins](https://github.com/cursor/plugins) (MIT): ask a person only what a person knows, show work
 by running it, fix the cause and not the symptom, remove before adding, question what two failed fixes share, turn a
-repeated lesson into a check, design a requirement as if it was always there, and keep the reader's load low. Two more shape the review: a panel of two seats that
+repeated lesson into a check, design a requirement as if it was always there, and keep the reader's load low. Two more shape the review: a panel of seats that
 run their probes in worktrees of their own, and a finding that counts only when a command proves it. Four more
 shape how work is split and carried through. Three are in `Where to split` and `No transitional code`: finish work that
 is coupled in code as one task with one owner, however large; move the callers and delete the old path in the same
