@@ -21,7 +21,7 @@ Never touch `<MAIN>`.
 
 ## What it runs of phases 2 to 4
 
-This entry asks nothing and writes nothing to memory. Its ending is **What it hands back to pj4-running** below, which replaces any report to the user and any part of the finish.
+This entry asks nothing. Its ending is **What it hands back to pj4-running** below, which replaces any report to the user and any part of the finish.
 
 - **Phase 2 (a) and (c)** do not run. pj4-running settled `<WT>` and `<START>`.
 - **Phase 2 (b)** runs as a guard only, because (d) needs `<ROOT>` from the first command.

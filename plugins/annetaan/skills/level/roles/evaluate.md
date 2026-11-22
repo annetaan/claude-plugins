@@ -18,8 +18,8 @@ worktree `<WT>` to read the code in.
 
 ## What the levels mean
 
-The level picks how much model the implementation session, the two review seats and the issue writer get. The design,
-the design review and the planners never change with it. The `agents` of each level in your prompt say which model and
+The level picks how much model the implementation session, the two review seats and the issue writer get. The design
+and the planners never change with it. The `agents` of each level in your prompt say which model and
 effort each of those agents gets. That is the only place to read them from.
 
 - **Level 1** is the least model. It fits a repository whose design leads the implementation by the hand: clear

@@ -1,11 +1,11 @@
 ---
 name: workflow
-description: Runs one implementation as design, a design review in every repository (it moves existing code only where breaking changes are welcome), approval, then per task (implement, review rounds, one commit), then an integration review when the plan has more than one task, then a finish step that merges the base in and resolves the conflicts under review when the branch conflicts with it, pushes and opens a pull request. Also resolves the conflicts of a pull request that is already open, with the same review rounds, and pushes the merge to its branch. A conflict in a project's pull request from `pj/<n>` goes to pj4-running. The standalone run works in a git worktree of its own, `.claude/worktrees/wf-<stamp>`, and leaves the main working tree alone. The review rounds run through Markdown files in the run's work report directory. Use it only when the user names this skill or invokes /annetaan:workflow, when the user asks to resolve the conflicts of a pull request ("resolve the conflicts on #12", "コンフリクト解消して"), or when pj4-running loads it to run one sub-issue of a project or to resolve a merge of the project's source branch, because it spawns several sub-sessions and adds commits. Do not use it for a one-off implementation request or for an ordinary code review request.
+description: Runs one implementation as design, approval, then per task (implement, review rounds, one commit), then an integration review when the plan has more than one task, then a finish step that merges the base in and resolves the conflicts under review when the branch conflicts with it, pushes and opens a pull request. Also resolves the conflicts of a pull request that is already open, with the same review rounds, and pushes the merge to its branch. A conflict in a project's pull request from `pj/<n>` goes to pj4-running. The standalone run works in a git worktree of its own, `.claude/worktrees/wf-<stamp>`, and leaves the main working tree alone. The review rounds run through Markdown files in the run's work report directory. Use it only when the user names this skill or invokes /annetaan:workflow, when the user asks to resolve the conflicts of a pull request ("resolve the conflicts on #12", "コンフリクト解消して"), or when pj4-running loads it to run one sub-issue of a project or to resolve a merge of the project's source branch, because it spawns several sub-sessions and adds commits. Do not use it for a one-off implementation request or for an ordinary code review request.
 ---
 
 # workflow
 
-One implementation, run as **design, a design review in every repository (it moves existing code only where breaking changes are welcome), approval, then per task (implement, review rounds, one commit), then an integration review when the plan has more than one task, then a finish step that pushes and opens a pull request**, with each role in its own session.
+One implementation, run as **design, approval, then per task (implement, review rounds, one commit), then an integration review when the plan has more than one task, then a finish step that pushes and opens a pull request**, with each role in its own session.
 The review rounds run through Markdown files under the run's work report directory, described in
 `$FLOW/review-files.md`.
 
@@ -78,7 +78,7 @@ sync.** `level=<n>` in the args, 1, 2 or 3, sets the repository's level for this
 
 ## The worktree line
 
-A sub-session does not start in `<WT>` by itself. **Every sub-agent prompt, once `<WT>` is entered, ends with this line**: the design, the design review, the implementation, the two review seats of every review, the integration review included, and the report session.
+A sub-session does not start in `<WT>` by itself. **Every sub-agent prompt, once `<WT>` is entered, ends with this line**: the design, the implementation, the two review seats of every review, the integration review included, and the report session.
 
 > Your working directory must be the worktree `<WT>`. Run `git rev-parse --show-toplevel` first. When it prints anything else, call `EnterWorktree(path: "<WT>")` before anything else, or, when that tool is not available, start every command with `cd <WT>` and keep Edit and Write paths under `<WT>`. Never touch `<MAIN>`.
 
@@ -102,8 +102,6 @@ level**), so the calls below carry them.
 **Seat `b` that cannot start** (a weekly limit, a rate limit, the model is unavailable) is spawned again as
 `annetaan:workflow-reviewer-b` with `model: "opus"` and the same `effort`. **A seat that returns no report is a dropout**: the round goes on
 with the other seat, and the `Seats:` line of the round file says so.
-
-**The design review runs on `annetaan:workflow-design-review`**, once before approval, in every repository. It moves existing code only where breaking changes are welcome (see `$FLOW/breaking-changes.md`).
 
 ## Phase 2: branch, guard, start point
 
@@ -257,7 +255,7 @@ task starts new ones, and the seats' worktrees stay beside `<WT>`, re-pointed by
 
 ### When the plan breaks
 
-When the detail pass in (a) says the boundary no longer holds, or the implementation session reports that the design will not work, stop that task and have the design session **redraw the remaining plan** with `SendMessage`. Tell the user what the new plan is. Do not take approval again. A redraw changes the task count that phase 5 goes by. A change to the design itself goes back to the user the same way a "no" or "conditional" in phase 1 does, and in From an issue it ends the run as `from-issue.md` says (the stop `decision`). No design review here.
+When the detail pass in (a) says the boundary no longer holds, or the implementation session reports that the design will not work, stop that task and have the design session **redraw the remaining plan** with `SendMessage`. Tell the user what the new plan is. Do not take approval again. A redraw changes the task count that phase 5 goes by. A change to the design itself goes back to the user the same way a "no" or "conditional" in phase 1 does, and in From an issue it ends the run as `from-issue.md` says (the stop `decision`).
 
 ### The round cap
 
@@ -272,7 +270,6 @@ If round five does not come back `approve`, stop as the entry's file says. Do no
 
 - **You do not write code.** The implementation session implements and the seats review. Code you write yourself never passes through a review.
 - **A seat never changes the tree of `<WT>`.** It writes only its probes under `<WORKDIR>/seats/<seat>/` and its seat file, and executes only through `panel.sh run`. You write the round file and no other file of the review, and the implementation session fixes what is found. The seats' worktrees stay beside `<WT>` until the cleanup removes them.
-- **The design review session never changes code and sends one report.** It runs once, before approval, never on task detailing or a plan redraw, and the flow goes on without it when it cannot start.
 - **The review files are written once.** Each round and each reply is a new file under `<WORKDIR>/review/`, in the shape `$FLOW/review-files.md` gives. The evidence files are written once too. Nobody edits one after it is written.
 - **The design session lives for the whole flow, in the standalone flow and in From an issue. An implementation session and the two seat sessions live for one task.** Inside a task they continue through `SendMessage`, because throwing the context away between rounds repeats arguments that were already settled. At the commit they are finished, and the next task starts new ones. The implementation session of a one-task plan also writes the work report.
 - **Keep the reports from the sub-agents short.** The role instructions cap them. A report that pastes a diff or a log fills the one context that holds the whole plan, which is yours. When a long one arrives, say so, and ask for the gist next time.

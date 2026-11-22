@@ -2,21 +2,8 @@
 
 > This file is read by the main session that loaded the workflow skill. The paths it uses are the ones **Paths: `$FLOW`** in SKILL.md gives.
 
-Read `worktree.md` and run **The start check** first. Then decide **Does this repository accept breaking changes?** below, run **The worktree** in `worktree.md`, then **The level** in SKILL.md, phase 1 below, phases 2 to 4 in SKILL.md as **Phases 2 to 4 in the standalone flow** below settles them, and phases 5 and 6 below. When `level.sh show` exits non-zero, the worktree already exists: quote
+Read `worktree.md` and run **The start check** first. Then run **The worktree** in `worktree.md`, then **The level** in SKILL.md, phase 1 below, phases 2 to 4 in SKILL.md as **Phases 2 to 4 in the standalone flow** below settles them, and phases 5 and 6 below. When `level.sh show` exits non-zero, the worktree already exists: quote
 the message and take **Ending before approval** in `worktree.md`.
-
-## Does this repository accept breaking changes?
-
-Decide this before **The worktree** in `worktree.md`. It decides how far the design and the design review may move existing code
-(see **The design review**). **The answer is a sentence you keep**, not a shell variable. The design prompt, the review prompt and the
-approval message need it.
-
-**When the request asks for a minimal change** (an urgent fix, a hotfix, "just make it work"), skip this check and ask
-nothing. You judge that from the request. Say one line before design starts: design review skipped for this run: the
-request asks for a minimal change. **Write nothing to memory.** A minimal change is a property of this request, not
-of the repository.
-
-Otherwise read `breaking-changes.md` and follow it.
 
 ## Phase 1: design
 
@@ -24,10 +11,8 @@ Hand the user's request to the design session as it was written, with the worktr
 
 ```
 Agent(subagent_type: "annetaan:workflow-design", description: "design",
-      prompt: "Read $FLOW/roles/design.md first and follow the role it describes.\n\nThe request:\n<the user's request, verbatim>\n\nBreaking changes: <accepted | not accepted>\n\n<the worktree line>\n\nScratch: <WT>/work-reports/<stamp>-design")
+      prompt: "Read $FLOW/roles/design.md first and follow the role it describes.\n\nThe request:\n<the user's request, verbatim>\n\n<the worktree line>\n\nScratch: <WT>/work-reports/<stamp>-design")
 ```
-
-A run for a minimal change sends `Breaking changes: not accepted`.
 
 `annetaan:workflow-design` ships with this plugin and has its model and effort pinned in `agents/*.md`. It is told never to change the repository and to write only under its `Scratch:` directory, by instruction.
 **When it cannot start** (a weekly limit, a rate limit, the model is unavailable), spawn it again with the same
@@ -45,42 +30,12 @@ onward, to have it detail that task against the approved tree of the task before
 4 (d)). And whenever the plan breaks,
 to have it redraw the remaining tasks.
 
-### The design review
-
-**It runs once, after feasibility has passed and before the open questions**, in every repository except for a
-minimal-change run (see **Does this repository accept breaking changes?**). Hand the reviewer the request as it was
-written, whether breaking changes are accepted, and the design report in full.
-
-```
-Agent(subagent_type: "annetaan:workflow-design-review", description: "design review",
-      prompt: "Read $FLOW/roles/design-review.md first and follow the role it describes.\n\nThe request:\n<the user's request, verbatim>\n\nBreaking changes: <accepted | not accepted>\n\nThe design:\n<the full design report>\n\n<the worktree line>")
-```
-
-`annetaan:workflow-design-review` ships with this plugin and has its model and effort pinned in `agents/*.md` and cannot edit
-files. It is pinned to another model than the design session.
-
-**When it cannot start** (a weekly limit, a rate limit, the model is unavailable), skip the review and go on. **Do not
-substitute another agent.** Keep the reason for the approval message.
-
-When the report comes back, `SendMessage` it to the design session.
-
-> <the design review report, in full>
->
-> Follow **Answering the design review** in your role instruction. Return the whole revised report.
-
-The revised report replaces the design and the plan you kept. **The revised design does not go back to the
-reviewer**, and neither does a rework the user asks for at approval, a corrected base included. The design review session ends with its one
-report. Never `SendMessage` it. The points the design session did not settle by evidence reach the user as open questions only
-when they carry an `Only you know:` line (see **The approval dialog**). The rest are under Model decisions.
-
 ### The approval dialog
 
-**Before the approval question, ask the open questions**, on every run. The design's own questions and, when the
-design review ran, the points that passed the test in `judgement.md` and that the design session left open, marked
-`(from the design review)`, go to the user with `AskUserQuestion`. **One call holds four questions at most**, so ask in as many calls as it takes: the
-design's own first, then the review's, in the order the reviewer ranked them. Send the answers back with
-`SendMessage` so the design session can settle them.
-Each question carries its `Only you know:` line. The approval is one question, so this is where the review's leftovers get decided.
+**Before the approval question, ask the open questions**, on every run. The design's open questions go to the user
+with `AskUserQuestion`. **One call holds four questions at most**, so ask in as many calls as it takes, in the order
+the design gives them. Send the answers back with `SendMessage` so the design session can settle them.
+Each question carries its `Only you know:` line.
 
 This is the only approval point in the flow. Present the design summary and the plan, then ask **one `AskUserQuestion`**.
 
@@ -98,17 +53,12 @@ The approval message states:
 
 **You pick the branch name yourself.** Match the naming the repository already uses (`git branch -a`), choose one that `git branch -a` does not list yet, and write it into the approval message, so the user can correct it there. Do not spend a question on it.
 
-**Say what happened to the design review, in one line of the approval message.** When it ran: whether breaking
-changes are accepted, N findings taken in, K settled by the design session, M decided by you in the open questions above. When it did not run, the
-reason: the design review session could not start, or the request asks for a minimal change.
-
 **When the user corrects the base at approval**, the design was written against the wrong code:
 
 1. Leave and remove the worktree as **Ending before approval** in `worktree.md` says.
 2. Run steps 3 to 6 of **The worktree** in `worktree.md` with the new base.
 3. Start a new design session from the design call.
-4. Run no second design review, as for any rework at approval.
-5. Ask the open questions again, then ask for approval again.
+4. Ask the open questions again, then ask for approval again.
 
 A corrected branch name just replaces the name.
 

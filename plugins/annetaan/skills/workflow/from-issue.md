@@ -4,7 +4,7 @@
 
 pj4-running loads this skill to run one sub-issue of a project. The issue is the approved design in its goal, its
 boundary and its checked decisions. A design session details it against the code on the base branch first, may
-redraw its body, and stays for the whole run. This entry has no design review, no approval and no questions. The shape
+redraw its body, and stays for the whole run. This entry has no approval and no questions. The shape
 of the issue is in `$FLOW/../pj1-plan/format.md`, and the shape of its pull request in
 `$FLOW/../pj1-plan/between-skills.md` under **Pull requests**.
 
@@ -30,7 +30,7 @@ Every command below runs in `<WT>`, so `<ROOT>` and `<WORKDIR>` come from there.
 
 ## What it runs of phases 2 to 5
 
-This entry asks nothing and writes nothing to memory. Its ending is **What it hands back to pj4-running** below, which replaces any report to the user.
+This entry asks nothing. Its ending is **What it hands back to pj4-running** below, which replaces any report to the user.
 
 - **Phase 1** does not run. **The detail pass** below takes its place.
 - **Phase 2 (a)** does not run. pj4-running owns the branch.

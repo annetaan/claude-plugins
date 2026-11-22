@@ -139,9 +139,8 @@ request is the exception: asking to resolve the conflicts of a pull request, in 
 `/annetaan:workflow` ([details](skills/workflow))
 
 Runs one implementation through sessions with different jobs. A design session writes the plan, then details each
-task as its turn comes. A design review session pushes the design toward its ideal shape once, before approval, and
-checks the behaviour the design keeps from existing code. The design and the design review move existing code only
-where breaking changes are welcome. An implementation session writes the code for one task. Two review seats try to break it and write what they prove, each by a probe they run through `panel.sh`, to a file. Those last three are new for every task. You approve once, near the start, and
+task as its turn comes. The design is drawn as if the request had always been required and moves existing code,
+contracts included, where that gives the better shape, and what moves is in the design you approve. An implementation session writes the code for one task. Two review seats try to break it and write what they prove, each by a probe they run through `panel.sh`, to a file. Those last three are new for every task. You approve once, near the start, and
 the approval message names the branch and the base. The run happens in `.claude/worktrees/wf-<stamp>`.
 
 The sessions follow [the judgement rules](skills/workflow/judgement.md). The design session settles what it can from
@@ -169,8 +168,8 @@ which record what the implementation session ran.
 ```mermaid
 flowchart TD
     req(["your request"]) --> wt["worktree on the tip of the base<br/>work-reports/ and .claude/worktrees/ ignored?"] --> design["design session<br/>boundaries, acceptance criteria,<br/>plan of tasks"]
-    design --> dreview["design review session<br/>once, in every repo<br/>existing code moves only<br/>where breaking changes<br/>are welcome"] --> ask["one approval<br/>proceed with this plan?<br/>branch and base named"]
-    ask -->|rework| redo["design session<br/>revises, no second review"] --> ask
+    design --> ask["one approval<br/>proceed with this plan?<br/>branch and base named"]
+    ask -->|rework| redo["design session<br/>revises"] --> ask
     ask -->|approved| setup["branch in the worktree<br/>record START"]
     setup --> detail
 
@@ -248,12 +247,9 @@ the state lives. [format.md](skills/pj1-plan/format.md) describes the issues and
 
 `/annetaan:pj1-plan` ([details](skills/pj1-plan/SKILL.md)) starts with a planner session. Its input is usually one initiative from your roadmap file, by heading or quoted. It draws the whole in
 broad strokes and cuts it into projects, with the dependencies between them. It cuts only where a reviewer can judge each project on its own, where the
-projects can run in parallel, or where a part is worth landing first, so a chain of work that can only go one way stays one project. Size alone is never a reason. A design review
-session reads each project's design once and asks whether a blank slate would give the same design, including
-behaviour carried over from existing code. The planner and the design review move existing code only where breaking
-changes are welcome, decided the same way as for `workflow`. The planner takes in what it agrees with, and the rest is settled by evidence and
-listed, or reaches you as a plan-level question before approval when only you can answer it. You
-answer the plan-level questions and see the projects in stages, with the reason for each wait. You approve them and
+projects can run in parallel, or where a part is worth landing first, so a chain of work that can only go one way stays one project. Size alone is never a reason. The design is
+drawn as if the request had always been required and moves existing code, contracts included, where that gives the
+better shape, and what moves is in the design you approve. You answer the plan-level questions and see the projects in stages, with the reason for each wait. You approve them and
 pick the branch the projects start from. Nothing reaches GitHub before that. Then one parent issue per project is
 filed, blocked by the parents it waits on. When the request is a roadmap entry, one project of the last stage, the one with the lowest number, carries a `Roadmap:` line naming the file and the entry. No sub-issue and no branch is created yet, and no issue is `ready` yet.
 
@@ -321,7 +317,7 @@ again from `/annetaan:pj2-issues` once the projects it waits on are merged.
 
 ```mermaid
 flowchart TD
-    req(["your request"]) --> plan["pj1-plan<br/>planner cuts the work into<br/>projects, each one<br/>a reviewer can judge,<br/>with the waits between them<br/>design review: from a blank slate?"]
+    req(["your request"]) --> plan["pj1-plan<br/>planner cuts the work into<br/>projects, each one<br/>a reviewer can judge,<br/>with the waits between them"]
     plan --> approve(["you approve the projects and their stages"]) --> filed["a parent issue per project,<br/>labelled project,<br/>blocked-by between parents"]
     filed --> split["pj2-issues, per project<br/>once what it waits on is merged:<br/>planner splits it, issue writers draw each task,<br/>sub-issues, run order"]
     split --> doctor["pj3-doctor<br/>reviewer reads the whole project,<br/>writers redraw what does not hold,<br/>run order rewritten, ready on what is clear"]
@@ -597,18 +593,16 @@ These are the sub-agents the skills spawn. Anything under `agents/` becomes call
 The frontmatter holds the model and the effort, the level-3 values for the four agents of **Levels** below. For those
 four, `workflow`, `pj2-issues`, `pj3-doctor` and `pj4-running` pass the values of the repository's level with each
 call. Every other agent runs as its frontmatter says. When a Fable agent cannot start, the skill spawns it again on
-opus at the same effort. The design review runs on another model than the design and the planner, and is skipped when
-it cannot start. The two review seats run on different models at every level, and a seat that returns no report is a
+opus at the same effort. The two review seats run on different models at every level, and a seat that returns no report is a
 dropout: the round goes on with the other.
 
 | Agent | Model | Effort | Role |
 | --- | --- | --- | --- |
 | `annetaan:workflow-design` | fable | medium | design. returns the design and the plan, and tries a doubtful point in a throwaway experiment. In a pj run it also details one sub-issue against the code and may return its body redrawn |
-| `annetaan:workflow-design-review` | opus | high | design review for `workflow` and `pj1-plan`. once, before approval, in every repository. moves existing code only where breaking changes are welcome |
 | `annetaan:workflow-worker` | opus | high | implementation, for every task. shows each acceptance criterion by running it and writes the evidence file |
 | `annetaan:workflow-reviewer-a` | opus | high | review seat a, for every task, and the integration review when the plan has more than one task. tries to break the change and proves each finding by a run of a probe it wrote |
 | `annetaan:workflow-reviewer-b` | fable | medium | review seat b, the same job as seat a on another model |
-| `annetaan:pj-planner` | fable | medium | planning for `pj1-plan` and `pj2-issues`. the projects, their designs and the waits between them, then one project's split into tasks. answers the design review, and tries a doubtful point in a throwaway experiment |
+| `annetaan:pj-planner` | fable | medium | planning for `pj1-plan` and `pj2-issues`. the projects, their designs and the waits between them, then one project's split into tasks. tries a doubtful point in a throwaway experiment |
 | `annetaan:pj-issue-writer` | opus | high | one sub-issue, drawn against the code. drafts it for `pj2-issues`, revises it for `pj3-doctor`, and tries a doubtful point in a throwaway experiment |
 | `annetaan:pj-reviewer` | fable | medium | project review for `pj3-doctor`. reads the whole project against the ticked boxes, the code and each issue |
 | `annetaan:experience-video-producer` | fable | medium | production for `experience-video`. fills in the cuts, fragments and music of a story, renders it, and checks its frames |

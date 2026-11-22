@@ -118,12 +118,6 @@ assert rows == want, (rows, want)
 ' "$README" "$TMP" || fail "the README level table does not match level.sh show 1, 2 and 3"
 echo "ok: the README level table matches level.sh show at each level"
 
-review="$(front "$PLUGIN/agents/workflow-design-review.md" model)"
-for other in workflow-design pj-planner; do
-  [ "$review" != "$(front "$PLUGIN/agents/$other.md" model)" ] || fail "workflow-design-review runs on the model of $other"
-done
-echo "ok: the design review runs on another model than the design and the planner"
-
 for n in 1 2 3; do
   a="$(at_level "$n" workflow-reviewer-a)"
   b="$(at_level "$n" workflow-reviewer-b)"
