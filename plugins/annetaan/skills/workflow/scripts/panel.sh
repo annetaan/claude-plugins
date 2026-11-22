@@ -12,8 +12,10 @@ usage: panel.sh run <WT> <seat> <probe dir>   snapshot the working tree of <WT>,
                                               make the run's work directory under <WT>/work-reports/ with review/ and seats/,
                                               take HEAD as the start, and write the start, the level, its source, the issue
                                               and the parent to run.json
-       panel.sh status <WT>                   print the start, the work directory, the level, its source, the issue and the
-                                              parent of the run whose run.json was written last
+       panel.sh status <WT> [<scope>]         print the start, the work directory, the level, its source, the issue and the
+                                              parent of the run whose run.json was written last; with a scope (task-<k>,
+                                              integration or merge) also its next round, whether the cap is reached, the
+                                              last verdict, the open findings and whether approve is allowed
        panel.sh lint <file>                   check one review file against review-files.md and print ok, kind and reasons;
                                               it reads only the file and the files beside it
 Every subcommand prints one JSON object with "status" and exits 0. "stop" carries "reason" and "message".
@@ -38,7 +40,7 @@ case "$1" in
       case "${10}" in ''|*[!0-9]*) usage ;; esac
     fi
     ;;
-  status) [ $# -eq 2 ] || usage ;;
+  status) [ $# -eq 2 ] || [ $# -eq 3 ] || usage ;;
   lint) [ $# -eq 2 ] || usage ;;
   *) usage ;;
 esac
