@@ -171,7 +171,7 @@ flowchart TD
     req(["your request"]) --> wt["worktree on the tip of the base<br/>work-reports/ and .claude/worktrees/ ignored?"] --> design["design session<br/>boundaries, acceptance criteria,<br/>plan of tasks"]
     design --> dreview["design review session<br/>once, in every repo<br/>existing code moves only<br/>where breaking changes<br/>are welcome"] --> ask["one approval<br/>proceed with this plan?<br/>branch and base named"]
     ask -->|rework| redo["design session<br/>revises, no second review"] --> ask
-    ask -->|approved| setup["branch in the worktree<br/>record START"]
+    ask -->|approved| setup["branch in the worktree<br/>panel.sh begin: START, the work directory and the level"]
     setup --> detail
 
     subgraph task["per task"]

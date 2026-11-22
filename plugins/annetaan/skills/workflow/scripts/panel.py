@@ -1,7 +1,8 @@
-import fcntl, json, os, shutil, subprocess, sys, tempfile
+import fcntl, json, os, re, shutil, subprocess, sys, tempfile, time
 
 SEATS = ("a", "b")
 TAIL = 40
+STAMP = re.compile(r"\d{4}-\d{2}-\d{2}-\d{4}(-|$)")
 
 def run(*cmd, cwd=None, env=None):
     return subprocess.run(cmd, capture_output=True, text=True, cwd=cwd, env=env)
@@ -22,6 +23,12 @@ def git(where, *args, env=None):
     if r.returncode != 0:
         die("git %s failed: %s" % (" ".join(args), r.stderr.strip()))
     return r.stdout
+
+def stamped(root):
+    if not os.path.isdir(root):
+        return []
+    return [e for e in os.listdir(root) if STAMP.match(e)
+            and os.path.isdir(os.path.join(root, e)) and not os.path.islink(os.path.join(root, e))]
 
 def seat_path(wt, seat):
     return os.path.join(os.path.dirname(wt), "review-%s-%s" % (os.path.basename(wt), seat))
@@ -144,8 +151,49 @@ def close(wt):
                 os.unlink(lock)
     emit(status="closed", removed=removed)
 
+def begin(wt, *options):
+    require_live_wt(wt)
+    ignored = run("git", "-C", wt, "check-ignore", "-q", "work-reports/")
+    if ignored.returncode == 1:
+        stop("not-ignored", "work-reports/ is not ignored in %s" % wt)
+    if ignored.returncode != 0:
+        die("git check-ignore failed: %s" % ignored.stderr.strip())
+    start = git(wt, "rev-parse", "HEAD").strip()
+    stamp = time.strftime("%Y-%m-%d-%H%M") + "-" + start[:7]
+    name, n = stamp, 1
+    while os.path.lexists(os.path.join(wt, "work-reports", name)):
+        n += 1
+        name = "%s-%d" % (stamp, n)
+    workdir = os.path.join(wt, "work-reports", name)
+    for sub in ("review", "seats"):
+        os.makedirs(os.path.join(workdir, sub))
+    opts = dict(zip(options[::2], options[1::2]))
+    issue, parent = opts.get("--issue"), opts.get("--parent")
+    record = {"start": start, "level": int(opts["--level"]), "source": opts["--source"],
+              "issue": int(issue) if issue is not None else None,
+              "parent": int(parent) if parent is not None else None}
+    with open(os.path.join(workdir, "run.json"), "w") as f:
+        json.dump(record, f)
+        f.write("\n")
+    emit(status="ok", start=start, workdir=workdir, level=record["level"], source=record["source"])
+
+def current_run(wt):
+    root = os.path.join(wt, "work-reports")
+    runs = [(os.stat(os.path.join(root, e, "run.json")).st_mtime_ns, e) for e in stamped(root)
+            if os.path.isfile(os.path.join(root, e, "run.json"))]
+    if not runs:
+        stop("no-run", "no work directory under %s holds a run.json" % root)
+    workdir = os.path.join(root, max(runs)[1])
+    with open(os.path.join(workdir, "run.json")) as f:
+        return workdir, json.load(f)
+
+def status(wt):
+    workdir, record = current_run(wt)
+    emit(status="ok", start=record["start"], workdir=workdir, level=record["level"], source=record["source"],
+         issue=record["issue"], parent=record["parent"])
+
 def main(sub, wt, *args):
-    {"run": run_probe, "close": close}[sub](os.path.normpath(wt), *args)
+    {"run": run_probe, "close": close, "begin": begin, "status": status}[sub](os.path.normpath(wt), *args)
 
 if __name__ == "__main__":
     main(*sys.argv[1:])

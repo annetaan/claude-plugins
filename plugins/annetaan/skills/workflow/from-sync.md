@@ -1,5 +1,7 @@
 # From a sync
 
+> This file is read by the main session that loaded the workflow skill. The paths it uses are the ones **Paths: `$FLOW`** in SKILL.md gives.
+
 pj4-running loads this skill once every sub-issue of project `P` is closed, before it opens the project's pull
 request, when merging `origin/<from>` into the project's base branch stopped on conflicts. The merge is in progress in
 `<WT>`. It runs **The merge task** in `merge-task.md`, and pushes nothing. pj4-running pushes the merge.
@@ -23,16 +25,22 @@ Never touch `<MAIN>`.
 
 This entry asks nothing and writes nothing to memory. Its ending is **What it hands back to pj4-running** below, which replaces any report to the user and any part of the finish.
 
-- **Phase 2 (a) and (c)** do not run. pj4-running settled `<WT>` and `<START>`.
-- **Phase 2 (b)** runs as a guard only, because (d) needs `<ROOT>` from the first command.
+- **Phase 2 (a)** does not run.
+- **Phase 2 (b)** runs with `<level>` and `<source>` from the JSON pj4-running settled, with no `--issue` and no
+  `--parent`:
 
   ```bash
-  git rev-parse --show-toplevel
-  git -C <ROOT> check-ignore -q work-reports/
+  $FLOW/scripts/panel.sh begin <WT> --level <level> --source <source>
   ```
 
-  On exit 1, leave the working tree as it is, push nothing, and return `stopped` with the reason `work-reports`. Never ask about `.gitignore` here.
-- **Phase 2 (d)** runs as written, with `<START>`.
+  The `start` it prints is the `<START>` pj4-running settled: `run.sh sync` stopped the merge on the tip of the base
+  branch and printed that tip as `start`, and a merge in progress leaves `HEAD` there. From here on `<START>` is that
+  `start`. On a `stop` with `not-ignored`, leave the working tree as it is, push nothing, and return `stopped` with the
+  reason `work-reports`. Never ask about `.gitignore` here.
+
+  After a context summary, `panel.sh status <WT>` names this run only when its `issue` is null. A `no-run`, or a
+  number in `issue`, is an issue's work directory in the reused `<WT>`: phase 2 (b) has not run, its `start` and
+  `workdir` are not taken, and the level is the JSON pj4-running settled (**The level** in SKILL.md).
 - **Phases 3 and 4** run as **The merge task** in `merge-task.md` says, below.
 
 ## The merge task
