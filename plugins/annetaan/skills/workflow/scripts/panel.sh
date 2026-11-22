@@ -14,6 +14,8 @@ usage: panel.sh run <WT> <seat> <probe dir>   snapshot the working tree of <WT>,
                                               and the parent to run.json
        panel.sh status <WT>                   print the start, the work directory, the level, its source, the issue and the
                                               parent of the run whose run.json was written last
+       panel.sh lint <file>                   check one review file against review-files.md and print ok, kind and reasons;
+                                              it reads only the file and the files beside it
 Every subcommand prints one JSON object with "status" and exits 0. "stop" carries "reason" and "message".
 <probe dir> has to be under <WT>/work-reports/. Exit 1 means a usage error or an unexpected failure.
 USAGE
@@ -37,10 +39,11 @@ case "$1" in
     fi
     ;;
   status) [ $# -eq 2 ] || usage ;;
+  lint) [ $# -eq 2 ] || usage ;;
   *) usage ;;
 esac
 
-case "$2" in /*) ;; *) die "<WT> must be an absolute path: $2" ;; esac
+case "$2" in /*) ;; *) die "<WT> and <file> must be absolute paths: $2" ;; esac
 
 command -v python3 >/dev/null 2>&1 || die "python3 is not installed"
 

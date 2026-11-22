@@ -162,8 +162,8 @@ becomes the strongest check that can hold it, a type before a lint rule before a
 
 The review rounds run through Markdown files in the run's work report directory. Each seat writes one file per round,
 the main session merges the verified findings into a round file with the verdict, and the implementation session answers each
-finding in a reply file next to it. Nobody edits a file once
-it is written, so the directory reads back as the whole review, in order. The directory also holds the evidence files,
+finding in a reply file next to it. Each writer lints its file before it reports,
+and nobody edits it after that, so the directory reads back as the whole review, in order. The directory also holds the evidence files,
 which record what the implementation session ran.
 
 ```mermaid
