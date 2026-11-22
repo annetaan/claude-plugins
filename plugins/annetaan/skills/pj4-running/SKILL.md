@@ -40,10 +40,11 @@ when an issue is ready and workable. Everything below refers to them. `$RUNNING/
 issues and their bodies, and is read only at the sections this file names: **The run order**, **Stubs**, **Fixed
 tokens** and **Writing bodies**.
 
-This skill uses four more things:
+This skill uses five more things:
 
 - the script `$RUNNING/../pj1-plan/scripts/project.sh`, written `project.sh` below
 - the script `$RUNNING/../workflow/scripts/level.sh`, written `level.sh` below (see **The level**)
+- the script `$RUNNING/../workflow/scripts/panel.sh`, written `panel.sh` below
 - the script `$RUNNING/scripts/run.sh`, written `run.sh` below. Every subcommand prints one JSON object with a
   `status`. A `stop` whose `reason` the section at hand does not name, such as `project` when `project.sh` fails,
   stops the run: quote `message`. A non-zero exit is a usage error or an unexpected failure: quote its message and
