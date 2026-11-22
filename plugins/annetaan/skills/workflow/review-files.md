@@ -4,7 +4,8 @@ The review rounds run through Markdown files under `<WORKDIR>/review/`. The two 
 implementation session each write their own files. A file is final once its writer has linted it (see **The lint**) and
 reported, and nobody edits it after that. The directory is the whole conversation of the review, in order, and it stays
 next to the work report. The seats' probes sit beside it, under
-`<WORKDIR>/seats/` (see **A probe**).
+`<WORKDIR>/seats/` (see **A probe**), and so do the drafts `panel.sh verify` writes, under `<WORKDIR>/drafts/` (see
+**A draft**).
 
 ## Names
 
@@ -68,6 +69,8 @@ A probe is how a seat runs code. It is a directory `<WORKDIR>/seats/<seat>/<name
 - `run.sh`, which runs from the root of the seat's worktree: the run's working tree at a snapshot, with the probe's `tree/` copied over it
 - `tree/`, when the probe needs files: a failing test, a fixture, each at its repository path
 
+`run.sh` exits non-zero exactly while the failure it proves shows, and 0 once the failure is gone. `panel.sh verify` sorts the findings by that exit alone, so a probe that only prints what it found exits 0 and its finding is dropped.
+
 `panel.sh run <WT> <seat> <probe dir>` snapshots `<WT>`, puts the seat's worktree at the snapshot, copies `tree/` over it, runs `run.sh` there and prints `{"status":"ran","seat","snapshot","exit","lines","output"}`, `output` being the last 40 lines. A probe has to be under `<WT>/work-reports/`. It stops with `outside`, `no-script`, `busy` (another run holds this seat) or `unknown`. Every run starts from a clean snapshot of `<WT>` as it is at that moment, and keeps the ignored files of the seat's worktree, such as installed dependencies, so a probe that installs them once serves every later run of that seat.
 
 ## A seat file
@@ -90,15 +93,56 @@ Required: the retry stops at zero attempts (acceptance criterion 2)
 - `npm run e2e -- signin`: needs a browser that is not here
 ```
 
-- A finding has a title and three lines. `Command:` is always one `panel.sh run` line with real paths, the one the seat ran, in backticks. The main session runs it again word for word from `<WT>`, and so does the implementation session after a fix. `Printed:` is the exit and the decisive lines, three lines at most. `Required:` is what the approved design, its criteria, the plan or the task detail requires.
-- A search that is a finding is a probe too: its `run.sh` holds the search.
+- A finding has a title and three lines. `Command:` is always one `panel.sh run` line with real paths, the one the seat ran, in backticks. `panel.sh verify` runs it again word for word for the main session, and the implementation session runs it after a fix. `Printed:` is the exit and the decisive lines, three lines at most. `Required:` is what the approved design, its criteria, the plan or the task detail requires.
+- A search that is a finding is a probe too: its `run.sh` holds the search, followed by `test $? -eq 1`, so that the probe exits 1 while the search finds something.
 - `## Findings` reads `None.` when the seat proved nothing.
 - `## Not run` holds each `not run:` entry of the evidence file that the seat could not run either, with the reason. It reads `None.` when there is none.
 - Integration round 1 adds `## Walk` as the last section: every acceptance criterion and flow of the whole design, each run as a probe, each entry shaped like an entry of an evidence file, with `ran:` and `saw:`, or `not run:`.
 
+## A draft
+
+`panel.sh verify <WT> <scope>` works on the scope's next round `r`, the `round` that `panel.sh status <WT> <scope>` prints. It runs again the command of every finding the last round left open and of every finding in both seat files of round `r`, one after another, seat `a`'s first, and writes what the runs showed to `<WORKDIR>/drafts/<scope>-round-<r>.md`. It overwrites a draft that is already there. It prints `{"status":"ok","scope","round","draft","dropouts","earlier","new","dropped"}`: an entry of `earlier` carries `id`, `command`, `exit`, `output`, `state` and `reply`, an entry of `new` carries `id`, `seat`, `number` (the seat's own `### <n>.`), `title`, `command`, `exit` and `output`, and an entry of `dropped` carries `seat`, `number`, `title`, `command` and `why`. `output` is the last 40 lines, as `panel.sh run` prints them.
+
+```markdown
+# task-2, round 2, draft
+
+## Earlier findings
+
+- R1.1 resolved: ran: `/abs/skills/workflow/scripts/panel.sh run /abs/wt a /abs/wt/work-reports/2026-09-19-1346-a1b2c3d/seats/a/stale-cache`; saw: exit 0, `2 passed`
+- R1.2 stands: ran: `/abs/skills/workflow/scripts/panel.sh run /abs/wt a /abs/wt/work-reports/2026-09-19-1346-a1b2c3d/seats/a/retry-zero`; saw: exit 1, `expected 0 calls, got 1`
+
+## New findings
+
+### R2.1 `cache.ts` `clearCache` empties the sign-in value
+
+Found by: a
+Command: `/abs/skills/workflow/scripts/panel.sh run /abs/wt a /abs/wt/work-reports/2026-09-19-1346-a1b2c3d/seats/a/signin`
+Printed: exit 1, `1 failed: the form finds an empty cache`
+
+### R2.2 the second sign-in finds no cached value
+
+Found by: b
+Command: `/abs/skills/workflow/scripts/panel.sh run /abs/wt b /abs/wt/work-reports/2026-09-19-1346-a1b2c3d/seats/b/signin-twice`
+Printed: exit 1, `expected a cached value, got undefined`
+
+## Dropped
+
+- a: 1, the command exited 0, so the failure did not show (finding 2)
+- b: none
+```
+
+- Every draft has these three sections. A section with nothing in it reads `None.`, so `## Earlier findings` reads `None.` in round 1.
+- `## Earlier findings` holds one line per finding the last round left open, in the order `panel.sh status` lists them, each run again with the `Command:` of the round file that raised it. Exit 0 is `resolved`. Non-zero is `stands`, and `stands again` when the finding stood in an earlier round. A finding whose reply is `disagree` gets `; reply: disagree` after the `saw:` part.
+- `## New findings` holds the findings of seat `a`'s file, then seat `b`'s, in their order. Each one whose run exits non-zero gets the next id `R<r>.<n>`, from 1, `Found by:` its seat, its title and its `Command:` as the seat wrote them, and `Printed:` from the run.
+- `## Dropped` gives per seat and reason the count and the seat's own finding numbers: those that exited 0, and those whose command could not be run again, with the reason `panel.sh run` stopped on, or `command` when the `Command:` is not one backticked `panel.sh run <WT> <seat> <probe dir>` line. A seat with nothing dropped reads `- <seat>: none`. A seat with no file reads `- <seat>: no seat file` and is listed in `dropouts`.
+- `Printed:` and `saw:` are `exit <n>`, then, when the output has a line that is not blank, `, ` and the last such line as a code span, fenced with one backtick more than the longest run of backticks in it.
+- Each command is run word for word: `<WT>`, the seat and the probe directory come from the command itself, and the `panel.sh` path in it is not run.
+- An earlier finding whose command cannot be run again is an unexpected failure: `verify` exits 1, names the finding and writes no draft.
+- The main session writes the round file from the draft (see **A review round**), and `panel.sh lint` holds the lines it copies to the draft (see **The lint**).
+
 ## A review round
 
-The main session writes this file after it has run each seat's commands again. It holds every finding it verified, and the verdict.
+The main session writes this file from the draft `panel.sh verify` wrote for the round (see **A draft**), and adds what takes judgement. It holds every finding it kept, and the verdict.
 
 ```markdown
 # Task 2, round 2
@@ -107,8 +151,8 @@ Seats: a on opus, b on fable
 
 ## Earlier findings
 
-- R1.1 resolved
-- R1.2 stands: ran: `/abs/skills/workflow/scripts/panel.sh run /abs/wt a /abs/wt/work-reports/2026-09-19-1346-a1b2c3d/seats/a/retry-zero`; saw: `expected 0 calls, got 1`. `retryJob` has to check it before the first call.
+- R1.1 resolved: ran: `/abs/skills/workflow/scripts/panel.sh run /abs/wt a /abs/wt/work-reports/2026-09-19-1346-a1b2c3d/seats/a/stale-cache`; saw: exit 0, `2 passed`
+- R1.2 stands: ran: `/abs/skills/workflow/scripts/panel.sh run /abs/wt a /abs/wt/work-reports/2026-09-19-1346-a1b2c3d/seats/a/retry-zero`; saw: exit 1, `expected 0 calls, got 1`. `retryJob` has to check it before the first call.
 
 ## New findings
 
@@ -122,7 +166,7 @@ Breaks: the second sign-in on one page load never fetches the value
 
 ## Dropped
 
-- a: 1, the command exited 0, so the failure did not show
+- a: 1, the command exited 0, so the failure did not show (finding 2)
 - b: none
 
 ## Not run
@@ -136,10 +180,10 @@ changes-requested
 
 - `Seats:` names the model each seat ran on. A fallback (seat `b` on opus) and a dropout (a seat that returned no report) are said here.
 - A finding's id is `R<round>.<n>`, and it never changes. A finding points with a path and a symbol, never a line number.
-- `Found by:` names every seat that raised it. Findings with one root cause are one entry. `Command:` is the line the main session ran again, with the probe of the seat that found it, and `Breaks:` is what the failure breaks in the intent.
-- `## Dropped` gives per seat the count of findings left out and why: the failure did not show, it does not break the intent, or the command could not be run again.
+- A new finding copies its `Command:` and `Printed:` from a finding of the draft, and adds `Required:` and `Breaks:`, what the failure breaks in the intent. `Found by:` names every seat that raised it. Findings with one root cause are one entry, which keeps the `Command:` and `Printed:` of one of them, as `R2.1` above keeps seat `a`'s and drops the draft's `R2.2`. The ids count from 1 again over the findings kept.
+- `## Dropped` copies the draft's lines, which give per seat the findings whose failure did not show and those whose command could not be run again. The main session adds a line per seat for a finding it leaves out because the failure does not break the intent, with the reason.
 - `## Not run` holds what no seat could run. It reads `None.` when there is none.
-- `## Earlier findings` reads `None.` in round 1, so every round file has the same five sections. From round 2 on, it lists every finding still open after the last reply, each `resolved`, `stands` or `stands again` with the reason. The main session runs the finding's command again, which snapshots the tree as it now is: the failure gone is `resolved`, the failure still shown is `stands`. The second and every later `stands` on one finding is written `stands again`, with the output of that run, for example `- R1.2 stands again: ran: <command>; saw: <output>; <the reason>`. A `disagree` whose reason shows the failure does not break the intent is `resolved`, with the reason quoted.
+- `## Earlier findings` reads `None.` in round 1, so every round file has the same five sections. From round 2 on, it holds each line of the draft's `## Earlier findings`, one per finding still open after the last reply, copied up to the end of its `saw:` part, with `; reply: disagree` left off, and the reason after it for a finding that stands. The draft's rerun snapshots the tree as it now is: the failure gone is `resolved`, the failure still shown is `stands`, and the second and every later `stands` on one finding is `stands again`, for example `- R1.2 stands again: ran: <command>; saw: exit 1, <last line>; <the reason>`. A `disagree` whose reason shows the failure does not break the intent is the draft's line with `resolved` as the status word, and the reason quoted.
 - `## New findings` reads `None.` when there are none.
 - The verdict is the line `approve` or `changes-requested` alone. **`approve` needs no verified finding open, and the evidence file of the latest code change. In integration round 1, where no evidence file exists, a `## Walk` in at least one seat file takes its place.**
 
@@ -158,7 +202,7 @@ One line per finding the round left open: `fixed` with what changed, or `disagre
 
 Each writer lints its own file as the last step before it reports, and fixes the file until `ok` is true: the seat its seat file, the implementation session its evidence file and its reply, the main session its round file.
 
-`panel.sh lint <file>` takes the absolute path of one review file and prints `{"status":"ok","ok":<bool>,"kind":<kind>,"reasons":[...]}`. `kind` is `seat`, `round`, `reply` or `evidence`, read from the file name by the table in **Names**. The file passes when `reasons` is empty and `ok` is true. A file that does not exist stops with `no-file`. A name outside **Names** prints `kind` null and the reason `name`. The lint reads the file and its siblings in the same directory, and nothing else: no `run.json`, no git, no probe. Lines inside a code fence are never read as a heading or an entry.
+`panel.sh lint <file>` takes the absolute path of one review file and prints `{"status":"ok","ok":<bool>,"kind":<kind>,"reasons":[...]}`. `kind` is `seat`, `round`, `reply` or `evidence`, read from the file name by the table in **Names**. The file passes when `reasons` is empty and `ok` is true. A file that does not exist stops with `no-file`. A name outside **Names** prints `kind` null and the reason `name`. The lint reads the file, its siblings in the same directory and, for a round file, its draft `<WORKDIR>/drafts/<the round file's name>`, `<WORKDIR>` being the directory above the round file's own, and nothing else: no `run.json`, no git, no probe. Lines inside a code fence are never read as a heading or an entry.
 
 | Kind | Reason | Fails when |
 | --- | --- | --- |
@@ -174,6 +218,7 @@ Each writer lints its own file as the last step before it reports, and fixes the
 | round | `verdict` | `## Verdict` is not the one line `approve` or `changes-requested` |
 | round | `approve-open` | `approve` while `## New findings` holds a finding or an earlier entry `stands` or `stands again` |
 | round | `approve-no-evidence` | `approve` without the evidence of the latest code change, as below |
+| round | `draft` | the round file has no draft, an earlier entry that passes `mark` for an id round `r-1` left open does not start with the draft's line for that id with `; reply: disagree` left off (for a line the draft marks `reply: disagree`, the status word may also be `resolved`), or a new finding that passes `id`, `finding` and `command` has a `Command:` and `Printed:` that are not those of one new finding of the draft |
 | reply | `line` | a line after the title is not `- R<r>.<n> fixed: ...` or `- R<r>.<n> disagree: ...`, or an indented line under one |
 | reply | `missing` | an id its round leaves open has no line |
 | reply | `ran` | a `fixed` line carries no `ran:` and `saw:` |
@@ -184,4 +229,4 @@ A round leaves open the ids of its `## New findings` and the earlier entries it 
 
 The latest code change before round `r` is the newest reply `<scope>-round-<j>-reply.md`, `j` below `r`, that holds a `fixed` line, because only a fix changes code. When there is one, `approve` needs `<scope>-round-<j>-evidence.md`, which the reply's own lint already asks for as `no-evidence`. When there is none, it needs the evidence written before round 1: `task-<k>-evidence.md` for a task, `merge-evidence.md` for a merge, and for the integration review an `integration-round-1-<seat>.md` that holds `## Walk`.
 
-The lint holds what a later reader parses: ids, marks, sections, the five-word command, the verdict, and the lines a reply and an evidence entry need. What takes judgement stays with the writer and the reader: whether a finding breaks the intent, the wording of `Printed:` and its three-line cap, the models on the `Seats:` line, the reasons under `## Dropped`. The lint checks the shape of a command and not its paths, so whether a command runs is found by running it.
+The lint holds what a later reader parses: ids, marks, sections, the five-word command, the verdict, the lines a round file copies from its draft, and the lines a reply and an evidence entry need. `draft` compares only the copied lines: the ids, the titles, `Found by:`, `Required:`, `Breaks:`, `## Dropped`, `## Not run`, `Seats:` and the verdict are the main session's judgement, so a finding it drops is missing from `## New findings`, and two findings merged by root cause keep one `Command:`, which still matches. What takes judgement stays with the writer and the reader: whether a finding breaks the intent, the wording of `Printed:` in a seat file and its three-line cap, the models on the `Seats:` line, the reasons under `## Dropped`. The lint checks the shape of a command and not its paths, so whether a command runs is found by running it.

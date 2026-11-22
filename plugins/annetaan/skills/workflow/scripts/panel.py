@@ -17,11 +17,12 @@ FOUND_BY = ("a", "b", "a, b")
 FINDING_ID = r"R[1-9]\d*\.[1-9]\d*"
 EARLIER_ID = re.compile(r"- (%s)\b" % FINDING_ID)
 MARK = re.compile(r"- (%s) (?:resolved(?:: \S.*)?|(stands again|stands): \S.*)" % FINDING_ID)
+DISAGREE = "; reply: disagree"
 ANSWER = re.compile(r"- (%s) (fixed|disagree): \S" % FINDING_ID)
 SUB_BULLET = re.compile(r"\s+- (ran|saw|not run):")
 FORBIDDEN = set("$\"';&|<>()`")
 REASONS = ("sections", "id", "finding", "command", "entry", "seats", "no-round", "mark", "earlier-missing", "verdict",
-           "approve-open", "approve-no-evidence", "line", "missing", "ran", "assumed", "no-evidence")
+           "approve-open", "approve-no-evidence", "draft", "line", "missing", "ran", "assumed", "no-evidence")
 
 def run(*cmd, cwd=None, env=None):
     return subprocess.run(cmd, capture_output=True, text=True, cwd=cwd, env=env)
@@ -30,8 +31,13 @@ def emit(**obj):
     print(json.dumps(obj, ensure_ascii=False))
     sys.exit(0)
 
-def stop(reason, message, **extra):
-    emit(status="stop", reason=reason, message=message, **extra)
+class Stop(Exception):
+    def __init__(self, reason, message):
+        super().__init__(message)
+        self.reason, self.message = reason, message
+
+def stop(reason, message):
+    raise Stop(reason, message)
 
 def die(msg):
     print("panel: " + msg, file=sys.stderr)
@@ -128,28 +134,30 @@ def run_probe(wt, seat, probe):
     probe = os.path.realpath(probe)
     if seat not in SEATS:
         die("no such seat: " + seat)
-    require_live_wt(wt)
-    reports = os.path.realpath(os.path.join(wt, "work-reports")) + os.sep
-    if not probe.startswith(reports):
-        stop("outside", "%s is not under %s" % (probe, reports))
-    script = os.path.join(probe, "run.sh")
-    if not os.path.isfile(script):
-        stop("no-script", "%s has no run.sh" % probe)
-    lock = lock_path(wt, wt, seat)
-    held = take_lock(lock, seat)
     try:
-        snap = snapshot(wt)
-        path = prepare(wt, seat, snap)
-        overlay = os.path.join(probe, "tree")
-        if os.path.isdir(overlay):
-            shutil.copytree(overlay, path, symlinks=True, dirs_exist_ok=True)
-        r = subprocess.run(["bash", script], cwd=path, stdin=subprocess.DEVNULL, stdout=subprocess.PIPE,
-                           stderr=subprocess.STDOUT, text=True, errors="replace")
-        lines = r.stdout.splitlines()
-        emit(status="ran", seat=seat, snapshot=snap, exit=r.returncode, lines=len(lines),
-             output="\n".join(lines[-TAIL:]))
-    finally:
-        os.close(held)
+        require_live_wt(wt)
+        reports = os.path.realpath(os.path.join(wt, "work-reports")) + os.sep
+        if not probe.startswith(reports):
+            stop("outside", "%s is not under %s" % (probe, reports))
+        script = os.path.join(probe, "run.sh")
+        if not os.path.isfile(script):
+            stop("no-script", "%s has no run.sh" % probe)
+        held = take_lock(lock_path(wt, wt, seat), seat)
+        try:
+            snap = snapshot(wt)
+            path = prepare(wt, seat, snap)
+            overlay = os.path.join(probe, "tree")
+            if os.path.isdir(overlay):
+                shutil.copytree(overlay, path, symlinks=True, dirs_exist_ok=True)
+            r = subprocess.run(["bash", script], cwd=path, stdin=subprocess.DEVNULL, stdout=subprocess.PIPE,
+                               stderr=subprocess.STDOUT, text=True, errors="replace")
+        finally:
+            os.close(held)
+    except Stop as s:
+        return {"status": "stop", "reason": s.reason, "message": s.message}
+    lines = r.stdout.splitlines()
+    return {"status": "ran", "seat": seat, "snapshot": snap, "exit": r.returncode, "lines": len(lines),
+            "output": "\n".join(lines[-TAIL:])}
 
 def close(wt):
     where = nearest_clone_dir(wt)
@@ -322,8 +330,11 @@ def run_args(line):
         return script, wt, seat, probe
     return None
 
+def fields(block, names):
+    return {name: [text[len(name) + 1:].strip() for text in block[1:] if text.startswith(name + ":")] for name in names}
+
 def finding_reasons(block, names):
-    got = {name: [text[len(name) + 1:].strip() for text in block[1:] if text.startswith(name + ":")] for name in names}
+    got = fields(block, names)
     reasons = set()
     if any(len(values) != 1 for values in got.values()) or ("Found by" in got and got["Found by"][0] not in FOUND_BY):
         reasons.add("finding")
@@ -343,6 +354,30 @@ def holds(s):
     if s["heading"] in FREE_SECTIONS:
         return bool(s["lines"])
     return bool(s["blocks"]) or s["lines"] == ["None."]
+
+def copied(line, want):
+    if want is None:
+        return False
+    disagree = want.endswith(DISAGREE)
+    base = want[:-len(DISAGREE)] if disagree else want
+    starts = [base]
+    status = MARK.fullmatch(base)
+    if disagree and status and status.group(2):
+        starts.append(base[:status.start(2)] + "resolved" + base[status.end(2):])
+    return any(line.startswith(start) for start in starts)
+
+def draft_reasons(path, earlier, new):
+    draft = os.path.join(os.path.dirname(os.path.dirname(path)), "drafts", os.path.basename(path))
+    if not os.path.isfile(draft):
+        return {"draft"}
+    parsed = parse_review(draft)
+    lines = {m.group(1): block[0] for block in section(parsed, "Earlier findings")["blocks"]
+             for m in [EARLIER_ID.match(block[0])] if m}
+    pairs = [fields(block, ("Command", "Printed")) for block in section(parsed, "New findings")["blocks"]]
+    if (all(copied(line, lines.get(EARLIER_ID.match(line).group(1))) for line in earlier)
+            and all(fields(block, ("Command", "Printed")) in pairs for block in new)):
+        return set()
+    return {"draft"}
 
 def lint_reasons(path):
     if review_kind(os.path.basename(path)) is None:
@@ -377,7 +412,7 @@ def lint_reasons(path):
     if kind == "round":
         if len(parsed["seats"]) != 1:
             found.add("seats")
-        listed = set()
+        listed, marked, kept = set(), [], []
         for block in section(parsed, "Earlier findings")["blocks"]:
             if r == 1:
                 found.add("id")
@@ -389,12 +424,19 @@ def lint_reasons(path):
                     found.add("id")
             if not MARK.fullmatch(block[0]):
                 found.add("mark")
+            elif before is not None and m.group(1) in before:
+                marked.append(block[0])
         if before is not None and set(before) - listed:
             found.add("earlier-missing")
         for n, block in enumerate(section(parsed, "New findings")["blocks"], 1):
-            if not re.match(r"### R%d\.%d \S" % (r, n), block[0]):
+            numbered = re.match(r"### R%d\.%d \S" % (r, n), block[0])
+            if not numbered:
                 found.add("id")
-            found |= finding_reasons(block, ("Found by", "Command", "Printed", "Required", "Breaks"))
+            reasons = finding_reasons(block, ("Found by", "Command", "Printed", "Required", "Breaks"))
+            found |= reasons
+            if numbered and not reasons:
+                kept.append(block)
+        found |= draft_reasons(path, marked, kept)
         verdict = section(parsed, "Verdict")["lines"]
         if verdict not in (["approve"], ["changes-requested"]):
             found.add("verdict")
@@ -422,8 +464,91 @@ def lint(path):
     kind, reasons = lint_reasons(path)
     emit(status="ok", ok=not reasons, kind=kind, reasons=reasons)
 
+def command_of(block):
+    got = fields(block, ("Command",))["Command"]
+    text = got[0] if got else ""
+    quoted = len(got) == 1 and len(text) > 1 and text[0] == text[-1] == "`"
+    return (text[1:-1], run_args(text[1:-1])) if quoted else (text, None)
+
+def rerun(args):
+    _, wt, seat, probe = args
+    return run_probe(os.path.normpath(wt), seat, probe)
+
+def code_span(text):
+    ticks = "`" * (max(map(len, re.findall(r"`+", text)), default=0) + 1)
+    pad = " " if text.startswith("`") or text.endswith("`") else ""
+    return ticks + pad + text + pad + ticks
+
+def printed(result):
+    shown = [line.strip() for line in result["output"].splitlines() if line.strip()]
+    return "exit %d" % result["exit"] + (", " + code_span(shown[-1]) if shown else "")
+
+def dropped_line(seat, why, numbers):
+    what = "the command exited 0, so the failure did not show" if why == "exit-0" else "the command could not be run again, " + why
+    return "- %s: %d, %s (finding%s %s)" % (seat, len(numbers), what, "s" if len(numbers) > 1 else "", ", ".join(map(str, numbers)))
+
+def verify(wt, scope):
+    if not re.fullmatch(SCOPE, scope):
+        die("no such scope: " + scope)
+    workdir, _ = current_run(wt)
+    review = os.path.join(workdir, "review")
+    state = scope_state(review, scope)
+    r = state["round"]
+    earlier, new, dropped, dropouts = [], [], [], []
+    earlier_lines, new_blocks, dropped_lines = [], [], []
+    for finding in state["open"]:
+        fid = finding["id"]
+        j, n = map(int, fid[1:].split("."))
+        raiser = parse_review(os.path.join(review, "%s-round-%d.md" % (scope, j)))
+        command, args = command_of(section(raiser, "New findings")["blocks"][n - 1])
+        if args is None:
+            die("%s could not be run again: its Command is not one panel.sh run line" % fid)
+        result = rerun(args)
+        if result["status"] == "stop":
+            die("%s could not be run again: %s" % (fid, result["message"]))
+        word = "resolved" if result["exit"] == 0 else "stands again" if finding["stood"] else "stands"
+        earlier_lines.append("- %s %s: ran: `%s`; saw: %s%s" % (fid, word, command, printed(result),
+                                                                 DISAGREE if finding["reply"] == "disagree" else ""))
+        earlier.append({"id": fid, "command": command, "exit": result["exit"], "output": result["output"],
+                        "state": word, "reply": finding["reply"]})
+    for seat in SEATS:
+        path = os.path.join(review, "%s-round-%d-%s.md" % (scope, r, seat))
+        if not os.path.isfile(path):
+            dropouts.append(seat)
+            dropped_lines.append("- %s: no seat file" % seat)
+            continue
+        gone = {}
+        for n, block in enumerate(section(parse_review(path), "Findings")["blocks"], 1):
+            title = re.sub(r"^### (\d+\. )?", "", block[0])
+            command, args = command_of(block)
+            if args is None:
+                why = "command"
+            else:
+                result = rerun(args)
+                why = result["reason"] if result["status"] == "stop" else "exit-0" if result["exit"] == 0 else None
+            if why:
+                gone.setdefault(why, []).append(n)
+                dropped.append({"seat": seat, "number": n, "title": title, "command": command, "why": why})
+                continue
+            fid = "R%d.%d" % (r, len(new) + 1)
+            new.append({"id": fid, "seat": seat, "number": n, "title": title, "command": command,
+                        "exit": result["exit"], "output": result["output"]})
+            new_blocks.append("### %s %s\n\nFound by: %s\nCommand: `%s`\nPrinted: %s" % (fid, title, seat, command, printed(result)))
+        dropped_lines += [dropped_line(seat, why, numbers) for why, numbers in gone.items()] or ["- %s: none" % seat]
+    draft = os.path.join(workdir, "drafts", "%s-round-%d.md" % (scope, r))
+    os.makedirs(os.path.dirname(draft), exist_ok=True)
+    with open(draft, "w", encoding="utf-8") as out:
+        out.write("# %s, round %d, draft\n\n## Earlier findings\n\n%s\n\n## New findings\n\n%s\n\n## Dropped\n\n%s\n" % (
+            scope, r, "\n".join(earlier_lines) or "None.", "\n\n".join(new_blocks) or "None.", "\n".join(dropped_lines)))
+    emit(status="ok", scope=scope, round=r, draft=draft, dropouts=dropouts, earlier=earlier, new=new, dropped=dropped)
+
 def main(sub, path, *args):
-    {"run": run_probe, "close": close, "begin": begin, "status": status, "lint": lint}[sub](os.path.normpath(path), *args)
+    table = {"run": lambda *given: emit(**run_probe(*given)), "close": close, "begin": begin, "status": status,
+             "lint": lint, "verify": verify}
+    try:
+        table[sub](os.path.normpath(path), *args)
+    except Stop as s:
+        emit(status="stop", reason=s.reason, message=s.message)
 
 if __name__ == "__main__":
     main(*sys.argv[1:])

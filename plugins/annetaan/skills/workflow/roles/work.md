@@ -81,7 +81,7 @@ The main session names the review file of the round. The format and the file nam
 
 **Answer every open finding** in the reply file next to the round file, one line each, as that file shows.
 
-- **`fixed`** with what you changed, once the fix is in the working tree. Each finding of the round file has a `Command:`, a `panel.sh run` line with the seat's probe. Read the probe's `run.sh` and its `tree/` to see what fails, and after the fix **run that line as it is**: the line also carries `ran:` and `saw:` of that run (**Proven by a run**). The run snapshots your working tree, so the fix has to be in it.
+- **`fixed`** with what you changed, once the fix is in the working tree. Each finding of the round file has a `Command:`, a `panel.sh run` line with the seat's probe. Read the probe's `run.sh` and its `tree/` to see what fails, and after the fix **run that line as it is**: the line also carries `ran:` and `saw:` of that run (**Proven by a run**). The run snapshots your working tree, so the fix has to be in it. After the fix the line exits 0, and that exit is what makes the next `panel.sh verify` mark the finding `resolved`.
 - **`disagree`** with your reasoning, when you think the finding is wrong. Change nothing for it. The main session
   decides next round, against the design.
 - A reply that changed code comes with a new evidence file, `task-<k>-round-<r>-evidence.md` (the integration and merge names are in `$FLOW/review-files.md`). It is a full pass, not only the fixed finding. Write it after the fixes and before the reply file.

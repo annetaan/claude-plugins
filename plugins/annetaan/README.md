@@ -148,8 +148,8 @@ The sessions follow [the judgement rules](skills/workflow/judgement.md). The des
 the code, the history or a throwaway experiment, and lists those as model decisions, which the approval shows. You are
 asked only what turns on something only you know. The implementation session shows each acceptance criterion by running
 it and walks the flows the change touches. A review seat reports only what it proved by a run: a command, what it
-printed, and what the design requires. The main session runs each command again, keeps a finding only when the failure
-shows and breaks the design. A fix that only guards the symptom comes back when a probe reaches the bad state past the guard.
+printed, and what the design requires. `panel.sh` reruns each command and sorts the findings by the probe's exit,
+and the main session keeps a finding only when the failure breaks the design. A fix that only guards the symptom comes back when a probe reaches the bad state past the guard.
 
 These rules shape the work. A design removes what the request makes unnecessary before it adds anything. A new
 requirement is drawn as if it had always been there, down to the types, documents and examples that state the old shape.
@@ -178,7 +178,7 @@ flowchart TD
         direction TB
         detail["design session<br/>details this task against the code<br/>the task before left, while it commits"]
         impl["implementation session<br/>new for this task<br/>writes it, evidence file,<br/>commits nothing"]
-        review["two review seats<br/>new for this task<br/>read the tree in the run's worktree,<br/>prove each finding by a probe run,<br/>main session reruns and writes the round"]
+        review["two review seats<br/>new for this task<br/>read the tree in the run's worktree,<br/>prove each finding by a probe run,<br/>panel.sh reruns, main session writes the round"]
         respond["implementation session<br/>fixes, then writes a reply file"]
         commit["one commit<br/>plus 5 lines of handover notes"]
         detail --> impl --> review

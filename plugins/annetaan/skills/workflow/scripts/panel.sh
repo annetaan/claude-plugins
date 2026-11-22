@@ -17,7 +17,11 @@ usage: panel.sh run <WT> <seat> <probe dir>   snapshot the working tree of <WT>,
                                               integration or merge) also its next round, whether the cap is reached, the
                                               last verdict, the open findings and whether approve is allowed
        panel.sh lint <file>                   check one review file against review-files.md and print ok, kind and reasons;
-                                              it reads only the file and the files beside it
+                                              it reads the file, the files beside it and, for a round file, its draft
+                                              under drafts/
+       panel.sh verify <WT> <scope>           run again every command of the scope's next round, the open earlier findings
+                                              and both seats' findings, sort them by the probe's exit, and write
+                                              drafts/<scope>-round-<r>.md in the run's work directory
 Every subcommand prints one JSON object with "status" and exits 0. "stop" carries "reason" and "message".
 <probe dir> has to be under <WT>/work-reports/. Exit 1 means a usage error or an unexpected failure.
 USAGE
@@ -42,6 +46,7 @@ case "$1" in
     ;;
   status) [ $# -eq 2 ] || [ $# -eq 3 ] || usage ;;
   lint) [ $# -eq 2 ] || usage ;;
+  verify) [ $# -eq 3 ] || usage ;;
   *) usage ;;
 esac
 
