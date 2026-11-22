@@ -44,8 +44,9 @@ is allowed (phase 4 (b)). A seat reaches its worktree only through `panel.sh run
 which runs a probe the seat wrote (see `$FLOW/review-files.md`, **A probe**), and `panel.sh close <WT>` removes the
 seats at the cleanup. `panel.sh verify <WT> <scope>` runs again every command of a review round and writes the draft
 of its round file (phase 4 (b)). `panel.sh lint <file>` checks one review file against `$FLOW/review-files.md`, and each
-writer runs it on its own file before it reports. `<WT>` is the absolute path, and `lint` takes the absolute path of the
-file. All six print one JSON object with a `status`, as `worktree.sh` does. A non-zero exit is quoted and stops the run, the
+writer runs it on its own file before it reports. The finish runs `panel.sh record <WT>`, which writes the pull request
+head and the `Level:` line into `log.md` (`finish.md`, **The work report**). `<WT>` is the absolute path, and `lint` takes
+the absolute path of the file. All seven print one JSON object with a `status`, as `worktree.sh` does. A non-zero exit is quoted and stops the run, the
 same way.
 
 ## The level
@@ -68,9 +69,9 @@ $FLOW/scripts/level.sh show <WT> [<n>]
 It prints `status: ok` with `level`, `source` (`file`, `override` or `default`), `ref`, `evaluated`, `reviewBy`,
 `warning` and `agents`. `agents.<name>` holds the `model` and the `effort` of `workflow-worker`,
 `workflow-reviewer-a`, `workflow-reviewer-b` and `pj-issue-writer`. Keep the JSON. Print `level <level> (<source>)`
-once, and `warning` on a line of its own when it is set. A warning never stops the run. The finish writes `level` and
-`source` into `log.md` with `level.sh record` (`finish.md`, **The work report**), and `/annetaan:level` reads them back
-from the merged pull requests.
+once, and `warning` on a line of its own when it is set. A warning never stops the run. The finish's `panel.sh record`
+writes the `level` and `source` that `begin` stored into `log.md` (`finish.md`, **The work report**), and
+`/annetaan:level` reads them back from the merged pull requests.
 
 After a context summary, run `$FLOW/scripts/panel.sh status <WT>`, then `$FLOW/scripts/level.sh show <WT> <level>`
 with the `level` `status` printed, and read only its `agents`. The run's `level` and `source` stay the ones `status`

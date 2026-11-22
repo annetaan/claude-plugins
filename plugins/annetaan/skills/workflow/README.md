@@ -111,8 +111,8 @@ review, no approval and no questions. The detail becomes a plan of one or more t
 integration review follows when the plan has more than one. When only you can settle what the detail found, the run
 adds that decision to the issue, stops, and leaves the box for you to tick.
 
-The pull request body is `log.md` under a head of `Implements` and `Part of`. The run pushes and opens the pull
-request as a draft against the project's base branch. pj4-running merges it.
+The pull request body is `log.md`, which begins with a head of `Implements` and `Part of`. The run pushes and opens
+the pull request as a draft against the project's base branch. pj4-running merges it.
 
 All of it happens in the worktree pj4-running made for the project, so your own working tree is left alone.
 
@@ -169,8 +169,9 @@ Every run writes a work report. It lives under the worktree's `work-reports/` un
 
 ```
 work-reports/2026-09-19-1346-a1b2c3d/
-  log.md         what changed, how it was verified, the checks wanted, what the review changed, the screenshots,
-                 and last one `Level:` line with the level, its source and the review counts
+  log.md         on a run from an issue first the `Implements` and `Part of` head, then what changed, how it was
+                 verified, the checks wanted, what the review changed, the screenshots, and last one `Level:` line
+                 with the level, its source and the review counts, the head and that line written by panel.sh record
   changes.diff   the diff from the start commit to HEAD
   run.json       the start commit, the level and its source, the issue and the parent, written once by panel.sh begin
   review/        one file per review round, the reply to each, and the evidence files
@@ -203,10 +204,12 @@ Otherwise it follows how recent merged pull requests are written. With nothing t
 picks a structure. Whatever it picks, the report has to answer what changed, how it was verified with the commands
 that were actually run, what the review changed, and which commit answers which task in the plan.
 
-`log.md` becomes the pull request body. It ends with one `Level:` line: the level the run used, its source, the tasks,
-the task rounds, the integration rounds and the findings, as
-`Level: 2 (file) · tasks 2 · task rounds 3 · integration rounds 1 · findings 4`. `/annetaan:level` reads these lines
-from the merged pull requests. `review/` holds how each finding was raised and answered.
+`log.md` becomes the pull request body. On a run from an issue it starts with the head `Implements #<n>` and
+`Part of #<P>`. It ends with one `Level:` line: the level the run used, its source, the tasks, the task rounds, the
+integration rounds and the findings, as
+`Level: 2 (file) · tasks 2 · task rounds 3 · integration rounds 1 · findings 4`. `panel.sh record` writes both, the
+head from the issue and the parent and the line from the level and source that `panel.sh begin` stored in `run.json`.
+`/annetaan:level` reads these lines from the merged pull requests. `review/` holds how each finding was raised and answered.
 
 ## Screenshots
 
@@ -253,7 +256,7 @@ screenshots it could not attach.
 | `scripts/level.sh` | reads the repository's level from origin's default branch and prints the model and effort it gives the implementation session, the two review seats and pj's issue writer |
 | `scripts/level.py` | the code `level.sh` runs, and the one place the level table lives |
 | `scripts/comments.py` | fails on a comment outside the four kinds, or a silenced check the change adds, in the files a change touches. The implementation and review sessions run it |
-| `scripts/panel.sh` | makes the run's work directory and reads it back, reports a scope's round, cap, open findings and whether `approve` is allowed, runs a review seat's probe in a git worktree beside the run's, at a snapshot of the working tree, runs every probe of a round again and writes the draft of the round, removes the seats at cleanup, and lints a review file |
+| `scripts/panel.sh` | makes the run's work directory and reads it back, reports a scope's round, cap, open findings and whether `approve` is allowed, runs a review seat's probe in a git worktree beside the run's, at a snapshot of the working tree, runs every probe of a round again and writes the draft of the round, removes the seats at cleanup, lints a review file, and writes the pull request head and the `Level:` line into `log.md` |
 | `scripts/panel.py` | the code `panel.sh` runs. `worktree.py` imports the stamp rules of the work directory names from it |
 | `review-files.md` | the shape of the review files and the evidence files, read by the seats, the main session and the implementation session |
 
