@@ -56,7 +56,8 @@ the runs to an evidence file. A bug fix with a cheap test path starts with a fai
 printed, and what the design requires. The main session runs each command again, keeps only a failure that breaks the
 design, and writes the round and its verdict. From round 2 on, the main session reruns the open findings itself, and
 each seat attacks only what changed since the tree it reviewed last. What no seat could run is listed in the pull
-request under its own heading.
+request under its own heading. Each session lints the review file it writes with `panel.sh lint` before it reports, so
+a seat file, a round file, a reply or an evidence file that drifts from the format is fixed where it is written.
 
 Five more rules apply across the roles. The design removes what the request makes unnecessary before it adds anything,
 and draws a new requirement as if it had always been there, down to the types, documents and examples that state the
@@ -250,7 +251,7 @@ screenshots it could not attach.
 | `scripts/level.sh` | reads the repository's level from origin's default branch and prints the model and effort it gives the implementation session, the two review seats and pj's issue writer |
 | `scripts/level.py` | the code `level.sh` runs, and the one place the level table lives |
 | `scripts/comments.py` | fails on a comment outside the four kinds, or a silenced check the change adds, in the files a change touches. The implementation and review sessions run it |
-| `scripts/panel.sh` | makes the run's work directory and reads it back, runs a review seat's probe in a git worktree beside the run's, at a snapshot of the working tree, and removes the seats at cleanup |
+| `scripts/panel.sh` | makes the run's work directory and reads it back, runs a review seat's probe in a git worktree beside the run's, at a snapshot of the working tree, removes the seats at cleanup, and lints a review file |
 | `scripts/panel.py` | the code `panel.sh` runs. `worktree.py` imports the stamp rules of the work directory names from it |
 | `review-files.md` | the shape of the review files and the evidence files, read by the seats, the main session and the implementation session |
 

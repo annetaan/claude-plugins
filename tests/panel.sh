@@ -357,3 +357,434 @@ out="$("$SCRIPT" status "$WT")"
 out="$("$SCRIPT" begin "$TMP" --level 3 --source default)"
 [ "$(echo "$out" | json 'd["reason"]')" = unknown ] || fail "begin unknown reason: $out"
 echo "ok: status stops with no-run when no directory holds a run.json, and begin stops with unknown outside a worktree"
+
+REVIEW_FILES="$(cd "$(dirname "$SCRIPT")/.." && pwd)/review-files.md"
+CMD='`/abs/skills/workflow/scripts/panel.sh run /abs/wt a /abs/wt/work-reports/2026-09-19-1346-a1b2c3d/seats/a/probe`'
+
+write() {
+  mkdir -p "$(dirname "$1")"
+  cat > "$1"
+}
+
+passes() {
+  local out
+  out="$("$SCRIPT" lint "$1")"
+  [ "$(echo "$out" | json '[d["status"], d["ok"], d["kind"], d["reasons"]]')" = "['ok', True, '$2', []]" ] || fail "lint $1: $out"
+}
+
+gives() {
+  local out
+  out="$("$SCRIPT" lint "$1")"
+  [ "$(echo "$out" | json '[d["ok"], d["reasons"]]')" = "[False, $2]" ] || fail "lint $1 did not give $2: $out"
+}
+
+breaks() {
+  local file="$1" reason="$2" good out
+  shift 2
+  good="$(cat "$file")"
+  python3 -c '
+import sys
+path, pairs = sys.argv[1], sys.argv[2:]
+text = open(path, encoding="utf-8").read()
+for old, new in zip(pairs[::2], pairs[1::2]):
+    if text.count(old) != 1:
+        sys.exit("%r is not in %s once" % (old, path))
+    text = text.replace(old, new)
+open(path, "w", encoding="utf-8").write(text)
+' "$file" "$@" || fail "cannot break $file for $reason"
+  out="$("$SCRIPT" lint "$file")"
+  [ "$(echo "$out" | json "[d['ok'], '$reason' in d['reasons']]")" = "[False, True]" ] || fail "lint $file did not give $reason: $out"
+  printf '%s\n' "$good" > "$file"
+  passes "$file" "$(echo "$out" | json 'd["kind"]')"
+}
+
+evidence_file() {
+  write "$1" <<EOF
+# Evidence
+
+## Acceptance criteria
+
+- the tests pass
+  - ran: bash tests/run.sh
+  - saw: ok
+- the browser flow works
+  - not run: no browser here
+
+## Flows
+
+- sign out, then sign in again
+  - ran: bash tests/signin.sh
+  - saw: 3 passed
+
+## Reproduced first
+
+- ran: bash tests/retry.sh before the fix
+  - saw: FAIL stops at zero attempts
+EOF
+}
+
+seat_file() {
+  local findings="None."
+  [ "${2:-}" = none ] || findings="$(printf '### 1. the cache keeps a stale value\n\nCommand: %s\nPrinted: exit 1, stale\nRequired: the value is fresh' "$CMD")"
+  write "$1" <<EOF
+# Seat
+
+## Findings
+
+$findings
+
+## Not run
+
+None.
+${3:-}
+EOF
+}
+
+WALK='
+## Walk
+
+- the tests pass
+  - ran: bash tests/run.sh
+  - saw: ok
+- the browser flow works
+  - not run: no browser here'
+
+finding() {
+  printf '### %s the cache keeps a stale value\n\nFound by: a, b\nCommand: %s\nPrinted: exit 1, stale\nRequired: the value is fresh\nBreaks: the second sign-in shows the old value\n' "$1" "$CMD"
+}
+
+round_file() {
+  write "$1" <<EOF
+# Round
+
+Seats: a on opus, b on fable
+
+## Earlier findings
+
+$2
+
+## New findings
+
+$3
+
+## Dropped
+
+- a: none
+- b: none
+
+## Not run
+
+None.
+
+## Verdict
+
+$4
+EOF
+}
+
+reply_file() {
+  local path="$1"
+  shift
+  { echo "# Reply"; echo; printf '%s\n' "$@"; } | write "$path"
+}
+
+FIXED="fixed: the cache is cleared on sign-out. ran: $CMD; saw: exit 0"
+
+D="$TMP/lint/examples"
+mkdir -p "$D"
+python3 -c '
+import os, re, sys
+names = {"# Task 2, evidence": "task-2-evidence.md", "# Task 2, round 1, seat a": "task-2-round-1-a.md",
+         "# Task 2, round 2": "task-2-round-2.md", "# Task 2, round 2, reply": "task-2-round-2-reply.md"}
+text = open(sys.argv[1], encoding="utf-8").read()
+for block in re.findall(r"^```markdown\n(.*?)^```$", text, re.S | re.M):
+    title = block.split("\n", 1)[0]
+    if title in names:
+        open(os.path.join(sys.argv[2], names[title]), "w", encoding="utf-8").write(block)
+' "$REVIEW_FILES" "$D"
+round_file "$D/task-2-round-1.md" None. "$(finding R1.1; echo; finding R1.2)" changes-requested
+passes "$D/task-2-round-1.md" round
+passes "$D/task-2-evidence.md" evidence
+passes "$D/task-2-round-1-a.md" seat
+passes "$D/task-2-round-2.md" round
+cp "$D/task-2-evidence.md" "$D/task-2-round-2-evidence.md"
+passes "$D/task-2-round-2-reply.md" reply
+echo "ok: lint passes the examples in review-files.md"
+
+D="$TMP/lint/seat"
+seat_file "$D/task-5-round-1-a.md"
+passes "$D/task-5-round-1-a.md" seat
+seat_file "$D/task-5-round-1-b.md" none
+passes "$D/task-5-round-1-b.md" seat
+seat_file "$D/integration-round-1-a.md" one "$WALK"
+passes "$D/integration-round-1-a.md" seat
+breaks "$D/task-5-round-1-a.md" sections "## Not run" "## Skipped"
+breaks "$D/task-5-round-1-a.md" sections "# Seat" "Seat"
+breaks "$D/task-5-round-1-b.md" sections "## Findings
+
+None." "## Findings
+
+none"
+breaks "$D/task-5-round-1-a.md" sections "None." "None.
+
+## Walk
+
+- the tests pass
+  - not run: no browser"
+breaks "$D/integration-round-1-a.md" sections "## Walk" "## Walking"
+breaks "$D/task-5-round-1-a.md" id "### 1. " "### 2. "
+breaks "$D/task-5-round-1-a.md" id "### 1. " "### F1. "
+breaks "$D/task-5-round-1-a.md" finding "Required: the value is fresh" ""
+breaks "$D/task-5-round-1-a.md" finding "Printed: exit 1, stale" "Printed: exit 1, stale
+Printed: again"
+breaks "$D/task-5-round-1-a.md" command "/abs/wt a" "\$(pwd) a"
+breaks "$D/task-5-round-1-a.md" command "$CMD" "${CMD//\`/}"
+breaks "$D/task-5-round-1-a.md" command "/abs/wt a /abs/wt/work-reports" "/abs/wt a /abs/other/work-reports"
+breaks "$D/task-5-round-1-a.md" command "/seats/a/probe" "/seats/a/probe extra"
+breaks "$D/integration-round-1-a.md" entry "  - saw: ok
+" ""
+breaks "$D/integration-round-1-a.md" entry "  - not run: no browser here" "  - skipped"
+echo "ok: lint names each reason of a seat file"
+
+D="$TMP/lint/round"
+round_file "$D/task-4-round-1.md" None. "$(finding R1.1; echo; finding R1.2)" changes-requested
+reply_file "$D/task-4-round-1-reply.md" "- R1.1 $FIXED" "- R1.2 disagree: the value is meant to stay"
+round_file "$D/task-4-round-2.md" "- R1.1 resolved
+- R1.2 stands: ran: $CMD; saw: exit 1. The value has to go." "$(finding R2.1)" changes-requested
+passes "$D/task-4-round-1.md" round
+passes "$D/task-4-round-2.md" round
+breaks "$D/task-4-round-2.md" sections "## Dropped" "## Skipped"
+breaks "$D/task-4-round-2.md" sections "## Not run
+
+None.
+" "## Not run
+"
+breaks "$D/task-4-round-1.md" sections "## Earlier findings
+
+None." "## Earlier findings"
+breaks "$D/task-4-round-2.md" id "### R2.1 " "### R2.2 "
+breaks "$D/task-4-round-2.md" id "### R2.1 " "### R1.3 "
+breaks "$D/task-4-round-2.md" id "- R1.1 resolved" "- R1.9 resolved"
+breaks "$D/task-4-round-1.md" id "## Earlier findings
+
+None." "## Earlier findings
+
+- R0.1 resolved"
+breaks "$D/task-4-round-2.md" finding "Breaks: the second sign-in shows the old value" ""
+breaks "$D/task-4-round-2.md" finding "Found by: a, b" "Found by: a and b"
+breaks "$D/task-4-round-2.md" finding "Command: $CMD" "Command (seat a): $CMD"
+breaks "$D/task-4-round-2.md" command "Command: $CMD" "Command: ${CMD//\`/}"
+breaks "$D/task-4-round-2.md" command "Command: \`/abs/skills/workflow/scripts/panel.sh run /abs/wt a " "Command: \`/abs/skills/workflow/scripts/panel.sh run /abs/wt c "
+breaks "$D/task-4-round-2.md" seats "Seats: a on opus, b on fable" ""
+breaks "$D/task-4-round-2.md" seats "Seats: a on opus, b on fable" "Seats: a on opus
+Seats: b on fable"
+round_file "$D/task-4-round-7.md" None. None. changes-requested
+gives "$D/task-4-round-7.md" "['no-round']"
+breaks "$D/task-4-round-2.md" mark "- R1.1 resolved" "- R1.1 fine"
+breaks "$D/task-4-round-2.md" mark "- R1.2 stands: ran:" "- R1.2 stands ran:"
+breaks "$D/task-4-round-2.md" mark "- R1.1 resolved" "- R1.1 resolved;"
+breaks "$D/task-4-round-2.md" earlier-missing "- R1.1 resolved
+" ""
+breaks "$D/task-4-round-2.md" verdict "
+
+changes-requested" "
+
+changes requested: R2.1"
+breaks "$D/task-4-round-2.md" verdict "
+
+changes-requested" "
+
+changes-requested
+approve"
+breaks "$D/task-4-round-2.md" approve-open "
+
+changes-requested" "
+
+approve"
+breaks "$D/task-4-round-2.md" approve-no-evidence "
+
+changes-requested" "
+
+approve"
+echo "ok: lint names each reason of a round file"
+
+D="$TMP/lint/reply"
+round_file "$D/task-3-round-1.md" None. "$(finding R1.1; echo; finding R1.2)" changes-requested
+round_file "$D/task-3-round-2.md" "- R1.1 resolved
+- R1.2 stands again: ran: $CMD; saw: exit 1; the value still stays" None. changes-requested
+evidence_file "$D/task-3-round-1-evidence.md"
+evidence_file "$D/task-3-round-2-evidence.md"
+reply_file "$D/task-3-round-1-reply.md" "- R1.1 $FIXED" "  the second line of the answer" "- R1.2 disagree: the value is meant to stay"
+reply_file "$D/task-3-round-2-reply.md" "- R1.2 fixed: assumed: both fixes took the value to come from the cache; ran: $CMD; saw: exit 0; the store is cleared too"
+passes "$D/task-3-round-1-reply.md" reply
+passes "$D/task-3-round-2-reply.md" reply
+breaks "$D/task-3-round-1-reply.md" sections "the value is meant to stay" "the value is meant to stay
+
+## Notes"
+breaks "$D/task-3-round-1-reply.md" sections "# Reply" "Reply"
+reply_file "$D/task-3-round-9-reply.md" "- R9.1 disagree: there is no such round"
+gives "$D/task-3-round-9-reply.md" "['no-round']"
+breaks "$D/task-3-round-1-reply.md" line "- R1.2 disagree:" "R1.2 disagree:"
+breaks "$D/task-3-round-1-reply.md" line "- R1.2 disagree:" "- R1.2 rejected:"
+breaks "$D/task-3-round-1-reply.md" line "# Reply
+" "# Reply
+  an indented line under no answer
+"
+breaks "$D/task-3-round-1-reply.md" missing "- R1.2 disagree:" "- R1.3 disagree:"
+breaks "$D/task-3-round-2-reply.md" missing "- R1.2 fixed:" "- R1.1 fixed:"
+breaks "$D/task-3-round-1-reply.md" ran "ran: $CMD; saw: exit 0" "checked it"
+breaks "$D/task-3-round-1-reply.md" ran "; saw: exit 0" ""
+breaks "$D/task-3-round-1-reply.md" ran "ran: $CMD; saw: exit 0" "checked it" "- R1.2 disagree:" "- R1.1 disagree: the rest of it
+- R1.2 disagree:"
+breaks "$D/task-3-round-2-reply.md" assumed "assumed: both fixes took the value to come from the cache; " ""
+rm "$D/task-3-round-1-evidence.md"
+gives "$D/task-3-round-1-reply.md" "['no-evidence']"
+reply_file "$D/task-3-round-1-reply.md" "- R1.1 disagree: the value is meant to stay" "- R1.2 disagree: the value is meant to stay"
+passes "$D/task-3-round-1-reply.md" reply
+echo "ok: lint names each reason of a reply"
+
+D="$TMP/lint/evidence"
+evidence_file "$D/task-6-evidence.md"
+evidence_file "$D/merge-round-2-evidence.md"
+passes "$D/task-6-evidence.md" evidence
+passes "$D/merge-round-2-evidence.md" evidence
+breaks "$D/task-6-evidence.md" sections "## Flows" "## Shared state"
+breaks "$D/task-6-evidence.md" sections "## Acceptance criteria" "## Criteria"
+breaks "$D/task-6-evidence.md" sections "## Reproduced first
+
+- ran: bash tests/retry.sh before the fix
+  - saw: FAIL stops at zero attempts" "## Reproduced first"
+breaks "$D/task-6-evidence.md" sections "## Flows" "## Reproduced first
+
+None.
+
+## Flows"
+breaks "$D/task-6-evidence.md" entry "  - ran: bash tests/run.sh
+" ""
+breaks "$D/task-6-evidence.md" entry "  - not run: no browser here" "  - skipped: no browser here"
+breaks "$D/task-6-evidence.md" entry "  - saw: 3 passed" "  saw: 3 passed"
+breaks "$D/task-6-evidence.md" entry "- ran: bash tests/retry.sh before the fix" "- bash tests/retry.sh before the fix"
+breaks "$D/task-6-evidence.md" entry "  - saw: FAIL stops at zero attempts" "  - ran: again"
+echo "ok: lint names each reason of an evidence file"
+
+D="$TMP/lint/approve-task"
+round_file "$D/task-1-round-1.md" None. None. approve
+gives "$D/task-1-round-1.md" "['approve-no-evidence']"
+evidence_file "$D/task-1-evidence.md"
+passes "$D/task-1-round-1.md" round
+D="$TMP/lint/approve-fixed"
+evidence_file "$D/task-1-evidence.md"
+round_file "$D/task-1-round-1.md" None. "$(finding R1.1)" changes-requested
+reply_file "$D/task-1-round-1-reply.md" "- R1.1 $FIXED"
+round_file "$D/task-1-round-2.md" "- R1.1 resolved" None. approve
+gives "$D/task-1-round-2.md" "['approve-no-evidence']"
+evidence_file "$D/task-1-round-1-evidence.md"
+passes "$D/task-1-round-2.md" round
+rm "$D/task-1-round-1-evidence.md"
+reply_file "$D/task-1-round-1-reply.md" "- R1.1 $FIXED" "- R1.1 disagree: the rest of it is meant"
+gives "$D/task-1-round-2.md" "['approve-no-evidence']"
+D="$TMP/lint/approve-disagree"
+evidence_file "$D/task-1-evidence.md"
+round_file "$D/task-1-round-1.md" None. "$(finding R1.1)" changes-requested
+reply_file "$D/task-1-round-1-reply.md" "- R1.1 disagree: the value is meant to stay"
+round_file "$D/task-1-round-2.md" "- R1.1 resolved: the value is meant to stay" None. approve
+passes "$D/task-1-round-2.md" round
+rm "$D/task-1-evidence.md"
+gives "$D/task-1-round-2.md" "['approve-no-evidence']"
+D="$TMP/lint/approve-integration"
+round_file "$D/integration-round-1.md" None. None. approve
+gives "$D/integration-round-1.md" "['approve-no-evidence']"
+seat_file "$D/integration-round-1-a.md" none
+gives "$D/integration-round-1.md" "['approve-no-evidence']"
+seat_file "$D/integration-round-1-b.md" none "$WALK"
+passes "$D/integration-round-1.md" round
+D="$TMP/lint/approve-merge"
+round_file "$D/merge-round-1.md" None. None. approve
+gives "$D/merge-round-1.md" "['approve-no-evidence']"
+evidence_file "$D/merge-evidence.md"
+passes "$D/merge-round-1.md" round
+D="$TMP/lint/approve-open"
+evidence_file "$D/task-1-evidence.md"
+round_file "$D/task-1-round-1.md" None. "$(finding R1.1)" approve
+gives "$D/task-1-round-1.md" "['approve-open']"
+round_file "$D/task-1-round-1.md" None. "$(finding R1.1)" changes-requested
+reply_file "$D/task-1-round-1-reply.md" "- R1.1 disagree: the value is meant to stay"
+round_file "$D/task-1-round-2.md" "- R1.1 stands: ran: $CMD; saw: exit 1. The value has to go." None. approve
+gives "$D/task-1-round-2.md" "['approve-open']"
+echo "ok: lint allows approve only with no finding open and the evidence of the latest code change"
+
+D="$TMP/lint/drifted"
+write "$D/task-1-round-1.md" <<EOF
+# Task 1, round 1
+
+Seats: a on opus, b on fable
+
+## Earlier findings
+
+none
+
+## New findings
+
+### F1. the cache keeps a stale value
+
+Command (seat a): ${CMD//\`/}
+Printed: exit 1, stale
+Required: the value is fresh
+
+### F2. the store keeps a stale value
+
+Command (seat a): ${CMD//\`/}
+Printed: exit 1, stale
+Required: the value is fresh
+
+## Dropped
+
+None.
+
+## Not run
+
+None.
+
+## Verdict
+
+changes requested: F1, F2
+EOF
+gives "$D/task-1-round-1.md" "['sections', 'id', 'finding', 'verdict']"
+echo "ok: lint fails a round file whose ids, sections and verdict drifted"
+
+D="$TMP/lint/flow"
+evidence_file "$D/task-1-evidence.md"
+passes "$D/task-1-evidence.md" evidence
+seat_file "$D/task-1-round-1-a.md"
+passes "$D/task-1-round-1-a.md" seat
+seat_file "$D/task-1-round-1-b.md" none
+passes "$D/task-1-round-1-b.md" seat
+round_file "$D/task-1-round-1.md" None. "$(finding R1.1)" changes-requested
+passes "$D/task-1-round-1.md" round
+evidence_file "$D/task-1-round-1-evidence.md"
+passes "$D/task-1-round-1-evidence.md" evidence
+reply_file "$D/task-1-round-1-reply.md" "- R1.1 $FIXED"
+passes "$D/task-1-round-1-reply.md" reply
+seat_file "$D/task-1-round-2-a.md" none
+passes "$D/task-1-round-2-a.md" seat
+seat_file "$D/task-1-round-2-b.md" none
+passes "$D/task-1-round-2-b.md" seat
+round_file "$D/task-1-round-2.md" "- R1.1 resolved" None. approve
+passes "$D/task-1-round-2.md" round
+echo "ok: lint passes each file of a two-round review in the order it is written"
+
+D="$TMP/lint/names"
+out="$("$SCRIPT" lint "$D/task-1-evidence.md")"
+[ "$(echo "$out" | json '[d["status"], d["reason"]]')" = "['stop', 'no-file']" ] || fail "lint of a missing file: $out"
+mkdir -p "$D/task-1-round-1.md"
+out="$("$SCRIPT" lint "$D/task-1-round-1.md")"
+[ "$(echo "$out" | json '[d["status"], d["reason"]]')" = "['stop', 'no-file']" ] || fail "lint of a directory: $out"
+echo "# Notes" | write "$D/notes.md"
+out="$("$SCRIPT" lint "$D/notes.md")"
+[ "$(echo "$out" | json '[d["status"], d["ok"], d["kind"], d["reasons"]]')" = "['ok', False, None, ['name']]" ] || fail "lint of notes.md: $out"
+evidence_file "$D/integration-evidence.md"
+gives "$D/integration-evidence.md" "['name']"
+refused lint
+refused lint relative.md
+refused lint "$D/notes.md" "$D/notes.md"
+echo "ok: lint stops on a missing file and names a file outside Names"

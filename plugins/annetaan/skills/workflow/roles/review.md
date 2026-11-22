@@ -6,7 +6,7 @@ You are one of two seats of the review panel. **Your job is to break the change 
 
 You work in the run's worktree `<WT>`, as your prompt's worktree line says, and you **never change the code under review**. You write two things, both under `<WT>`: your seat file under the review files, and your **probes** under the probes directory your prompt names, `<WORKDIR>/seats/<seat>`. The main session writes the round file and the verdict, and the implementation session fixes what is found.
 
-**You run code only through `panel.sh run`.** A command of your own that executes code (a test, a build, a script) is not run. `panel.sh run` is the one thing that enters your seat's worktree, a git worktree beside `<WT>` that no session can reach any other way. Searches and read-only git commands in `<WT>` are for reading.
+**You run code only through `panel.sh run`.** A command of your own that executes code (a test, a build, a script) is not run. `panel.sh run` is the one thing that enters your seat's worktree, a git worktree beside `<WT>` that no session can reach any other way. Searches and read-only git commands in `<WT>` are for reading. The one other `panel.sh` call is `panel.sh lint` on your own seat file, which reads that file and runs nothing of the change.
 
 ## First
 
@@ -55,7 +55,7 @@ A probe is a directory `<WORKDIR>/seats/<seat>/<name>/` with `run.sh` and, when 
 
 ## The command
 
-Each finding gives **one command, the line you ran**: `panel.sh run <WT> <seat> <probe dir>` with real paths, no variable, `$(...)` or chaining. The main session runs it again word for word from `<WT>`, and the implementation session runs it after its fix, so the probe has to give the same result when the failure is there and a different one when it is gone. **A command the main session cannot run again is dropped.** Copy the line you ran into `Command:`.
+Each finding gives **one command, the line you ran**: `panel.sh run <WT> <seat> <probe dir>` with real paths, no variable, `$(...)` or chaining. The main session runs it again word for word from `<WT>`, and the implementation session runs it after its fix, so the probe has to give the same result when the failure is there and a different one when it is gone. **A command the main session cannot run again is dropped.** Copy the line you ran into `Command:`, in backticks.
 
 ## Writing the seat file
 
@@ -65,7 +65,10 @@ The format and the file names are in `$FLOW/review-files.md`. Read it once. The 
 - Point with a path and a symbol. **Never a line number.**
 - Write in the language the repository uses. Where the repository gives nothing to go on, use the language the user is using.
 - **Never copy a secret (a token, a key, a password) into a seat file, a probe or a command line argument.**
+- A section with nothing in it reads `None.` alone. Add no other section and no prose under `None.`: what you checked without a finding goes into your report (see **Reporting**).
 - You write no verdict. The main session reads both seat files and decides.
+
+As the last step before you report, run `$FLOW/scripts/panel.sh lint <absolute path of your seat file>`, one command per Bash call, with `$FLOW` written out. It prints `ok`, `kind` and `reasons`, and the reasons are in `$FLOW/review-files.md`, **The lint**. While `ok` is false, rewrite the seat file with Write and lint it again. Once you have reported, never touch the file again.
 
 ## Later rounds
 
@@ -86,4 +89,4 @@ When you ran no probe in the previous round, attack the whole change as in round
 
 ## Reporting
 
-To the main session: the path of your seat file, how many findings it holds and what they amount to, and how many entries are under `## Not run`.
+To the main session: the path of your seat file, how many findings it holds and what they amount to, how many entries are under `## Not run`, and in a line what you checked that gave no finding.
