@@ -8,6 +8,12 @@ usage() {
 usage: panel.sh run <WT> <seat> <probe dir>   snapshot the working tree of <WT>, put seat a or b at it, copy <probe dir>/tree over it,
                                               run <probe dir>/run.sh there and print its exit and its last 40 lines
        panel.sh close <WT>                    remove the seats; safe when there is none, and when <WT> is already gone
+       panel.sh begin <WT> --level <n> --source <source> [--issue <n> --parent <P>]
+                                              make the run's work directory under <WT>/work-reports/ with review/ and seats/,
+                                              take HEAD as the start, and write the start, the level, its source, the issue
+                                              and the parent to run.json
+       panel.sh status <WT>                   print the start, the work directory, the level, its source, the issue and the
+                                              parent of the run whose run.json was written last
 Every subcommand prints one JSON object with "status" and exits 0. "stop" carries "reason" and "message".
 <probe dir> has to be under <WT>/work-reports/. Exit 1 means a usage error or an unexpected failure.
 USAGE
@@ -18,6 +24,19 @@ USAGE
 case "$1" in
   run) [ $# -eq 4 ] || usage ;;
   close) [ $# -eq 2 ] || usage ;;
+  begin)
+    [ $# -eq 6 ] || [ $# -eq 10 ] || usage
+    [ "$3" = --level ] || usage
+    case "$4" in 1|2|3) ;; *) usage ;; esac
+    [ "$5" = --source ] || usage
+    case "$6" in file|override|default) ;; *) usage ;; esac
+    if [ $# -eq 10 ]; then
+      [ "$7" = --issue ] && [ "$9" = --parent ] || usage
+      case "$8" in ''|*[!0-9]*) usage ;; esac
+      case "${10}" in ''|*[!0-9]*) usage ;; esac
+    fi
+    ;;
+  status) [ $# -eq 2 ] || usage ;;
   *) usage ;;
 esac
 

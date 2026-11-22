@@ -1,4 +1,5 @@
 import json, os, re, shutil, subprocess, sys, time
+from panel import stamped
 
 PANEL_SH = sys.argv[1]
 SUB = sys.argv[2]
@@ -99,14 +100,6 @@ def reports(wt):
     return sorted(e for e in os.listdir(root) if os.path.isdir(os.path.join(root, e)))
 
 REPORTS_KEPT = 100
-STAMP = re.compile(r"\d{4}-\d{2}-\d{2}-\d{4}(-|$)")
-
-def stamped(root):
-    if not os.path.isdir(root):
-        return []
-    return [e for e in os.listdir(root) if STAMP.match(e)
-            and os.path.isdir(os.path.join(root, e)) and not os.path.islink(os.path.join(root, e))]
-
 def old_reports(main, incoming=()):
     ranked = sorted(stamped(os.path.join(main, "work-reports")) + list(incoming), reverse=True)
     return sorted(ranked[REPORTS_KEPT:])

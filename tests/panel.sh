@@ -260,3 +260,100 @@ for trial in 1 2 3 4 5 6 7 8; do
   esac
 done
 echo "ok: two runs of one seat started together give one ran and one busy, eight times"
+
+setup
+out="$("$SCRIPT" begin "$WT" --level 3 --source default)"
+[ "$(echo "$out" | json 'd["status"]')" = ok ] || fail "begin status: $out"
+start="$(echo "$out" | json 'd["start"]')"
+[ "$start" = "$(git -C "$WT" rev-parse HEAD)" ] || fail "begin start is not HEAD: $out"
+workdir="$(echo "$out" | json 'd["workdir"]')"
+case "$workdir" in
+  "$WT"/work-reports/[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]-[0-9][0-9][0-9][0-9]-"${start:0:7}") ;;
+  *) fail "begin workdir: $workdir" ;;
+esac
+[ -d "$workdir/review" ] && [ -d "$workdir/seats" ] && [ -f "$workdir/run.json" ] || fail "begin did not make review/, seats/ and run.json"
+read_back="$("$SCRIPT" status "$WT")"
+[ "$(echo "$read_back" | json '[d["status"], d["start"], d["workdir"], d["level"], d["source"], d["issue"], d["parent"]]')" = "['ok', '$start', '$workdir', 3, 'default', None, None]" ] || fail "status after begin: $read_back"
+echo "ok: begin makes the work directory with review/, seats/ and run.json, and status reads back what begin wrote"
+
+setup
+for given in "2 override" "1 file"; do
+  level="${given% *}"
+  source="${given#* }"
+  out="$("$SCRIPT" begin "$WT" --level "$level" --source "$source")"
+  [ "$(echo "$out" | json '[d["level"], d["source"]]')" = "[$level, '$source']" ] || fail "begin output for $given: $out"
+  [ "$(json '[d["level"], d["source"]]' < "$(echo "$out" | json 'd["workdir"]')/run.json")" = "[$level, '$source']" ] || fail "run.json for $given"
+  read_back="$("$SCRIPT" status "$WT")"
+  [ "$(echo "$read_back" | json '[d["level"], d["source"]]')" = "[$level, '$source']" ] || fail "status for $given: $read_back"
+done
+echo "ok: begin records the level and source it is given, unchanged, in run.json and in status"
+
+refused() {
+  local rc=0
+  "$SCRIPT" "$@" > /dev/null 2>&1 || rc=$?
+  [ "$rc" = 1 ] || fail "panel.sh $* exited $rc, not 1"
+}
+
+setup
+"$SCRIPT" begin "$WT" --level 3 --source default --issue 12 --parent 88 > /dev/null
+read_back="$("$SCRIPT" status "$WT")"
+[ "$(echo "$read_back" | json '[d["issue"], d["parent"]]')" = "[12, 88]" ] || fail "status issue and parent: $read_back"
+refused begin "$WT" --source default
+refused begin "$WT" --level 3
+refused begin "$WT" --level 4 --source default
+refused begin "$WT" --level 3 --source other
+refused begin "$WT" --level 3 --source default --issue 12
+refused begin relative/wt --level 3 --source default
+echo "ok: begin writes --issue and --parent to run.json, and refuses a missing --level or --source, --level 4, --source other, --issue without --parent and a relative <WT>"
+
+setup
+grep -vx 'work-reports/' "$MAIN/.git/info/exclude" > "$TMP/exclude"
+cp "$TMP/exclude" "$MAIN/.git/info/exclude"
+out="$("$SCRIPT" begin "$WT" --level 3 --source default)"
+[ "$(echo "$out" | json 'd["reason"]')" = not-ignored ] || fail "not-ignored reason: $out"
+[ ! -e "$WT/work-reports" ] || fail "begin wrote under work-reports/ when it is not ignored"
+echo "ok: begin stops with not-ignored and writes nothing when work-reports/ is not ignored"
+
+setup
+echo side > "$WT/a"
+git -C "$WT" commit -q -am side
+before_merge="$(git -C "$WT" rev-parse HEAD)"
+git -C "$MAIN" branch other HEAD
+git -C "$MAIN" checkout -q other
+echo other > "$MAIN/a"
+git -C "$MAIN" commit -q -am other
+git -C "$WT" merge -q "other" > /dev/null 2>&1 && fail "the merge did not conflict"
+[ -f "$MAIN/.git/worktrees/wf-test/MERGE_HEAD" ] || fail "no merge in progress"
+out="$("$SCRIPT" begin "$WT" --level 3 --source default)"
+[ "$(echo "$out" | json 'd["start"]')" = "$before_merge" ] || fail "begin during a merge: $out"
+[ -f "$MAIN/.git/worktrees/wf-test/MERGE_HEAD" ] || fail "begin removed MERGE_HEAD"
+echo "ok: begin during a merge in progress takes the commit the merge started on"
+
+for try in 1 2 3; do
+  setup
+  first="$("$SCRIPT" begin "$WT" --level 3 --source default | json 'd["workdir"]')"
+  sum_before="$(cksum < "$first/run.json")"
+  second="$("$SCRIPT" begin "$WT" --level 2 --source override | json 'd["workdir"]')"
+  [ "$second" = "$first-2" ] && break
+  [ "$try" != 3 ] || fail "a second begin made $second, not $first-2"
+done
+[ "$(cksum < "$first/run.json")" = "$sum_before" ] || fail "the second begin changed the first run.json"
+[ "$("$SCRIPT" status "$WT" | json 'd["workdir"]')" = "$second" ] || fail "status did not read the second begin"
+echo "ok: a second begin on the same commit in the same minute makes <name>-2, and status reads the second"
+
+setup
+workdir="$("$SCRIPT" begin "$WT" --level 3 --source default | json 'd["workdir"]')"
+later="$WT/work-reports/9999-12-31-2359-fffffff"
+mkdir -p "$later" "$WT/work-reports/9999-12-31-2359-design"
+echo '{"start": "fffffff", "level": 1, "source": "file", "issue": null, "parent": null}' > "$later/run.json"
+touch -t 200001010000 "$later/run.json"
+read_back="$("$SCRIPT" status "$WT")"
+[ "$(echo "$read_back" | json 'd["workdir"]')" = "$workdir" ] || fail "status past a later name: $read_back"
+echo "ok: status reads the run.json written last, past a later name and past directories with no run.json"
+
+setup
+out="$("$SCRIPT" status "$WT")"
+[ "$(echo "$out" | json 'd["reason"]')" = no-run ] || fail "no-run reason: $out"
+out="$("$SCRIPT" begin "$TMP" --level 3 --source default)"
+[ "$(echo "$out" | json 'd["reason"]')" = unknown ] || fail "begin unknown reason: $out"
+echo "ok: status stops with no-run when no directory holds a run.json, and begin stops with unknown outside a worktree"
