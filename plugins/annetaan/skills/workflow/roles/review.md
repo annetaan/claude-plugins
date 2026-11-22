@@ -55,7 +55,7 @@ A probe is a directory `<WORKDIR>/seats/<seat>/<name>/` with `run.sh` and, when 
 
 ## The command
 
-Each finding gives **one command, the line you ran**: `panel.sh run <WT> <seat> <probe dir>` with real paths, no variable, `$(...)` or chaining. The main session runs it again word for word from `<WT>`, and the implementation session runs it after its fix. **A command the main session cannot run again is dropped.** Copy the line you ran into `Command:`, in backticks.
+Each finding gives **one command, the line you ran**: `panel.sh run <WT> <seat> <probe dir>` with real paths, no variable, `$(...)` or chaining. `panel.sh verify` runs it again word for word for the main session, and the implementation session runs it after its fix. **A command `panel.sh verify` cannot run again is dropped.** Copy the line you ran into `Command:`, in backticks.
 
 **The probe's `run.sh` exits non-zero exactly while the failure it proves shows, and 0 once the failure is gone.** The findings are sorted by that exit alone: a probe that exits 0 drops its finding, whatever it printed. A search that is a finding inverts the search's exit with `test $? -eq 1` after it, not with `!`:
 
@@ -81,7 +81,7 @@ As the last step before you report, run `$FLOW/scripts/panel.sh lint <absolute p
 
 ## Later rounds
 
-Each later round arrives as a `SendMessage`. Read the reply file and the new evidence file the message names. Your probes of the earlier rounds are still there, and so are the dependencies you installed. **Do not raise again** a finding the earlier round files list: the main session runs those commands itself and marks them. A finding answered `fixed` that is not fixed is marked `stands` by that rerun, not by you.
+Each later round arrives as a `SendMessage`. Read the reply file and the new evidence file the message names. Your probes of the earlier rounds are still there, and so are the dependencies you installed. **Do not raise again** a finding the earlier round files list: `panel.sh verify` runs those commands again for the main session and marks them. A finding answered `fixed` that is not fixed is marked `stands` by that rerun, not by you.
 
 **A later round attacks what changed since your last round, not the whole change again.** Round 1 already attacked the rest, and nothing else moved.
 

@@ -17,11 +17,12 @@ FOUND_BY = ("a", "b", "a, b")
 FINDING_ID = r"R[1-9]\d*\.[1-9]\d*"
 EARLIER_ID = re.compile(r"- (%s)\b" % FINDING_ID)
 MARK = re.compile(r"- (%s) (?:resolved(?:: \S.*)?|(stands again|stands): \S.*)" % FINDING_ID)
+DISAGREE = "; reply: disagree"
 ANSWER = re.compile(r"- (%s) (fixed|disagree): \S" % FINDING_ID)
 SUB_BULLET = re.compile(r"\s+- (ran|saw|not run):")
 FORBIDDEN = set("$\"';&|<>()`")
 REASONS = ("sections", "id", "finding", "command", "entry", "seats", "no-round", "mark", "earlier-missing", "verdict",
-           "approve-open", "approve-no-evidence", "line", "missing", "ran", "assumed", "no-evidence")
+           "approve-open", "approve-no-evidence", "draft", "line", "missing", "ran", "assumed", "no-evidence")
 
 def run(*cmd, cwd=None, env=None):
     return subprocess.run(cmd, capture_output=True, text=True, cwd=cwd, env=env)
@@ -354,6 +355,30 @@ def holds(s):
         return bool(s["lines"])
     return bool(s["blocks"]) or s["lines"] == ["None."]
 
+def copied(line, want):
+    if want is None:
+        return False
+    disagree = want.endswith(DISAGREE)
+    base = want[:-len(DISAGREE)] if disagree else want
+    starts = [base]
+    status = MARK.fullmatch(base)
+    if disagree and status and status.group(2):
+        starts.append(base[:status.start(2)] + "resolved" + base[status.end(2):])
+    return any(line.startswith(start) for start in starts)
+
+def draft_reasons(path, earlier, new):
+    draft = os.path.join(os.path.dirname(os.path.dirname(path)), "drafts", os.path.basename(path))
+    if not os.path.isfile(draft):
+        return {"draft"}
+    parsed = parse_review(draft)
+    lines = {m.group(1): block[0] for block in section(parsed, "Earlier findings")["blocks"]
+             for m in [EARLIER_ID.match(block[0])] if m}
+    pairs = [fields(block, ("Command", "Printed")) for block in section(parsed, "New findings")["blocks"]]
+    if (all(copied(line, lines.get(EARLIER_ID.match(line).group(1))) for line in earlier)
+            and all(fields(block, ("Command", "Printed")) in pairs for block in new)):
+        return set()
+    return {"draft"}
+
 def lint_reasons(path):
     if review_kind(os.path.basename(path)) is None:
         return None, ["name"]
@@ -387,7 +412,7 @@ def lint_reasons(path):
     if kind == "round":
         if len(parsed["seats"]) != 1:
             found.add("seats")
-        listed = set()
+        listed, marked, kept = set(), [], []
         for block in section(parsed, "Earlier findings")["blocks"]:
             if r == 1:
                 found.add("id")
@@ -399,12 +424,19 @@ def lint_reasons(path):
                     found.add("id")
             if not MARK.fullmatch(block[0]):
                 found.add("mark")
+            elif before is not None and m.group(1) in before:
+                marked.append(block[0])
         if before is not None and set(before) - listed:
             found.add("earlier-missing")
         for n, block in enumerate(section(parsed, "New findings")["blocks"], 1):
-            if not re.match(r"### R%d\.%d \S" % (r, n), block[0]):
+            numbered = re.match(r"### R%d\.%d \S" % (r, n), block[0])
+            if not numbered:
                 found.add("id")
-            found |= finding_reasons(block, ("Found by", "Command", "Printed", "Required", "Breaks"))
+            reasons = finding_reasons(block, ("Found by", "Command", "Printed", "Required", "Breaks"))
+            found |= reasons
+            if numbered and not reasons:
+                kept.append(block)
+        found |= draft_reasons(path, marked, kept)
         verdict = section(parsed, "Verdict")["lines"]
         if verdict not in (["approve"], ["changes-requested"]):
             found.add("verdict")
@@ -476,7 +508,7 @@ def verify(wt, scope):
             die("%s could not be run again: %s" % (fid, result["message"]))
         word = "resolved" if result["exit"] == 0 else "stands again" if finding["stood"] else "stands"
         earlier_lines.append("- %s %s: ran: `%s`; saw: %s%s" % (fid, word, command, printed(result),
-                                                                 "; reply: disagree" if finding["reply"] == "disagree" else ""))
+                                                                 DISAGREE if finding["reply"] == "disagree" else ""))
         earlier.append({"id": fid, "command": command, "exit": result["exit"], "output": result["output"],
                         "state": word, "reply": finding["reply"]})
     for seat in SEATS:

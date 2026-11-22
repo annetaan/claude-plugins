@@ -17,7 +17,8 @@ usage: panel.sh run <WT> <seat> <probe dir>   snapshot the working tree of <WT>,
                                               integration or merge) also its next round, whether the cap is reached, the
                                               last verdict, the open findings and whether approve is allowed
        panel.sh lint <file>                   check one review file against review-files.md and print ok, kind and reasons;
-                                              it reads only the file and the files beside it
+                                              it reads the file, the files beside it and, for a round file, its draft
+                                              under drafts/
        panel.sh verify <WT> <scope>           run again every command of the scope's next round, the open earlier findings
                                               and both seats' findings, sort them by the probe's exit, and write
                                               drafts/<scope>-round-<r>.md in the run's work directory

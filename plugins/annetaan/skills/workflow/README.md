@@ -53,9 +53,10 @@ know. The approval also shows the model decisions, and "change something first" 
 
 Each task's implementation session shows every acceptance criterion by running it, on the tree under review, and writes
 the runs to an evidence file. A bug fix with a cheap test path starts with a failing test. Two review seats try to break the change and prove every finding by a run of a probe they wrote: a command, what it
-printed, and what the design requires. The main session runs each command again, keeps only a failure that breaks the
-design, and writes the round and its verdict. From round 2 on, the main session reruns the open findings itself, and
-each seat attacks only what changed since the tree it reviewed last. What no seat could run is listed in the pull
+printed, and what the design requires. `panel.sh verify` reruns each command, the open findings of earlier rounds
+included, sorts the findings by the probe's exit and writes the draft of the round. The main session keeps only a
+failure that breaks the design, and writes the round and its verdict from the draft. From round 2 on, each seat attacks
+only what changed since the tree it reviewed last. What no seat could run is listed in the pull
 request under its own heading. Each session lints the review file it writes with `panel.sh lint` before it reports, so
 a seat file, a round file, a reply or an evidence file that drifts from the format is fixed where it is written.
 
@@ -175,11 +176,12 @@ work-reports/2026-09-19-1346-a1b2c3d/
   review/        one file per review round, the reply to each, and the evidence files
     task-1-evidence.md
     task-1-round-1-a.md         what seat a proved in round 1, and `-b` for seat b
-    task-1-round-1.md           the main session's round, from the seat files
+    task-1-round-1.md           the main session's round, from its draft
     task-1-round-1-reply.md
     task-1-round-1-evidence.md  after a round that changed code
     integration-round-1.md      plans of two or more tasks, with its two seat files
   seats/         the probes of the two review seats, `a/<name>/run.sh` and its `tree/`
+  drafts/        the draft of each round file, under the round file's name, written by panel.sh verify from the reruns
   scratch/       throwaway scripts of the implementation session
   before.png     before and after, when the change shows on screen
   after.png
@@ -251,7 +253,7 @@ screenshots it could not attach.
 | `scripts/level.sh` | reads the repository's level from origin's default branch and prints the model and effort it gives the implementation session, the two review seats and pj's issue writer |
 | `scripts/level.py` | the code `level.sh` runs, and the one place the level table lives |
 | `scripts/comments.py` | fails on a comment outside the four kinds, or a silenced check the change adds, in the files a change touches. The implementation and review sessions run it |
-| `scripts/panel.sh` | makes the run's work directory and reads it back, reports a scope's round, cap, open findings and whether `approve` is allowed, runs a review seat's probe in a git worktree beside the run's, at a snapshot of the working tree, removes the seats at cleanup, and lints a review file |
+| `scripts/panel.sh` | makes the run's work directory and reads it back, reports a scope's round, cap, open findings and whether `approve` is allowed, runs a review seat's probe in a git worktree beside the run's, at a snapshot of the working tree, runs every probe of a round again and writes the draft of the round, removes the seats at cleanup, and lints a review file |
 | `scripts/panel.py` | the code `panel.sh` runs. `worktree.py` imports the stamp rules of the work directory names from it |
 | `review-files.md` | the shape of the review files and the evidence files, read by the seats, the main session and the implementation session |
 

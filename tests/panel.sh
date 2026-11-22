@@ -378,10 +378,7 @@ gives() {
   [ "$(echo "$out" | json '[d["ok"], d["reasons"]]')" = "[False, $2]" ] || fail "lint $1 did not give $2: $out"
 }
 
-breaks() {
-  local file="$1" reason="$2" good out
-  shift 2
-  good="$(cat "$file")"
+swap() {
   python3 -c '
 import sys
 path, pairs = sys.argv[1], sys.argv[2:]
@@ -391,7 +388,14 @@ for old, new in zip(pairs[::2], pairs[1::2]):
         sys.exit("%r is not in %s once" % (old, path))
     text = text.replace(old, new)
 open(path, "w", encoding="utf-8").write(text)
-' "$file" "$@" || fail "cannot break $file for $reason"
+' "$@"
+}
+
+breaks() {
+  local file="$1" reason="$2" good out
+  shift 2
+  good="$(cat "$file")"
+  swap "$file" "$@" || fail "cannot break $file for $reason"
   out="$("$SCRIPT" lint "$file")"
   [ "$(echo "$out" | json "[d['ok'], '$reason' in d['reasons']]")" = "[False, True]" ] || fail "lint $file did not give $reason: $out"
   printf '%s\n' "$good" > "$file"
@@ -454,6 +458,22 @@ finding() {
 }
 
 round_file() {
+  write "$(dirname "$(dirname "$1")")/drafts/$(basename "$1")" <<EOF
+# Draft
+
+## Earlier findings
+
+$2
+
+## New findings
+
+$3
+
+## Dropped
+
+- a: none
+- b: none
+EOF
   write "$1" <<EOF
 # Round
 
@@ -490,17 +510,20 @@ reply_file() {
 
 FIXED="fixed: the cache is cleared on sign-out. ran: $CMD; saw: exit 0"
 
-D="$TMP/lint/examples"
+D="$TMP/lint/examples/review"
 mkdir -p "$D"
 python3 -c '
 import os, re, sys
 names = {"# Task 2, evidence": "task-2-evidence.md", "# Task 2, round 1, seat a": "task-2-round-1-a.md",
-         "# Task 2, round 2": "task-2-round-2.md", "# Task 2, round 2, reply": "task-2-round-2-reply.md"}
+         "# Task 2, round 2": "task-2-round-2.md", "# Task 2, round 2, reply": "task-2-round-2-reply.md",
+         "# task-2, round 2, draft": "../drafts/task-2-round-2.md"}
 text = open(sys.argv[1], encoding="utf-8").read()
 for block in re.findall(r"^```markdown\n(.*?)^```$", text, re.S | re.M):
     title = block.split("\n", 1)[0]
     if title in names:
-        open(os.path.join(sys.argv[2], names[title]), "w", encoding="utf-8").write(block)
+        path = os.path.join(sys.argv[2], names[title])
+        os.makedirs(os.path.dirname(path), exist_ok=True)
+        open(path, "w", encoding="utf-8").write(block)
 ' "$REVIEW_FILES" "$D"
 round_file "$D/task-2-round-1.md" None. "$(finding R1.1; echo; finding R1.2)" changes-requested
 passes "$D/task-2-round-1.md" round
@@ -511,7 +534,7 @@ cp "$D/task-2-evidence.md" "$D/task-2-round-2-evidence.md"
 passes "$D/task-2-round-2-reply.md" reply
 echo "ok: lint passes the examples in review-files.md"
 
-D="$TMP/lint/seat"
+D="$TMP/lint/seat/review"
 seat_file "$D/task-5-round-1-a.md"
 passes "$D/task-5-round-1-a.md" seat
 seat_file "$D/task-5-round-1-b.md" none
@@ -546,7 +569,7 @@ breaks "$D/integration-round-1-a.md" entry "  - saw: ok
 breaks "$D/integration-round-1-a.md" entry "  - not run: no browser here" "  - skipped"
 echo "ok: lint names each reason of a seat file"
 
-D="$TMP/lint/round"
+D="$TMP/lint/round/review"
 round_file "$D/task-4-round-1.md" None. "$(finding R1.1; echo; finding R1.2)" changes-requested
 reply_file "$D/task-4-round-1-reply.md" "- R1.1 $FIXED" "- R1.2 disagree: the value is meant to stay"
 round_file "$D/task-4-round-2.md" "- R1.1 resolved
@@ -608,7 +631,7 @@ changes-requested" "
 approve"
 echo "ok: lint names each reason of a round file"
 
-D="$TMP/lint/reply"
+D="$TMP/lint/reply/review"
 round_file "$D/task-3-round-1.md" None. "$(finding R1.1; echo; finding R1.2)" changes-requested
 round_file "$D/task-3-round-2.md" "- R1.1 resolved
 - R1.2 stands again: ran: $CMD; saw: exit 1; the value still stays" None. changes-requested
@@ -643,7 +666,7 @@ reply_file "$D/task-3-round-1-reply.md" "- R1.1 disagree: the value is meant to 
 passes "$D/task-3-round-1-reply.md" reply
 echo "ok: lint names each reason of a reply"
 
-D="$TMP/lint/evidence"
+D="$TMP/lint/evidence/review"
 evidence_file "$D/task-6-evidence.md"
 evidence_file "$D/merge-round-2-evidence.md"
 passes "$D/task-6-evidence.md" evidence
@@ -667,12 +690,12 @@ breaks "$D/task-6-evidence.md" entry "- ran: bash tests/retry.sh before the fix"
 breaks "$D/task-6-evidence.md" entry "  - saw: FAIL stops at zero attempts" "  - ran: again"
 echo "ok: lint names each reason of an evidence file"
 
-D="$TMP/lint/approve-task"
+D="$TMP/lint/approve-task/review"
 round_file "$D/task-1-round-1.md" None. None. approve
 gives "$D/task-1-round-1.md" "['approve-no-evidence']"
 evidence_file "$D/task-1-evidence.md"
 passes "$D/task-1-round-1.md" round
-D="$TMP/lint/approve-fixed"
+D="$TMP/lint/approve-fixed/review"
 evidence_file "$D/task-1-evidence.md"
 round_file "$D/task-1-round-1.md" None. "$(finding R1.1)" changes-requested
 reply_file "$D/task-1-round-1-reply.md" "- R1.1 $FIXED"
@@ -683,7 +706,7 @@ passes "$D/task-1-round-2.md" round
 rm "$D/task-1-round-1-evidence.md"
 reply_file "$D/task-1-round-1-reply.md" "- R1.1 $FIXED" "- R1.1 disagree: the rest of it is meant"
 gives "$D/task-1-round-2.md" "['approve-no-evidence']"
-D="$TMP/lint/approve-disagree"
+D="$TMP/lint/approve-disagree/review"
 evidence_file "$D/task-1-evidence.md"
 round_file "$D/task-1-round-1.md" None. "$(finding R1.1)" changes-requested
 reply_file "$D/task-1-round-1-reply.md" "- R1.1 disagree: the value is meant to stay"
@@ -691,19 +714,19 @@ round_file "$D/task-1-round-2.md" "- R1.1 resolved: the value is meant to stay" 
 passes "$D/task-1-round-2.md" round
 rm "$D/task-1-evidence.md"
 gives "$D/task-1-round-2.md" "['approve-no-evidence']"
-D="$TMP/lint/approve-integration"
+D="$TMP/lint/approve-integration/review"
 round_file "$D/integration-round-1.md" None. None. approve
 gives "$D/integration-round-1.md" "['approve-no-evidence']"
 seat_file "$D/integration-round-1-a.md" none
 gives "$D/integration-round-1.md" "['approve-no-evidence']"
 seat_file "$D/integration-round-1-b.md" none "$WALK"
 passes "$D/integration-round-1.md" round
-D="$TMP/lint/approve-merge"
+D="$TMP/lint/approve-merge/review"
 round_file "$D/merge-round-1.md" None. None. approve
 gives "$D/merge-round-1.md" "['approve-no-evidence']"
 evidence_file "$D/merge-evidence.md"
 passes "$D/merge-round-1.md" round
-D="$TMP/lint/approve-open"
+D="$TMP/lint/approve-open/review"
 evidence_file "$D/task-1-evidence.md"
 round_file "$D/task-1-round-1.md" None. "$(finding R1.1)" approve
 gives "$D/task-1-round-1.md" "['approve-open']"
@@ -713,7 +736,23 @@ round_file "$D/task-1-round-2.md" "- R1.1 stands: ran: $CMD; saw: exit 1. The va
 gives "$D/task-1-round-2.md" "['approve-open']"
 echo "ok: lint allows approve only with no finding open and the evidence of the latest code change"
 
-D="$TMP/lint/drifted"
+D="$TMP/lint/drifted/review"
+write "$D/../drafts/task-1-round-1.md" <<EOF
+# task-1, round 1, draft
+
+## Earlier findings
+
+None.
+
+## New findings
+
+None.
+
+## Dropped
+
+- a: none
+- b: none
+EOF
 write "$D/task-1-round-1.md" <<EOF
 # Task 1, round 1
 
@@ -752,7 +791,7 @@ EOF
 gives "$D/task-1-round-1.md" "['sections', 'id', 'finding', 'verdict']"
 echo "ok: lint fails a round file whose ids, sections and verdict drifted"
 
-D="$TMP/lint/flow"
+D="$TMP/lint/flow/review"
 evidence_file "$D/task-1-evidence.md"
 passes "$D/task-1-evidence.md" evidence
 seat_file "$D/task-1-round-1-a.md"
@@ -773,7 +812,7 @@ round_file "$D/task-1-round-2.md" "- R1.1 resolved" None. approve
 passes "$D/task-1-round-2.md" round
 echo "ok: lint passes each file of a two-round review in the order it is written"
 
-D="$TMP/lint/names"
+D="$TMP/lint/names/review"
 out="$("$SCRIPT" lint "$D/task-1-evidence.md")"
 [ "$(echo "$out" | json '[d["status"], d["reason"]]')" = "['stop', 'no-file']" ] || fail "lint of a missing file: $out"
 mkdir -p "$D/task-1-round-1.md"
@@ -1054,3 +1093,42 @@ refused verify "$WT"
 refused verify "$WT" task-1 x
 refused verify relative/wt task-1
 echo "ok: verify refuses a bad scope before begin, and stops with no-run on a good one"
+
+setup
+W="$("$SCRIPT" begin "$WT" --level 3 --source default | json 'd["workdir"]')"
+R="$W/review"
+one="$(probe a one 'test "$(cat a)" = fixed || { echo one fails; exit 1; }')"
+fine="$(probe a fine 'echo fine')"
+two="$(probe b two 'echo two fails; exit 1')"
+findings_file "$R/task-1-round-1-a.md" "one fails" "$(ran_line a "$one")" "fine" "$(ran_line a "$fine")"
+findings_file "$R/task-1-round-1-b.md" "two fails" "$(ran_line b "$two")"
+[ "$(verified task-1 '[[f["id"], f["seat"]] for f in d["new"]] + [[f["number"], f["why"]] for f in d["dropped"]]')" = "[['R1.1', 'a'], ['R1.2', 'b'], [2, 'exit-0']]" ] || fail "verify for the draft: $(cat "$TMP/verify.out")"
+round_from_draft "$W/drafts/task-1-round-1.md" "$R/task-1-round-1.md"
+breaks "$R/task-1-round-1.md" draft "Printed: exit 1, \`one fails\`" "Printed: exit 1, \`one failed\`"
+breaks "$R/task-1-round-1.md" draft "$(ran_line a "$one")" "$(ran_line a "$fine")"
+cp "$R/task-1-round-1.md" "$TMP/round-1.md"
+swap "$R/task-1-round-1.md" "### R1.1 one fails
+
+Found by: a
+Command: $(ran_line a "$one")
+Printed: exit 1, \`one fails\`
+Required: the design holds
+Breaks: the flow fails
+
+" "" "### R1.2 two fails" "### R1.1 two fails" "Found by: b" "Found by: a, b" || fail "cannot merge the findings of round 1"
+passes "$R/task-1-round-1.md" round
+cp "$TMP/round-1.md" "$R/task-1-round-1.md"
+evidence_file "$R/task-1-round-1-evidence.md"
+reply_file "$R/task-1-round-1-reply.md" "- R1.1 fixed: a is fixed. ran: $(ran_line a "$one"); saw: exit 0" "- R1.2 disagree: two is meant to fail"
+echo fixed > "$WT/a"
+findings_file "$R/task-1-round-2-a.md"
+findings_file "$R/task-1-round-2-b.md"
+[ "$(verified task-1 '[[f["id"], f["state"], f["reply"]] for f in d["earlier"]]')" = "[['R1.1', 'resolved', 'fixed'], ['R1.2', 'stands', 'disagree']]" ] || fail "verify round 2 for the draft: $(cat "$TMP/verify.out")"
+round_from_draft "$W/drafts/task-1-round-2.md" "$R/task-1-round-2.md"
+breaks "$R/task-1-round-2.md" draft "- R1.1 resolved:" "- R1.1 stands:"
+swap "$R/task-1-round-2.md" "- R1.2 stands:" "- R1.2 resolved:" || fail "cannot resolve R1.2"
+grep -qx -- "- R1.2 resolved: ran: $(ran_line b "$two"); saw: exit 1, \`two fails\`; reply: disagree" "$R/task-1-round-2.md" || fail "R1.2 is not written resolved: $(cat "$R/task-1-round-2.md")"
+passes "$R/task-1-round-2.md" round
+mv "$W/drafts/task-1-round-2.md" "$TMP/draft-2.md"
+gives "$R/task-1-round-2.md" "['draft']"
+echo "ok: lint holds a round file to the draft"
