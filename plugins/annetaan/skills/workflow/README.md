@@ -249,6 +249,7 @@ screenshots it could not attach.
 | `scripts/level.py` | the code `level.sh` runs, and the one place the level table lives |
 | `scripts/comments.py` | fails on a comment outside the four kinds, or a silenced check the change adds, in the files a change touches. The implementation and review sessions run it |
 | `scripts/panel.sh` | runs a review seat's probe in a git worktree beside the run's, at a snapshot of the working tree, and removes the seats at cleanup |
+| `scripts/panel.py` | the code `panel.sh` runs |
 | `review-files.md` | the shape of the review files and the evidence files, read by the seats, the main session and the implementation session |
 
 The design, implementation and review sessions run on agents that ship with the plugin (`../../agents/`). Design is
