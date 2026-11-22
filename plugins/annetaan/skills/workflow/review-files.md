@@ -4,7 +4,8 @@ The review rounds run through Markdown files under `<WORKDIR>/review/`. The two 
 implementation session each write their own files. A file is final once its writer has linted it (see **The lint**) and
 reported, and nobody edits it after that. The directory is the whole conversation of the review, in order, and it stays
 next to the work report. The seats' probes sit beside it, under
-`<WORKDIR>/seats/` (see **A probe**).
+`<WORKDIR>/seats/` (see **A probe**), and so do the drafts `panel.sh verify` writes, under `<WORKDIR>/drafts/` (see
+**A draft**).
 
 ## Names
 
@@ -68,6 +69,8 @@ A probe is how a seat runs code. It is a directory `<WORKDIR>/seats/<seat>/<name
 - `run.sh`, which runs from the root of the seat's worktree: the run's working tree at a snapshot, with the probe's `tree/` copied over it
 - `tree/`, when the probe needs files: a failing test, a fixture, each at its repository path
 
+`run.sh` exits non-zero exactly while the failure it proves shows, and 0 once the failure is gone. `panel.sh verify` sorts the findings by that exit alone, so a probe that only prints what it found exits 0 and its finding is dropped.
+
 `panel.sh run <WT> <seat> <probe dir>` snapshots `<WT>`, puts the seat's worktree at the snapshot, copies `tree/` over it, runs `run.sh` there and prints `{"status":"ran","seat","snapshot","exit","lines","output"}`, `output` being the last 40 lines. A probe has to be under `<WT>/work-reports/`. It stops with `outside`, `no-script`, `busy` (another run holds this seat) or `unknown`. Every run starts from a clean snapshot of `<WT>` as it is at that moment, and keeps the ignored files of the seat's worktree, such as installed dependencies, so a probe that installs them once serves every later run of that seat.
 
 ## A seat file
@@ -95,6 +98,46 @@ Required: the retry stops at zero attempts (acceptance criterion 2)
 - `## Findings` reads `None.` when the seat proved nothing.
 - `## Not run` holds each `not run:` entry of the evidence file that the seat could not run either, with the reason. It reads `None.` when there is none.
 - Integration round 1 adds `## Walk` as the last section: every acceptance criterion and flow of the whole design, each run as a probe, each entry shaped like an entry of an evidence file, with `ran:` and `saw:`, or `not run:`.
+
+## A draft
+
+`panel.sh verify <WT> <scope>` works on the scope's next round `r`, the `round` that `panel.sh status <WT> <scope>` prints. It runs again the command of every finding the last round left open and of every finding in both seat files of round `r`, one after another, seat `a`'s first, and writes what the runs showed to `<WORKDIR>/drafts/<scope>-round-<r>.md`. It overwrites a draft that is already there. It prints `{"status":"ok","scope","round","draft","dropouts","earlier","new","dropped"}`: an entry of `earlier` carries `id`, `command`, `exit`, `output`, `state` and `reply`, an entry of `new` carries `id`, `seat`, `number` (the seat's own `### <n>.`), `title`, `command`, `exit` and `output`, and an entry of `dropped` carries `seat`, `number`, `title`, `command` and `why`. `output` is the last 40 lines, as `panel.sh run` prints them.
+
+```markdown
+# task-2, round 2, draft
+
+## Earlier findings
+
+- R1.1 resolved: ran: `/abs/skills/workflow/scripts/panel.sh run /abs/wt a /abs/wt/work-reports/2026-09-19-1346-a1b2c3d/seats/a/stale-cache`; saw: exit 0, `2 passed`
+- R1.2 stands: ran: `/abs/skills/workflow/scripts/panel.sh run /abs/wt a /abs/wt/work-reports/2026-09-19-1346-a1b2c3d/seats/a/retry-zero`; saw: exit 1, `expected 0 calls, got 1`
+
+## New findings
+
+### R2.1 `cache.ts` `clearCache` empties the sign-in value
+
+Found by: a
+Command: `/abs/skills/workflow/scripts/panel.sh run /abs/wt a /abs/wt/work-reports/2026-09-19-1346-a1b2c3d/seats/a/signin`
+Printed: exit 1, `1 failed: the form finds an empty cache`
+
+### R2.2 the second sign-in finds no cached value
+
+Found by: b
+Command: `/abs/skills/workflow/scripts/panel.sh run /abs/wt b /abs/wt/work-reports/2026-09-19-1346-a1b2c3d/seats/b/signin-twice`
+Printed: exit 1, `expected a cached value, got undefined`
+
+## Dropped
+
+- a: 1, the command exited 0, so the failure did not show (finding 2)
+- b: none
+```
+
+- Every draft has these three sections. A section with nothing in it reads `None.`, so `## Earlier findings` reads `None.` in round 1.
+- `## Earlier findings` holds one line per finding the last round left open, in the order `panel.sh status` lists them, each run again with the `Command:` of the round file that raised it. Exit 0 is `resolved`. Non-zero is `stands`, and `stands again` when the finding stood in an earlier round. A finding whose reply is `disagree` gets `; reply: disagree` after the `saw:` part.
+- `## New findings` holds the findings of seat `a`'s file, then seat `b`'s, in their order. Each one whose run exits non-zero gets the next id `R<r>.<n>`, from 1, `Found by:` its seat, its title and its `Command:` as the seat wrote them, and `Printed:` from the run.
+- `## Dropped` gives per seat and reason the count and the seat's own finding numbers: those that exited 0, and those whose command could not be run again, with the reason `panel.sh run` stopped on, or `command` when the `Command:` is not one backticked `panel.sh run <WT> <seat> <probe dir>` line. A seat with nothing dropped reads `- <seat>: none`. A seat with no file reads `- <seat>: no seat file` and is listed in `dropouts`.
+- `Printed:` and `saw:` are `exit <n>`, then, when the output has a line that is not blank, `, ` and the last such line as a code span, fenced with one backtick more than the longest run of backticks in it.
+- Each command is run word for word: `<WT>`, the seat and the probe directory come from the command itself, and the `panel.sh` path in it is not run.
+- An earlier finding whose command cannot be run again is an unexpected failure: `verify` exits 1, names the finding and writes no draft.
 
 ## A review round
 

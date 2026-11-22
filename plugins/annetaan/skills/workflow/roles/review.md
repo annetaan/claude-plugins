@@ -30,16 +30,16 @@ A finding is measured against the intent: the approved design and its acceptance
 
 ## What a run can show
 
-Each finding is a run against the real code: a failing test, a repro script, a command whose output shows the wrong behaviour (**Proven by a run**). These are the kinds of break a run shows:
+Each finding is a run against the real code, a probe whose `run.sh` exits non-zero while the break shows (**Proven by a run**). These are the kinds of break a run shows, each with the `run.sh` that shows it:
 
-- **A reader the change breaks** (**Assumptions**): the input and the wrong thing that comes out of a reader that still assumes the old lifetime, key or shape.
-- **A name or shape the change left behind** (**As if it was always required**): a search that still finds a type, test, document, example or comment stating the old shape. The search is the probe's `run.sh`, and what it printed is the evidence.
-- **An old path beside the new one** (**No transitional code**): a shim, an adapter or a flag that picks between the two, found by a search. And a check that fails and is neither under the issue's `### Left broken` nor in the prompt's "Left broken on the base branch", or a declared one that fails for another reason than the declared one.
-- **The bad state reached past a guard** (**Root cause**): the input that produces the bad state while the guard sits in place.
-- **A criterion or a flow that fails** (**Done means shown**): the acceptance criterion, or a step of a flow the change touches, run on the snapshot. Try each `not run:` of the evidence file yourself, and list what you could not run under `## Not run`. A criterion or a flow with neither `ran:` nor `not run:` in the evidence file is a break you show by running it.
-- **A comment outside the four kinds, or a silenced check** (**Comments**, **Root cause**, **Existing workarounds**): a probe whose `run.sh` runs `python3 $FLOW/scripts/comments.py HEAD~1` for a task, and `python3 $FLOW/scripts/comments.py <START>` for the integration review (in your seat's worktree HEAD is the snapshot, so `HEAD~1` is the run's HEAD). Exit 1 is a finding, and the entries of `fix` and `unread` are what it printed. In a repository that publishes a library, pass `--library` and read `doc`: one that is not on the public API is a finding. An entry of `existing` the design does not account for is a finding under **Existing workarounds**. In a merge, do not run it.
-- **A `@ts-expect-error` outside a type test** (**Comments**): `comments.py` passes it, so a probe removes it and runs the type check. A type error the check then shows is a silenced check, and it is the finding.
-- **Work outside the task**: a change that reaches past the task in the plan, shown by a probe that prints `git diff --name-only HEAD~1 HEAD` (or `<START> HEAD`) against the task's file list. In your seat's worktree HEAD is the snapshot, a commit on top of the run's HEAD that holds the working tree.
+- **A reader the change breaks** (**Assumptions**): the input and the wrong thing that comes out of a reader that still assumes the old lifetime, key or shape, as a test or a repro script that fails, which exits non-zero.
+- **A name or shape the change left behind** (**As if it was always required**): a search that still finds a type, test, document, example or comment stating the old shape. The search is the probe's `run.sh`, followed by `test $? -eq 1`, so the probe exits 1 while the search finds something. What the search printed shows in the output beside that exit.
+- **An old path beside the new one** (**No transitional code**): a shim, an adapter or a flag that picks between the two, found by a search followed by `test $? -eq 1`, as above. And a check that fails and is neither under the issue's `### Left broken` nor in the prompt's "Left broken on the base branch", or a declared one that fails for another reason than the declared one: the check itself, which exits non-zero.
+- **The bad state reached past a guard** (**Root cause**): the input that produces the bad state while the guard sits in place, as a test or a repro script that fails, which exits non-zero.
+- **A criterion or a flow that fails** (**Done means shown**): the acceptance criterion, or a step of a flow the change touches, run on the snapshot as a test or a repro script that exits non-zero while it fails. Try each `not run:` of the evidence file yourself, and list what you could not run under `## Not run`. A criterion or a flow with neither `ran:` nor `not run:` in the evidence file is a break you show by running it.
+- **A comment outside the four kinds, or a silenced check** (**Comments**, **Root cause**, **Existing workarounds**): a probe whose `run.sh` runs `python3 $FLOW/scripts/comments.py HEAD~1` for a task, and `python3 $FLOW/scripts/comments.py <START>` for the integration review (in your seat's worktree HEAD is the snapshot, so `HEAD~1` is the run's HEAD). `comments.py` exits 1 while `fix` or `unread` holds an entry, so that probe needs nothing more, and those entries are what it printed. In a repository that publishes a library, pass `--library` and read `doc`: one that is not on the public API is a finding. An entry of `existing` the design does not account for is a finding under **Existing workarounds**. A `doc` entry and an entry of `existing` leave the exit 0, so their probe pipes the JSON into a check that exits 1 while that bucket still holds an entry with the finding's `path` and `text`, for example `python3 $FLOW/scripts/comments.py --library HEAD~1 | python3 -c 'import json, sys; sys.exit(any(e["path"] == "lib.py" and "Return the user." in e["text"] for e in json.load(sys.stdin)["doc"]))'`, with `existing` in place of `doc` for that bucket. In a merge, do not run it.
+- **A `@ts-expect-error` outside a type test** (**Comments**): `comments.py` passes it, so a probe removes it and runs the type check, which exits non-zero while the type error shows. That type error is a silenced check, and it is the finding.
+- **Work outside the task**: a change that reaches past the task in the plan. The probe pipes `git diff --name-only HEAD~1 HEAD` (or `<START> HEAD`) into `grep -v -x -F` with one `-e` per path of the task's file list and per path the repository's instructions let every change touch, then runs `test $? -eq 1`, so it exits 1 while the diff names a path outside the list, and prints that path. In your seat's worktree HEAD is the snapshot, a commit on top of the run's HEAD that holds the working tree.
 
 **What you leave out is whatever you did not run.** Style, naming, structure, a comment that `comments.py` passes, a risk that needs a later change to matter, and a guess that ends in "this might" are not findings. Reader load, dead code and test gaps in general are the implementation's and the design's rules, and a run does not show them. **No finding is a valid result.** Write `None.`.
 
@@ -55,7 +55,16 @@ A probe is a directory `<WORKDIR>/seats/<seat>/<name>/` with `run.sh` and, when 
 
 ## The command
 
-Each finding gives **one command, the line you ran**: `panel.sh run <WT> <seat> <probe dir>` with real paths, no variable, `$(...)` or chaining. The main session runs it again word for word from `<WT>`, and the implementation session runs it after its fix, so the probe has to give the same result when the failure is there and a different one when it is gone. **A command the main session cannot run again is dropped.** Copy the line you ran into `Command:`, in backticks.
+Each finding gives **one command, the line you ran**: `panel.sh run <WT> <seat> <probe dir>` with real paths, no variable, `$(...)` or chaining. The main session runs it again word for word from `<WT>`, and the implementation session runs it after its fix. **A command the main session cannot run again is dropped.** Copy the line you ran into `Command:`, in backticks.
+
+**The probe's `run.sh` exits non-zero exactly while the failure it proves shows, and 0 once the failure is gone.** The findings are sorted by that exit alone: a probe that exits 0 drops its finding, whatever it printed. A search that is a finding inverts the search's exit with `test $? -eq 1` after it, not with `!`:
+
+```sh
+git grep -n "fetchUser(" -- .
+test $? -eq 1
+```
+
+`git grep` exits 0 on a match, 1 on none and another code when it cannot search, so this probe exits 1 while the name is found, 0 once it is gone, and 1 for a search that is broken. `! git grep` would turn a broken search into exit 0, which reads as fixed.
 
 ## Writing the seat file
 

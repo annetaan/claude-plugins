@@ -864,3 +864,193 @@ out="$("$SCRIPT" status "$WT" task-1)"
 out="$("$SCRIPT" status "$WT" task-x 2>&1)" && fail "status task-x before begin exited 0: $out"
 [ "$out" = "panel: no such scope: task-x" ] || fail "status task-x before begin: $out"
 echo "ok: status refuses a bad scope before begin, and stops with no-run on a good one"
+
+ran_line() { printf '`%s run %s %s %s`' "$SCRIPT" "$WT" "$1" "$2"; }
+
+findings_file() {
+  local path="$1" body="" n=0
+  shift
+  while [ $# -gt 0 ]; do
+    n=$((n + 1))
+    body="$body$(printf '### %d. %s\n\nCommand: %s\nPrinted: exit 1\nRequired: the design holds' "$n" "$1" "$2")
+
+"
+    shift 2
+  done
+  write "$path" <<EOF
+# Seat
+
+## Findings
+
+${body:-None.}
+
+## Not run
+
+None.
+EOF
+}
+
+round_from_draft() {
+  python3 -c '
+import sys
+draft, out, verdict = sys.argv[1:]
+lines = open(draft, encoding="utf-8").read().splitlines()
+assert lines[0].endswith(", draft"), lines[0]
+kept = [lines[0][:-len(", draft")], "", "Seats: a on opus, b on fable"]
+for line in lines[1:]:
+    kept.append(line)
+    if line.startswith("Printed:"):
+        kept += ["Required: the design holds", "Breaks: the flow fails"]
+kept += ["", "## Not run", "", "None.", "", "## Verdict", "", verdict]
+open(out, "w", encoding="utf-8").write("\n".join(kept) + "\n")
+' "$1" "$2" "${3:-changes-requested}"
+  passes "$2" round
+}
+
+verified() {
+  "$SCRIPT" verify "$WT" "$1" > "$TMP/verify.out" || fail "verify $1 exited non-zero: $(cat "$TMP/verify.out")"
+  json "$2" < "$TMP/verify.out"
+}
+
+setup
+W="$("$SCRIPT" begin "$WT" --level 3 --source default | json 'd["workdir"]')"
+R="$W/review"
+fails="$(probe a fails "printf '%s\\n' 'the value is two' 'last \`tick\`' '' '   '; exit 1")"
+later="$(probe a later 'echo fine')"
+other="$(probe b other 'echo b sees it; exit 2')"
+findings_file "$R/task-1-round-1-a.md" "the value is two" "$(ran_line a "$fails")" "the value is fine" "$(ran_line a "$later")"
+findings_file "$R/task-1-round-1-b.md" "b sees it" "$(ran_line b "$other")"
+passes "$R/task-1-round-1-a.md" seat
+passes "$R/task-1-round-1-b.md" seat
+[ "$(verified task-1 '[d["status"], d["scope"], d["round"], d["draft"], d["dropouts"], d["earlier"]]')" = "['ok', 'task-1', 1, '$W/drafts/task-1-round-1.md', [], []]" ] || fail "verify round 1: $(cat "$TMP/verify.out")"
+[ "$(json '[[f["id"], f["seat"], f["number"], f["title"], f["exit"]] for f in d["new"]]' < "$TMP/verify.out")" = "[['R1.1', 'a', 1, 'the value is two', 1], ['R1.2', 'b', 1, 'b sees it', 2]]" ] || fail "verify new: $(cat "$TMP/verify.out")"
+[ "$(json '[d["new"][0]["command"], d["new"][0]["output"].splitlines()[-1]]' < "$TMP/verify.out")" = "['${SCRIPT} run $WT a $fails', '   ']" ] || fail "verify new command and output: $(cat "$TMP/verify.out")"
+[ "$(json '[[f["seat"], f["number"], f["title"], f["command"], f["why"]] for f in d["dropped"]]' < "$TMP/verify.out")" = "[['a', 2, 'the value is fine', '$SCRIPT run $WT a $later', 'exit-0']]" ] || fail "verify dropped: $(cat "$TMP/verify.out")"
+cat > "$TMP/draft.want" <<EOF
+# task-1, round 1, draft
+
+## Earlier findings
+
+None.
+
+## New findings
+
+### R1.1 the value is two
+
+Found by: a
+Command: $(ran_line a "$fails")
+Printed: exit 1, \`\` last \`tick\` \`\`
+
+### R1.2 b sees it
+
+Found by: b
+Command: $(ran_line b "$other")
+Printed: exit 2, \`b sees it\`
+
+## Dropped
+
+- a: 1, the command exited 0, so the failure did not show (finding 2)
+- b: none
+EOF
+diff "$TMP/draft.want" "$W/drafts/task-1-round-1.md" || fail "the draft of round 1 differs"
+printf '%s\n' 'echo now it fails; exit 1' > "$later/run.sh"
+[ "$(verified task-1 '[[f["id"], f["seat"], f["number"]] for f in d["new"]] + [d["dropped"]]')" = "[['R1.1', 'a', 1], ['R1.2', 'a', 2], ['R1.3', 'b', 1], []]" ] || fail "verify after the probe changed: $(cat "$TMP/verify.out")"
+grep -qx '### R1.3 b sees it' "$W/drafts/task-1-round-1.md" || fail "the second verify did not overwrite the draft"
+grep -qx -- '- a: none' "$W/drafts/task-1-round-1.md" || fail "the second verify kept the old dropped line"
+round_from_draft "$W/drafts/task-1-round-1.md" "$R/task-1-round-1.md"
+echo "ok: verify sorts the findings of both seats by the probe's exit"
+
+setup
+W="$("$SCRIPT" begin "$WT" --level 3 --source default | json 'd["workdir"]')"
+R="$W/review"
+findings_file "$R/task-1-round-1-a.md" "the value is two" "$(ran_line a "$(probe a fails 'echo two; exit 1')")"
+[ "$(verified task-1 '[d["dropouts"], [f["id"] for f in d["new"]], d["dropped"]]')" = "[['b'], ['R1.1'], []]" ] || fail "verify with one seat file: $(cat "$TMP/verify.out")"
+grep -qx -- '- b: no seat file' "$W/drafts/task-1-round-1.md" || fail "the draft does not name the missing seat file"
+round_from_draft "$W/drafts/task-1-round-1.md" "$R/task-1-round-1.md"
+[ "$(verified merge '[d["scope"], d["round"], d["draft"], d["dropouts"], d["new"], d["dropped"]]')" = "['merge', 1, '$W/drafts/merge-round-1.md', ['a', 'b'], [], []]" ] || fail "verify merge with no seat file: $(cat "$TMP/verify.out")"
+[ "$(sed -n '/^## New findings/,/^## Dropped/p' "$W/drafts/merge-round-1.md" | grep -cx 'None.')" = 1 ] || fail "the merge draft's new findings do not read None."
+grep -qx -- '- a: no seat file' "$W/drafts/merge-round-1.md" && grep -qx -- '- b: no seat file' "$W/drafts/merge-round-1.md" || fail "the merge draft does not name both seats"
+echo "ok: verify lists a seat with no file as a dropout"
+
+setup
+W="$("$SCRIPT" begin "$WT" --level 3 --source default | json 'd["workdir"]')"
+R="$W/review"
+mkdir -p "$REPORT/seats/a/empty"
+bare="$SCRIPT run $WT a $(probe a bare 'exit 1')"
+findings_file "$R/task-1-round-1-a.md" "no script" "$(ran_line a "$REPORT/seats/a/empty")" "no backticks" "$bare" \
+  "it fails" "$(ran_line a "$(probe a fails 'echo two; exit 1')")" "no script again" "$(ran_line a "$REPORT/seats/a/empty")"
+[ "$(verified task-1 '[[f["number"], f["command"], f["why"]] for f in d["dropped"]]')" = "[[1, '$SCRIPT run $WT a $REPORT/seats/a/empty', 'no-script'], [2, '$bare', 'command'], [4, '$SCRIPT run $WT a $REPORT/seats/a/empty', 'no-script']]" ] || fail "verify dropped: $(cat "$TMP/verify.out")"
+[ "$(json '[[f["id"], f["number"]] for f in d["new"]]' < "$TMP/verify.out")" = "[['R1.1', 3]]" ] || fail "verify new: $(cat "$TMP/verify.out")"
+[ "$(sed -n '/^## Dropped/,$p' "$W/drafts/task-1-round-1.md")" = "## Dropped
+
+- a: 2, the command could not be run again, no-script (findings 1, 4)
+- a: 1, the command could not be run again, command (finding 2)
+- b: no seat file" ] || fail "the draft's dropped: $(cat "$W/drafts/task-1-round-1.md")"
+round_from_draft "$W/drafts/task-1-round-1.md" "$R/task-1-round-1.md"
+echo "ok: verify drops a command that cannot be run again"
+
+setup
+W="$("$SCRIPT" begin "$WT" --level 3 --source default | json 'd["workdir"]')"
+R="$W/review"
+fixme="$(probe a fixme 'test "$(cat a)" = fixed || { echo "a is $(cat a)"; exit 1; }')"
+still="$(probe a still 'echo still broken; exit 1')"
+meant="$(probe a meant 'echo meant to be; exit 1')"
+findings_file "$R/task-1-round-1-a.md" "a is not fixed" "$(ran_line a "$fixme")" "still broken" "$(ran_line a "$still")" "meant to be" "$(ran_line a "$meant")"
+findings_file "$R/task-1-round-1-b.md"
+[ "$(verified task-1 '[f["id"] for f in d["new"]]')" = "['R1.1', 'R1.2', 'R1.3']" ] || fail "verify round 1: $(cat "$TMP/verify.out")"
+round_from_draft "$W/drafts/task-1-round-1.md" "$R/task-1-round-1.md"
+evidence_file "$R/task-1-round-1-evidence.md"
+reply_file "$R/task-1-round-1-reply.md" "- R1.1 $FIXED" "- R1.2 $FIXED" "- R1.3 disagree: the value is meant to stay"
+echo fixed > "$WT/a"
+findings_file "$R/task-1-round-2-a.md"
+findings_file "$R/task-1-round-2-b.md"
+[ "$(verified task-1 '[d["round"], [[f["id"], f["state"], f["exit"], f["reply"]] for f in d["earlier"]], d["new"]]')" = "[2, [['R1.1', 'resolved', 0, 'fixed'], ['R1.2', 'stands', 1, 'fixed'], ['R1.3', 'stands', 1, 'disagree']], []]" ] || fail "verify round 2: $(cat "$TMP/verify.out")"
+[ "$(sed -n '/^## Earlier findings/,/^## New findings/p' "$W/drafts/task-1-round-2.md")" = "## Earlier findings
+
+- R1.1 resolved: ran: $(ran_line a "$fixme"); saw: exit 0
+- R1.2 stands: ran: $(ran_line a "$still"); saw: exit 1, \`still broken\`
+- R1.3 stands: ran: $(ran_line a "$meant"); saw: exit 1, \`meant to be\`; reply: disagree
+
+## New findings" ] || fail "the draft of round 2: $(cat "$W/drafts/task-1-round-2.md")"
+round_from_draft "$W/drafts/task-1-round-2.md" "$R/task-1-round-2.md"
+evidence_file "$R/task-1-round-2-evidence.md"
+reply_file "$R/task-1-round-2-reply.md" "- R1.2 fixed: assumed: the value came from the cache; ran: $CMD; saw: exit 0" "- R1.3 disagree: the value is meant to stay"
+findings_file "$R/task-1-round-3-a.md"
+findings_file "$R/task-1-round-3-b.md"
+[ "$(verified task-1 '[d["round"], [[f["id"], f["state"], f["reply"]] for f in d["earlier"]]]')" = "[3, [['R1.2', 'stands again', 'fixed'], ['R1.3', 'stands again', 'disagree']]]" ] || fail "verify round 3: $(cat "$TMP/verify.out")"
+[ "$(sed -n '/^## Earlier findings/,/^## New findings/p' "$W/drafts/task-1-round-3.md")" = "## Earlier findings
+
+- R1.2 stands again: ran: $(ran_line a "$still"); saw: exit 1, \`still broken\`
+- R1.3 stands again: ran: $(ran_line a "$meant"); saw: exit 1, \`meant to be\`; reply: disagree
+
+## New findings" ] || fail "the draft of round 3: $(cat "$W/drafts/task-1-round-3.md")"
+round_from_draft "$W/drafts/task-1-round-3.md" "$R/task-1-round-3.md"
+echo "ok: verify marks earlier findings resolved, stands and stands again"
+
+setup
+W="$("$SCRIPT" begin "$WT" --level 3 --source default | json 'd["workdir"]')"
+R="$W/review"
+gone="$(probe a gone 'echo two; exit 1')"
+findings_file "$R/task-1-round-1-a.md" "the value is two" "$(ran_line a "$gone")"
+verified task-1 'd["status"]' > /dev/null
+round_from_draft "$W/drafts/task-1-round-1.md" "$R/task-1-round-1.md"
+rm -r "$gone"
+rc=0
+"$SCRIPT" verify "$WT" task-1 > "$TMP/verify.out" 2> "$TMP/verify.err" || rc=$?
+[ "$rc" = 1 ] || fail "verify with an earlier probe gone exited $rc: $(cat "$TMP/verify.out")"
+case "$(cat "$TMP/verify.err")" in
+  "panel: R1."*) ;;
+  *) fail "verify with an earlier probe gone: $(cat "$TMP/verify.err")" ;;
+esac
+[ ! -e "$W/drafts/task-1-round-2.md" ] || fail "verify wrote a draft after an earlier probe was gone"
+echo "ok: verify exits 1 when an earlier finding's probe is gone"
+
+setup
+out="$("$SCRIPT" verify "$WT" task-1)"
+[ "$(echo "$out" | json '[d["status"], d["reason"]]')" = "['stop', 'no-run']" ] || fail "verify task-1 before begin: $out"
+out="$("$SCRIPT" verify "$WT" task-x 2>&1)" && fail "verify task-x before begin exited 0: $out"
+[ "$out" = "panel: no such scope: task-x" ] || fail "verify task-x before begin: $out"
+refused verify "$WT"
+refused verify "$WT" task-1 x
+refused verify relative/wt task-1
+echo "ok: verify refuses a bad scope before begin, and stops with no-run on a good one"
