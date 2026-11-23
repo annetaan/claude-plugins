@@ -83,16 +83,23 @@ def implements(body):
 def shown(issue):
     return {k: v for k, v in issue.items() if k not in ("files", "criteria")}
 
-def with_order(body, numbers):
-    lines = (body or "").replace("\r", "").split("\n")
-    fence, heads = False, []
+def headings(lines):
+    fence, out = False, []
     for k, line in enumerate(lines):
         if line.lstrip().startswith("```"):
             fence = not fence
-        elif not fence and not line.startswith("###") and re.match(r"^##\s+(.+?)\s*$", line):
-            heads.append(k)
+        elif not fence:
+            m = re.match(r"^##\s+(.+?)\s*$", line)
+            if m:
+                out.append((k, m.group(1)))
+    return out
+
+def with_order(body, numbers):
+    lines = (body or "").replace("\r", "").split("\n")
+    titled_heads = headings(lines)
+    heads = [k for k, _ in titled_heads]
     block = ["## Order", ""] + (["%d. #%d" % (k + 1, n) for k, n in enumerate(numbers)] + [""] if numbers else [])
-    start = next((k for k in heads if re.match(r"^##\s+(.+?)\s*$", lines[k]).group(1) == "Order"), None)
+    start = next((k for k, title in titled_heads if title == "Order"), None)
     if start is not None:
         end = next((k for k in heads if k > start), len(lines))
         out = lines[:start] + block + lines[end:]
@@ -214,20 +221,24 @@ def graphql(fields, ints=None, strs=None, what="read the repository"):
     return json.loads(q.stdout)["data"]["repository"]
 
 def raw_sections(body):
-    order, out, name, fence = [], {}, None, False
-    for line in (body or "").replace("\r\n", "\n").split("\n"):
-        if line.lstrip().startswith("```"):
-            fence = not fence
-        elif not fence:
-            m = re.match(r"^##\s+(.+?)\s*$", line)
-            if m and not line.startswith("###"):
-                name = m.group(1)
-                order.append(name)
-                out[name] = []
-                continue
-        if name is not None:
-            out[name].append(line)
-    return order, {k: "\n".join(v) for k, v in out.items()}
+    lines = (body or "").replace("\r\n", "\n").split("\n")
+    heads = headings(lines) + [(len(lines), None)]
+    order, out = [], {}
+    for (k, name), (end, _) in zip(heads, heads[1:]):
+        order.append(name)
+        out[name] = "\n".join(lines[k + 1:end])
+    return order, out
+
+def with_sections(body, path):
+    lines = (body or "").replace("\r", "").split("\n")
+    goal = next((k for k, title in headings(lines) if title == "Goal"), None)
+    if goal is None:
+        die("the parent body has no ## Goal heading")
+    new = open(path).read().replace("\r", "").split("\n")
+    filled = [k for k, line in enumerate(new) if line.strip()]
+    if not filled or new[filled[0]].rstrip() != "## Goal":
+        die("%s does not start at ## Goal" % path)
+    return "\n".join(lines[:goal] + new[filled[0]:filled[-1] + 1]) + "\n"
 
 def split_sections(body):
     order, raw = raw_sections(body)
@@ -459,6 +470,10 @@ if named is None:
     die("#%d has no Base: line" % parent["number"])
 base, made_from = named
 roadmap_line = roadmap_of(parent["body"])
+
+if MODE == "parent-body":
+    sys.stdout.write(with_sections(parent["body"], sys.argv[4]))
+    sys.exit(0)
 
 listed = run("gh", "pr", "list", "-R", repo, "--base", base, "--state", "all", "--limit", "500",
             "--json", "number,state,isDraft,url,body")

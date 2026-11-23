@@ -16,12 +16,14 @@ a parent body and its `Base:` and `Roadmap:` lines, of a pull request's head and
 Every mode that reads a parent fails with `project: #<P> has no Base: line` when the parent body has none, or has
 one that does not name both branches. It also fails with `project: #<P> is blocked by #<X>, which is no project` when
 an issue the parent is blocked by has no `Base:` line, for this parent and for every project a walk of `--order` or
-`--check` follows. `--lint`, `--parent-lint`, `--same-words` and `--roadmap` read no parent.
+`--check` follows. `--parent-body` checks the `Base:` line but not the issues the parent is blocked by, because it
+stops right after the parent is read. `--lint`, `--parent-lint`, `--same-words` and `--roadmap` read no parent.
 
 ```bash
 project.sh <P>               # the whole project, as JSON
 project.sh <P> --order       # the run order, and the ## Order list to write
 project.sh <P> --order-body  # the parent body with its ## Order list replaced, as text
+project.sh <P> --parent-body <file>   # the parent body with everything from ## Goal on replaced by the file, as text
 project.sh <P> --next        # what to run next on the project, and a fingerprint (see What comes next)
 project.sh <P> --check <n> [<n>...]   # whether each sub-issue's body still holds against the code and the project (see Is the body still current?)
 project.sh --lint <file>     # the lint of one body, from a file, or from standard input with -
@@ -153,6 +155,14 @@ replaced by `list`: one `1. #<n>` per line, framed by blank lines. A body with n
 and the list before its first `## ` heading outside a code fence, or at the end. The lines above the first heading,
 `Base:` and `Roadmap:`, stay as they are. It fails like `--order` on a cycle.
 Its own read of the body is the re-read that **Writing to GitHub** (`between-skills.md`) asks for.
+
+`--parent-body <file>` is the same splice for the sections from `## Goal` on, and the diff of a parent change reads
+it. It prints the parent's body as GitHub has it now, with the CR removed, keeps the lines above its first `## Goal`
+heading outside a code fence, `## Order` among them, and puts the file after them, with the file's leading and
+trailing blank lines dropped and one newline at the end. It writes nothing. It fails with
+`project: the parent body has no ## Goal heading` when the body has no such heading, and with
+`project: <file> does not start at ## Goal` when the file's first non-blank line is not `## Goal`. It reads only the
+parent, not the pull requests or the branches.
 
 `--same-words <before> <after>` reads two files, touches neither GitHub nor git, and exits 0 on two readable files. It
 prints `{"ok", "lint"}`. `ok` is true when the two files hold the same words once every backtick is gone and every
