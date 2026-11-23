@@ -13,6 +13,7 @@ usage: project.sh [-R <owner/repo>] <parent>               the whole project, as
                                                            one JSON object per line
        project.sh [-R <owner/repo>] <parent> --order-body  the parent body with its ## Order list replaced, as text
        project.sh --lint <file|->                          lint one sub-issue body, read from a file or standard input
+       project.sh --parent-lint <file|->                   lint one parent body, read from a file or standard input
        project.sh --same-words <before> <after>            whether two bodies differ in backticks and whitespace only
        project.sh --roadmap [<ref>]                        check the roadmap file, in the work tree or at <ref>, as JSON
   -R <owner/repo>   read another repository (default: the repository of the current directory)
@@ -24,7 +25,7 @@ usage: project.sh [-R <owner/repo>] <parent>               the whole project, as
         the count, and dies before printing anything when a number is no sub-issue.
 --order-body prints the parent body as GitHub has it now, with the lines under ## Order replaced by the list --order
         writes. It fails like --order when the blocked-by relationships have a cycle.
---lint touches neither GitHub nor git and always exits 0.
+--lint and --parent-lint touch neither GitHub nor git and always exit 0.
 --same-words touches neither GitHub nor git and always exits 0 on two readable files, printing {"ok", "lint"}: ok is
         true when the two bodies have the same words once backticks are gone and whitespace is one space, and lint is
         the lint of <after>.
@@ -47,6 +48,7 @@ while [ $# -gt 0 ]; do
                while [ $# -gt 0 ] && [ -n "$1" ] && [ -z "${1//[0-9]/}" ]; do TARGETS="$TARGETS $1"; shift; done
                [ -n "$TARGETS" ] || die "--check takes issue numbers" ;;
     --lint)    [ $# -ge 2 ] || usage; MODE="lint"; LINT_FILE="$2"; shift 2 ;;
+    --parent-lint) [ $# -ge 2 ] || usage; MODE="parent-lint"; LINT_FILE="$2"; shift 2 ;;
     --same-words) [ $# -ge 3 ] || usage; MODE="same-words"; SAME_BEFORE="$2"; SAME_AFTER="$3"; shift 3 ;;
     --roadmap) MODE="roadmap"; shift
                if [ $# -gt 0 ] && [ "${1#-}" = "$1" ]; then ROADMAP_REF="$1"; shift; fi ;;
@@ -60,10 +62,10 @@ command -v python3 >/dev/null 2>&1 || die "python3 is not installed"
 
 PY_FILE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/project.py"
 
-if [ "$MODE" = "lint" ]; then
-  [ -z "$PARENT" ] || die "--lint takes no parent"
+if [ "$MODE" = "lint" ] || [ "$MODE" = "parent-lint" ]; then
+  [ -z "$PARENT" ] || die "--$MODE takes no parent"
   [ "$LINT_FILE" = "-" ] || [ -f "$LINT_FILE" ] || die "no such file: $LINT_FILE"
-  exec python3 "$PY_FILE" lint "$LINT_FILE"
+  exec python3 "$PY_FILE" "$MODE" "$LINT_FILE"
 fi
 
 if [ "$MODE" = "same-words" ]; then

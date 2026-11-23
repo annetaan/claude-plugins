@@ -221,7 +221,9 @@ parent body keeps it too. The lines above `## Goal` belong to the main session, 
 Only you know: <the thing only a human can answer>
 
 - [ ] <option A>
+  <what it changes: the behaviour, the names, the files>
 - [ ] <option B> (recommended)
+  <what it changes>
 
 ### D2. ...
 
@@ -434,11 +436,28 @@ project**), and reads more than one such issue as no task, which the reviewer ra
 | `no-symbols` | a `changed` entry on a code file names no symbol |
 | `criteria` | there is no acceptance criterion, or a criterion has no backticked anchor |
 | `breakage-entry` | `### Left broken` has no bullet, or a bullet has no backticked check |
+| `line-number` | the body, outside code fences, points at a file by line number as `<path>:<n>` or `#L<n>` |
+| `option-shape` | an option has no indented line under it: the next non-blank line is not indented, or is an option |
 | `decision-shape` | a decision does not have 2 to 4 options, or does not have exactly one `(recommended)` |
+| `only-you-know` | a decision has no line that starts with `Only you know:` followed by text |
 | `decisions-open` | a decision is open |
 | `decisions-contradictory` | a decision is contradictory |
 
-The lint does not look at `Only you know:`, at `### Shared state` or at `### Model decisions`. The main sessions and the project reviewer do.
+The lint does not look at `### Shared state` or at `### Model decisions`. The main sessions and the project reviewer do.
+
+`project.sh --parent-lint` reports these codes in `reasons` for a parent body (**The parent issue body**), and
+`project.sh <P>` prints them as `parent.lint`.
+
+| Code | Fails when |
+| --- | --- |
+| `base` | no line above the first heading reads `Base: `, a backticked `pj/<n>`, ` from ` and a backticked branch |
+| `roadmap` | a `Roadmap:` line above the first heading names none of the six roadmap paths, or has no heading after the path |
+| `order` | a line under `## Order` is neither blank nor `<i>. #<n>` |
+| `sections` | the headings other than `## Order` are not `## Goal`, `## Design`, `## Decisions`, `## Out of scope` in that order, or `## Order` comes after `## Goal` |
+| `decision-shape` | as in the sub-issue lint, with `None.` passing |
+| `only-you-know` | as in the sub-issue lint |
+| `decisions-open` | as in the sub-issue lint |
+| `decisions-contradictory` | as in the sub-issue lint |
 
 ## Fixed tokens
 
@@ -460,4 +479,5 @@ Everything else is prose in the repository's language.
 
 - **Write in the language the repository uses.** Look at the README and recent issues. Where the repository gives
   nothing to go on, write in the language the user is using. Talk to the user in the user's language.
-- **Never point at a file by line number.** Point with a path and a symbol name.
+- **Never point at a file by line number.** Point with a path and a symbol name. The lint fails `<path>:<n>` and
+  `#L<n>` (`line-number`). Every other form, such as `line 42`, is read by eye.

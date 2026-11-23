@@ -11,12 +11,12 @@ agree on between them is in `between-skills.md`, both next to this file.
 query, the pull requests into the base branch in one `gh pr list`, and where the branches of this project and the
 projects it waits on stand in one more GraphQL query. `--order` also reads one query per
 project it follows through `waitsOn`. It writes nothing to GitHub. **It is the only parser of a sub-issue body, of
-a parent's `Base:` and `Roadmap:` lines, of a pull request's head and of the roadmap file.** Every skill and the issue writer go through it. Pass `-R <owner/repo>` to read a repository other than the current one.
+a parent body and its `Base:` and `Roadmap:` lines, of a pull request's head and of the roadmap file.** Every skill and the issue writer go through it. Pass `-R <owner/repo>` to read a repository other than the current one.
 
 Every mode that reads a parent fails with `project: #<P> has no Base: line` when the parent body has none, or has
 one that does not name both branches. It also fails with `project: #<P> is blocked by #<X>, which is no project` when
 an issue the parent is blocked by has no `Base:` line, for this parent and for every project a walk of `--order` or
-`--check` follows. `--lint`, `--same-words` and `--roadmap` read no parent.
+`--check` follows. `--lint`, `--parent-lint`, `--same-words` and `--roadmap` read no parent.
 
 ```bash
 project.sh <P>               # the whole project, as JSON
@@ -25,6 +25,7 @@ project.sh <P> --order-body  # the parent body with its ## Order list replaced, 
 project.sh <P> --next        # what to run next on the project, and a fingerprint (see What comes next)
 project.sh <P> --check <n> [<n>...]   # whether each sub-issue's body still holds against the code and the project (see Is the body still current?)
 project.sh --lint <file>     # the lint of one body, from a file, or from standard input with -
+project.sh --parent-lint <file>   # the lint of one parent body, from a file, or from standard input with -
 project.sh --same-words <before> <after>   # whether the two bodies differ in backticks and whitespace only
 project.sh --roadmap [<ref>] # the roadmap file, in the work tree or at <ref>, checked against the format (see format.md)
 ```
@@ -39,7 +40,8 @@ project.sh --roadmap [<ref>] # the roadmap file, in the work tree or at <ref>, c
             "orderCheck": {"ok", "unknown": [numbers], "duplicate": [numbers],
                            "early": [{"number", "blocker"}], "missing": [numbers]},
             "roadmap": {"path", "entry", "tasks": [numbers], "task": number or null, "missing": [numbers]} or null,
-            "breakage": [{"issue", "check", "closedBy": [numbers], "state"}]},
+            "breakage": [{"issue", "check", "closedBy": [numbers], "state"}],
+            "lint": {"ok", "reasons": [codes]}},
  "issues": [{"number", "title", "wantedTitle", "state", "stateReason", "updatedAt", "labels": [names],
              "blockedBy": [{"number", "state", "parent"}], "blocking": [numbers],
              "pr": {"number", "state", "isDraft", "url"} or null, "stub",
@@ -73,6 +75,7 @@ project.sh --roadmap [<ref>] # the roadmap file, in the work tree or at <ref>, c
   transitive `blockedBy` and carry the check in their acceptance criteria. `state` is `unclosed` with no closer, else
   `planned` while the breaker is open, else `closed` when a closer is closed, else `open`. `leftBroken` on an issue is
   the checks its `### Left broken` names.
+- `lint` on the parent is what `--parent-lint` prints for its body (`format.md`, **What the lint checks**).
 - `wantedTitle` is the title with the decision count from `format.md` **The title**. Every sub-issue carries it, closed
   ones included. A skill edits an open issue's title when the two differ, and never retitles a closed one
   (`between-skills.md`, **Titles**).
@@ -82,13 +85,15 @@ project.sh --roadmap [<ref>] # the roadmap file, in the work tree or at <ref>, c
 - `stub` is true when `## Design` reads `To be drawn.`.
 - `designPaths` is the paths of the file list that opens `## Design` (`format.md`, **The file list**).
 - `decisions` counts the `### D<n>.` entries by how many boxes each has checked (`format.md`, **Decisions**).
-- `lint` is what `--lint` prints for the body (`format.md`, **What the lint checks**).
+- `lint` is the `ok` and `reasons` that `--lint` prints for the body (`format.md`, **What the lint checks**).
 
 **The pull request of an issue** is a pull request into the base branch whose head reads `Implements #<n>`. An open
 one wins over a merged one, and the lower number wins within the same state. One closed without a merge never counts.
 
-`--lint` needs no parent and touches neither GitHub nor git. It prints `{"ok", "reasons"}` and exits 0 whatever the
-result. The issue writer runs it on a body before returning it:
+`--lint` needs no parent and touches neither GitHub nor git. It prints
+`{"ok", "reasons", "decisions": {"total", "settled", "open", "contradictory"}}` and exits 0 whatever the result.
+`--parent-lint` reads a parent body the same way and prints `{"ok", "reasons"}`. The issue writer runs `--lint` on a
+body before returning it:
 
 ```bash
 project.sh --lint - <<'EOF'

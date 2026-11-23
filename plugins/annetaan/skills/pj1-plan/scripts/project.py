@@ -11,6 +11,13 @@ ROADMAP_RE = re.compile(r"^Roadmap:\s*`([^`]+)`\s+(\S.*?)\s*$")
 ORDER_RE = re.compile(r"^\s*\d+\.\s+#(\d+)\b")
 IMPLEMENTS_RE = re.compile(r"^Implements #(\d+)\s*$")
 COUNT_RE = re.compile(r"(\s*\(\d+/\d+\))+\s*$")
+PARENT_SECTIONS = ["Goal", "Design", "Decisions", "Out of scope"]
+PARENT_BASE_RE = re.compile(r"^Base: `pj/\d+` from `[^`\s]+`\s*$")
+ORDER_LINE_RE = re.compile(r"^\d+\. #\d+$")
+ONLY_YOU_KNOW_RE = re.compile(r"^Only you know:\s*\S")
+URL_RE = re.compile(r"\b[a-z][a-z0-9+.-]*://\S+")
+LINE_ANCHOR_RE = re.compile(r"#L\d+\b", re.ASCII)
+PATH_LINE_RE = re.compile(r"(?<![\w.:/-])(?=[\w./-]*[A-Za-z])[\w.-]*[./][\w./-]*:\d+\b", re.ASCII)
 ROADMAP_PATHS = ["roadmap.md", "ROADMAP.md", "doc/roadmap.md", "doc/ROADMAP.md", "docs/roadmap.md", "docs/ROADMAP.md"]
 DOCUMENT_SUFFIXES = (".md", ".mdx", ".markdown", ".rst", ".adoc")
 
@@ -27,25 +34,34 @@ def unfenced(text):
         if not fence:
             yield line
 
-def base_of(body):
+def head_of(body):
+    out = []
     for line in unfenced(body):
         if line.startswith("## "):
             break
+        out.append(line)
+    return out
+
+def base_of(body):
+    for line in head_of(body):
         m = BASE_RE.match(line)
         if m:
             return m.group(1), m.group(2)
     return None
 
+def roadmap_path(line):
+    m = ROADMAP_RE.match(line)
+    if not m:
+        return None
+    path = m.group(1).strip()
+    if path.startswith("./"):
+        path = path[2:]
+    return (path, m.group(2)) if path in ROADMAP_PATHS else None
+
 def roadmap_of(body):
-    for line in unfenced(body):
-        if line.startswith("## "):
-            break
-        m = ROADMAP_RE.match(line)
-        if m:
-            path = m.group(1).strip()
-            if path.startswith("./"):
-                path = path[2:]
-            return (path, m.group(2)) if path in ROADMAP_PATHS else None
+    for line in head_of(body):
+        if ROADMAP_RE.match(line):
+            return roadmap_path(line)
     return None
 
 def order_of(body):
@@ -197,18 +213,25 @@ def graphql(fields, ints=None, strs=None, what="read the repository"):
         die("cannot %s: %s" % (what, q.stderr.strip()))
     return json.loads(q.stdout)["data"]["repository"]
 
-def split_sections(body):
-    order, out, name = [], {}, None
-    for line in unfenced(body):
-        m = re.match(r"^##\s+(.+?)\s*$", line)
-        if m and not line.startswith("###"):
-            name = m.group(1)
-            order.append(name)
-            out[name] = []
-            continue
+def raw_sections(body):
+    order, out, name, fence = [], {}, None, False
+    for line in (body or "").replace("\r\n", "\n").split("\n"):
+        if line.lstrip().startswith("```"):
+            fence = not fence
+        elif not fence:
+            m = re.match(r"^##\s+(.+?)\s*$", line)
+            if m and not line.startswith("###"):
+                name = m.group(1)
+                order.append(name)
+                out[name] = []
+                continue
         if name is not None:
             out[name].append(line)
-    return order, {k: "\n".join(v).strip() for k, v in out.items()}
+    return order, {k: "\n".join(v) for k, v in out.items()}
+
+def split_sections(body):
+    order, raw = raw_sections(body)
+    return order, {k: "\n".join(unfenced(v)).strip() for k, v in raw.items()}
 
 def spans_of(desc):
     out = []
@@ -288,16 +311,29 @@ def criteria_spans(secs):
 
 def decisions(text):
     out = []
-    for line in text.split("\n"):
-        if re.match(r"^###\s+D\d+\.", line):
-            out.append({"checked": 0, "options": 0, "recommended": 0})
+    lines, fence = text.split("\n"), False
+    for k, line in enumerate(lines):
+        if line.lstrip().startswith("```"):
+            fence = not fence
             continue
+        if fence:
+            continue
+        if re.match(r"^###\s+D\d+\.", line):
+            out.append({"checked": 0, "options": 0, "recommended": 0, "onlyYouKnow": False, "optionLines": True})
+            continue
+        if not out:
+            continue
+        d = out[-1]
+        if ONLY_YOU_KNOW_RE.match(line):
+            d["onlyYouKnow"] = True
         m = OPTION_RE.match(line)
-        if m and out:
-            d = out[-1]
+        if m:
             d["options"] += 1
             d["checked"] += m.group(1) in "xX"
             d["recommended"] += "(recommended)" in line
+            under = next((l for l in lines[k + 1:] if l.strip()), "")
+            if not under[:1].isspace() or OPTION_RE.match(under):
+                d["optionLines"] = False
     return out
 
 def decision_counts(decs):
@@ -312,9 +348,12 @@ def parse(body):
     order, secs = split_sections(body)
     design = secs.get("Design", "")
     files, bad = file_list(design)
-    decs = decisions("\n".join(unfenced(secs.get("Decisions", ""))))
+    decs = decisions(raw_sections(body)[1].get("Decisions", ""))
     broken, bad_broken = left_broken(design)
+    text = "\n".join(unfenced(body))
     return {
+        "head": head_of(body),
+        "lineNumber": bool(LINE_ANCHOR_RE.search(text) or PATH_LINE_RE.search(URL_RE.sub(" ", text))),
         "order": order, "secs": secs, "files": files, "bad_entries": bad, "decs": decs,
         "broken": broken, "bad_broken": bad_broken, "criteria": criteria_spans(secs),
         "stub": design == "To be drawn.",
@@ -338,13 +377,39 @@ def lint(p, paths=frozenset()):
         reasons.append("criteria")
     if p["bad_broken"]:
         reasons.append("breakage-entry")
+    if p["lineNumber"]:
+        reasons.append("line-number")
+    if any(not d["optionLines"] for d in p["decs"]):
+        reasons.append("option-shape")
+    reasons += decision_reasons(p)
+    return {"ok": not reasons, "reasons": reasons}
+
+def decision_reasons(p):
+    reasons = []
     decs, dtext = p["decs"], p["secs"].get("Decisions", "")
     if (not decs and dtext != "None.") or any(not 2 <= d["options"] <= 4 or d["recommended"] != 1 for d in decs):
         reasons.append("decision-shape")
+    if any(not d["onlyYouKnow"] for d in decs):
+        reasons.append("only-you-know")
     if any(d["checked"] == 0 for d in decs):
         reasons.append("decisions-open")
     if any(d["checked"] > 1 for d in decs):
         reasons.append("decisions-contradictory")
+    return reasons
+
+def parent_lint(p):
+    reasons = []
+    if not any(PARENT_BASE_RE.match(l) for l in p["head"]):
+        reasons.append("base")
+    if any(l.startswith("Roadmap:") and not roadmap_path(l) for l in p["head"]):
+        reasons.append("roadmap")
+    if any(l.strip() and not ORDER_LINE_RE.match(l.rstrip()) for l in p["secs"].get("Order", "").split("\n")):
+        reasons.append("order")
+    heads = p["order"]
+    if [h for h in heads if h != "Order"] != PARENT_SECTIONS or \
+            any(k > heads.index("Goal") for k, h in enumerate(heads) if h == "Order"):
+        reasons.append("sections")
+    reasons += decision_reasons(p)
     return {"ok": not reasons, "reasons": reasons}
 
 def titled(title, counts):
@@ -353,10 +418,16 @@ def titled(title, counts):
         return bare + " (%d/%d)" % (counts["settled"], counts["total"])
     return bare
 
+def read_body(src):
+    return sys.stdin.read() if src == "-" else open(src).read()
+
 if MODE == "lint":
-    src = sys.argv[2]
-    body = sys.stdin.read() if src == "-" else open(src).read()
-    print(json.dumps(lint(parse(body)), ensure_ascii=False))
+    parsed = parse(read_body(sys.argv[2]))
+    print(json.dumps(dict(lint(parsed), decisions=decision_counts(parsed["decs"])), ensure_ascii=False))
+    sys.exit(0)
+
+if MODE == "parent-lint":
+    print(json.dumps(parent_lint(parse(read_body(sys.argv[2]))), ensure_ascii=False))
     sys.exit(0)
 
 def same_words(before_file, after_file):
@@ -644,7 +715,8 @@ def project_view():
                        order=written,
                        orderCheck=order_check(),
                        roadmap=roadmap_view(),
-                       breakage=breakage_view()),
+                       breakage=breakage_view(),
+                       lint=parent_lint(parse(parent["body"]))),
         "issues": [shown(i) for i in issues],
     }
 
