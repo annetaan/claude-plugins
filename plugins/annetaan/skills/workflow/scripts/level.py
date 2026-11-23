@@ -1,5 +1,5 @@
 import datetime, json, re, subprocess, sys
-from panel import RECORD_RE
+from panel import LEVEL_SEATS, RECORD_RE
 
 SUB = sys.argv[1]
 ARGS = sys.argv[2:]
@@ -99,7 +99,7 @@ def show():
     emit(status="ok", level=level, source=source, ref=ref,
          evaluated=evaluated and evaluated.isoformat(), reviewBy=review_by and review_by.isoformat(),
          warning=warning, agents=agents,
-         seats=[name[len("workflow-reviewer-"):] for name in agents if name.startswith("workflow-reviewer-")])
+         seats=list(LEVEL_SEATS[level]))
 
 def per_task(value, tasks):
     return round(value / tasks, 2) if tasks else None

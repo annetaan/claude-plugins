@@ -1020,6 +1020,20 @@ round_from_draft "$W/drafts/task-1-round-1.md" "$R/task-1-round-1.md"
 [ "$(sed -n '/^## New findings/,/^## Dropped/p' "$W/drafts/merge-round-1.md" | grep -cx 'None.')" = 1 ] || fail "the merge draft's new findings do not read None."
 grep -qx -- '- a: no seat file' "$W/drafts/merge-round-1.md" && grep -qx -- '- b: no seat file' "$W/drafts/merge-round-1.md" || fail "the merge draft does not name both seats"
 echo "ok: verify lists a seat with no file as a dropout"
+for n in 1 2; do
+  setup
+  W="$("$SCRIPT" begin "$WT" --level "$n" --source default | json 'd["workdir"]')"
+  R="$W/review"
+  findings_file "$R/task-1-round-1-a.md" "the value is two" "$(ran_line a "$(probe a fails 'echo two; exit 1')")"
+  [ "$(verified task-1 '[d["dropouts"], [f["id"] for f in d["new"]], d["dropped"]]')" = "[[], ['R1.1'], []]" ] || fail "verify at level $n with seat a's file: $(cat "$TMP/verify.out")"
+  [ "$(sed -n '/^## Dropped/,$p' "$W/drafts/task-1-round-1.md")" = "## Dropped
+
+- a: none" ] || fail "the draft's dropped at level $n: $(cat "$W/drafts/task-1-round-1.md")"
+done
+round_from_draft "$W/drafts/task-1-round-1.md" "$R/task-1-round-1.md"
+[ "$(verified merge 'd["dropouts"]')" = "['a']" ] || fail "verify merge at level 2 with no seat file: $(cat "$TMP/verify.out")"
+grep -q -- '^- b:' "$W/drafts/merge-round-1.md" && fail "the merge draft at level 2 names seat b"
+echo "ok: verify below level 3 reads seat a alone"
 
 setup
 W="$("$SCRIPT" begin "$WT" --level 3 --source default | json 'd["workdir"]')"
