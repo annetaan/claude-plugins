@@ -112,7 +112,7 @@ Show what the cleanup does, one line per item, from the `check` output.
 - when `oldReports.names` is not empty: the reports in it are deleted from `<MAIN>/work-reports/`, because they are
   beyond the 100 newest, by the time stamp in their name, counting the reports this cleanup moves in. List the names
 
-When `worktree.state` is `foreign`, stop instead of asking: say that `<WT>` is not a worktree of this clone, and that
+When `worktree.state` is `foreign`, stop: say that `<WT>` is not a worktree of this clone, and that
 nothing was changed.
 
 Print the list and go on to the cleanup. When `loses` is not empty, ask first, because `cleanup.sh run` refuses
