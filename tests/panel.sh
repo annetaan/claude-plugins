@@ -407,7 +407,7 @@ breaks() {
   good="$(cat "$file")"
   swap "$file" "$@" || fail "cannot break $file for $reason"
   out="$("$SCRIPT" lint "$file")"
-  [ "$(echo "$out" | json "[d['ok'], '$reason' in d['reasons']]")" = "[False, True]" ] || fail "lint $file did not give $reason: $out"
+  [ "$(echo "$out" | json '[d["ok"], d["reasons"]]')" = "[False, ['$reason']]" ] || fail "lint $file did not give only $reason: $out"
   printf '%s\n' "$good" > "$file"
   passes "$file" "$(echo "$out" | json 'd["kind"]')"
 }
@@ -597,7 +597,8 @@ breaks "$D/task-4-round-1.md" sections "## Earlier findings
 None." "## Earlier findings"
 breaks "$D/task-4-round-2.md" id "### R2.1 " "### R2.2 "
 breaks "$D/task-4-round-2.md" id "### R2.1 " "### R1.3 "
-breaks "$D/task-4-round-2.md" id "- R1.1 resolved" "- R1.9 resolved"
+breaks "$D/task-4-round-2.md" id "- R1.1 resolved" "- R1.1 resolved
+- R1.9 resolved"
 breaks "$D/task-4-round-1.md" id "## Earlier findings
 
 None." "## Earlier findings
@@ -629,16 +630,12 @@ changes-requested" "
 
 changes-requested
 approve"
-breaks "$D/task-4-round-2.md" approve-open "
+swap "$D/task-4-round-2.md" "
 
 changes-requested" "
 
-approve"
-breaks "$D/task-4-round-2.md" approve-no-evidence "
-
-changes-requested" "
-
-approve"
+approve" || fail "cannot approve task-4-round-2.md"
+gives "$D/task-4-round-2.md" "['approve-open', 'approve-no-evidence']"
 echo "ok: lint names each reason of a round file"
 
 D="$TMP/lint/reply/review"
@@ -657,8 +654,10 @@ breaks "$D/task-3-round-1-reply.md" sections "the value is meant to stay" "the v
 breaks "$D/task-3-round-1-reply.md" sections "# Reply" "Reply"
 reply_file "$D/task-3-round-9-reply.md" "- R9.1 disagree: there is no such round"
 gives "$D/task-3-round-9-reply.md" "['no-round']"
-breaks "$D/task-3-round-1-reply.md" line "- R1.2 disagree:" "R1.2 disagree:"
-breaks "$D/task-3-round-1-reply.md" line "- R1.2 disagree:" "- R1.2 rejected:"
+breaks "$D/task-3-round-1-reply.md" line "- R1.2 disagree:" "R1.3 disagree: a line with no dash
+- R1.2 disagree:"
+breaks "$D/task-3-round-1-reply.md" line "- R1.2 disagree:" "- R1.3 rejected: no such answer
+- R1.2 disagree:"
 breaks "$D/task-3-round-1-reply.md" line "# Reply
 " "# Reply
   an indented line under no answer
