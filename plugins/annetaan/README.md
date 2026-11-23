@@ -396,7 +396,7 @@ What it needs:
 
 `/annetaan:pj-cleanup` ([details](skills/pj-cleanup/SKILL.md)) cleans up after you merge a project's pull request.
 Without a number, it takes the project this conversation is on when that one is merged and has its worktree in your clone, otherwise the only merged project with a worktree there, and asks when there are several. It
-shows what it will do and asks once. Then it closes the parent when it is still open, moves the work reports out of
+shows what it will do and goes on without asking. Then it closes the parent when it is still open, moves the work reports out of
 the project's worktree into `work-reports/` in your clone, removes the worktree and the review seats beside it, deletes the project's branch on
 origin and locally, fast-forwards your local copy of the branch the project merged into, usually `main`, and deletes the work reports in `work-reports/` beyond the 100 newest, by the time stamp in their name.
 

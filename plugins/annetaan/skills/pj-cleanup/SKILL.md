@@ -1,6 +1,6 @@
 ---
 name: pj-cleanup
-description: Cleans up after the user has merged a project's pull request, the one pj4-running opened from the project's base branch. Closes the parent when it is still open, moves the work reports out of the project's worktree into the main working tree, removes the worktree, deletes the base branch on origin and locally, fast-forwards the branch the project merged into, normally main, to origin, and deletes the work reports in the main working tree beyond the 100 newest, by the time stamp in their name. Asks one approval question. Use it only when the user names this skill or invokes /annetaan:pj-cleanup, because it closes an issue, deletes branches and removes a worktree.
+description: Cleans up after the user has merged a project's pull request, the one pj4-running opened from the project's base branch. Closes the parent when it is still open, moves the work reports out of the project's worktree into the main working tree, removes the worktree, deletes the base branch on origin and locally, fast-forwards the branch the project merged into, normally main, to origin, and deletes the work reports in the main working tree beyond the 100 newest, by the time stamp in their name. Asks no question to confirm the cleanup, and asks only before it discards work in the worktree that nothing else holds. Use it only when the user names this skill or invokes /annetaan:pj-cleanup, because it closes an issue, deletes branches and removes a worktree.
 ---
 
 # pj-cleanup
@@ -81,9 +81,9 @@ $CLEANUP/scripts/cleanup.sh check <P>
     step is `/annetaan:pj4-running <P>`. Stop.
   - `not-a-repo`, `project`, `fetch-failed`: quote `message` and stop.
 - **`ok`**: keep `main` as `<MAIN>`, `worktree.path` as `<WT>`, `project.base` as `<base>`, `project.from` as
-  `<from>`, and the rest for the question.
+  `<from>`, and the rest for the list.
 
-## The question
+## What it does
 
 Show what the cleanup does, one line per item, from the `check` output.
 
@@ -115,14 +115,18 @@ Show what the cleanup does, one line per item, from the `check` output.
 When `worktree.state` is `foreign`, stop instead of asking: say that `<WT>` is not a worktree of this clone, and that
 nothing was changed.
 
+Print the list and go on to the cleanup. When `loses` is not empty, ask first, because `cleanup.sh run` refuses
+such a run without `--discard`.
+
 ```
-AskUserQuestion: Clean up project #<P>?
-  - Clean up
+AskUserQuestion: Discard the work in project #<P>?
+  - Discard the work and clean up
   - Do not clean up
 ```
 
-When `loses` is not empty, the first option is `Discard the work and clean up`. On `Do not clean up`, stop
-and name `<WT>`, and say that `git -C <WT> status` shows the uncommitted work, and that `git -C <WT>/<path> log --branches --not --remotes` shows the commits of each submodule in `worktree.submodules`. The approval covers this run only.
+On `Do not clean up`, stop and name `<WT>`, and say that `git -C <WT> status` shows the uncommitted work, and that
+`git -C <WT>/<path> log --branches --not --remotes` shows the commits of each submodule in `worktree.submodules`. The
+parent keeps its state and nothing is removed. The answer covers this run only.
 
 ## The cleanup
 
@@ -151,7 +155,7 @@ and name `<WT>`, and say that `git -C <WT> status` shows the uncommitted work, a
 
    It acts as `check` said, from a fresh read. Act by `status`.
 
-   - **`stop`** with `discard`: work appeared after the question, and `loses` names it. Nothing was removed. Say so, and stop.
+   - **`stop`** with `discard`: work appeared after the list was printed, and `loses` names it. Nothing was removed. Say so, and stop.
    - **`stop`** with `foreign`, `not-merged`, `project` or `fetch-failed`: quote `message` and stop.
    - **`done`**: go to the report.
 
@@ -174,8 +178,8 @@ and name `<WT>`, and say that `git -C <WT> status` shows the uncommitted work, a
 
 ## Rules
 
-- At most one approval question, `Clean up project #<P>?`. The `Project` question comes before it and is not part of
-  it.
+- No question to confirm the cleanup. The `Project` question of **Picking the project** and `Discard the work in
+  project #<P>?` are the only questions, the second only when `loses` is not empty.
 - **Never remove a worktree with uncommitted work, or with a submodule that holds work of its own, unless the user picked `Discard the work and clean up`.**
 - **Never switch a branch, stash, commit, reset or clean in `<MAIN>`.** `<from>` only ever fast-forwards.
 - **Close the parent only through `run.sh close`**, which refuses one that is not merged. Write nothing else to GitHub
