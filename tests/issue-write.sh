@@ -342,10 +342,10 @@ cat > "$FAKE/graphql" <<'EOF'
  "updatedAt":"2026-01-01T00:00:00Z","body":"Base: `pj/1` from `main`\n\n## Goal\n\nG.\n",
  "labels":{"nodes":[{"name":"project"}]},"blockedBy":{"nodes":[]},"blocking":{"nodes":[]},
  "subIssues":{"totalCount":2,"nodes":[
-  {"number":2,"title":"Two","state":"OPEN","stateReason":null,"updatedAt":"2026-01-01T00:00:00Z","body":"",
+  {"number":2,"url":"https://github.com/o/r/issues/2","title":"Two","state":"OPEN","stateReason":null,"updatedAt":"2026-01-01T00:00:00Z","body":"",
    "labels":{"nodes":[]},"blockedBy":{"nodes":[{"number":3,"state":"OPEN","parent":{"number":1}}]},
    "blocking":{"nodes":[{"number":3}]}},
-  {"number":3,"title":"Three","state":"OPEN","stateReason":null,"updatedAt":"2026-01-01T00:00:00Z","body":"",
+  {"number":3,"url":"https://github.com/o/r/issues/3","title":"Three","state":"OPEN","stateReason":null,"updatedAt":"2026-01-01T00:00:00Z","body":"",
    "labels":{"nodes":[]},"blockedBy":{"nodes":[{"number":2,"state":"OPEN","parent":{"number":1}}]},
    "blocking":{"nodes":[{"number":2}]}}]}}}}}
 EOF

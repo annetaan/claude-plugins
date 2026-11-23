@@ -406,7 +406,8 @@ The labels a stub may carry are in (`between-skills.md`, **Labels**).
 
 A parent with a `Roadmap:` line has one **roadmap task**: the one sub-issue whose file list names the roadmap file.
 No other task lists that file. `project.sh` identifies it as `parent.roadmap.task` (`state.md`, **Reading a
-project**), and reads more than one such issue as no task, which the reviewer raises.
+project**). It reads more than one such issue as no task, and `--check` fails each of them with
+`roadmap.several-tasks`.
 
 - **It is blocked by every other sub-issue**, so it is last in `## Order` and its change reaches `<from>` in the
   project's pull request. `pj2-issues` files it with those edges, and `pj3-doctor` adds an edge for each number in

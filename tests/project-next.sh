@@ -40,10 +40,11 @@ if args[:2] == ["api", "graphql"]:
     query = next(a[len("query="):] for a in args if a.startswith("query="))
     if "updatedAt body" in query:
         subs = json.load(open(os.environ["ISSUES_JSON"]))
-        parent = {"number": 1, "title": "Project", "state": "OPEN", "stateReason": None,
+        parent = {"number": 1, "url": "https://github.com/test/repo/issues/1", "title": "Project", "state": "OPEN", "stateReason": None,
                   "updatedAt": "2000-01-01T00:00:00Z",
                   "body": open(os.environ["PARENT_BODY"]).read(),
-                  "labels": {"nodes": []}, "blockedBy": {"nodes": []}, "blocking": {"nodes": []},
+                  "labels": {"nodes": []}, "blockedBy": {"nodes": json.loads(os.environ.get("PARENT_BLOCKED_BY", "[]"))},
+                  "blocking": {"nodes": []},
                   "subIssues": {"totalCount": len(subs), "nodes": subs}}
         print(json.dumps({"data": {"repository": {"issue": parent}}}))
     elif "ro: ref(" in query:
@@ -83,7 +84,7 @@ else:
                 "- [%s] `bar` (recommended)\n  - the export is `bar`\n- [ ] `baz`\n  - the export is `baz`\n" % box)
 body = ("## Goal\n\nRename foo.\n\n## Design\n\n- `src/app.ts` (changed): rename `foo`.\n\n"
         "## Acceptance criteria\n\n- `foo` is renamed.\n\n## Decisions\n\n%s\n## Out of scope\n\nNothing.\n" % decisions)
-print(json.dumps({"number": number, "title": "Task %d" % number, "state": "OPEN", "stateReason": None,
+print(json.dumps({"number": number, "url": "https://github.com/test/repo/issues/%d" % number, "title": "Task %d" % number, "state": "OPEN", "stateReason": None,
                   "updatedAt": "2000-01-01T00:00:00Z", "body": body,
                   "labels": {"nodes": [{"name": l} for l in labels.split(",") if l != "none"]},
                   "blockedBy": {"nodes": [{"number": b, "state": "OPEN", "parent": {"number": 1}} for b in blockers]},
@@ -136,3 +137,15 @@ view="$(bash "$SCRIPT" -R test/repo 1)"
 want="$(bash "$SCRIPT" --parent-lint "$PARENT_BODY")"
 assert "$view" "d['parent']['lint'] == json.loads('$want') and d['parent']['lint']['reasons'] == ['sections']" "parent.lint"
 echo "ok: the parent carries its lint"
+
+project 2 3
+issue 2 ready none
+issue 3 ready none 2
+flush
+earlier='[{"number": 9, "url": "https://github.com/test/repo/issues/9", "title": "Earlier", "state": "CLOSED",
+           "stateReason": "COMPLETED", "body": "Base: `pj/9` from `main`\n\n## Goal\n\nx\n"}]'
+view="$(PARENT_BLOCKED_BY="$earlier" bash "$SCRIPT" -R test/repo 1)"
+assert "$view" "d['parent']['url'] == 'https://github.com/test/repo/issues/1'" "the parent's url"
+assert "$view" "[i['url'] for i in d['issues']] == ['https://github.com/test/repo/issues/2', 'https://github.com/test/repo/issues/3']" "each issue's url"
+assert "$view" "d['parent']['waitsOn'][0]['url'] == 'https://github.com/test/repo/issues/9' and d['parent']['waitsOn'][0]['merged']" "waitsOn[0]"
+echo "ok: the parent, each issue and each project it waits on carry a url"

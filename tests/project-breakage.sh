@@ -40,7 +40,7 @@ if args[:2] == ["api", "graphql"]:
     query = next(a[len("query="):] for a in args if a.startswith("query="))
     if "updatedAt body" in query:
         subs = json.load(open(os.environ["ISSUES_JSON"]))
-        parent = {"number": 1, "title": "Project", "state": "OPEN", "stateReason": None,
+        parent = {"number": 1, "url": "https://github.com/test/repo/issues/1", "title": "Project", "state": "OPEN", "stateReason": None,
                   "updatedAt": "2000-01-01T00:00:00Z",
                   "body": "Base: `pj/1` from `main`\n\n## Goal\n\nx\n",
                   "labels": {"nodes": []}, "blockedBy": {"nodes": []}, "blocking": {"nodes": []},
@@ -71,7 +71,7 @@ def body(declare, criterion):
     return ("## Goal\n\nRename foo.\n\n## Design\n\n- `src/app.ts` (changed): rename `foo`.\n%s\n"
             "## Acceptance criteria\n\n%s\n## Decisions\n\nNone.\n\n## Out of scope\n\nNothing.\n" % (left, crit))
 def node(number, state, blockers, text):
-    return {"number": number, "title": "Task %d" % number,
+    return {"number": number, "url": "https://github.com/test/repo/issues/%d" % number, "title": "Task %d" % number,
             "state": "OPEN" if state == "OPEN" else "CLOSED",
             "stateReason": None if state == "OPEN" else state,
             "updatedAt": "2000-01-01T00:00:00Z", "body": text,

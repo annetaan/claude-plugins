@@ -132,8 +132,8 @@ checked decisions.
    - `## Goal` is copied byte for byte, and so is every existing entry of `## Decisions`, boxes as ticked.
    - The design is written for the ticked options, and its file list is true to the code as it stands now.
    - Lint the body with `project.sh --lint` until it prints no reason.
-   - A `--check` JSON with a lint reason, a premise failure, or an entry in `breakage.unclosed` that the body can fix
-     means the body is redrawn, never `unchanged`.
+   - A `--check` JSON with a lint reason, a premise failure, an entry in `breakage.unclosed` or a `roadmap.several-tasks`
+     that the body can fix means the body is redrawn, never `unchanged`.
 3. `Order:` `unchanged`, or `add #a blocked by #b` / `remove #a blocked by #b`, each with its reason. Only between open
    sub-issues of `#<P>`, never an edge of the roadmap task (`parent.roadmap.task`).
 4. `Notes:` one line per later open issue the redraw bears on, as `#<m>: <what changed for it>`, or `none`.

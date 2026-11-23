@@ -83,16 +83,23 @@ def implements(body):
 def shown(issue):
     return {k: v for k, v in issue.items() if k not in ("files", "criteria")}
 
-def with_order(body, numbers):
-    lines = (body or "").replace("\r", "").split("\n")
-    fence, heads = False, []
+def headings(lines):
+    fence, out = False, []
     for k, line in enumerate(lines):
         if line.lstrip().startswith("```"):
             fence = not fence
-        elif not fence and not line.startswith("###") and re.match(r"^##\s+(.+?)\s*$", line):
-            heads.append(k)
+        elif not fence:
+            m = re.match(r"^##\s+(.+?)\s*$", line)
+            if m:
+                out.append((k, m.group(1)))
+    return out
+
+def with_order(body, numbers):
+    lines = (body or "").replace("\r", "").split("\n")
+    titled_heads = headings(lines)
+    heads = [k for k, _ in titled_heads]
     block = ["## Order", ""] + (["%d. #%d" % (k + 1, n) for k, n in enumerate(numbers)] + [""] if numbers else [])
-    start = next((k for k in heads if re.match(r"^##\s+(.+?)\s*$", lines[k]).group(1) == "Order"), None)
+    start = next((k for k, title in titled_heads if title == "Order"), None)
     if start is not None:
         end = next((k for k in heads if k > start), len(lines))
         out = lines[:start] + block + lines[end:]
@@ -214,20 +221,24 @@ def graphql(fields, ints=None, strs=None, what="read the repository"):
     return json.loads(q.stdout)["data"]["repository"]
 
 def raw_sections(body):
-    order, out, name, fence = [], {}, None, False
-    for line in (body or "").replace("\r\n", "\n").split("\n"):
-        if line.lstrip().startswith("```"):
-            fence = not fence
-        elif not fence:
-            m = re.match(r"^##\s+(.+?)\s*$", line)
-            if m and not line.startswith("###"):
-                name = m.group(1)
-                order.append(name)
-                out[name] = []
-                continue
-        if name is not None:
-            out[name].append(line)
-    return order, {k: "\n".join(v) for k, v in out.items()}
+    lines = (body or "").replace("\r\n", "\n").split("\n")
+    heads = headings(lines) + [(len(lines), None)]
+    order, out = [], {}
+    for (k, name), (end, _) in zip(heads, heads[1:]):
+        order.append(name)
+        out[name] = "\n".join(lines[k + 1:end])
+    return order, out
+
+def with_sections(body, path):
+    lines = (body or "").replace("\r", "").split("\n")
+    goal = next((k for k, title in headings(lines) if title == "Goal"), None)
+    if goal is None:
+        die("the parent body has no ## Goal heading")
+    new = open(path).read().replace("\r", "").split("\n")
+    filled = [k for k, line in enumerate(new) if line.strip()]
+    if not filled or new[filled[0]].rstrip() != "## Goal":
+        die("%s does not start at ## Goal" % path)
+    return "\n".join(lines[:goal] + new[filled[0]:filled[-1] + 1]) + "\n"
 
 def split_sections(body):
     order, raw = raw_sections(body)
@@ -460,6 +471,10 @@ if named is None:
 base, made_from = named
 roadmap_line = roadmap_of(parent["body"])
 
+if MODE == "parent-body":
+    sys.stdout.write(with_sections(parent["body"], sys.argv[4]))
+    sys.exit(0)
+
 listed = run("gh", "pr", "list", "-R", repo, "--base", base, "--state", "all", "--limit", "500",
             "--json", "number,state,isDraft,url,body")
 if listed.returncode != 0:
@@ -483,6 +498,7 @@ for node in parent["subIssues"]["nodes"]:
     issues.append({
         "number": node["number"],
         "title": node["title"],
+        "url": node["url"],
         "wantedTitle": titled(node["title"], counts),
         "state": node["state"],
         "stateReason": node.get("stateReason"),
@@ -696,13 +712,13 @@ if MODE in ("project", "check", "next"):
     for d in dep_list:
         st = dep_stand.get(d["number"], {"states": [], "reached": False})
         waits_on_entries.append({
-            "number": d["number"], "title": d["title"], "state": d["state"], "stateReason": d.get("stateReason"),
+            "number": d["number"], "title": d["title"], "url": d["url"], "state": d["state"], "stateReason": d.get("stateReason"),
             "base": base_of(d["body"])[0], "merged": merged(d, st["states"], st["reached"]),
         })
 
 def project_view():
     return {
-        "parent": dict({k: parent.get(k) for k in ("number", "title", "state", "stateReason", "updatedAt")},
+        "parent": dict({k: parent.get(k) for k in ("number", "title", "url", "state", "stateReason", "updatedAt")},
                        labels=[l["name"] for l in parent["labels"]["nodes"]],
                        base=base, **{"from": made_from},
                        baseExists=base_exists,
@@ -806,8 +822,11 @@ def check(numbers):
         if fname and meta.split()[1] == "blob":
             root_files.add(fname)
     unclosed = [{"issue": b["issue"], "check": b["check"]} for b in breakage_view() if b["state"] == "unclosed"]
+    rv = roadmap_view()
+    several = rv["tasks"] if rv and len(rv["tasks"]) > 1 else []
     for n in numbers:
         issue = by_number[n]
+        mine = several if n in several else []
         paths = root_files | {f["path"] for m in transitive_blockers(issue) if m in by_number for f in by_number[m]["files"]}
         paths |= {f["path"] for f in issue["files"]}
         check_lint = lint(parse(body_of[n]), paths)
@@ -859,10 +878,11 @@ def check(numbers):
             "base": base,
             "from": made_from,
             "baseExists": base_exists,
-            "ok": check_lint["ok"] and not failures and not unclosed,
+            "ok": check_lint["ok"] and not failures and not unclosed and not mine,
             "lint": check_lint,
             "premises": {"mode": mode, "excusers": excusers, "failures": failures},
             "breakage": {"unclosed": unclosed},
+            "roadmap": {"several-tasks": mine},
         }, ensure_ascii=False))
 
 if MODE == "check":

@@ -160,13 +160,13 @@ if args[:2] == ["api", "graphql"]:
             body = ("## Goal\n\nx\n\n## Design\n\n" + "\n".join(lines) + "\n\n"
                     "## Acceptance criteria\n\n- `foo` is renamed.\n\n"
                     "## Decisions\n\nNone.\n\n## Out of scope\n\nNothing.\n")
-            nodes.append({"number": s["n"], "title": "Task %d" % s["n"], "state": s["state"],
+            nodes.append({"number": s["n"], "url": "https://github.com/test/repo/issues/%d" % s["n"], "title": "Task %d" % s["n"], "state": s["state"],
                           "stateReason": s.get("reason"), "updatedAt": "2000-01-01T00:00:00Z", "body": body,
                           "labels": {"nodes": [{"name": "ready"}]},
                           "blockedBy": {"nodes": [{"number": b, "state": state_of[b], "parent": None}
                                                   for b in s.get("blockedBy", [])]},
                           "blocking": {"nodes": []}})
-        parent = {"number": 1, "title": "Project", "state": "OPEN", "stateReason": None,
+        parent = {"number": 1, "url": "https://github.com/test/repo/issues/1", "title": "Project", "state": "OPEN", "stateReason": None,
                   "updatedAt": "2000-01-01T00:00:00Z", "body": os.environ["FX_PARENT_BODY"],
                   "labels": {"nodes": []}, "blockedBy": {"nodes": []}, "blocking": {"nodes": []},
                   "subIssues": {"totalCount": len(nodes), "nodes": nodes}}
