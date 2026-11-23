@@ -1,4 +1,5 @@
-import contextlib, fcntl, json, os, re, shutil, subprocess, sys, time
+import json, os, re, shutil, subprocess, sys, time
+from clone import clone_lock, fetch, fetch_branch
 from panel import stamped
 
 PANEL_SH = sys.argv[1]
@@ -24,18 +25,6 @@ def git(where, *args):
     if r.returncode != 0:
         die("git %s failed: %s" % (" ".join(args), r.stderr.strip()))
     return r.stdout
-
-@contextlib.contextmanager
-def clone_lock(main):
-    path = git(main, "rev-parse", "--path-format=absolute", "--git-path", "workflow-worktree.lock").strip()
-    with open(path, "a") as f:
-        fcntl.flock(f, fcntl.LOCK_EX)
-        yield
-
-def fetch(main, base):
-    with clone_lock(main):
-        return run("git", "-C", main, "fetch", "--quiet", "origin",
-                   "+refs/heads/%s:refs/remotes/origin/%s" % (base, base)).returncode == 0
 
 def worktrees(main):
     out = []
@@ -90,7 +79,7 @@ def contains(main, ancestor, ref):
 def head_contains(main, tip, pr):
     head = pr["headSha"]
     if run("git", "-C", main, "cat-file", "-e", head + "^{commit}").returncode != 0:
-        r = run("git", "-C", main, "fetch", "--quiet", "origin", "refs/pull/%d/head" % pr["number"])
+        r = fetch(main, "refs/pull/%d/head" % pr["number"])
         if r.returncode != 0:
             stop("fetch-failed", "cannot fetch the head of pull request #%d from origin" % pr["number"])
     return contains(main, tip, head)
@@ -237,7 +226,7 @@ def create():
     base = ARGS[0]
     if run("git", "check-ref-format", "--branch", base).returncode != 0:
         die("not a valid branch name: " + base)
-    if not fetch(main, base):
+    if fetch_branch(main, base).returncode != 0:
         r = run("git", "-C", main, "ls-remote", "--exit-code", "--heads", "origin", "refs/heads/" + base)
         if r.returncode == 2:
             stop("base-missing", "origin has no branch %s" % base, base=base)
@@ -346,7 +335,7 @@ def plan(name):
 
     update = {"action": "none"}
     if state == "merged":
-        if not fetch(main, base):
+        if fetch_branch(main, base).returncode != 0:
             stop("fetch-failed", "cannot fetch %s from origin" % base)
         target = sha(main, "refs/remotes/origin/" + base)
         holder = checked_out_in(main, base)
@@ -460,7 +449,7 @@ def sync():
         stop("unfinished", "%s holds an unfinished merge" % wt, **out)
     if git(wt, "status", "--porcelain").strip():
         stop("dirty", "%s has uncommitted changes" % wt, **out)
-    if not fetch(main, base):
+    if fetch_branch(main, base).returncode != 0:
         stop("fetch-failed", "cannot fetch %s from origin" % base, **out)
     head = git(wt, "rev-parse", "HEAD").strip()
     incoming = "refs/remotes/origin/" + base

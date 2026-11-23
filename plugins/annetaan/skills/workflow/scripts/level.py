@@ -1,4 +1,5 @@
 import datetime, json, re, subprocess, sys
+from clone import fetch_branch
 from panel import LEVEL_SEATS, RECORD_RE
 
 SUB = sys.argv[1]
@@ -45,8 +46,7 @@ def read_file(where):
     if m is None:
         return None, None, "origin names no default branch"
     branch = m.group(1)
-    r = run("git", "-C", where, "fetch", "--quiet", "origin",
-            "+refs/heads/%s:refs/remotes/origin/%s" % (branch, branch))
+    r = fetch_branch(where, branch)
     if r.returncode != 0:
         return None, None, one_line(r.stderr, "git fetch failed")
     ref = "origin/" + branch
