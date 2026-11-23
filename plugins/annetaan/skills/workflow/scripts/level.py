@@ -6,16 +6,16 @@ ARGS = sys.argv[2:]
 
 PATH_IN_REPO = ".claude/annetaan-level.md"
 
-DEFAULT_LEVEL = 2
+DEFAULT_LEVEL = "standard"
 
 AGENTS = {
-    "workflow-design": [("sonnet", "high"), ("opus", "medium"), ("fable", "medium")],
-    "pj-planner": [("sonnet", "high"), ("opus", "medium"), ("fable", "medium")],
-    "pj-reviewer": [("sonnet", "high"), ("opus", "medium"), ("fable", "medium")],
-    "workflow-worker": [("sonnet", "medium"), ("sonnet", "high"), ("opus", "medium")],
-    "pj-issue-writer": [("sonnet", "medium"), ("sonnet", "high"), ("opus", "medium")],
-    "workflow-reviewer-a": [("sonnet", "medium"), ("opus", "medium"), ("opus", "high")],
-    "workflow-reviewer-b": [None, None, ("fable", "medium")],
+    "workflow-design": {"standard": ("opus", "medium"), "high": ("fable", "medium")},
+    "pj-planner": {"standard": ("opus", "medium"), "high": ("fable", "medium")},
+    "pj-reviewer": {"standard": ("opus", "medium"), "high": ("fable", "medium")},
+    "workflow-worker": {"standard": ("opus", "medium"), "high": ("opus", "high")},
+    "pj-issue-writer": {"standard": ("opus", "medium"), "high": ("opus", "high")},
+    "workflow-reviewer-a": {"standard": ("opus", "high"), "high": ("opus", "high")},
+    "workflow-reviewer-b": {"high": ("fable", "medium")},
 }
 
 SOURCE_ORDER = ("file", "default", "override")
@@ -62,14 +62,14 @@ def parse(text):
         key, sep, value = line.partition(":")
         if sep:
             fields[key.strip()] = value.strip()
-    if fields.get("level") not in ("1", "2", "3"):
-        return None, None, None, "level is not 1, 2 or 3"
+    if fields.get("level") not in LEVEL_SEATS:
+        return None, None, None, "level is not standard or high"
     try:
         evaluated = datetime.date.fromisoformat(fields.get("evaluated", ""))
         review_by = datetime.date.fromisoformat(fields.get("review-by", ""))
     except ValueError:
         return None, None, None, "evaluated and review-by are not both dates as YYYY-MM-DD"
-    return int(fields["level"]), evaluated, review_by, None
+    return fields["level"], evaluated, review_by, None
 
 def clone_dir():
     where = ARGS[0]
@@ -82,7 +82,7 @@ def show():
     ref, text, problem = read_file(where)
     level, source, evaluated, review_by, warning = DEFAULT_LEVEL, "default", None, None, None
     if problem is not None:
-        warning = "cannot read origin's default branch: %s; level %d unless overridden" % (problem, DEFAULT_LEVEL)
+        warning = "cannot read origin's default branch: %s; level %s unless overridden" % (problem, DEFAULT_LEVEL)
     elif text is not None:
         found, evaluated, review_by, invalid = parse(text)
         if invalid is not None:
@@ -93,9 +93,9 @@ def show():
                 warning = "%s:%s: review-by %s has passed; /annetaan:level re-evaluates it" % (
                     ref, PATH_IN_REPO, review_by.isoformat())
     if len(ARGS) > 1:
-        level, source = int(ARGS[1]), "override"
-    agents = {name: {"model": levels[level - 1][0], "effort": levels[level - 1][1]}
-              for name, levels in AGENTS.items() if levels[level - 1] is not None}
+        level, source = ARGS[1], "override"
+    agents = {name: {"model": levels[level][0], "effort": levels[level][1]}
+              for name, levels in AGENTS.items() if level in levels}
     emit(status="ok", level=level, source=source, ref=ref,
          evaluated=evaluated and evaluated.isoformat(), reviewBy=review_by and review_by.isoformat(),
          warning=warning, agents=agents,
@@ -123,13 +123,20 @@ def history():
     except ValueError:
         stop("gh", "gh pr list printed no JSON: " + one_line(listed.stdout, "empty output"))
     runs = []
+    unread = []
     for pr in prs:
-        found = [m for m in (RECORD_RE.match(line.rstrip("\r")) for line in pr["body"].split("\n")) if m]
+        found = []
+        for line in (line.rstrip("\r") for line in pr["body"].split("\n")):
+            m = RECORD_RE.match(line)
+            if m:
+                found.append(m)
+            elif line.startswith("Level: "):
+                unread.append({"pr": pr["number"], "line": line})
         if not found:
             continue
         level, source, tasks, task_rounds, integration_rounds, findings = found[-1].groups()
         runs.append({"pr": pr["number"], "url": pr["url"], "mergedAt": pr["mergedAt"],
-                     "level": int(level), "source": source, "tasks": int(tasks),
+                     "level": level, "source": source, "tasks": int(tasks),
                      "taskRounds": int(task_rounds), "integrationRounds": int(integration_rounds),
                      "findings": int(findings)})
     runs.sort(key=lambda entry: entry["mergedAt"])
@@ -142,12 +149,12 @@ def history():
         for key in ("tasks", "taskRounds", "integrationRounds", "findings"):
             g[key] += entry[key]
     ordered = []
-    for key in sorted(groups, key=lambda k: (k[0], SOURCE_ORDER.index(k[1]))):
+    for key in sorted(groups, key=lambda k: (list(LEVEL_SEATS).index(k[0]), SOURCE_ORDER.index(k[1]))):
         g = groups[key]
         g["sendBacks"] = g["taskRounds"] - g["tasks"]
         g["sendBacksPerTask"] = per_task(g["sendBacks"], g["tasks"])
         g["findingsPerTask"] = per_task(g["findings"], g["tasks"])
         ordered.append(g)
-    emit(status="ok", since=since, prs=len(prs), runs=runs, groups=ordered)
+    emit(status="ok", since=since, prs=len(prs), runs=runs, groups=ordered, unread=unread)
 
 {"show": show, "history": history}[SUB]()
