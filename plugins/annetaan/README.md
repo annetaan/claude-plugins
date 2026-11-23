@@ -147,8 +147,8 @@ The sessions follow [the judgement rules](skills/workflow/judgement.md). The des
 the code, the history or a throwaway experiment, and lists those as model decisions, which the start message shows. You are
 asked only what turns on something only you know. The implementation session shows each acceptance criterion by running
 it and walks the flows the change touches. A review seat reports only what it proved by a run: a command, what it
-printed, and what the design requires. The main session runs each command again, keeps a finding only when the failure
-shows and breaks the design. A fix that only guards the symptom comes back when a probe reaches the bad state past the guard.
+printed, and what the design requires. `panel.sh` reruns each command and sorts the findings by the probe's exit,
+and the main session keeps a finding only when the failure breaks the design. A fix that only guards the symptom comes back when a probe reaches the bad state past the guard.
 
 These rules shape the work. A design removes what the request makes unnecessary before it adds anything. A new
 requirement is drawn as if it had always been there, down to the types, documents and examples that state the old shape.
@@ -161,22 +161,22 @@ becomes the strongest check that can hold it, a type before a lint rule before a
 
 The review rounds run through Markdown files in the run's work report directory. Each seat writes one file per round,
 the main session merges the verified findings into a round file with the verdict, and the implementation session answers each
-finding in a reply file next to it. Nobody edits a file once
-it is written, so the directory reads back as the whole review, in order. The directory also holds the evidence files,
+finding in a reply file next to it. Each writer lints its file before it reports,
+and nobody edits it after that, so the directory reads back as the whole review, in order. The directory also holds the evidence files,
 which record what the implementation session ran.
 
 ```mermaid
 flowchart TD
     req(["your request"]) --> wt["worktree on the tip of the base<br/>work-reports/ and .claude/worktrees/ ignored?"] --> design["design session<br/>boundaries, acceptance criteria,<br/>plan of tasks"]
     design --> ask["open questions, only when there are any<br/>start message, no approval<br/>branch and base named"]
-    ask --> setup["branch in the worktree<br/>record START"]
+    ask --> setup["branch in the worktree<br/>panel.sh begin: START, the work directory and the level"]
     setup --> detail
 
     subgraph task["per task"]
         direction TB
         detail["design session<br/>details this task against the code<br/>the task before left, while it commits"]
         impl["implementation session<br/>new for this task<br/>writes it, evidence file,<br/>commits nothing"]
-        review["review seats<br/>new for this task<br/>read the tree in the run's worktree,<br/>prove each finding by a probe run,<br/>main session reruns and writes the round"]
+        review["review seats<br/>new for this task<br/>read the tree in the run's worktree,<br/>prove each finding by a probe run,<br/>panel.sh reruns, main session writes the round"]
         respond["implementation session<br/>fixes, then writes a reply file"]
         commit["one commit<br/>plus 5 lines of handover notes"]
         detail --> impl --> review

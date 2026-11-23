@@ -40,10 +40,11 @@ when an issue is ready and workable. Everything below refers to them. `$RUNNING/
 issues and their bodies, and is read only at the sections this file names: **The run order**, **Stubs**, **Fixed
 tokens** and **Writing bodies**.
 
-This skill uses four more things:
+This skill uses five more things:
 
 - the script `$RUNNING/../pj1-plan/scripts/project.sh`, written `project.sh` below
 - the script `$RUNNING/../workflow/scripts/level.sh`, written `level.sh` below (see **The level**)
+- the script `$RUNNING/../workflow/scripts/panel.sh`, written `panel.sh` below
 - the script `$RUNNING/scripts/run.sh`, written `run.sh` below. Every subcommand prints one JSON object with a
   `status`. A `stop` whose `reason` the section at hand does not name, such as `project` when `project.sh` fails,
   stops the run: quote `message`. A non-zero exit is a usage error or an unexpected failure: quote its message and
@@ -405,4 +406,4 @@ section does not name never reads as done.
 - **Edit an existing sub-issue's body, the edges between existing sub-issues and the parent's `## Order` only in **A redrawn issue** in `issues.md`, and a
   sub-issue's title only on a `decision` stop.** The one other write is a stub filed by **Unplanned work** or by a stop, with its `--blocking` edge.
 - An unattended run never calls `AskUserQuestion` and ends with one `unattended:` line.
-- After a context summary, take whether the run is unattended from the last `project #<P>` line, `$TMP` from the last `tmp` line, the level from the last `level` line, running `level.sh show` again with that level when the line says `override` and without one otherwise, and rebuild the run from the progress lines and `project.sh <P>`. Read `issues.md` again when the run is in phases 1 to 4, and `project-pr.md` when it is in **The project's pull request**. A run inside a workflow entry takes **Before workflow runs** again for that entry.
+- After a context summary, take whether the run is unattended from the last `project #<P>` line, `$TMP` from the last `tmp` line, and rebuild the run from the progress lines and `project.sh <P>`. Inside a workflow entry the level comes back as **The level** in `workflow/SKILL.md` says, from `panel.sh status <WT>` and `level.sh show <WT> <level>`, and from the last `level` line only between entries, running `level.sh show` again with that level when the line says `override` and without one otherwise. Read `issues.md` again when the run is in phases 1 to 4, and `project-pr.md` when it is in **The project's pull request**. A run inside a workflow entry takes **Before workflow runs** again for that entry.

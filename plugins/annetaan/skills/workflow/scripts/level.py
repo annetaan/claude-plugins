@@ -1,4 +1,5 @@
-import datetime, json, os, re, subprocess, sys
+import datetime, json, re, subprocess, sys
+from panel import LEVEL_SEATS, RECORD_RE
 
 SUB = sys.argv[1]
 ARGS = sys.argv[2:]
@@ -17,19 +18,7 @@ AGENTS = {
     "workflow-reviewer-b": [None, None, ("fable", "medium")],
 }
 
-RECORD_RE = re.compile(
-    r"^Level: ([123]) \((file|override|default)\) · tasks (\d+) · task rounds (\d+)"
-    r" · integration rounds (\d+) · findings (\d+)$")
-
-TASK_ROUND_RE = re.compile(r"^task-(\d+)-round-(\d+)\.md$")
-INTEGRATION_ROUND_RE = re.compile(r"^integration-round-(\d+)\.md$")
-FINDING_RE = re.compile(r"^### R\d+\.\d+ ")
-
 SOURCE_ORDER = ("file", "default", "override")
-
-def record_line(level, source, tasks, task_rounds, integration_rounds, findings):
-    return "Level: %d (%s) · tasks %d · task rounds %d · integration rounds %d · findings %d" % (
-        level, source, tasks, task_rounds, integration_rounds, findings)
 
 def run(*cmd, cwd=None):
     return subprocess.run(cmd, capture_output=True, text=True, encoding="utf-8", errors="replace", cwd=cwd)
@@ -110,47 +99,7 @@ def show():
     emit(status="ok", level=level, source=source, ref=ref,
          evaluated=evaluated and evaluated.isoformat(), reviewBy=review_by and review_by.isoformat(),
          warning=warning, agents=agents,
-         seats=[name[len("workflow-reviewer-"):] for name in agents if name.startswith("workflow-reviewer-")])
-
-def new_findings(path):
-    found, inside = 0, False
-    with open(path, encoding="utf-8", errors="replace") as f:
-        for line in f:
-            if line.startswith("## "):
-                inside = line.rstrip() == "## New findings"
-            elif inside and FINDING_RE.match(line):
-                found += 1
-    return found
-
-def counts(review_dir):
-    tasks, task_rounds, integration_rounds, findings = set(), 0, 0, 0
-    for name in os.listdir(review_dir):
-        task = TASK_ROUND_RE.match(name)
-        if task:
-            tasks.add(task.group(1))
-            task_rounds += 1
-        elif INTEGRATION_ROUND_RE.match(name):
-            integration_rounds += 1
-        else:
-            continue
-        findings += new_findings(os.path.join(review_dir, name))
-    return len(tasks), task_rounds, integration_rounds, findings
-
-def record():
-    workdir, level, source = ARGS
-    log = os.path.join(workdir, "log.md")
-    review = os.path.join(workdir, "review")
-    if not os.path.isfile(log):
-        stop("no-log", "no log.md in " + workdir)
-    if not os.path.isdir(review):
-        stop("no-review", "no review/ in " + workdir)
-    entry = record_line(int(level), source, *counts(review))
-    with open(log, encoding="utf-8", errors="replace", newline="") as f:
-        kept = [line for line in f.read().split("\n") if not RECORD_RE.match(line.rstrip("\r"))]
-    text = "\n".join(kept).rstrip("\r\n")
-    with open(log, "w", encoding="utf-8", newline="") as f:
-        f.write(text + "\n\n" + entry + "\n")
-    emit(status="ok", line=entry)
+         seats=list(LEVEL_SEATS[level]))
 
 def per_task(value, tasks):
     return round(value / tasks, 2) if tasks else None
@@ -201,4 +150,4 @@ def history():
         ordered.append(g)
     emit(status="ok", since=since, prs=len(prs), runs=runs, groups=ordered)
 
-{"show": show, "record": record, "history": history}[SUB]()
+{"show": show, "history": history}[SUB]()

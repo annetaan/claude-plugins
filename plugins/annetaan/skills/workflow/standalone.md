@@ -24,7 +24,7 @@ When the design comes back:
 - **If feasibility is "no" or "conditional"**, hand that to the user and wait. Do not walk past it.
 - **An open question with no `Only you know:` line goes back.** `SendMessage` the design session to decide it and record it under Model decisions.
 - **Keep the plan.** It is an ordered list of tasks, each with the files it touches. If the plan is missing, use `SendMessage` to make the design session produce it.
-- **The round cap is five per task and it is fixed.** Mention it once in the start message. Do not negotiate the number (see **The round cap** in SKILL.md).
+- **The round cap is five per scope, a task or the integration review, and it is fixed.** Mention it once in the start message. Do not negotiate the number (see **The round cap** in SKILL.md).
 
 **Keep the design session alive for the whole flow.** You go back to it twice. Before every task from task 2
 onward, to have it detail that task against the tree the task before left, while that task is committed (phase
@@ -58,9 +58,9 @@ without waiting for an answer. The start message states:
 
 Phases 2 to 4 in SKILL.md run as written, with these settled here.
 
-- **Phase 2** starts right after the start message and runs all four steps, (a) to (d). Exit 1 in (b): stop and report, because **The worktree** step 4 in `worktree.md` should have settled it.
+- **Phase 2** starts right after the start message and runs (a), then (b) as `$FLOW/scripts/panel.sh begin <WT> --level <level> --source <source>`, both from the `level.sh show` JSON **The level** in SKILL.md read. On a `stop` with `not-ignored`, stop and report, because **The worktree** step 4 in `worktree.md` should have settled it.
 - **After the last task's commit in phase 4 (d)**: when phase 5 does not run (see **Phase 5**), keep that task's implementation session alive, because it writes the work report in phase 6. Its seat sessions end as usual. After the last task, go to phase 5, or to phase 6 when the plan has one task (see **Phase 5**).
-- **The round cap**: if round five does not come back `approve`, stop and report to the user. Lay out what is still open and what each side said, and ask for a decision. **That task's changes are sitting uncommitted in `<WT>`.** Say that, say that the worktree stays as it is, and say that `/annetaan:workflow-cleanup` removes it, discarding the work, once the user decides. If the user says keep going after the cap, keep going.
+- **The round cap**: when `cap` of `$FLOW/scripts/panel.sh status <WT> <scope>` is true, stop and report to the user. Lay out what is still open and what each side said, and ask for a decision. **That task's changes are sitting uncommitted in `<WT>`.** Say that, say that the worktree stays as it is, and say that `/annetaan:workflow-cleanup` removes it, discarding the work, once the user decides. If the user says keep going after the cap, keep going: `cap` stays true from then on, and no longer stops the run.
 - **When the user says stop** at any point, stop and report.
 
 ## Phase 5: integration review
@@ -81,14 +81,14 @@ The target is the working tree against `START` (`git diff <START>` plus untracke
 together. The working tree should be empty at this point. Fixes from the integration review land uncommitted in the
 working tree, so later rounds see them in the same diff.
 
-**The integration review starts new seats**, model and effort included, with the steps of phase 4 (b) in SKILL.md: every seat in one message, the rerun of each command, the round file. `<scope>` is `integration`, so the files are `integration-round-<r>-<seat>.md` and `integration-round-<r>.md`. The prompt is the phase 4 (b) prompt with the plan carrying the commit that closed each task (the matching `git log --oneline` lines) in place of the task detail, and this request in place of "Under review":
+**The integration review starts new seats**, model and effort included, with the steps of phase 4 (b) in SKILL.md: every seat in one message, `panel.sh verify`, the round file. `<scope>` is `integration`, so the files are `integration-round-<r>-<seat>.md` and `integration-round-<r>.md`. The prompt is the phase 4 (b) prompt with the plan carrying the commit that closed each task (the matching `git log --oneline` lines) in place of the task detail, and this request in place of "Under review":
 
 > Every task is committed. This is the integration review. The target is `git diff <START>` plus untracked files, read in `<WT>`. Write round 1 as `integration-round-1-<seat>.md`. The tasks were reviewed one at a time, so look at **the boundaries**: types and contracts between functions that call each other across tasks, names that do not match, duplicated implementations, and acceptance criteria for the whole design that are still unmet. No evidence file exists before round 1, because the tree is clean. Record the walk of every acceptance criterion and every flow of the whole design under `## Walk`, each run as a probe, with `ran:` and `saw:`, or `not run:`.
 
 **`changes-requested` starts a new implementation session as well**, with the phase 3 call, model and effort included, and its `Scratch:` line, and each reply that changes code comes with `integration-round-<r>-evidence.md`. The progress is every task, the handover notes are everything you have collected, and the request is to
 answer the integration review. From there the (b), (c) loop is the same as phase 4, with the `integration-round-<r>`
-files, and the cap is the same
-**five rounds**. No session gets rebuilt during those rounds. Fixes become **one commit** after the review approves, with a
+files, and the `integration` scope has the same cap, counted the same way, by `cap` of
+`$FLOW/scripts/panel.sh status <WT> integration`. No session gets rebuilt during those rounds. Fixes become **one commit** after the review approves, with a
 subject that says what it is, such as "integration review fixes". No fixes means no commit.
 
 Review says `approve`, every finding is resolved, tests pass. Phase 6 starts when all three hold.

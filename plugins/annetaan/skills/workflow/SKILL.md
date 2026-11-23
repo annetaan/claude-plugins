@@ -36,11 +36,18 @@ The standalone flow also uses the script `$FLOW/scripts/worktree.sh`, written `w
 prints one JSON object with a `status`. A non-zero exit is a usage error or an unexpected failure: quote its message
 and stop. The standalone flow and From a pull request call it. From an issue and From a sync never do.
 
-Every entry also uses `$FLOW/scripts/panel.sh`, written `panel.sh`, which owns the review seats, one git worktree
-each beside `<WT>`. A seat reaches its worktree only through `panel.sh run <WT> <seat> <probe dir>`, which runs a
-probe the seat wrote (see `$FLOW/review-files.md`, **A probe**), and `panel.sh close <WT>` removes the seats at the
-cleanup. `<WT>` is the absolute path. Both print one JSON object with a `status`, as `worktree.sh` does. A non-zero
-exit is quoted and stops the run, the same way.
+Every entry also uses `$FLOW/scripts/panel.sh`, written `panel.sh`, which owns the run's work directory and the
+review seats, one git worktree each beside `<WT>`. `panel.sh begin` makes the work directory (phase 2 (b)), and
+`panel.sh status <WT>` reads it back. With a scope, `panel.sh status <WT> <scope>` also reports where that scope's
+review stands: the next round, whether the cap is reached, the last verdict, the open findings and whether `approve`
+is allowed (phase 4 (b)). A seat reaches its worktree only through `panel.sh run <WT> <seat> <probe dir>`,
+which runs a probe the seat wrote (see `$FLOW/review-files.md`, **A probe**), and `panel.sh close <WT>` removes the
+seats at the cleanup. `panel.sh verify <WT> <scope>` runs again every command of a review round and writes the draft
+of its round file (phase 4 (b)). `panel.sh lint <file>` checks one review file against `$FLOW/review-files.md`, and each
+writer runs it on its own file before it reports. The finish runs `panel.sh record <WT>`, which writes the pull request
+head and the `Level:` line into `log.md` (`finish.md`, **The work report**). `<WT>` is the absolute path, and `lint` takes
+the absolute path of the file. All seven print one JSON object with a `status`, as `worktree.sh` does. A non-zero exit is quoted and stops the run, the
+same way.
 
 ## The level
 
@@ -56,18 +63,29 @@ $FLOW/scripts/level.sh show <WT> [<n>]
   `worktree.md`). `<n>` comes from `level=<n>` in the args, and is left out when the args carry none. The token sets
   the level of this run only, and it is not part of the request.
 - **From an issue and From a sync** do not run it. They take the JSON pj4-running settled.
+- **Every entry** hands `level` and `source` of that JSON to `panel.sh begin` (phase 2 (b)), which writes them to the
+  run's `run.json`. `show` stays the one read of the level in a run.
 
 It prints `status: ok` with `level`, `source` (`file`, `override` or `default`), `ref`, `evaluated`, `reviewBy`,
 `warning`, `agents` and `seats`. `agents.<name>` holds the `model` and the `effort` of `workflow-design`,
 `workflow-worker`, `workflow-reviewer-a`, `workflow-reviewer-b`, `pj-planner`, `pj-reviewer` and `pj-issue-writer`,
 for each of them the level runs. `seats` lists the review seats this level runs, `a` alone below level 3 and `a` and
 `b` at level 3, and `agents` names a `workflow-reviewer-<seat>` for exactly those. Keep the JSON. Print `level <level> (<source>)`
-once, and `warning` on a line of its own when it is set. A warning never stops the run. The finish writes `level` and
-`source` into `log.md` with `level.sh record` (`finish.md`, **The work report**), and `/annetaan:level` reads them back
-from the merged pull requests.
+once, and `warning` on a line of its own when it is set. A warning never stops the run. The finish's `panel.sh record`
+writes the `level` and `source` that `begin` stored into `log.md` (`finish.md`, **The work report**), and
+`/annetaan:level` reads them back from the merged pull requests.
 
-After a context summary, an entry that runs `show` runs it again, with `<n>` from the `level` line it printed when
-that line says `override`.
+After a context summary, run `$FLOW/scripts/panel.sh status <WT>`, then `$FLOW/scripts/level.sh show <WT> <level>`
+with the `level` `status` printed, and read only its `agents`. The run's `level` and `source` stay the ones `status`
+printed.
+
+Phase 2 (b) has not run yet when `status` stops with `no-run`, and also, in From an issue, when the `issue` it prints
+is not this run's `n`, and, in From a sync, when `issue` is not null. pj4-running reuses one `<WT>` for every issue,
+and the work directories of its earlier runs stay under `<WT>/work-reports/` until pj-cleanup, so before this run's
+`begin`, `status` answers `ok` with an earlier run. Then its `start` and `workdir` are not taken, phase 2 (b) is still
+ahead, and the level comes as at the start: standalone and From a pull request run `show` as the bullets above say,
+and From an issue and From a sync take the JSON pj4-running settled, which pj4-running brings back from its last
+`level` line, as between entries.
 
 A non-zero exit is a usage error, such as `level=<n>` outside 1 to 3, or an unexpected failure: quote its message and
 stop, as for `worktree.sh`.
@@ -108,7 +126,7 @@ report is a dropout**: the round goes on with the seats that reported, and the `
 When no seat reported, start the seats of that round again with the round 1 call, once. When none reports again, stop
 as the entry's file says for the round cap.
 
-## Phase 2: branch, guard, start point
+## Phase 2: branch and work directory
 
 Run the steps of this phase that the entry's file names, **in this order, before you wake the implementation session**. The order matters.
 
@@ -120,41 +138,28 @@ git -C <WT> checkout -b <branch name>
 
 The name is the one you put in the start message. When git refuses because the name exists, pick another and say so in one line.
 
-### (b) Check that `work-reports/` is ignored
+### (b) Begin the run
 
-Screenshots, the review files and the work report go to **`work-reports/` inside the worktree**. Outside the repository they grow on disk where nobody sees them. Inside it, **check that git is not tracking it.**
-
-```bash
-git rev-parse --show-toplevel                 # <ROOT>, the same as <WT>
-git -C <ROOT> check-ignore -q work-reports/   # exit 0: ignored
-```
-
-`ROOT`, `START` and `WORKDIR` are values you keep and write out in full, the way `$FLOW` is. Write `<ROOT>`, `<START>` and `<WORKDIR>` below, and put the value in each command.
-
-**Check `work-reports/`, with the slash.** A pattern with a trailing slash matches only a directory, and
-before the first run there is no directory, so `check-ignore work-reports` answers exit 1 even when
-`.gitignore` already has `work-reports/`. With the slash, git takes the path as a directory whether it exists or not.
-
-Exit 0: go on. Exit 1: stop as the entry's file says. Never add the path to `.gitignore`.
-
-### (c) Record the start point
+Screenshots, the review files and the work report go to the run's work directory under **`work-reports/` inside the
+worktree**. `begin` checks that git ignores `work-reports/` in `<WT>`, takes `HEAD` of `<WT>` as the start point,
+makes the work directory with `review/` and `seats/` in it, and writes the start point and the level to `run.json`
+there.
 
 ```bash
-git rev-parse HEAD
+$FLOW/scripts/panel.sh begin <WT> --level <level> --source <source> [--issue <n> --parent <P>]
 ```
 
-Run it right after (a). Keep the answer as `<START>`. **This value runs through the whole flow.** The integration review when the plan has more than one task, the report and the final message all start from `<START>`.
-
-### (d) Create the work directory
-
-```bash
-date +%Y-%m-%d-%H%M                                              # <stamp>
-mkdir -p <ROOT>/work-reports/<stamp>-<first 7 of START>/review   # <WORKDIR> is this path without /review
-```
-
-The timestamp is local time. Directories sort by time, so the newest report is the last one in the list.
-
-**Tell the user `<START>` and `<WORKDIR>` right away, in one short line.** Your context gets summarised on a long flow, and that message is the copy that survives.
+- `<level>` and `<source>` are `level` and `source` of the `level.sh show` JSON the entry holds (**The level**), so
+  `run.json` and the agents' model and effort come from one read. Only From an issue passes `--issue` and `--parent`.
+- **`ok`**: keep `start` as `<START>` and `workdir` as `<WORKDIR>`, written out in full in every command, the way
+  `$FLOW` is. **`<START>` runs through the whole flow.** The integration review when the plan has more than one task,
+  the report and the final message all start from `<START>`.
+- **`stop`** with `not-ignored`: nothing was written under `work-reports/`. Stop as the entry's file says. Never add
+  the path to `.gitignore`.
+- Any other **`stop`**, or a non-zero exit: quote it and stop.
+- **After a context summary**, `$FLOW/scripts/panel.sh status <WT>` prints `start`, `workdir`, `level`, `source`,
+  `issue` and `parent` again. **The level** says how the agents come back, and when the run `status` names is an
+  earlier one, so that phase 2 (b) is still ahead.
 
 ## Phase 3: the implementation prompt
 
@@ -205,8 +210,15 @@ Check that the tests pass before you send anything to review, and that the evide
 
 The same steps run for a task, for the integration review and for the merge task. `<scope>` is `task-<k>`, `integration` or `merge`. Every session, yours and the seats', stays in `<WT>`. Only `panel.sh` enters a seat's worktree.
 
-1. **Later rounds only**: run again the command of every open earlier finding, one `panel.sh run` line per Bash call, before you message the seats.
-2. **Start every seat of `seats` in one message.** Round 1 is `Agent`, with the diff to read depending on the review: a task reads `git diff HEAD` plus the untracked files, the integration review `git diff <START>` plus the untracked files, and a merge the files named by `merge-task.md`.
+The scope's values come from the script, not from counting files:
+
+```bash
+$FLOW/scripts/panel.sh status <WT> <scope>
+```
+
+It prints what `status <WT>` prints, with `scope`, `round`, `cap`, `verdict`, `open` and `approve` added. `round` is the next round, and it is the `<r>` of every file name in (b) and in the `SendMessage` of later rounds. `verdict` is the verdict of the last round file, null before round 1. `open` lists the findings the last round left open, each with its `id`, `stood` (how many round files marked it `stands` or `stands again`) and `reply` (`fixed` or `disagree` from the last round's reply, null when that reply or its line is missing). `approve` holds `allowed` and `why`, the reasons `approve-open` and `approve-no-evidence` of the lint (see `$FLOW/review-files.md`, **The lint**). `cap` is read after step 4.
+
+1. **Start every seat of `seats` in one message.** Each seat writes `<scope>-round-<r>-<seat>.md`, the seat file of round `round`. Round 1 is `Agent`, with the diff to read depending on the review: a task reads `git diff HEAD` plus the untracked files, the integration review `git diff <START>` plus the untracked files, and a merge the files named by `merge-task.md`.
 
 ```
 Agent(subagent_type: "annetaan:workflow-reviewer-a", description: "review, task k, seat a",
@@ -216,14 +228,15 @@ Agent(subagent_type: "annetaan:workflow-reviewer-a", description: "review, task 
 
 The call for another seat is the same with its agent `annetaan:workflow-reviewer-<seat>`, its `model` and `effort` from `agents.workflow-reviewer-<seat>`, its letter in `You are seat <seat>`, `Probes:` under `seats/<seat>`, `panel.sh run <WT> <seat> <probe dir>` and `<scope>-round-1-<seat>.md`. Write `$FLOW` and `<WT>` out as absolute paths. All calls go in one message, so the seats run in parallel. In a run from an issue each prompt also carries the lines `from-issue.md` adds, and in a merge the lines `merge-task.md` gives.
 
-**Every round after that goes to each seat with `SendMessage`**, all in one message: "the tree has been updated, and the reply is `<scope>-round-<r>-reply.md`, with the evidence in `<scope>-round-<r>-evidence.md` when the reply changed code, and the round file of the last round is `<scope>-round-<r>.md`. Attack what changed since your last round, as **Later rounds** in your role instruction says, and write `<scope>-round-<r+1>-<seat>.md`." The seats live for one task, so each remembers what it tried, its probes are still there, and it diffs the tree it reviewed last against the tree now.
+**Every round after that goes to each seat with `SendMessage`**, all in one message, `<r>` being `round`: "the tree has been updated, and the reply is `<scope>-round-<r-1>-reply.md`, with the evidence in `<scope>-round-<r-1>-evidence.md` when the reply changed code, and the round file of the last round is `<scope>-round-<r-1>.md`. Attack what changed since your last round, as **Later rounds** in your role instruction says, and write `<scope>-round-<r>-<seat>.md`." The seats live for one task, so each remembers what it tried, its probes are still there, and it diffs the tree it reviewed last against the tree now.
 
-3. **When every seat has reported**, read the seat files and run each finding's `Command:` again, word for word, from `<WT>`, one command per Bash call. Each run snapshots the tree as it is and prints `exit` and `output`.
-4. **Keep, drop, merge.** Keep a finding when `exit` and `output` show the failure and the failure breaks the intent: the design, its criteria, the plan and the task detail. **Drop the rest with the reason**, a command that cannot be run again included. Findings with one root cause become one entry that names every seat. **There is no judge.** The round file holds every verified finding of every seat. Anything under `## Not run` that no seat could run goes to the round file's `## Not run`.
-5. **Earlier findings.** The failure gone is `resolved`. The failure still shown is `stands`, and `stands again` from the second time on. A `disagree` whose reason shows the failure does not break the intent is `resolved`, with the reason quoted.
-6. **Write the round file** `<scope>-round-<r>.md` with Write, in the shape `$FLOW/review-files.md` gives: `Seats:` (the model each seat ran on, a fallback and a dropout said here), `## Earlier findings`, `## New findings`, `## Dropped`, `## Not run` and `## Verdict`. The verdict is yours. `approve` needs no verified finding open and the evidence file of the latest code change. In integration round 1, where no evidence file exists, a `## Walk` in at least one seat file takes its place.
+2. **When every seat has reported**, run `$FLOW/scripts/panel.sh verify <WT> <scope>` with the Bash tool's `timeout` set to 600000, because it runs every probe in turn. It runs again the command of each finding in `open` and of each finding in the seat files of round `round`, sorts them by the probe's exit, and writes the draft `<WORKDIR>/drafts/<scope>-round-<r>.md` (see `$FLOW/review-files.md`, **A draft**). Its JSON carries the last 40 lines of each run as `output`, and `dropouts` the seats of the run with no seat file. A call the timeout cut off is run again with `run_in_background`, and you wait for its exit.
+3. **Keep, drop, merge, from the draft.** The draft already sorts by the exit: an earlier finding is `resolved`, `stands` or `stands again`, a new finding that exited non-zero is under `## New findings`, and the rest is under `## Dropped`. What is left is judgement. Keep a new finding when its `output` shows a failure that breaks the intent: the design, its criteria, the plan and the task detail. **Drop the rest with the reason.** Findings with one root cause become one entry that names every seat. Write `Breaks:` for each finding kept, and the `Seats:` line, a dropout said there. An earlier finding marked `reply: disagree` is judged against the intent: a `disagree` whose reason shows the failure does not break the intent is `resolved`, with the reason quoted. **There is no judge.** The round file holds every finding of every seat that you kept. Anything under `## Not run` that no seat could run goes to the round file's `## Not run`.
+4. **Write the round file** `<scope>-round-<r>.md` from the draft with Write, in the shape `$FLOW/review-files.md` gives: `Seats:` (the model each seat ran on, a fallback and a dropout said here), `## Earlier findings`, `## New findings`, `## Dropped`, `## Not run` and `## Verdict`. The verdict is yours, and when `approve` is allowed is in `$FLOW/review-files.md`, **A review round**. Before the Write, run `$FLOW/scripts/panel.sh status <WT> <scope>` and read `approve`. `approve-no-evidence` in `why` rules `approve` out until the implementation session writes the evidence file the rule names: `SendMessage` it for that file, as (a) does for a missing evidence file, and run status again once it is there. `approve-open` in `why` means `approve` needs every finding in `open` marked `resolved` in this round's `## Earlier findings`, and `## New findings` reading `None.`. Otherwise the verdict is `changes-requested`. After the Write, run `$FLOW/scripts/panel.sh lint <absolute path of the round file>` and rewrite the round file until `ok` is true, before the verdict goes to (c) or (d). An `approve` over a finding the file itself leaves open shows there as `approve-open`, and the verdict is then `changes-requested`. `draft` means a line was not copied as the draft holds it: copy it again from the draft, and never edit the draft.
 
-`approve` goes to (d). Anything else goes to (c).
+`approve` goes to (d). After a round file that is not `approve`, run `$FLOW/scripts/panel.sh status <WT> <scope>` again and read `cap`: true stops as **The round cap** says, false goes to (c).
+
+**After a context summary in the middle of (b)**, `$FLOW/scripts/panel.sh status <WT> <scope>` gives the scope's state back. Seat files of round `round` already under `<WORKDIR>/review/` mean the seats have reported, so (b) goes on at step 2: run `panel.sh verify` again, which overwrites the draft, and go on from the draft. A `verdict` of `approve` means (d). `changes-requested` is read by `cap` as after step 4, and with `cap` false, a finding in `open` whose `reply` is null means the reply of the last round is not in yet, so ask the implementation session for it. `stop` with `no-run` is read as **The level** says.
 
 **(c) Respond**
 
@@ -231,7 +244,7 @@ The call for another seat is the same with its agent `annetaan:workflow-reviewer
 
 > The review is `<WORKDIR>/review/task-<k>-round-<r>.md`. Fix what needs fixing, and write your answer to every open finding in `task-<k>-round-<r>-reply.md` next to it. Each finding's `Command:` is a `panel.sh run` line with the seat's probe, which you can read: run that line after your fix, and a `fixed` always carries its `ran:` and `saw:`. Answer `disagree` with your reasoning when you disagree. Answer a finding marked `stands again` as **After two failed fixes** in `$FLOW/judgement.md` says. A reply that changes code comes with `task-<k>-round-<r>-evidence.md`, a full pass. **Do not commit yet.** Report back once the tests pass.
 
-Go back to (b). Count one round.
+Go back to (b).
 
 **(d) Commit on approve**
 
@@ -253,7 +266,7 @@ outlives a session.
 
 **When the commit report has a `check wanted:` line** (a task's, or the fix commit of the integration review in `standalone.md`), keep it out of the handover notes and hold it separately for the work report (`finish.md`).
 
-**Give the user a one-line progress report**: `task k/N done: <short SHA> <commit subject> (commit k since START <short SHA>)`. A long context can be summarised away, and the plan, `START` and the progress all rebuild from that line. When the commit report had a `check wanted:` line (task or integration fix commit), pass it on to the user as a line of its own after the progress line, word for word, so that a summary still leaves a copy.
+**Give the user a one-line progress report**: `task k/N done: <short SHA> <commit subject> (commit k since START <short SHA>)`. A long context can be summarised away. The plan and the progress rebuild from the progress lines, and `START` and `WORKDIR` from `panel.sh status <WT>`. When the commit report had a `check wanted:` line (task or integration fix commit), pass it on to the user as a line of its own after the progress line, word for word, so that a summary still leaves a copy.
 
 **This task's implementation session and the seat sessions are finished here.** Do not send them anything after this. The next
 task starts new ones, and the seats' worktrees stay beside `<WT>`, re-pointed by the next `panel.sh run`. After the last task's commit, the entry's file says what comes next, and whether that task's implementation session stays alive. The seat sessions end here either way.
@@ -264,10 +277,10 @@ When the detail pass in (a) says the boundary no longer holds, or the implementa
 
 ### The round cap
 
-**Five rounds per task. Fixed.** Nobody negotiates it.
-Each (b) counts as one round, and the count resets when the task changes.
+**Five round files of one scope without `approve`, counted by `cap`, for every scope**: `task-<k>`, `integration`
+and `merge`. **Fixed.** Nobody negotiates it.
 
-If round five does not come back `approve`, stop as the entry's file says. Do not keep the rounds going forever.
+When `cap` of `$FLOW/scripts/panel.sh status <WT> <scope>` is true after a round file that is not `approve`, stop as the entry's file says. Do not keep the rounds going forever.
 
 **If the user says stop at any point, stop** as the entry's file says. The cap is a brake, and it is not a promise.
 
@@ -275,17 +288,16 @@ If round five does not come back `approve`, stop as the entry's file says. Do no
 
 - **You do not write code.** The implementation session implements and the seats review. Code you write yourself never passes through a review.
 - **A seat never changes the tree of `<WT>`.** It writes only its probes under `<WORKDIR>/seats/<seat>/` and its seat file, and executes only through `panel.sh run`. You write the round file and no other file of the review, and the implementation session fixes what is found. The seats' worktrees stay beside `<WT>` until the cleanup removes them.
-- **The review files are written once.** Each round and each reply is a new file under `<WORKDIR>/review/`, in the shape `$FLOW/review-files.md` gives. The evidence files are written once too. Nobody edits one after it is written.
+- **A review file is final once its writer has linted it and reported.** Each round and each reply is a new file under `<WORKDIR>/review/`, in the shape `$FLOW/review-files.md` gives, and so is each evidence file. Its writer fixes it until `panel.sh lint` passes, and nobody edits it after the report.
 - **The design session lives for the whole flow, in the standalone flow and in From an issue. An implementation session and the seat sessions live for one task.** Inside a task they continue through `SendMessage`, because throwing the context away between rounds repeats arguments that were already settled. At the commit they are finished, and the next task starts new ones. The implementation session of a one-task plan also writes the work report.
 - **Keep the reports from the sub-agents short.** The role instructions cap them. A report that pastes a diff or a log fills the one context that holds the whole plan, which is yours. When a long one arrives, say so, and ask for the gist next time.
 - **One task is one commit, and a commit happens only after the review approves.** A commit mid-round drops the diff out of the working-tree view the review reads.
 - **No branches, no history rewriting from the sub-sessions.** The main session owns `git checkout -b`, run in `<WT>`. `git rebase`, `git reset --hard` and `--amend` break the `START` comparison. The role instructions say the same.
 - **Each Bash call runs one command with its values written out.** No shell variables, no `$(...)`, no chaining. Read the output whole. pj4-running drives this flow in runs that cannot answer a permission question, and a command Claude Code cannot check stalls them.
 - **A URL in a message to the user stands between spaces.** Only a plain ASCII space or a line break touches either end: no bracket, punctuation or quote, and no particle or full-width punctuation in a language written without spaces. Write it bare, outside backticks and Markdown links. A terminal such as Ghostty ends a link at the first space, so anything touching the URL becomes part of the link and opens the wrong page (`$FLOW/../pj1-plan/between-skills.md`, **Issues in a report**).
-- **Do not lose `START`.** The phase 2 message to the user and the per-task progress lines in phase 4 are the copies that survive a summarised context.
-- **Never write into `work-reports/` without checking it is ignored.** Unchecked, the report and the screenshots ride into the next commit. Check first that git ignores `work-reports/`, ask before adding it to `.git/info/exclude`, and never edit `.gitignore`.
+- **Never write into `work-reports/` without checking it is ignored.** Unchecked, the report and the screenshots ride into the next commit. `worktree.sh ignore` (standalone, From a pull request) and pj4-running (From an issue, From a sync) check it before anything is written there, and `panel.sh begin` checks it again. Never edit `.gitignore`.
 - **The standalone flow never touches `<MAIN>`.** Never switch, stash, commit or clean there. Everything runs in `<WT>`.
-- **`worktree.sh` is for the standalone flow and From a pull request.** From an issue and From a sync never call it. **`panel.sh` is called by every entry**, with the absolute `<WT>`, and only as `run` and `close`.
+- **`worktree.sh` is for the standalone flow and From a pull request.** From an issue and From a sync never call it. **`panel.sh` is called by every entry**, with the absolute `<WT>`, and `lint` with the absolute path of a review file.
 - **Do not move anything under `<WORKDIR>` into version control.** The report, the screenshots and the diff are worth more untracked. Move them only when the user asks.
 - Report a failure when it happens: a failing test, a design that falls apart. **Approved commits are already on the branch and the task in flight is uncommitted in the working tree.** Say both.
 - Standalone, the main session pushes and opens the pull request. From an issue, the main session also pushes and opens the draft pull request. Nothing is merged here. pj4-running

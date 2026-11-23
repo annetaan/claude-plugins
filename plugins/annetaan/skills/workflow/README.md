@@ -37,10 +37,13 @@ goes on without waiting. Say "stop" to end the run, and ask again to overturn a 
 
 Each task's implementation session shows every acceptance criterion by running it, on the tree under review, and writes
 the runs to an evidence file. A bug fix with a cheap test path starts with a failing test. Review seats try to break the change and prove every finding by a run of a probe they wrote: a command, what it
-printed, and what the design requires. A repository below level 3 has one seat, and level 3 has two, on different models. The main session runs each command again, keeps only a failure that breaks the
-design, and writes the round and its verdict. From round 2 on, the main session reruns the open findings itself, and
-each seat attacks only what changed since the tree it reviewed last. What no seat could run is listed in the pull
-request under its own heading.
+printed, and what the design requires. A repository below level 3 has one seat, and level 3 has two, on different
+models. `panel.sh verify` reruns each command, the open findings of earlier rounds included, sorts the findings by the
+probe's exit and writes the draft of the round. The main session keeps only a
+failure that breaks the design, and writes the round and its verdict from the draft. From round 2 on, each seat attacks
+only what changed since the tree it reviewed last. What no seat could run is listed in the pull
+request under its own heading. Each session lints the review file it writes with `panel.sh lint` before it reports, so
+a seat file, a round file, a reply or an evidence file that drifts from the format is fixed where it is written.
 
 Five more rules apply across the roles. The design removes what the request makes unnecessary before it adds anything,
 and draws a new requirement as if it had always been there, down to the types, documents and examples that state the
@@ -92,8 +95,8 @@ and no questions. The detail becomes a plan of one or more tasks, each one revie
 integration review follows when the plan has more than one. When only you can settle what the detail found, the run
 adds that decision to the issue, stops, and leaves the box for you to tick.
 
-The pull request body is `log.md` under a head of `Implements` and `Part of`. The run pushes and opens the pull
-request as a draft against the project's base branch. pj4-running merges it.
+The pull request body is `log.md`, which begins with a head of `Implements` and `Part of`. The run pushes and opens
+the pull request as a draft against the project's base branch. pj4-running merges it.
 
 All of it happens in the worktree pj4-running made for the project, so your own working tree is left alone.
 
@@ -150,24 +153,28 @@ Every run writes a work report. It lives under the worktree's `work-reports/` un
 
 ```
 work-reports/2026-09-19-1346-a1b2c3d/
-  log.md         what changed, how it was verified, the checks wanted, what the review changed, the screenshots,
-                 and last one `Level:` line with the level, its source and the review counts
+  log.md         on a run from an issue first the `Implements` and `Part of` head, then what changed, how it was
+                 verified, the checks wanted, what the review changed, the screenshots, and last one `Level:` line
+                 with the level, its source and the review counts, the head and that line written by panel.sh record
   changes.diff   the diff from the start commit to HEAD
+  run.json       the start commit, the level and its source, the issue and the parent, written once by panel.sh begin
   review/        one file per review round, the reply to each, and the evidence files
     task-1-evidence.md
     task-1-round-1-a.md         what seat a proved in round 1, and `-b` for seat b at level 3
-    task-1-round-1.md           the main session's round, from the seat files
+    task-1-round-1.md           the main session's round, from its draft
     task-1-round-1-reply.md
     task-1-round-1-evidence.md  after a round that changed code
     integration-round-1.md      plans of two or more tasks, with one file per seat
   seats/         the probes of the review seats, `a/<name>/run.sh` and its `tree/`
+  drafts/        the draft of each round file, under the round file's name, written by panel.sh verify from the reruns
   scratch/       throwaway scripts of the implementation session
   before.png     before and after, when the change shows on screen
   after.png
 ```
 
-The directory name is the local time the run started, plus the short SHA of the commit it started from. The newest
-run sorts last, so there is never a question about which report is the current one. The design session's throwaway
+The directory name is the local time the run started, plus the short SHA of the commit it started from. A second run
+of the same minute and commit gets `-2`, `-3` after the name. `panel.sh status` names the current run, the one whose
+`run.json` was written last. The design session's throwaway
 experiments go in `work-reports/<stamp>-design/`, next to the report directory and not inside it.
 
 **These live inside the repository so that you see them.** A cleanup deletes the ones in your clone's
@@ -181,10 +188,12 @@ Otherwise it follows how recent merged pull requests are written. With nothing t
 picks a structure. Whatever it picks, the report has to answer what changed, how it was verified with the commands
 that were actually run, what the review changed, and which commit answers which task in the plan.
 
-`log.md` becomes the pull request body. It ends with one `Level:` line: the level the run used, its source, the tasks,
-the task rounds, the integration rounds and the findings, as
-`Level: 2 (file) · tasks 2 · task rounds 3 · integration rounds 1 · findings 4`. `/annetaan:level` reads these lines
-from the merged pull requests. `review/` holds how each finding was raised and answered.
+`log.md` becomes the pull request body. On a run from an issue it starts with the head `Implements #<n>` and
+`Part of #<P>`. It ends with one `Level:` line: the level the run used, its source, the tasks, the task rounds, the
+integration rounds and the findings, as
+`Level: 2 (file) · tasks 2 · task rounds 3 · integration rounds 1 · findings 4`. `panel.sh record` writes both, the
+head from the issue and the parent and the line from the level and source that `panel.sh begin` stored in `run.json`.
+`/annetaan:level` reads these lines from the merged pull requests. `review/` holds how each finding was raised and answered.
 
 ## Screenshots
 
@@ -229,7 +238,8 @@ screenshots it could not attach.
 | `scripts/level.sh` | reads the repository's level from origin's default branch and prints the model and effort it gives the design session, the implementation session, the review seats and pj's planner, project reviewer and issue writer |
 | `scripts/level.py` | the code `level.sh` runs, and the one place the level table lives |
 | `scripts/comments.py` | fails on a comment outside the four kinds, or a silenced check the change adds, in the files a change touches. The implementation and review sessions run it |
-| `scripts/panel.sh` | runs a review seat's probe in a git worktree beside the run's, at a snapshot of the working tree, and removes the seats at cleanup |
+| `scripts/panel.sh` | makes the run's work directory and reads it back, reports a scope's round, cap, open findings and whether `approve` is allowed, runs a review seat's probe in a git worktree beside the run's, at a snapshot of the working tree, runs every probe of a round again and writes the draft of the round, removes the seats at cleanup, lints a review file, and writes the pull request head and the `Level:` line into `log.md` |
+| `scripts/panel.py` | the code `panel.sh` runs. `worktree.py` imports the stamp rules of the work directory names from it |
 | `review-files.md` | the shape of the review files and the evidence files, read by the seats, the main session and the implementation session |
 
 The design, implementation and review sessions run on agents that ship with the plugin (`../../agents/`). Design is

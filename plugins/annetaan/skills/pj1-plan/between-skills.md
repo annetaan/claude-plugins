@@ -327,7 +327,7 @@ Implements #<n>
 Part of #<P>
 ```
 
-Below the head goes `workflow`'s `log.md`.
+`workflow`'s `panel.sh record` writes the head at the top of `log.md`, and the work report follows it.
 
 The head is the first line with any text on it. GitHub ignores closing keywords such as `Closes` in a pull request
 into a branch other than the default branch, so the merge closes nothing. `pj4-running` closes the issue itself after
