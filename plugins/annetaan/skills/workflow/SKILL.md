@@ -123,8 +123,7 @@ this plugin too, and its call passes `model` and `effort` from `agents.workflow-
 **Seat `b` that cannot start**, at the level that runs it (a weekly limit, a rate limit, the model is unavailable), is
 spawned again as `annetaan:workflow-reviewer-b` with `model: "opus"` and the same `effort`. **A seat that returns no
 report is a dropout**: the round goes on with the seats that reported, and the `Seats:` line of the round file says so.
-When no seat reported, start the seats of that round again with the round 1 call, once. When none reports again, stop
-as the entry's file says for the round cap.
+When no seat reported, phase 4 (b) step 1 starts them again.
 
 ## Phase 2: branch and work directory
 
@@ -229,6 +228,14 @@ Agent(subagent_type: "annetaan:workflow-reviewer-a", description: "review, task 
 The call for another seat is the same with its agent `annetaan:workflow-reviewer-<seat>`, its `model` and `effort` from `agents.workflow-reviewer-<seat>`, its letter in `You are seat <seat>`, `Probes:` under `seats/<seat>`, `panel.sh run <WT> <seat> <probe dir>` and `<scope>-round-1-<seat>.md`. Write `$FLOW` and `<WT>` out as absolute paths. All calls go in one message, so the seats run in parallel. In a run from an issue each prompt also carries the lines `from-issue.md` adds, and in a merge the lines `merge-task.md` gives.
 
 **Every round after that goes to each seat with `SendMessage`**, all in one message, `<r>` being `round`: "the tree has been updated, and the reply is `<scope>-round-<r-1>-reply.md`, with the evidence in `<scope>-round-<r-1>-evidence.md` when the reply changed code, and the round file of the last round is `<scope>-round-<r-1>.md`. Attack what changed since your last round, as **Later rounds** in your role instruction says, and write `<scope>-round-<r>-<seat>.md`." The seats live for one task, so each remembers what it tried, its probes are still there, and it diffs the tree it reviewed last against the tree now.
+
+**When no seat reports**, in round `<r>`, start the seats of round `round` again, once, each with its round 1 `Agent` call and every file in it named for round `<r>`: the seat writes `<scope>-round-<r>-<seat>.md`. A seat whose seat file of round `<r>` is already under `<WORKDIR>/review/` is not started again. In round 1 the call is the call above. From round 2 on, three things change in the call's prompt:
+
+- "The evidence is" names the newest evidence file of the scope, the one `$FLOW/review-files.md`, **The lint**, calls the latest code change before round `<r>`.
+- "Under review" also names the reply `<scope>-round-<r-1>-reply.md` and the round file of the last round `<scope>-round-<r-1>.md`, as the `SendMessage` above lists them.
+- The prompt adds: "You start in round `<r>`. Review the whole change as round 1 does, since you have no earlier snapshot, and do not raise again a finding the earlier round files list."
+
+The seats started again remember only from round `<r>` on, and every later round goes to them by `SendMessage`. When none reports again, stop as the entry's file says for the round cap.
 
 2. **When every seat has reported**, run `$FLOW/scripts/panel.sh verify <WT> <scope>` with the Bash tool's `timeout` set to 600000, because it runs every probe in turn. It runs again the command of each finding in `open` and of each finding in the seat files of round `round`, sorts them by the probe's exit, and writes the draft `<WORKDIR>/drafts/<scope>-round-<r>.md` (see `$FLOW/review-files.md`, **A draft**). Its JSON carries the last 40 lines of each run as `output`, and `dropouts` the seats of the run with no seat file. A call the timeout cut off is run again with `run_in_background`, and you wait for its exit.
 3. **Keep, drop, merge, from the draft.** The draft already sorts by the exit: an earlier finding is `resolved`, `stands` or `stands again`, a new finding that exited non-zero is under `## New findings`, and the rest is under `## Dropped`. What is left is judgement. Keep a new finding when its `output` shows a failure that breaks the intent: the design, its criteria, the plan and the task detail. **Drop the rest with the reason.** Findings with one root cause become one entry that names every seat. Write `Breaks:` for each finding kept, and the `Seats:` line, a dropout said there. An earlier finding marked `reply: disagree` is judged against the intent: a `disagree` whose reason shows the failure does not break the intent is `resolved`, with the reason quoted. **There is no judge.** The round file holds every finding of every seat that you kept. Anything under `## Not run` that no seat could run goes to the round file's `## Not run`.
