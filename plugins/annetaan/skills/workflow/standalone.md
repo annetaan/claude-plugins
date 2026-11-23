@@ -85,6 +85,8 @@ working tree, so later rounds see them in the same diff.
 
 > Every task is committed. This is the integration review. The target is `git diff <START>` plus untracked files, read in `<WT>`. Write round 1 as `integration-round-1-<seat>.md`. The tasks were reviewed one at a time, so look at **the boundaries**: types and contracts between functions that call each other across tasks, names that do not match, duplicated implementations, and acceptance criteria for the whole design that are still unmet. No evidence file exists before round 1, because the tree is clean. Record the walk of every acceptance criterion and every flow of the whole design under `## Walk`, each run as a probe, with `ran:` and `saw:`, or `not run:`.
 
+A restart in round `<r>` of 2 or more (phase 4 (b), **When no seat reports**) sends this request with three changes: "Write round `<r>` as `integration-round-<r>-<seat>.md`", the sentence on no evidence file and the `## Walk` sentence left out, because the lint allows `## Walk` only in `integration-round-1-<seat>.md`, and the evidence being the newest `integration-round-<j>-evidence.md`, or, when no reply has fixed code, the `## Walk` of the `integration-round-1-<seat>.md` files.
+
 **`changes-requested` starts a new implementation session as well**, with the phase 3 call, model and effort included, and its `Scratch:` line, and each reply that changes code comes with `integration-round-<r>-evidence.md`. The progress is every task, the handover notes are everything you have collected, and the request is to
 answer the integration review. From there the (b), (c) loop is the same as phase 4, with the `integration-round-<r>`
 files, and the `integration` scope has the same cap, counted the same way, by `cap` of
