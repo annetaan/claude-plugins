@@ -16,7 +16,9 @@
 | Reader load | each new layer, each home of state | - | the code it writes | - |
 | Comments | a design that needs one is redrawn; the comments in a task's files leave with it | - | writes none outside the four kinds, removes those in the files it changes, runs the check | a comment outside the four kinds, shown by `comments.sh`; a `@ts-expect-error` outside a type test, shown by a run without it |
 | Documents | no explaining document the request did not ask for | - | - | - |
+| Every call has a row | a design that replaces or routes every X: the search, and each X found with its row | - | - | - |
 | Where to split | the plan, the split into tasks, the cut into projects | an issue that is two tasks | - | - |
+| Interfaces between tasks | what one task makes and another uses, written out in full where both are drawn from | - | - | - |
 | No transitional code | a split that stays green only with it is one task; breakage a project declares | a shim in a body, a breakage nobody closes | no shim to stay green | an old path a search still finds, a check failing undeclared |
 | Existing workarounds | never a pattern to ride on; one in the task's files leaves | - | copies none, reports one outside the task | an `existing` entry of `comments.sh` the design does not account for |
 | Root cause | the fix sits at the cause | a fix drawn as a guard | no guard in place of the cause, no silenced check | the bad state reached past a guard, a silenced check shown by `comments.sh` |
@@ -105,6 +107,17 @@ Getting it wrong: a design keeps a flag parameter and adds an optional one besid
 
 The design holds the whole shape, and the plan delivers it in tasks that each pass.
 
+## Every call has a row
+
+**A design that says every X is replaced by Y, or goes through Y, lists every X the code has.** Search for X across what the change reaches, and write in the design, below the table or the list that maps X to Y:
+
+- the search, as the command that was run
+- one line per X it found: where it is, by path and symbol or heading, and the row that takes it
+
+An X that no row takes is a gap in the design, not a detail for a later task. The table gains the row, or the design says why that X stays as it is, before the plan or the split is drawn.
+
+Getting it wrong: the table says `store.sh` replaces every write to the cache file, with a row for `add` and a row for `update`. Nobody listed the writes, so the cleanup step that deletes an entry fits neither row. Three writers drawing three tasks each find it on their own, and each patches it a different way.
+
 ## Reader load
 
 Reading costs two things: **the layers between a question and its answer**, and **the hidden or changing state held in mind on the way**.
@@ -161,6 +174,18 @@ Work is split only where the split is expected to make the review more accurate:
 - **A split is shown by one line per part**: what a reviewer can judge in it without the others. A part with no such line is not a part.
 
 Getting it wrong: a rename that reaches 80 files, cut into four tasks "to keep the diffs small". Each diff passes on its own, and no reviewer sees that the callers in task 3 no longer match the name task 1 chose. It is one task, because the callers cannot be judged without the name.
+
+## Interfaces between tasks
+
+**What one task makes and another task uses is written out in full where every task is drawn from**: the parent's `## Design` in a project of the pj skills, the boundaries of the design in a workflow run. The tasks include those drawn at the same time by other writers and the tasks of a later project.
+
+- a function another task calls: its name, each argument, and what it returns in each case
+- an output another task reads: every field, with its type
+- a closed set of codes another task branches on, such as reasons, statuses or labels: every code, and when each one applies
+
+A task's writer copies these and designs none of them. A boundary written as "the check moves into a shared function" leaves each writer to finish it, and writers drawn in parallel finish it differently.
+
+Getting it wrong: the parent says the stop path "uses the shared marker check". One writer draws `check(path)` returning a message, another draws `check(text, kind)` returning a code, and they count four and five stop reasons. Each body reads well alone, and the second pull request to merge breaks against the first.
 
 ## No transitional code
 
