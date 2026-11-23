@@ -51,7 +51,7 @@ old shape. A new layer needs a named second user and state lives in the narrowes
 answers where a value comes from and what can change it. A finding whose command still shows the failure after a second
 answer is marked `stands again`, and is answered with `assumed:`, what both answers took for granted, before the next fix. A lesson that turns up a second time becomes a check inside the
 task. A check that belongs outside the task is reported as `check wanted:`, and those lines get a heading of their own
-in `log.md`, so they reach the pull request body. Code carries no comment beyond a licence header, a note in a configuration file, an instruction to a tool and a doc comment on a published library's public API, and the comments in a file a task changes leave with it. `scripts/comments.py` fails a task that adds one or silences a check, and both sessions run it. An existing workaround is never a pattern to copy, and a change adds no explaining document the request did not ask for.
+in `log.md`, so they reach the pull request body. Code carries no comment beyond a licence header, a note in a configuration file, an instruction to a tool and a doc comment on a published library's public API, and the comments in a file a task changes leave with it. `scripts/comments.sh` fails a task that adds one or silences a check, and both sessions run it. An existing workaround is never a pattern to copy, and a change adds no explaining document the request did not ask for.
 
 The start message names the new branch and `base: <branch>`. To start from another base, name it in the request.
 
@@ -237,7 +237,8 @@ screenshots it could not attach.
 | `scripts/worktree.py` | the code `worktree.sh` runs |
 | `scripts/level.sh` | reads the repository's level from origin's default branch and prints the model and effort it gives the design session, the implementation session, the review seats and pj's planner, project reviewer and issue writer |
 | `scripts/level.py` | the code `level.sh` runs, and the one place the level table lives |
-| `scripts/comments.py` | fails on a comment outside the four kinds, or a silenced check the change adds, in the files a change touches. The implementation and review sessions run it |
+| `scripts/comments.sh` | fails on a comment outside the four kinds, or a silenced check the change adds, in the files a change touches. The implementation and review sessions run it |
+| `scripts/comments.py` | the code `comments.sh` runs |
 | `scripts/panel.sh` | makes the run's work directory and reads it back, reports a scope's round, cap, open findings and whether `approve` is allowed, runs a review seat's probe in a git worktree beside the run's, at a snapshot of the working tree, runs every probe of a round again and writes the draft of the round, removes the seats at cleanup, lints a review file, and writes the pull request head and the `Level:` line into `log.md` |
 | `scripts/panel.py` | the code `panel.sh` runs. `worktree.py` imports the stamp rules of the work directory names from it |
 | `review-files.md` | the shape of the review files and the evidence files, read by the seats, the main session and the implementation session |

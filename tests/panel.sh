@@ -407,7 +407,7 @@ breaks() {
   good="$(cat "$file")"
   swap "$file" "$@" || fail "cannot break $file for $reason"
   out="$("$SCRIPT" lint "$file")"
-  [ "$(echo "$out" | json "[d['ok'], '$reason' in d['reasons']]")" = "[False, True]" ] || fail "lint $file did not give $reason: $out"
+  [ "$(echo "$out" | json '[d["ok"], d["reasons"]]')" = "[False, ['$reason']]" ] || fail "lint $file did not give only $reason: $out"
   printf '%s\n' "$good" > "$file"
   passes "$file" "$(echo "$out" | json 'd["kind"]')"
 }
@@ -583,7 +583,7 @@ D="$TMP/lint/round/review"
 round_file "$D/task-4-round-1.md" None. "$(finding R1.1; echo; finding R1.2)" changes-requested
 reply_file "$D/task-4-round-1-reply.md" "- R1.1 $FIXED" "- R1.2 disagree: the value is meant to stay"
 round_file "$D/task-4-round-2.md" "- R1.1 resolved
-- R1.2 stands: ran: $CMD; saw: exit 1. The value has to go." "$(finding R2.1)" changes-requested
+- R1.2 stands: ran: $CMD; saw: exit 1; the value has to go." "$(finding R2.1)" changes-requested
 passes "$D/task-4-round-1.md" round
 passes "$D/task-4-round-2.md" round
 breaks "$D/task-4-round-2.md" sections "## Dropped" "## Skipped"
@@ -597,7 +597,8 @@ breaks "$D/task-4-round-1.md" sections "## Earlier findings
 None." "## Earlier findings"
 breaks "$D/task-4-round-2.md" id "### R2.1 " "### R2.2 "
 breaks "$D/task-4-round-2.md" id "### R2.1 " "### R1.3 "
-breaks "$D/task-4-round-2.md" id "- R1.1 resolved" "- R1.9 resolved"
+breaks "$D/task-4-round-2.md" id "- R1.1 resolved" "- R1.1 resolved
+- R1.9 resolved"
 breaks "$D/task-4-round-1.md" id "## Earlier findings
 
 None." "## Earlier findings
@@ -629,16 +630,12 @@ changes-requested" "
 
 changes-requested
 approve"
-breaks "$D/task-4-round-2.md" approve-open "
+swap "$D/task-4-round-2.md" "
 
 changes-requested" "
 
-approve"
-breaks "$D/task-4-round-2.md" approve-no-evidence "
-
-changes-requested" "
-
-approve"
+approve" || fail "cannot approve task-4-round-2.md"
+gives "$D/task-4-round-2.md" "['approve-open', 'approve-no-evidence']"
 echo "ok: lint names each reason of a round file"
 
 D="$TMP/lint/reply/review"
@@ -657,8 +654,10 @@ breaks "$D/task-3-round-1-reply.md" sections "the value is meant to stay" "the v
 breaks "$D/task-3-round-1-reply.md" sections "# Reply" "Reply"
 reply_file "$D/task-3-round-9-reply.md" "- R9.1 disagree: there is no such round"
 gives "$D/task-3-round-9-reply.md" "['no-round']"
-breaks "$D/task-3-round-1-reply.md" line "- R1.2 disagree:" "R1.2 disagree:"
-breaks "$D/task-3-round-1-reply.md" line "- R1.2 disagree:" "- R1.2 rejected:"
+breaks "$D/task-3-round-1-reply.md" line "- R1.2 disagree:" "R1.3 disagree: a line with no dash
+- R1.2 disagree:"
+breaks "$D/task-3-round-1-reply.md" line "- R1.2 disagree:" "- R1.3 rejected: no such answer
+- R1.2 disagree:"
 breaks "$D/task-3-round-1-reply.md" line "# Reply
 " "# Reply
   an indented line under no answer
@@ -742,7 +741,7 @@ round_file "$D/task-1-round-1.md" None. "$(finding R1.1)" approve
 gives "$D/task-1-round-1.md" "['approve-open']"
 round_file "$D/task-1-round-1.md" None. "$(finding R1.1)" changes-requested
 reply_file "$D/task-1-round-1-reply.md" "- R1.1 disagree: the value is meant to stay"
-round_file "$D/task-1-round-2.md" "- R1.1 stands: ran: $CMD; saw: exit 1. The value has to go." None. approve
+round_file "$D/task-1-round-2.md" "- R1.1 stands: ran: $CMD; saw: exit 1; the value has to go." None. approve
 gives "$D/task-1-round-2.md" "['approve-open']"
 echo "ok: lint allows approve only with no finding open and the evidence of the latest code change"
 
@@ -859,7 +858,7 @@ evidence_file "$R/task-1-round-1-evidence.md"
 reply_file "$R/task-1-round-1-reply.md" "- R1.1 $FIXED" "- R1.2 disagree: the value is meant to stay"
 [ "$(scoped task-1 'd["open"]')" = "[{'id': 'R1.1', 'stood': 0, 'reply': 'fixed'}, {'id': 'R1.2', 'stood': 0, 'reply': 'disagree'}]" ] || fail "status after the reply to round 1"
 round_file "$R/task-1-round-2.md" "- R1.1 resolved
-- R1.2 stands: ran: $CMD; saw: exit 1. The value has to go." None. changes-requested
+- R1.2 stands: ran: $CMD; saw: exit 1; the value has to go." None. changes-requested
 [ "$(scoped task-1 '[d["round"], d["verdict"], d["open"], d["approve"]]')" = "[3, 'changes-requested', [{'id': 'R1.2', 'stood': 1, 'reply': None}], {'allowed': False, 'why': ['approve-open']}]" ] || fail "status after round 2"
 reply_file "$R/task-1-round-2-reply.md" "- R1.2 disagree: the value is meant to stay"
 round_file "$R/task-1-round-3.md" "- R1.2 stands again: ran: $CMD; saw: exit 1; the value still has to go." None. changes-requested
@@ -1156,6 +1155,23 @@ passes "$R/task-1-round-2.md" round
 mv "$W/drafts/task-1-round-2.md" "$TMP/draft-2.md"
 gives "$R/task-1-round-2.md" "['draft']"
 echo "ok: lint holds a round file to the draft"
+
+setup
+W="$("$SCRIPT" begin "$WT" --level 3 --source default | json 'd["workdir"]')"
+R="$W/review"
+quiet="$(probe a quiet 'exit 1')"
+findings_file "$R/task-1-round-1-a.md" "it fails quietly" "$(ran_line a "$quiet")"
+findings_file "$R/task-1-round-1-b.md"
+verified task-1 'd["status"]' > /dev/null
+round_from_draft "$W/drafts/task-1-round-1.md" "$R/task-1-round-1.md"
+reply_file "$R/task-1-round-1-reply.md" "- R1.1 disagree: it is meant to fail"
+findings_file "$R/task-1-round-2-a.md"
+findings_file "$R/task-1-round-2-b.md"
+[ "$(verified task-1 '[[f["id"], f["exit"], f["output"]] for f in d["earlier"]]')" = "[['R1.1', 1, '']]" ] || fail "verify round 2 for a quiet probe: $(cat "$TMP/verify.out")"
+round_from_draft "$W/drafts/task-1-round-2.md" "$R/task-1-round-2.md"
+breaks "$R/task-1-round-2.md" draft "; saw: exit 1;" "; saw: exit 17, \`segfault\`;"
+breaks "$R/task-1-round-2.md" draft "; saw: exit 1;" "; saw: exit 10;"
+echo "ok: lint holds the exit of a probe that printed nothing to the draft"
 
 LEVEL_SH="$(dirname "$SCRIPT")/level.sh"
 

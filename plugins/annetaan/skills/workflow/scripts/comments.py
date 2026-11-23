@@ -11,8 +11,8 @@ import tempfile
 import tokenize
 from collections import namedtuple
 
-USAGE = """usage: comments.py [--library] [<ref>]
-       comments.py [--library] --all"""
+USAGE = """usage: comments.sh [--library] [<ref>]
+       comments.sh [--library] --all"""
 
 Found = namedtuple("Found", "line end text full doc")
 

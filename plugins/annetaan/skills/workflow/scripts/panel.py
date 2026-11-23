@@ -369,7 +369,7 @@ def copied(line, want):
     status = MARK.fullmatch(base)
     if disagree and status and status.group(2):
         starts.append(base[:status.start(2)] + "resolved" + base[status.end(2):])
-    return any(line.startswith(start) for start in starts)
+    return any(line == start or line.startswith(start + ";") for start in starts)
 
 def draft_reasons(path, earlier, new):
     draft = os.path.join(os.path.dirname(os.path.dirname(path)), "drafts", os.path.basename(path))

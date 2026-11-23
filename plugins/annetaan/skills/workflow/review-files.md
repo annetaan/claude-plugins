@@ -152,7 +152,7 @@ Seats: a on opus, b on fable
 ## Earlier findings
 
 - R1.1 resolved: ran: `/abs/skills/workflow/scripts/panel.sh run /abs/wt a /abs/wt/work-reports/2026-09-19-1346-a1b2c3d/seats/a/stale-cache`; saw: exit 0, `2 passed`
-- R1.2 stands: ran: `/abs/skills/workflow/scripts/panel.sh run /abs/wt a /abs/wt/work-reports/2026-09-19-1346-a1b2c3d/seats/a/retry-zero`; saw: exit 1, `expected 0 calls, got 1`. `retryJob` has to check it before the first call.
+- R1.2 stands: ran: `/abs/skills/workflow/scripts/panel.sh run /abs/wt a /abs/wt/work-reports/2026-09-19-1346-a1b2c3d/seats/a/retry-zero`; saw: exit 1, `expected 0 calls, got 1`; `retryJob` has to check it before the first call.
 
 ## New findings
 
@@ -183,7 +183,7 @@ changes-requested
 - A new finding copies its `Command:` and `Printed:` from a finding of the draft, and adds `Required:` and `Breaks:`, what the failure breaks in the intent. `Found by:` names every seat that raised it. Findings with one root cause are one entry, which keeps the `Command:` and `Printed:` of one of them, as `R2.1` above keeps seat `a`'s and drops the draft's `R2.2`. The ids count from 1 again over the findings kept.
 - `## Dropped` copies the draft's lines, which give per seat the findings whose failure did not show and those whose command could not be run again. The main session adds a line per seat for a finding it leaves out because the failure does not break the intent, with the reason.
 - `## Not run` holds what no seat could run. It reads `None.` when there is none.
-- `## Earlier findings` reads `None.` in round 1, so every round file has the same five sections. From round 2 on, it holds each line of the draft's `## Earlier findings`, one per finding still open after the last reply, copied up to the end of its `saw:` part, with `; reply: disagree` left off, and the reason after it for a finding that stands. The draft's rerun snapshots the tree as it now is: the failure gone is `resolved`, the failure still shown is `stands`, and the second and every later `stands` on one finding is `stands again`, for example `- R1.2 stands again: ran: <command>; saw: exit 1, <last line>; <the reason>`. A `disagree` whose reason shows the failure does not break the intent is the draft's line with `resolved` as the status word, and the reason quoted.
+- `## Earlier findings` reads `None.` in round 1, so every round file has the same five sections. From round 2 on, it holds each line of the draft's `## Earlier findings`, one per finding still open after the last reply, copied up to the end of its `saw:` part, with `; reply: disagree` left off, and, for a finding that stands, `; ` and the reason after it. The draft's rerun snapshots the tree as it now is: the failure gone is `resolved`, the failure still shown is `stands`, and the second and every later `stands` on one finding is `stands again`, for example `- R1.2 stands again: ran: <command>; saw: exit 1, <last line>; <the reason>`. A `disagree` whose reason shows the failure does not break the intent is the draft's line with `resolved` as the status word, then `; ` and the reason quoted.
 - `## New findings` reads `None.` when there are none.
 - The verdict is the line `approve` or `changes-requested` alone. **`approve` needs no verified finding open, and the evidence file of the latest code change. In integration round 1, where no evidence file exists, a `## Walk` in at least one seat file takes its place.**
 
@@ -218,7 +218,7 @@ Each writer lints its own file as the last step before it reports, and fixes the
 | round | `verdict` | `## Verdict` is not the one line `approve` or `changes-requested` |
 | round | `approve-open` | `approve` while `## New findings` holds a finding or an earlier entry `stands` or `stands again` |
 | round | `approve-no-evidence` | `approve` without the evidence of the latest code change, as below |
-| round | `draft` | the round file has no draft, an earlier entry that passes `mark` for an id round `r-1` left open does not start with the draft's line for that id with `; reply: disagree` left off (for a line the draft marks `reply: disagree`, the status word may also be `resolved`), or a new finding that passes `id`, `finding` and `command` has a `Command:` and `Printed:` that are not those of one new finding of the draft |
+| round | `draft` | the round file has no draft, an earlier entry that passes `mark` for an id round `r-1` left open is not the draft's line for that id, with `; reply: disagree` left off, followed by the end of the line or by `;` (for a line the draft marks `reply: disagree`, the status word may also be `resolved`), or a new finding that passes `id`, `finding` and `command` has a `Command:` and `Printed:` that are not those of one new finding of the draft |
 | reply | `line` | a line after the title is not `- R<r>.<n> fixed: ...` or `- R<r>.<n> disagree: ...`, or an indented line under one |
 | reply | `missing` | an id its round leaves open has no line |
 | reply | `ran` | a `fixed` line carries no `ran:` and `saw:` |
