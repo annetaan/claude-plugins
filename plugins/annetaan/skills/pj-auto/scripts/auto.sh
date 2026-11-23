@@ -52,6 +52,7 @@ names = [
     "Bash(" + skills + "/pj4-running/scripts/run.sh:*)",
     "Bash(" + skills + "/workflow/scripts/panel.sh:*)",
     "Bash(" + skills + "/workflow/scripts/level.sh:*)",
+    "Bash(" + skills + "/workflow/scripts/comments.sh:*)",
     "Read(/" + skills + "/**)",
 ]
 base = [{"rule": r, "in": [e["file"] for e in settings if r in e["allow"]]} for r in names]

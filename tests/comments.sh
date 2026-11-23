@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-SCRIPT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)/plugins/annetaan/skills/workflow/scripts/comments.py"
-SCRIPT="${COMMENTS_PY:-$SCRIPT}"
+SCRIPT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)/plugins/annetaan/skills/workflow/scripts/comments.sh"
+SCRIPT="${COMMENTS_SH:-$SCRIPT}"
 
 TMP="$(mktemp -d)"
 trap 'rm -rf "$TMP"' EXIT
@@ -17,7 +17,7 @@ git config --global init.defaultBranch main
 
 fail() { echo "FAIL: $*" >&2; exit 1; }
 
-check() { rc=0; OUT="$(python3 "$SCRIPT" "$@" 2>"$TMP/err")" || rc=$?; }
+check() { rc=0; OUT="$("$SCRIPT" "$@" 2>"$TMP/err")" || rc=$?; }
 
 json() { python3 -c 'import json,sys; d=json.loads(sys.argv[1]); print(eval(sys.argv[2]))' "$OUT" "$1"; }
 
@@ -474,7 +474,7 @@ commit_all ignore
 mkdir sub
 echo '// n' > sub/new.js
 echo '// n' > ign.js
-(cd sub && python3 "$SCRIPT" > "$TMP/sub.json" 2>/dev/null) || true
+(cd sub && "$SCRIPT" > "$TMP/sub.json" 2>/dev/null) || true
 OUT="$(cat "$TMP/sub.json")"
 expect "untracked" '[e["path"] for e in d["fix"]]' "['sub/new.js']"
 expect "untracked" 'd["scanned"]' 1
@@ -606,6 +606,6 @@ expect_rc "--all with a ref" 2
 check nosuchref
 expect_rc "unknown ref" 2
 rc=0
-(cd "$TMP/nogit" && python3 "$SCRIPT" >/dev/null 2>&1) || rc=$?
+(cd "$TMP/nogit" && "$SCRIPT" >/dev/null 2>&1) || rc=$?
 expect_rc "outside git" 2
 echo "ok: clean exits 0, found exits 1, a usage error and an unknown ref exit 2"
