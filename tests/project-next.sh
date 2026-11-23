@@ -127,3 +127,12 @@ issue 3 ready none 2
 flush
 assert "$(next)" 'd["next"] == "running" and d["why"] == "workable" and d["issue"] == 2' "a workable issue"
 echo "ok: a ready issue with its decisions settled is workable"
+
+project 2
+issue 2 ready none
+flush
+printf 'Base: `pj/1` from `main`\n\n## Order\n\n1. #2\n\n## Goal\n\nx\n\n## Design\n\ny\n\n## Decisions\n\nNone.\n' > "$PARENT_BODY"
+view="$(bash "$SCRIPT" -R test/repo 1)"
+want="$(bash "$SCRIPT" --parent-lint "$PARENT_BODY")"
+assert "$view" "d['parent']['lint'] == json.loads('$want') and d['parent']['lint']['reasons'] == ['sections']" "parent.lint"
+echo "ok: the parent carries its lint"

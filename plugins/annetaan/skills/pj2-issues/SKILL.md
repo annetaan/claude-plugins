@@ -276,9 +276,9 @@ $ISSUES/../pj1-plan/scripts/project.sh --lint "$TMP/T<k>.md"
 ```
 
 Accept a body only when the lint reports no reason, or `decisions-open` alone. Then read it for what the lint cannot
-see: no line numbers, no checkbox outside
-`## Decisions`, no dependencies written into the body, lines under every option saying what it changes, an
-`Only you know:` line on every decision, and a `### Shared state` list in a body whose task writes shared state
+see: no line number in a form the lint does not catch, such as `line 42`, no checkbox outside
+`## Decisions`, no dependencies written into the body, lines under every option saying what it changes, and a
+`### Shared state` list in a body whose task writes shared state
 (**Assumptions** in `workflow/judgement.md`). Send a
 body that fails back to its writer with `SendMessage` and say what to fix. Write the fixed body over the same file.
 
