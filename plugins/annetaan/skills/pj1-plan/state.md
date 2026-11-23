@@ -127,7 +127,8 @@ only once it exists, which moves local refs and nothing else. Each object has th
 {"number", "base", "from", "baseExists", "ok", "lint": {"ok", "reasons"},
  "premises": {"mode": "full" | "early" | "none", "excusers": [numbers],
               "failures": [{"path", "symbol" (when one is missing), "why"}]},
- "breakage": {"unclosed": [{"issue", "check"}]}}
+ "breakage": {"unclosed": [{"issue", "check"}]},
+ "roadmap": {"several-tasks": [numbers]}}
 ```
 
 When a name is missing from its file at the ref, `"why"` is `symbol not found` when the file's history held the name,
@@ -139,8 +140,9 @@ reads and the paths in the file lists of the issue's blockers, so a backticked f
 can be stricter than `issues[].lint`.
 
 `breakage.unclosed` holds the `unclosed` entries of the whole project, not only this issue's, and is filled under
-every `premises.mode`. `ok` is true when the lint is clear, no premise failed and no breakage of
-the project is unclosed. `premises.mode` is `none` while the base branch does not
+every `premises.mode`. `roadmap.several-tasks` holds the numbers in `parent.roadmap.tasks` when it holds more than one
+and this issue is among them, else it is empty, and it is filled under every `premises.mode`. `ok` is true when the
+lint is clear, no premise failed, no breakage of the project is unclosed and `roadmap.several-tasks` is empty. `premises.mode` is `none` while the base branch does not
 exist and a project in `waitsOn` is not `merged`, while an open blocker is outside the project, or while an open
 issue in the transitive `blockedBy` is a stub. `excusers` names the open blockers the check read (see **Is the body
 still current?**).

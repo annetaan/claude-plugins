@@ -822,8 +822,11 @@ def check(numbers):
         if fname and meta.split()[1] == "blob":
             root_files.add(fname)
     unclosed = [{"issue": b["issue"], "check": b["check"]} for b in breakage_view() if b["state"] == "unclosed"]
+    rv = roadmap_view()
+    several = rv["tasks"] if rv and len(rv["tasks"]) > 1 else []
     for n in numbers:
         issue = by_number[n]
+        mine = several if n in several else []
         paths = root_files | {f["path"] for m in transitive_blockers(issue) if m in by_number for f in by_number[m]["files"]}
         paths |= {f["path"] for f in issue["files"]}
         check_lint = lint(parse(body_of[n]), paths)
@@ -875,10 +878,11 @@ def check(numbers):
             "base": base,
             "from": made_from,
             "baseExists": base_exists,
-            "ok": check_lint["ok"] and not failures and not unclosed,
+            "ok": check_lint["ok"] and not failures and not unclosed and not mine,
             "lint": check_lint,
             "premises": {"mode": mode, "excusers": excusers, "failures": failures},
             "breakage": {"unclosed": unclosed},
+            "roadmap": {"several-tasks": mine},
         }, ensure_ascii=False))
 
 if MODE == "check":

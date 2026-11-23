@@ -217,8 +217,9 @@ workflow hands over to this section by name, with the design session's `Body:`, 
    gh issue comment <m> --body-file "$TMP/<k>-note-<m>.md"
    ```
 
-5. **Check the issue again.** Run `project.sh <P> --check <k>` and require `lint.ok`, an empty `premises.failures` and an
-   empty `breakage.unclosed`. The last list is project-wide, so a redraw that drops a closer's criterion is caught here.
+5. **Check the issue again.** Run `project.sh <P> --check <k>` and require `lint.ok`, an empty `premises.failures`, an
+   empty `breakage.unclosed` and an empty `roadmap.several-tasks`. `breakage.unclosed` is project-wide, so a redraw that
+   drops a closer's criterion is caught here.
 6. **A failure.** A failure that is format-only you fix yourself first, as `pj1-plan/between-skills.md` says under
    **Format-only fixes**: a lint reason in step 1, or `symbol never in the file` or a lint reason in step 5. `<before>`
    is `$TMP/<k>-redrawn.md` and `<after>` is `$TMP/<k>-form.md`.

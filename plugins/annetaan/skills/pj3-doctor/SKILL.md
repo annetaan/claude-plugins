@@ -231,7 +231,7 @@ The approval covers this run only (`pj1-plan/between-skills.md`, **Principle**).
 
 **`ready` goes on an issue** when it is open and all of these hold:
 
-- the step 7 `--check`, run again after a format-only fix when one was made, has a clear lint, no premise failure (`premises.mode` `none` has none) and no entry in `breakage.unclosed`
+- the step 7 `--check`, run again after a format-only fix when one was made, has a clear lint, no premise failure (`premises.mode` `none` has none) and no entry in `breakage.unclosed`, and an empty `roadmap.several-tasks`
 - no review finding is left on it: the reviewer's last return lists it as clear
 
 `ready` stays on an issue that still meets this. **`ready` comes off** an issue that had it and no longer meets this.
@@ -365,7 +365,7 @@ the numbers.
    A clear check prints `#<k> format fixed`, and `ready` goes on as above.
 
    **An issue that carries `blocker` loses it in the same command.** A check whose lint or premises still fail, or
-   whose `breakage.unclosed` is not empty, leaves `ready` off, and the report names the failures.
+   whose `breakage.unclosed` or `roadmap.several-tasks` is not empty, leaves `ready` off, and the report names the failures.
 
    **Whoever takes `ready` off leaves a comment** (`pj1-plan/between-skills.md`, **Labels**). It starts with
    `**[pj3-doctor]**` and says what changed and why.
