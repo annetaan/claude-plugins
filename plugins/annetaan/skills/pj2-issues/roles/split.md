@@ -74,6 +74,8 @@ becomes part of this split, or you say that it needs a request of its own.
   it reaches, is one task however large.
 - **Every task can be implemented from its own body.** A task that cannot be drawn without designing a part of
   another task is cut in the wrong place.
+- **What one task makes and another uses is in the parent's `## Design` in full** (**Interfaces between tasks** in `workflow/judgement.md`). For each task that uses a function, an output or a set of codes that another task makes, check that the parent writes it out, and write what is missing into the parent body (item 2). The issue writers draw the tasks in parallel, so whatever the parent leaves open, each one finishes differently.
+- **Run each search of the parent's `## Design` again** (**Every call has a row** in `workflow/judgement.md`) on the code where the "Read the code" line says. An X the list lacks goes into it, and an X no row takes is fixed in the parent body (item 2) before the split is drawn. A parent that says every X is replaced and has no list gets one.
 - **One task is one pull request**, merged on its own. The tests pass at the end of every task, except a check the
   task declares. A pair that turns the suite red when separated (a schema change and the code that uses it) is one
   task (**No transitional code** in `workflow/judgement.md`).
