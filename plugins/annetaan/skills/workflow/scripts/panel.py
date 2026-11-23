@@ -1,6 +1,7 @@
 import fcntl, json, os, re, shutil, subprocess, sys, tempfile, time
 
 SEATS = ("a", "b")
+LEVEL_SEATS = {1: ("a",), 2: ("a",), 3: SEATS}
 TAIL = 40
 STAMP = re.compile(r"\d{4}-\d{2}-\d{2}-\d{4}(-|$)")
 SCOPE = r"task-[1-9]\d*|integration|merge"
@@ -494,7 +495,7 @@ def dropped_line(seat, why, numbers):
 def verify(wt, scope):
     if not re.fullmatch(SCOPE, scope):
         die("no such scope: " + scope)
-    workdir, _ = current_run(wt)
+    workdir, record = current_run(wt)
     review = os.path.join(workdir, "review")
     state = scope_state(review, scope)
     r = state["round"]
@@ -515,7 +516,7 @@ def verify(wt, scope):
                                                                  DISAGREE if finding["reply"] == "disagree" else ""))
         earlier.append({"id": fid, "command": command, "exit": result["exit"], "output": result["output"],
                         "state": word, "reply": finding["reply"]})
-    for seat in SEATS:
+    for seat in LEVEL_SEATS[record["level"]]:
         path = os.path.join(review, "%s-round-%d-%s.md" % (scope, r, seat))
         if not os.path.isfile(path):
             dropouts.append(seat)

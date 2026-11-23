@@ -20,8 +20,9 @@ usage: panel.sh run <WT> <seat> <probe dir>   snapshot the working tree of <WT>,
                                               it reads the file, the files beside it and, for a round file, its draft
                                               under drafts/
        panel.sh verify <WT> <scope>           run again every command of the scope's next round, the open earlier findings
-                                              and both seats' findings, sort them by the probe's exit, and write
-                                              drafts/<scope>-round-<r>.md in the run's work directory
+                                              and the findings of each seat the run's level runs, sort them by the
+                                              probe's exit, and write drafts/<scope>-round-<r>.md in the run's work
+                                              directory
        panel.sh record <WT>                   write the pull request head, when the run comes from an issue, and the Level:
                                               line into log.md of the newest work directory, from its run.json
 Every subcommand prints one JSON object with "status" and exits 0. "stop" carries "reason" and "message".
