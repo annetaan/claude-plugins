@@ -14,12 +14,12 @@
 | Remove before adding | what leaves, and in which task | - | nothing for an input nobody is shown to send, dead code out | - |
 | As if it was always required | the shape, and what moves with it | - | everything in the task that states the old shape | what a search still finds stating the old shape |
 | Reader load | each new layer, each home of state | - | the code it writes | - |
-| Comments | a design that needs one is redrawn; the comments in a task's files leave with it | - | writes none outside the four kinds, removes those in the files it changes, runs the check | a comment outside the four kinds, shown by `comments.py`; a `@ts-expect-error` outside a type test, shown by a run without it |
+| Comments | a design that needs one is redrawn; the comments in a task's files leave with it | - | writes none outside the four kinds, removes those in the files it changes, runs the check | a comment outside the four kinds, shown by `comments.sh`; a `@ts-expect-error` outside a type test, shown by a run without it |
 | Documents | no explaining document the request did not ask for | - | - | - |
 | Where to split | the plan, the split into tasks, the cut into projects | an issue that is two tasks | - | - |
 | No transitional code | a split that stays green only with it is one task; breakage a project declares | a shim in a body, a breakage nobody closes | no shim to stay green | an old path a search still finds, a check failing undeclared |
-| Existing workarounds | never a pattern to ride on; one in the task's files leaves | - | copies none, reports one outside the task | an `existing` entry of `comments.py` the design does not account for |
-| Root cause | the fix sits at the cause | a fix drawn as a guard | no guard in place of the cause, no silenced check | the bad state reached past a guard, a silenced check shown by `comments.py` |
+| Existing workarounds | never a pattern to ride on; one in the task's files leaves | - | copies none, reports one outside the task | an `existing` entry of `comments.sh` the design does not account for |
+| Root cause | the fix sits at the cause | a fix drawn as a guard | no guard in place of the cause, no silenced check | the bad state reached past a guard, a silenced check shown by `comments.sh` |
 | After two failed fixes | a symptom fixed twice before, a lint failing after two fixes | - | a test failing after two fixes, `stands again` | - |
 | A lesson becomes a check | a repeated fix, a rule in the request, the strongest check that holds it | - | a second finding of one kind, a repeated note | - |
 | Done means shown | the criteria and the flows | - | the evidence file | reads it, tries each `not run:`, walks the whole design in integration round 1 |
@@ -123,7 +123,7 @@ The section applies to what the change writes. Existing code is measured only wh
 
 - a licence header
 - a comment in a configuration file that says how to use it
-- an instruction to a tool: a shebang, `# frozen_string_literal: true`, `// @ts-expect-error` in a type test to assert that a type error occurs (`comments.py` passes it, so the review shows a use outside a type test by a run: remove it and run the type check)
+- an instruction to a tool: a shebang, `# frozen_string_literal: true`, `// @ts-expect-error` in a type test to assert that a type error occurs (`comments.sh` passes it, so the review shows a use outside a type test by a run: remove it and run the type check)
 - a doc comment on the public API of a library published for others
 
 An instruction that silences a check is not one of them: it is a guard (**Root cause**). A doc comment anywhere else is not one either.
@@ -138,7 +138,7 @@ Getting it wrong: `// keep in sync with PLAN_LIMITS` above a second table of the
 
 **The comments already in a file the change touches leave in the same task**, outside the four kinds. A task removes only inside the files it already changes.
 
-**`scripts/comments.py` of the workflow skill holds this section.** It fails on a comment outside the four kinds in a file the change touches, and on a silenced check the change adds. It cannot tell a public API, so with `--library` it lists the doc comments for a reader. The role file says when it runs.
+**`scripts/comments.sh` of the workflow skill holds this section.** It fails on a comment outside the four kinds in a file the change touches, and on a silenced check the change adds. It cannot tell a public API, so with `--library` it lists the doc comments for a reader. The role file says when it runs.
 
 A repository whose conventions ask for comments keeps them, and a hit its conventions ask for is no finding.
 
