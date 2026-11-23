@@ -270,16 +270,19 @@ issue holds an open decision, and the user ticks it first.
    blocked by it.
 
    ```bash
-   gh issue create --parent <P> --blocking <n> --label blocker --title "<title>" --body-file <file>
+   run.sh stop <P> <n> blocking --comment <file> --stub <file> --title "<title>"
    ```
 
+   `run.sh` (`pj4-running/scripts/run.sh`) files the stub labelled `blocker`, blocking `<n>`, then posts the marked
+   comment on `<n>`.
 2. **On the stopped issue itself, with `ready` taken off.** Its own body no longer holds: the detail
    pass could not draw a body that passes the checks.
 
    ```bash
-   gh issue edit <n> --remove-label ready --add-label blocker
-   gh issue comment <n> --body-file <file>
+   run.sh stop <P> <n> detail --comment <file>
    ```
+
+   It puts `blocker` on, takes `ready` off, then posts the marked comment.
 
 Either way a marked comment on the stopped issue says what diverged.
 

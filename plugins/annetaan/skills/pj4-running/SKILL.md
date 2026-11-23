@@ -394,16 +394,15 @@ section does not name never reads as done.
 - **Never `--admin`. Never create a label with `--force`. Always pass a body with `--body-file`.**
 - **Never merge the project's pull request.** It goes into `<from>`, and the user merges it.
 - **Never merge a pull request that `project.sh` does not report as the issue's `pr`.**
-- **Whenever you take `ready` off an issue, add `blocker`**, except on a `decision` stop, where the user comes first.
 - **The next run never uses the work a stopped run left in `<WT>` or saved to `stopped.diff`, commits included.** The issue is redone.
 - **Never push to `<from>` or to the default branch, push to the base branch only through `run.sh sync`, and never
   rewrite their history.** The one branch this skill creates outside a pull request is the project's base branch,
   through the API, in `run.sh start`. The one commit that reaches it outside a pull request is the merge of `<from>`,
   pushed as a fast-forward by `run.sh sync`. The project's pull request is opened from that branch as it stands on
   origin.
-- **Close an issue or a parent only through `run.sh close` or `run.sh merge`, which refuse one that is not due, and
-  close as completed**, or as completed after `nothing-left` in `issues.md`.
+- **Close an issue or a parent only through `run.sh close` or `run.sh merge`, which refuse one that is not due or a
+  comment file that starts with no marker, and close as completed**, or as completed after `nothing-left` in `issues.md`.
 - **Edit an existing sub-issue's body, the edges between existing sub-issues and the parent's `## Order` only in **A redrawn issue** in `issues.md`, and a
-  sub-issue's title only on a `decision` stop.** The one other write is a stub filed by **Unplanned work** or by a stop, with its `--blocking` edge.
+  sub-issue's title only through `run.sh stop` on a `decision` stop.** The one other write is a stub filed by **Unplanned work** or by `run.sh stop` on a `blocking` stop, with its `--blocking` edge.
 - An unattended run never calls `AskUserQuestion` and ends with one `unattended:` line.
 - After a context summary, take whether the run is unattended from the last `project #<P>` line, `$TMP` from the last `tmp` line, and rebuild the run from the progress lines and `project.sh <P>`. Inside a workflow entry the level comes back as **The level** in `workflow/SKILL.md` says, from `panel.sh status <WT>` and `level.sh show <WT> <level>`, and from the last `level` line only between entries, running `level.sh show` again with that level when the line says `override` and without one otherwise. Read `issues.md` again when the run is in phases 1 to 4, and `project-pr.md` when it is in **The project's pull request**. A run inside a workflow entry takes **Before workflow runs** again for that entry.
