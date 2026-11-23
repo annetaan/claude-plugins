@@ -56,11 +56,11 @@ review seats. The script `$FLOW/scripts/level.sh` is written `level.sh` in this 
 `.claude/annetaan-level.md` on origin's default branch, and from nowhere else.
 
 ```bash
-$FLOW/scripts/level.sh show <WT> [<n>]
+$FLOW/scripts/level.sh show <WT> [<level>]
 ```
 
 - **Standalone and From a pull request** run it right after entering `<WT>` (**The worktree** step 5 in
-  `worktree.md`). `<n>` comes from `level=<n>` in the args, and is left out when the args carry none. The token sets
+  `worktree.md`). `<level>` comes from `level=<level>` in the args, and is left out when the args carry none. The token sets
   the level of this run only, and it is not part of the request.
 - **From an issue and From a sync** do not run it. They take the JSON pj4-running settled.
 - **Every entry** hands `level` and `source` of that JSON to `panel.sh begin` (phase 2 (b)), which writes them to the
@@ -69,8 +69,8 @@ $FLOW/scripts/level.sh show <WT> [<n>]
 It prints `status: ok` with `level`, `source` (`file`, `override` or `default`), `ref`, `evaluated`, `reviewBy`,
 `warning`, `agents` and `seats`. `agents.<name>` holds the `model` and the `effort` of `workflow-design`,
 `workflow-worker`, `workflow-reviewer-a`, `workflow-reviewer-b`, `pj-planner`, `pj-reviewer` and `pj-issue-writer`,
-for each of them the level runs. `seats` lists the review seats this level runs, `a` alone below level 3 and `a` and
-`b` at level 3, and `agents` names a `workflow-reviewer-<seat>` for exactly those. Keep the JSON. Print `level <level> (<source>)`
+for each of them the level runs. `seats` lists the review seats this level runs, `a` alone at `standard` and `a` and
+`b` at `high`, and `agents` names a `workflow-reviewer-<seat>` for exactly those. Keep the JSON. Print `level <level> (<source>)`
 once, and `warning` on a line of its own when it is set. A warning never stops the run. The finish's `panel.sh record`
 writes the `level` and `source` that `begin` stored into `log.md` (`finish.md`, **The work report**), and
 `/annetaan:level` reads them back from the merged pull requests.
@@ -87,14 +87,14 @@ ahead, and the level comes as at the start: standalone and From a pull request r
 and From an issue and From a sync take the JSON pj4-running settled, which pj4-running brings back from its last
 `level` line, as between entries.
 
-A non-zero exit is a usage error, such as `level=<n>` outside 1 to 3, or an unexpected failure: quote its message and
+A non-zero exit is a usage error, such as `level=<level>` other than `standard` or `high`, or an unexpected failure: quote its message and
 stop, as for `worktree.sh`.
 
 ## Before you start
 
 This skill spawns sub-sessions and adds commits. **Start it only when the user names it or invokes
 `/annetaan:workflow`, asks to resolve the conflicts of a pull request, or pj4-running loads it for an issue or a
-sync.** `level=<n>` in the args, 1, 2 or 3, sets the repository's level for this run (see **The level**).
+sync.** `level=<level>` in the args, `standard` or `high`, sets the repository's level for this run (see **The level**).
 
 ## The worktree line
 

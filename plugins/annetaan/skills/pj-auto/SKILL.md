@@ -54,15 +54,15 @@ Any of these failing stops the skill. Say which one and stop.
 **The project.** Pick it as `pj1-plan/between-skills.md` says under **Picking the project**, with the candidates of `pj3-doctor`
 and `pj4-running`. The project picked is `<P>`. Print `project #<P>` once, as that section says.
 
-**The level.** `<root>` is what `git rev-parse --show-toplevel` printed, and `<n>` comes from `level=<n>` in the args,
+**The level.** `<root>` is what `git rev-parse --show-toplevel` printed, and `<level>` comes from `level=<level>` in the args,
 left out when the args carry none.
 
 ```bash
-$AUTO/../workflow/scripts/level.sh show <root> [<n>]
+$AUTO/../workflow/scripts/level.sh show <root> [<level>]
 ```
 
 Print `level <level> (<source>)` once, and `warning` on a line of its own when it is set, as **The level** in
-`workflow/SKILL.md` says. A non-zero exit, such as `level=<n>` outside 1 to 3, stops the skill: quote its
+`workflow/SKILL.md` says. A non-zero exit, such as `level=<level>` other than `standard` or `high`, stops the skill: quote its
 message.
 
 ## The next step
@@ -123,7 +123,7 @@ Otherwise a step would run. Show a summary first:
 - that a run may wait up to 60 minutes after its last turn for its background work
 - that merges into the project's base branch happen, and the project's own pull request is never merged
 - the level the runs use, `level <level> (<source>)`, and that each run reads it again from origin's default branch,
-  unless `level=<n>` was given, in which case every run gets `level=<n>`
+  unless `level=<level>` was given, in which case every run gets `level=<level>`
 - that no other session may run on the same project while the drive runs: a dirty worktree is taken for a dead run's
   and discarded
 - the permissions: every rule from **The permissions**, one line each, as `covered (<file>)`, `missing`, or
@@ -147,10 +147,10 @@ The directory it printed is `<LOG>`. Print `drive <LOG>` once, so that a context
 script with Bash `run_in_background`:
 
 ```bash
-$AUTO/scripts/auto.sh <P> --log <LOG> [--level <n>]
+$AUTO/scripts/auto.sh <P> --log <LOG> [--level <level>]
 ```
 
-`--level <n>` goes in only when the args carried `level=<n>`. `auto.sh` then adds ` level=<n>` to the args of every run.
+`--level <level>` goes in only when the args carried `level=<level>`. `auto.sh` then adds ` level=<level>` to the args of every run.
 
 Print `tail -f <LOG>/drive.jsonl` with the real path, for the user to follow the steps. Each step writes a `begin` line
 when it starts and a `step` line when it ends. The `begin` line names the run, why, the issue, `at`, its output files

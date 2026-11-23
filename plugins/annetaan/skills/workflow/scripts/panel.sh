@@ -8,7 +8,7 @@ usage() {
 usage: panel.sh run <WT> <seat> <probe dir>   snapshot the working tree of <WT>, put seat a or b at it, copy <probe dir>/tree over it,
                                               run <probe dir>/run.sh there and print its exit and its last 40 lines
        panel.sh close <WT>                    remove the seats; safe when there is none, and when <WT> is already gone
-       panel.sh begin <WT> --level <n> --source <source> [--issue <n> --parent <P>]
+       panel.sh begin <WT> --level <level> --source <source> [--issue <n> --parent <P>]
                                               make the run's work directory under <WT>/work-reports/ with review/ and seats/,
                                               take HEAD as the start, and write the start, the level, its source, the issue
                                               and the parent to run.json
@@ -38,7 +38,7 @@ case "$1" in
   begin)
     [ $# -eq 6 ] || [ $# -eq 10 ] || usage
     [ "$3" = --level ] || usage
-    case "$4" in 1|2|3) ;; *) usage ;; esac
+    case "$4" in standard|high) ;; *) usage ;; esac
     [ "$5" = --source ] || usage
     case "$6" in file|override|default) ;; *) usage ;; esac
     if [ $# -eq 10 ]; then
