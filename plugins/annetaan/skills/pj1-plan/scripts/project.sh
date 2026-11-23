@@ -104,14 +104,14 @@ gh api graphql -F owner="${REPO%%/*}" -F name="${REPO#*/}" -F n="$PARENT" -f que
 query($owner: String!, $name: String!, $n: Int!) {
   repository(owner: $owner, name: $name) {
     issue(number: $n) {
-      number title state stateReason updatedAt body
+      number url title state stateReason updatedAt body
       labels(first: 50) { nodes { name } }
-      blockedBy(first: 50) { nodes { number title state stateReason body } }
+      blockedBy(first: 50) { nodes { number url title state stateReason body } }
       blocking(first: 50) { nodes { number body } }
       subIssues(first: 100) {
         totalCount
         nodes {
-          number title state stateReason updatedAt body
+          number url title state stateReason updatedAt body
           labels(first: 50) { nodes { name } }
           blockedBy(first: 50) { nodes { number state parent { number } } }
           blocking(first: 50) { nodes { number } }

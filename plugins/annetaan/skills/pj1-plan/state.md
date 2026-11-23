@@ -35,16 +35,16 @@ project.sh --roadmap [<ref>] # the roadmap file, in the work tree or at <ref>, c
 `project.sh <P>` prints:
 
 ```
-{"parent": {"number", "title", "state", "stateReason", "updatedAt", "labels": [names], "base", "from",
+{"parent": {"number", "title", "url", "state", "stateReason", "updatedAt", "labels": [names], "base", "from",
             "baseExists", "merged", "projectPr", "waitedOnBy": [numbers], "startable",
-            "waitsOn": [{"number", "title", "state", "stateReason", "base", "merged"}],
+            "waitsOn": [{"number", "title", "url", "state", "stateReason", "base", "merged"}],
             "order": [numbers],
             "orderCheck": {"ok", "unknown": [numbers], "duplicate": [numbers],
                            "early": [{"number", "blocker"}], "missing": [numbers]},
             "roadmap": {"path", "entry", "tasks": [numbers], "task": number or null, "missing": [numbers]} or null,
             "breakage": [{"issue", "check", "closedBy": [numbers], "state"}],
             "lint": {"ok", "reasons": [codes]}},
- "issues": [{"number", "title", "wantedTitle", "state", "stateReason", "updatedAt", "labels": [names],
+ "issues": [{"number", "title", "url", "wantedTitle", "state", "stateReason", "updatedAt", "labels": [names],
              "blockedBy": [{"number", "state", "parent"}], "blocking": [numbers],
              "pr": {"number", "state", "isDraft", "url"} or null, "stub",
              "designPaths": [paths], "leftBroken": [checks],
@@ -52,6 +52,8 @@ project.sh --roadmap [<ref>] # the roadmap file, in the work tree or at <ref>, c
              "lint": {"ok", "reasons": [codes]}}]}
 ```
 
+- `url` is the issue's GitHub URL, on the parent, on each issue and on each `waitsOn` entry. A skill reads a link
+  from it and never builds one.
 - `labels` on the parent is the names of its labels, the same as `labels` on an issue.
 - `base` is the base branch the parent's `Base:` line names, and `from` is the branch it is made from
   (`format.md`, **The parent issue body**).

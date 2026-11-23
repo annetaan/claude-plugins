@@ -52,14 +52,14 @@ if args[:2] == ["api", "graphql"]:
                 + os.environ.get("FX_EXTRA_ENTRY", "") + "\n"
                 "## Acceptance criteria\n\n- `foo` is renamed.\n\n"
                 "## Decisions\n\nNone.\n\n## Out of scope\n\nNothing.\n")
-        sub = {"number": 2, "title": "Rename foo", "state": "OPEN", "stateReason": None,
+        sub = {"number": 2, "url": "https://github.com/test/repo/issues/2", "title": "Rename foo", "state": "OPEN", "stateReason": None,
                "updatedAt": "2000-01-01T00:00:00Z", "body": body,
                "labels": {"nodes": [{"name": "ready"}]},
                "blockedBy": {"nodes": []}, "blocking": {"nodes": []}}
         subs = [sub]
         if os.environ.get("FX_TWO"):
-            subs.append(dict(sub, number=3, title="Rename foo again"))
-        parent = {"number": 1, "title": "Project", "state": "OPEN", "stateReason": None,
+            subs.append(dict(sub, number=3, url="https://github.com/test/repo/issues/3", title="Rename foo again"))
+        parent = {"number": 1, "url": "https://github.com/test/repo/issues/1", "title": "Project", "state": "OPEN", "stateReason": None,
                   "updatedAt": "2000-01-01T00:00:00Z",
                   "body": "Base: `pj/1` from `main`\n\n## Goal\n\nx\n",
                   "labels": {"nodes": []}, "blockedBy": {"nodes": []}, "blocking": {"nodes": []},

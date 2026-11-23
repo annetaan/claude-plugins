@@ -498,6 +498,7 @@ for node in parent["subIssues"]["nodes"]:
     issues.append({
         "number": node["number"],
         "title": node["title"],
+        "url": node["url"],
         "wantedTitle": titled(node["title"], counts),
         "state": node["state"],
         "stateReason": node.get("stateReason"),
@@ -711,13 +712,13 @@ if MODE in ("project", "check", "next"):
     for d in dep_list:
         st = dep_stand.get(d["number"], {"states": [], "reached": False})
         waits_on_entries.append({
-            "number": d["number"], "title": d["title"], "state": d["state"], "stateReason": d.get("stateReason"),
+            "number": d["number"], "title": d["title"], "url": d["url"], "state": d["state"], "stateReason": d.get("stateReason"),
             "base": base_of(d["body"])[0], "merged": merged(d, st["states"], st["reached"]),
         })
 
 def project_view():
     return {
-        "parent": dict({k: parent.get(k) for k in ("number", "title", "state", "stateReason", "updatedAt")},
+        "parent": dict({k: parent.get(k) for k in ("number", "title", "url", "state", "stateReason", "updatedAt")},
                        labels=[l["name"] for l in parent["labels"]["nodes"]],
                        base=base, **{"from": made_from},
                        baseExists=base_exists,
