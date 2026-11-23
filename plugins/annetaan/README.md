@@ -140,7 +140,7 @@ request is the exception: asking to resolve the conflicts of a pull request, in 
 
 Runs one implementation through sessions with different jobs. A design session writes the plan, then details each
 task as its turn comes. The design is drawn as if the request had always been required and moves existing code,
-contracts included, where that gives the better shape, and the start message shows what moves. An implementation session writes the code for one task. Review seats try to break it and write what they prove, each by a probe they run through `panel.sh`, to a file. A repository below level 3 has one seat, and level 3 has two, on different models. The implementation session and the review seats are new for every task. It asks for no approval: you
+contracts included, where that gives the better shape, and the start message shows what moves. An implementation session writes the code for one task. Review seats try to break it and write what they prove, each by a probe they run through `panel.sh`, to a file. A repository at `standard` has one seat, and `high` has two, on different models. The implementation session and the review seats are new for every task. It asks for no approval: you
 answer only the questions it cannot go on without, and a start message names the branch and the base. The run happens in `.claude/worktrees/wf-<stamp>`.
 
 The sessions follow [the judgement rules](skills/workflow/judgement.md). The design session settles what it can from
@@ -623,7 +623,7 @@ that path out of the prompt the main session hands it.
 A repository's level says how much model the design, the planning, the project review, the implementation, the review
 and the issue writing get. It lives in
 `.claude/annetaan-level.md` on the default branch of `origin`, and only there: a copy in the working tree or on another
-branch is never read. With no file, the level is 2. `level=<n>` in the args of `workflow`, `pj3-doctor`,
+branch is never read. With no file, the level is `standard`. A file whose level is not `standard` or `high` is ignored with a warning, and the run goes on at `standard`. `level=<level>`, `standard` or `high`, in the args of `workflow`, `pj3-doctor`,
 `pj4-running` or `pj-auto` sets it for one run. A file past its `review-by` date still counts, with a warning.
 Each workflow run ends its pull request body with a `Level:` line: the level it ran at, its source, and how many tasks,
 task rounds, integration rounds and findings it had. `/annetaan:level` proposes a new level from those lines and the

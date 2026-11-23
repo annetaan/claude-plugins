@@ -1,6 +1,6 @@
 ---
 name: level
-description: Proposes the repository's level, which sets the model and effort that workflow's design, implementation and review and the pj planner, project reviewer and issue writer get. Reads the `Level:` lines of the pull requests merged since the last evaluation and has an evaluator read the code, asks one question with the three levels, then writes `.claude/annetaan-level.md` in a git worktree of its own, commits it on a new branch, pushes it and opens a pull request into the default branch, and leaves its merge to the user. /annetaan:workflow-cleanup removes the worktree and the branch afterwards. Use it only when the user names this skill or invokes /annetaan:level, because it pushes a branch and opens a pull request on GitHub.
+description: Proposes the repository's level, which sets the model and effort that workflow's design, implementation and review and the pj planner, project reviewer and issue writer get. Reads the `Level:` lines of the pull requests merged since the last evaluation and has an evaluator read the code, asks one question with the two levels, `standard` and `high`, then writes `.claude/annetaan-level.md` in a git worktree of its own, commits it on a new branch, pushes it and opens a pull request into the default branch, and leaves its merge to the user. /annetaan:workflow-cleanup removes the worktree and the branch afterwards. Use it only when the user names this skill or invokes /annetaan:level, because it pushes a branch and opens a pull request on GitHub.
 ---
 
 # level
@@ -79,14 +79,13 @@ A `stop` with `gh`: quote `message` and take **Ending with nothing changed** in 
 First read what each level gives, from the one place that holds it:
 
 ```bash
-<skills>/workflow/scripts/level.sh show <WT> 1
-<skills>/workflow/scripts/level.sh show <WT> 2
-<skills>/workflow/scripts/level.sh show <WT> 3
+<skills>/workflow/scripts/level.sh show <WT> standard
+<skills>/workflow/scripts/level.sh show <WT> high
 ```
 
 ```
 Agent(subagent_type: "annetaan:level-evaluator", description: "evaluate the level",
-      prompt: "Read $LEVEL/roles/evaluate.md first and follow the role it describes.\n\nlevel.sh show:\n<the JSON of step 1>\n\nThe agents at each level:\nLevel 1: <agents of show 1>\nLevel 2: <agents of show 2>\nLevel 3: <agents of show 3>\n\nThe level file now:\n<the output of git show <ref>:.claude/annetaan-level.md, or none>\n\nlevel.sh history:\n<the JSON of step 4>\n\nToday: <YYYY-MM-DD>\n\n<the worktree line>")
+      prompt: "Read $LEVEL/roles/evaluate.md first and follow the role it describes.\n\nlevel.sh show:\n<the JSON of step 1>\n\nThe agents at each level:\nstandard: <agents of show standard>\nhigh: <agents of show high>\n\nThe level file now:\n<the output of git show <ref>:.claude/annetaan-level.md, or none>\n\nlevel.sh history:\n<the JSON of step 4>\n\nToday: <YYYY-MM-DD>\n\n<the worktree line>")
 ```
 
 `<the worktree line>` is **The worktree line** in `<skills>/workflow/SKILL.md`, with the real paths for `<WT>` and
@@ -103,6 +102,7 @@ Show, before you ask:
 - `since`, and one line per group of `history`: the level, the source, the runs, the tasks, the send-backs per task
   and the findings per task
 - the proposal and its three reasons
+- the `unread` entries of `history`, one line each as `#<pr>: <line>`, saying that no level reads them. Nothing when the list is empty
 - the file `.claude/annetaan-level.md` as it will be written: the front matter with `level`, `evaluated: <today>` and
   `review-by: <today + 90 days>`, and the body
 - the branch `level-<stamp>`, where `<stamp>` is `<name>` without `wf-`, and `base: <base>`
@@ -111,9 +111,8 @@ Show, before you ask:
 
 ```
 AskUserQuestion: Which level should this repository run at?
-  - Level 1
-  - Level 2
-  - Level 3
+  - standard
+  - high
 ```
 
 The proposed level carries `(Recommended)`. Other means stop: take **Ending with nothing changed**. This is the only
@@ -121,14 +120,14 @@ question.
 
 ## 7. Write
 
-When the answer differs from the proposal, `SendMessage` the evaluator "the user chose level k" and take its new
+When the answer differs from the proposal, `SendMessage` the evaluator "the user chose <level>" and take its new
 `Body:`.
 
 Write `<WT>/.claude/annetaan-level.md`:
 
 ```markdown
 ---
-level: <k>
+level: <level>
 evaluated: <today>
 review-by: <today + 90 days>
 ---
