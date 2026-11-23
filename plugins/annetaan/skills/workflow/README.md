@@ -235,6 +235,7 @@ screenshots it could not attach.
 | `roles/review.md` | the role for a review seat |
 | `scripts/worktree.sh` | creates the run's worktree and checks its ignore rules. `workflow-cleanup` uses it to clean up |
 | `scripts/worktree.py` | the code `worktree.sh` runs |
+| `scripts/clone.py` | the one place that fetches from origin, under a lock on the clone's common git directory that every worktree shares. `worktree.py`, `level.py` and the pj4-running, pj-cleanup and pj1-plan scripts import it |
 | `scripts/level.sh` | reads the repository's level from origin's default branch and prints the model and effort it gives the design session, the implementation session, the review seats and pj's planner, project reviewer and issue writer |
 | `scripts/level.py` | the code `level.sh` runs, and the one place the level table lives |
 | `scripts/comments.sh` | fails on a comment outside the four kinds, or a silenced check the change adds, in the files a change touches. The implementation and review sessions run it |
