@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-SCRIPT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)/plugins/annetaan/skills/pj-auto/scripts/auto.sh"
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+SCRIPT="$ROOT/plugins/annetaan/skills/pj-auto/scripts/auto.sh"
 SCRIPT="${AUTO_SH:-$SCRIPT}"
 
 TMP="$(mktemp -d)"
@@ -130,8 +131,30 @@ echo "ok: no last line without the message is still no-line"
 import json, sys
 e = json.loads(sys.stdin.read())
 rules = [b["rule"] for b in e["base"]]
-assert len(rules) == 7, rules
+assert len(rules) == 8, rules
 assert "Bash(" + sys.argv[1] + "/workflow/scripts/panel.sh:*)" in rules, rules
 assert "Bash(" + sys.argv[1] + "/workflow/scripts/level.sh:*)" in rules, rules
-' "$TMP/skills" || fail "auto.sh --rules does not list seven base rules with panel.sh and level.sh"
-echo "ok: auto.sh --rules lists seven base rules, panel.sh and level.sh among them"
+assert "Bash(" + sys.argv[1] + "/workflow/scripts/comments.sh:*)" in rules, rules
+' "$TMP/skills" || fail "auto.sh --rules does not list eight base rules with panel.sh, level.sh and comments.sh"
+echo "ok: auto.sh --rules lists eight base rules, panel.sh, level.sh and comments.sh among them"
+
+"$TMP/skills/pj-auto/scripts/auto.sh" --rules | python3 -I -c '
+import json, os, re, sys
+skills, root = sys.argv[1], sys.argv[2]
+e = json.loads(sys.stdin.read())
+prefix, suffix = "Bash(" + skills + "/", ":*)"
+covered = {b["rule"][len(prefix):-len(suffix)] for b in e["base"] if b["rule"].startswith(prefix) and b["rule"].endswith(suffix)}
+call = re.compile(r"\$[A-Z]+(?:/\.\./([a-z0-9-]+))?/scripts/([A-Za-z0-9_-]+\.[a-z]+)")
+missing = set()
+for skill in ("pj1-plan", "pj3-doctor", "pj4-running", "workflow"):
+    for here, _, files in os.walk(os.path.join(root, "plugins/annetaan/skills", skill)):
+        for name in files:
+            if not name.endswith(".md"):
+                continue
+            for other, script in call.findall(open(os.path.join(here, name)).read()):
+                needed = (other or skill) + "/scripts/" + script
+                if needed not in covered and needed != "workflow/scripts/worktree.sh":
+                    missing.add(needed)
+assert not missing, "no base rule for: " + ", ".join(sorted(missing))
+' "$TMP/skills" "$ROOT" || fail "a script the pj skills or the workflow skill call has no base rule"
+echo "ok: every script the pj skills and the workflow skill call has a base rule, worktree.sh aside"

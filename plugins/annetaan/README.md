@@ -382,7 +382,7 @@ whole session, so a long project costs many.
 What it needs:
 
 - the `claude` CLI on the PATH
-- the rules every drive needs, because the runs cannot ask: `Bash(gh:*)`, `Bash(git:*)`, the four script rules, and a
+- the rules every drive needs, because the runs cannot ask: `Bash(gh:*)`, `Bash(git:*)`, the five script rules, and a
   `Read` rule for the plugin's skills directory. pj-auto shows them with the real paths before it asks, because the
   plugin's directory differs per machine. Edits need no rule, because the runs start in acceptEdits mode.
 - the repository's own commands, such as the install, the tests and the type checks. pj-auto finds them in `CLAUDE.md`,
