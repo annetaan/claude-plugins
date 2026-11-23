@@ -444,7 +444,7 @@ commits it on a new branch, pushes it and opens a pull request into the default 
 
 `/annetaan:workflow-cleanup` ([details](skills/workflow-cleanup/SKILL.md)) cleans up after a workflow run, a `pj-roadmap` run or a `level` run. Without a
 number, it lists the `wf-*` worktrees whose pull request is merged or closed, and those that have none, which is a run that
-stopped or one still going in another session. It takes the only candidate, or asks which. It shows what it will do and asks once. Then it moves the work
+stopped or one still going in another session. It takes the only candidate with a merged or closed pull request, or asks which. A run with no pull request is cleaned up only when you pick it, because it may still be going. It shows what it will do and goes on without asking. Then it moves the work
 reports into `work-reports/` in your clone, removes the worktree and the review seats beside it, deletes the branch locally and on origin,
 fast-forwards your local base after a merge, and deletes the work reports in `work-reports/` beyond the 100 newest, by
 the time stamp in their name.
