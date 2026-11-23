@@ -140,7 +140,7 @@ request is the exception: asking to resolve the conflicts of a pull request, in 
 
 Runs one implementation through sessions with different jobs. A design session writes the plan, then details each
 task as its turn comes. The design is drawn as if the request had always been required and moves existing code,
-contracts included, where that gives the better shape, and what moves is in the design you approve. An implementation session writes the code for one task. Review seats try to break it and write what they prove, each by a probe they run through `panel.sh`, to a file. A repository below level 3 has one seat, and level 3 has two, on different models. The implementation session and the review seats are new for every task. It asks for no approval: you
+contracts included, where that gives the better shape, and the start message shows what moves. An implementation session writes the code for one task. Review seats try to break it and write what they prove, each by a probe they run through `panel.sh`, to a file. A repository below level 3 has one seat, and level 3 has two, on different models. The implementation session and the review seats are new for every task. It asks for no approval: you
 answer only the questions it cannot go on without, and a start message names the branch and the base. The run happens in `.claude/worktrees/wf-<stamp>`.
 
 The sessions follow [the judgement rules](skills/workflow/judgement.md). The design session settles what it can from
@@ -396,7 +396,7 @@ What it needs:
 
 `/annetaan:pj-cleanup` ([details](skills/pj-cleanup/SKILL.md)) cleans up after you merge a project's pull request.
 Without a number, it takes the project this conversation is on when that one is merged and has its worktree in your clone, otherwise the only merged project with a worktree there, and asks when there are several. It
-shows what it will do and asks once. Then it closes the parent when it is still open, moves the work reports out of
+shows what it will do and goes on without asking. Then it closes the parent when it is still open, moves the work reports out of
 the project's worktree into `work-reports/` in your clone, removes the worktree and the review seats beside it, deletes the project's branch on
 origin and locally, fast-forwards your local copy of the branch the project merged into, usually `main`, and deletes the work reports in `work-reports/` beyond the 100 newest, by the time stamp in their name.
 
@@ -444,7 +444,7 @@ commits it on a new branch, pushes it and opens a pull request into the default 
 
 `/annetaan:workflow-cleanup` ([details](skills/workflow-cleanup/SKILL.md)) cleans up after a workflow run, a `pj-roadmap` run or a `level` run. Without a
 number, it lists the `wf-*` worktrees whose pull request is merged or closed, and those that have none, which is a run that
-stopped or one still going in another session. It takes the only candidate, or asks which. It shows what it will do and asks once. Then it moves the work
+stopped or one still going in another session. When the only candidate has a merged or closed pull request, it takes that one. Otherwise, with several candidates or one with no pull request, it asks which, because a run with no pull request may still be going and is cleaned up only when you pick it. It shows what it will do and goes on without asking. Then it moves the work
 reports into `work-reports/` in your clone, removes the worktree and the review seats beside it, deletes the branch locally and on origin,
 fast-forwards your local base after a merge, and deletes the work reports in `work-reports/` beyond the 100 newest, by
 the time stamp in their name.

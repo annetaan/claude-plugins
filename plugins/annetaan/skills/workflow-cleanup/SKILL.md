@@ -1,6 +1,6 @@
 ---
 name: workflow-cleanup
-description: Cleans up a workflow run, a pj-roadmap run or a level run once its pull request is merged or closed, or after a run that stopped. Moves the work reports out of the run's wf-* worktree into the main working tree, removes the worktree, deletes the run's branch locally and on origin, fast-forwards the local base branch when the pull request merged, and deletes the work reports in the main working tree beyond the 100 newest, by the time stamp in their name. Asks one approval question. Use it only when the user names this skill or invokes /annetaan:workflow-cleanup, because it deletes branches and removes a worktree.
+description: Cleans up a workflow run, a pj-roadmap run or a level run once its pull request is merged or closed, or after a run that stopped. Moves the work reports out of the run's wf-* worktree into the main working tree, removes the worktree, deletes the run's branch locally and on origin, fast-forwards the local base branch when the pull request merged, and deletes the work reports in the main working tree beyond the 100 newest, by the time stamp in their name. Asks no question to confirm the cleanup: it asks which run only when several are ready or the run has no pull request, and asks before it discards work that nothing else holds. Use it only when the user names this skill or invokes /annetaan:workflow-cleanup, because it deletes branches and removes a worktree.
 ---
 
 # workflow-cleanup
@@ -63,11 +63,15 @@ message.
 **Otherwise** the candidates are the entries that are `merged`, `closed` or `no-pr`. An `open` entry is printed and
 never offered.
 
-- **One candidate**: take it and ask nothing. Say `<name> (the only candidate)`. When its `state` is `no-pr`, say
-  in one line that it may be a run still going in another session, with the time its stamp gives.
-- **Several**: print every entry in one line, with its name, branch, state and pull request number and title, then ask
-  with the header `Run`, at most 4 options, ordered `merged`, then `closed`, then `no-pr`, the oldest first within
-  each, and the first marked `(Recommended)`.
+- **One candidate that is `merged` or `closed`**: take it and ask nothing. Say `<name> (the only candidate)`.
+- **Several, or a `no-pr` one**: print every entry in one line, with its name, branch, state and pull request number
+  and title, then ask with the header `Run`, ordered `merged`, then `closed`, then `no-pr`, the oldest first within
+  each. A `no-pr` run is cleaned up only when the user picks it here, and the question is asked even for one
+  candidate, because a `no-pr` run may still be going in another session. Each `no-pr` option's description gives the
+  time its stamp gives and says so.
+  - With no `no-pr` entry, at most 4 options, and the first marked `(Recommended)`.
+  - With a `no-pr` entry, `Do not clean up` is the last option and there are 4 options at most. The first `merged` or
+    `closed` option is marked `(Recommended)`, and with none, `Do not clean up` is. On `Do not clean up`, stop.
 - **None**: print the entries, say that no run is ready to be cleaned up, and stop.
 
 Print `run <name>` once.
@@ -83,15 +87,13 @@ $CLEANUP/../workflow/scripts/worktree.sh check <name>
 - **`stop`**: act by `reason`.
   - `open`: the pull request is still open. Give `pr.url` and stop.
   - `unknown`, `not-a-repo`, `gh`, `fetch-failed`: quote `message` and stop.
-- **`ok`**: keep `main` as `<MAIN>`, `worktree.path` as `<WT>`, `base` as `<base>`, and the rest for the question.
+- **`ok`**: keep `main` as `<MAIN>`, `worktree.path` as `<WT>`, `base` as `<base>`, and the rest for the list.
 
-## The question
+## What it does
 
 Show what the cleanup does, one line per item, from the `check` output.
 
-- the pull request: `#<n> <title>` with its URL and `state`, or that the run opened none. A `no-pr` run that is
-  still going in another session looks the same as one that stopped, so name the time the stamp of `<name>` gives
-  and say that `Do not clean up` is the answer for a run still in progress
+- the pull request: `#<n> <title>` with its URL and `state`, or that the run opened none
   - `closed`: "PR #<n> was closed without a merge. Its work is lost with the branch; GitHub keeps only the commits on
     the closed pull request."
 - the worktree, by `worktree.state`:
@@ -118,15 +120,18 @@ Show what the cleanup does, one line per item, from the `check` output.
 - when `oldReports.names` is not empty: the reports in it are deleted from `<MAIN>/work-reports/`, because they are
   beyond the 100 newest, by the time stamp in their name, counting the reports this cleanup moves in. List the names
 
+Print the list and go on to the cleanup. When `loses` is not empty, ask first, because `worktree.sh cleanup` refuses
+such a run without `--discard`.
+
 ```
-AskUserQuestion: Clean up <name>?
-  - Clean up
+AskUserQuestion: Discard the work in <name>?
+  - Discard the work and clean up
   - Do not clean up
 ```
 
-When `loses` is not empty, the options are `Discard the work and clean up` and `Do not clean up` only, because
-`worktree.sh cleanup` refuses such a run without `--discard`. On `Do not clean up`, stop and name `<WT>`, and say that
-`git -C <WT> status` shows the uncommitted work, and that `git -C <WT>/<path> log --branches --not --remotes` shows the commits of each submodule in `worktree.submodules`. The approval covers this run only.
+On `Do not clean up`, stop and name `<WT>`, and say that `git -C <WT> status` shows the uncommitted work, and that
+`git -C <WT>/<path> log --branches --not --remotes` shows the commits of each submodule in `worktree.submodules`. The
+answer covers this run only.
 
 ## The cleanup
 
@@ -142,7 +147,7 @@ $CLEANUP/../workflow/scripts/worktree.sh cleanup <name> --discard
 
 It acts as `check` said, from a fresh read. Act by `status`.
 
-- **`stop`** with `discard`: work appeared after the question, and `loses` names it. Nothing was removed. Say so, and
+- **`stop`** with `discard`: work appeared after the list was printed, and `loses` names it. Nothing was removed. Say so, and
   stop.
 - **`stop`** with `open`, `unknown`, `gh` or `fetch-failed`: quote `message` and stop.
 - **`done`**: go to the report.
@@ -166,7 +171,7 @@ It acts as `check` said, from a fresh read. Act by `status`.
 
 ## Rules
 
-- At most one approval question, `Clean up <name>?`. The `Run` question comes before it and is not part of it.
+- No question to confirm the cleanup. `Run` and `Discard the work in <name>?` are the only questions, the second only when `loses` is not empty.
 - **Never remove uncommitted work, commits that nothing else holds, or what a submodule holds on its own, unless
   the user picked `Discard the work and clean up`.**
 - **Never switch a branch, stash, commit, reset or clean in `<MAIN>`.** `<base>` only ever fast-forwards.
