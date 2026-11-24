@@ -44,12 +44,13 @@ Show the user:
 - the base branch, with "created now from `<from>` at `<sha>`" when this run created it, the branch pattern and the
   merge method, `rules.mergeMethod`
 - each parent closed at the start, as `#<Q>`
-- the worktree `<WT>`, where the whole run happens, and that `<MAIN>` is not touched, so the user can keep working
+- the worktree `<WT>`, where the whole run happens, and that `<MAIN>` is not touched, except for the lines the answers added to `.worktreeinclude`, so the user can keep working
   there
 - that `#<P>` is assigned to `<login>` (now, when this run assigned it), and that the assignment stays for the life of
   the project
-- that `<WT>` has none of `<MAIN>`'s ignored files, such as dependencies or a `.env`, so the first worker prepares
-  them
+- that `<WT>` holds the ignored files `.worktreeinclude` names, copied by `run.sh worktree` on this run or an
+  earlier one and by the Copy answers, and that the first worker prepares the rest the tests need, such as
+  dependencies, and records the steps in the handover notes
 - how each issue runs: a branch, workflow's **From an issue**, where a design session details the issue against the code
   on the base branch and may redraw its body and the order of the issues left, then one or more reviewed commits (with
   the review files in its work report) and an integration review when there is more than one, a draft pull request into

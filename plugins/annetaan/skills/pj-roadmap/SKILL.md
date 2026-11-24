@@ -93,8 +93,9 @@ closing it lets this skill run again, and stop.
 
 ## 4. The worktree
 
-Run steps 3 to 5 of **The worktree** in `<skills>/workflow/worktree.md` with `<base>`: `worktree.sh create <base>`,
-`worktree.sh ignore <name>` with its question, then enter `<WT>`. Print `worktree <WT> base <base>` once.
+Run steps 3 to 5 of **The worktree** in `<skills>/workflow/worktree.md` with `<base>`: `worktree.sh create <base>`
+with the question of **Files `.worktreeinclude` does not name** when it reports `unlisted`, `worktree.sh ignore <name>`
+with its question, then enter `<WT>`. Print `worktree <WT> base <base>` once.
 
 ## 5. The rewrite
 
@@ -173,8 +174,9 @@ Leave the worktree first: `ExitWorktree(action: "keep")`, or `cd <MAIN>` where t
 
 ## Rules
 
-- Change the roadmap file only, and never in `<MAIN>`.
-- Write nothing before the approval of step 6.
+- Change the roadmap file only, and never in `<MAIN>`, except the `<MAIN>/.worktreeinclude` lines below.
+- Write nothing before the approval of step 6, except the `<MAIN>/.worktreeinclude` lines the answers of step 4 add, as
+  **Files `.worktreeinclude` does not name** in `<skills>/workflow/worktree.md` says.
 - A stop from step 5 to the approval of step 6 takes **Ending with nothing changed** in `<skills>/workflow/worktree.md`,
   because `<WT>` exists by then. Steps 1 to 3 stop before any worktree exists, and need nothing removed.
 - Never merge, and never update an open pull request.

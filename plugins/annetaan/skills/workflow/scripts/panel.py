@@ -1,4 +1,5 @@
 import fcntl, json, os, re, shutil, subprocess, sys, tempfile, time
+from include import include
 
 SEATS = ("a", "b")
 LEVEL_SEATS = {"standard": ("a",), "high": SEATS}
@@ -141,6 +142,7 @@ def prepare(wt, seat, snap):
         die("%s exists and is no worktree of this clone" % path)
     else:
         git(wt, "worktree", "add", "--quiet", "--detach", path, snap)
+        include(path)
     return path
 
 def run_probe(wt, seat, probe):

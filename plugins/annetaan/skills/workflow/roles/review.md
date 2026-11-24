@@ -51,7 +51,7 @@ A probe is a directory `<WORKDIR>/seats/<seat>/<name>/` with `run.sh` and, when 
 
 `panel.sh run <WT> <seat> <probe dir>` takes a snapshot of `<WT>` as it is at that moment, puts your seat's worktree at it, copies `tree/` over it, runs `run.sh` there as the root and prints the exit and the last 40 lines of the output. Your prompt gives the `panel.sh` path. Write `<WT>` and the probe directory as absolute paths.
 
-- **Dependencies**: your seat's worktree has the tracked files of the snapshot and none of the ignored ones, so no installed dependencies. Prepare them with a probe of your own, once, from the handover notes in your prompt and the evidence file. What it installs is ignored by git, so it stays in your seat's worktree for every later run.
+- **Dependencies**: your seat's worktree has the tracked files of the snapshot and, of the ignored files, only those `<MAIN>/.worktreeinclude` names, copied when the seat was created, so it has no installed dependencies. Prepare them with a probe of your own, once, from the handover notes in your prompt and the evidence file. What it installs is ignored by git, so it stays in your seat's worktree for every later run.
 - **One run at a time**: `panel.sh` holds a seat for one run and stops with `busy` otherwise. Wait for a run to end before you start the next.
 - **Each run is clean**: it starts from a fresh snapshot, so what an earlier probe left untracked is gone, and a later round needs no setup.
 

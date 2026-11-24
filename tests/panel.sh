@@ -107,6 +107,16 @@ out="$("$SCRIPT" run "$WT" a "$(probe a second 'cat a d')")"
 echo "ok: a second run removes what the first left untracked, restores a tracked edit, and keeps ignored files"
 
 setup
+printf '.env.local\n.env.other\n.worktreeinclude\n' >> "$MAIN/.git/info/exclude"
+echo secret > "$MAIN/.env.local"
+echo other > "$MAIN/.env.other"
+echo /.env.local > "$MAIN/.worktreeinclude"
+out="$("$SCRIPT" run "$WT" a "$(probe a env 'cat .env.local; git status --porcelain')")"
+[ "$(echo "$out" | json 'd["exit"]')" = 0 ] && [ "$(echo "$out" | json 'd["output"]')" = secret ] || fail "seat env: $out"
+[ ! -e "$A/.env.other" ] || fail "seat a holds an unlisted file"
+echo "ok: a new seat worktree holds the listed ignored files"
+
+setup
 dirty
 p="$(probe a same 'true')"
 first="$("$SCRIPT" run "$WT" a "$p" | json 'd["snapshot"]')"

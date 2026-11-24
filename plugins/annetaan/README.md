@@ -167,7 +167,7 @@ which record what the implementation session ran.
 
 ```mermaid
 flowchart TD
-    req(["your request"]) --> wt["worktree on the tip of the base<br/>work-reports/ and .claude/worktrees/ ignored?"] --> design["design session<br/>boundaries, acceptance criteria,<br/>plan of tasks"]
+    req(["your request"]) --> wt["worktree on the tip of the base<br/>work-reports/ and .claude/worktrees/ ignored?<br/>ignored files .worktreeinclude names copied"] --> design["design session<br/>boundaries, acceptance criteria,<br/>plan of tasks"]
     design --> ask["open questions, only when there are any<br/>start message, no approval<br/>branch and base named"]
     ask --> setup["branch in the worktree<br/>panel.sh begin: START, the work directory and the level"]
     setup --> detail
@@ -213,6 +213,11 @@ such as "コンフリクト解消して", with no skill named ([Conflicts](skill
 Every run leaves a work report behind, inside the repository under `work-reports/` so that you see them. The skill checks that git ignores `.claude/worktrees/` and `work-reports/` before it writes anything, and asks
 before adding them to `.git/info/exclude`. That file stays in your clone, so nothing is committed and `.gitignore` is
 never edited. `/annetaan:workflow-cleanup` moves the report into your clone's `work-reports/` once the run is over, and deletes the reports there beyond the 100 newest, by the time stamp in their name. It removes the review seat worktrees beside the run's worktree as well.
+
+`.worktreeinclude` in your clone's root lists, in `.gitignore` syntax, the ignored files copied into every worktree
+the skills create, such as `.env.local` or `mise.local.toml`. Claude Code reads the same file for its own worktrees.
+The skills ask once about an ignored file it does not name, and write the answer as `/<path>` to copy it or `!/<path>`
+to never copy it. You can edit the file by hand, and commit it or keep it out of git.
 
 ### pj1-plan, pj2-issues, pj3-doctor, pj4-running
 
@@ -350,9 +355,10 @@ Every write the four skills make to an issue, a relationship, a label or a comme
 The `ready`, `blocker`, `project` and `doing` labels are created when missing, and a label that already exists is reused as
 it is.
 
-`pj4-running` asks one more question before its first task. When git does not ignore `.claude/worktrees/`
+`pj4-running` asks more questions before its first task. When git does not ignore `.claude/worktrees/`
 or `work-reports/`, it asks to add them to `.git/info/exclude`. That file stays in your clone, so nothing is
-committed, and `.gitignore` is never edited. When an earlier run ended without saving its work in the worktree, for
+committed, and `.gitignore` is never edited. It also asks about the ignored files `.worktreeinclude` does not name,
+as workflow does, except that an unattended run only lists them and goes on. When an earlier run ended without saving its work in the worktree, for
 example a process that was killed, it does not ask: it saves that work to `work-reports/<stamp>-discarded/stopped.diff`
 in the worktree and discards it. The run then redoes that work. Run one session per project, because a
 second session's work in the worktree would be taken for a dead run's.
@@ -424,8 +430,8 @@ where every piece came from. It asks once. Then it commits the rewritten file on
 pull request into the branch you picked. `/annetaan:workflow-cleanup` removes the worktree and the branch after you
 merge it.
 
-It changes the structure and keeps every sentence. It never merges, never touches your working tree and never updates a
-pull request that is already open.
+It changes the structure and keeps every sentence. It never merges, never touches your working tree except for adding your answers to `.worktreeinclude`, and never
+updates a pull request that is already open.
 
 ```
 /annetaan:pj-roadmap

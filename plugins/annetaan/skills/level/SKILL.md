@@ -63,8 +63,9 @@ either lets this skill run again, and stop.
 
 ## 3. The worktree
 
-Run steps 3 to 5 of **The worktree** in `<skills>/workflow/worktree.md` with `<base>`: `worktree.sh create <base>`,
-`worktree.sh ignore <name>` with its question, then enter `<WT>`. Print `worktree <WT> base <base>` once.
+Run steps 3 to 5 of **The worktree** in `<skills>/workflow/worktree.md` with `<base>`: `worktree.sh create <base>`
+with the question of **Files `.worktreeinclude` does not name** when it reports `unlisted`, `worktree.sh ignore <name>`
+with its question, then enter `<WT>`. Print `worktree <WT> base <base>` once.
 
 ## 4. The history
 
@@ -177,9 +178,10 @@ Leave the worktree first: `ExitWorktree(action: "keep")`, or `cd <MAIN>` where t
 
 ## Rules
 
-- Write the level file only, and never in `<MAIN>`.
-- Write nothing before the answer of step 6. A stop from step 3 up to that answer takes **Ending with nothing changed** in
-  `<skills>/workflow/worktree.md`, because `<WT>` exists by then. Steps 1 and 2 stop before any worktree exists, and
-  need nothing removed.
+- Write the level file only, and never in `<MAIN>`, except the `<MAIN>/.worktreeinclude` lines below.
+- Write nothing before the answer of step 6, except the `<MAIN>/.worktreeinclude` lines the answers of step 3 add, as
+  **Files `.worktreeinclude` does not name** in `<skills>/workflow/worktree.md` says. A stop from step 3 up to the
+  answer of step 6 takes **Ending with nothing changed** in `<skills>/workflow/worktree.md`, because `<WT>` exists by
+  then. Steps 1 and 2 stop before any worktree exists, and need nothing removed.
 - Never merge, and never update an open pull request.
 - After a context summary, take `<WT>` again from the `worktree` line.
