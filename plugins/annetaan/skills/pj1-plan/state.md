@@ -139,7 +139,7 @@ name of another file. A shallow clone has no history to ask, so it always says `
 
 The `lint` here is not always the one in `issues[].lint`. It also counts as paths the files at the root of the ref it
 reads and the paths in the file lists of the issue's blockers, so a backticked file name there is no symbol, and it
-can be stricter than `issues[].lint`.
+can be stricter than `issues[].lint`. It also reports `no-symbols`, which `issues[].lint` and `--lint` never do.
 
 `breakage.unclosed` holds the `unclosed` entries of the whole project, not only this issue's, and is filled under
 every `premises.mode`. `roadmap.several-tasks` holds the numbers in `parent.roadmap.tasks` when it holds more than one

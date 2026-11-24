@@ -6,7 +6,9 @@ die() { echo "worktree: $*" >&2; exit 1; }
 usage() {
   cat >&2 <<'USAGE'
 usage: worktree.sh start                          check the clone, gh and the repository
-       worktree.sh create <base>                  fetch origin/<base> and add a detached worktree wf-<stamp> on its tip
+       worktree.sh create <base>                  fetch origin/<base> and add a detached worktree wf-<stamp> on its tip,
+                                                  copy into it the ignored files <MAIN>/.worktreeinclude lists, and print
+                                                  copied, notIgnored and the unlisted ignored files
        worktree.sh ignore <name> [--add]          whether .claude/worktrees/ and work-reports/ are ignored; --add writes them to info/exclude
        worktree.sh sync <name> <base>             whether HEAD of the worktree <name> conflicts with origin/<base>; on a conflict, start the merge
        worktree.sh pr [<number>]                  the open pull request <number>, or the open pull requests of the user that conflict

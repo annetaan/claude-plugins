@@ -307,8 +307,8 @@ for skill in ("pj1-plan", "pj3-doctor", "pj4-running", "workflow"):
                 continue
             for other, script in call.findall(open(os.path.join(here, name)).read()):
                 needed = (other or skill) + "/scripts/" + script
-                if needed not in ruled and needed != "workflow/scripts/worktree.sh":
+                if needed not in ruled and needed not in ("workflow/scripts/worktree.sh", "workflow/scripts/include.sh"):
                     unruled.add(needed)
 assert not unruled, "no base rule for: " + ", ".join(sorted(unruled))
 ' "$TMP/skills" "$ROOT" || fail "a script the pj skills or the workflow skill call has no base rule"
-echo "ok: every script the pj skills and the workflow skill call has a base rule, worktree.sh aside"
+echo "ok: every script the pj skills and the workflow skill call has a base rule, worktree.sh and include.sh aside"

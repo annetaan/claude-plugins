@@ -71,8 +71,8 @@ message**, and go on to phase 2 (a) in the same turn, without waiting for an ans
 
 - the Model decisions, one line each
 - the name of the new branch, and `base: <base>`
-- the worktree `<WT>`, and that `<MAIN>` is not touched
-- that `<WT>` lacks `<MAIN>`'s ignored files (dependencies, `.env`), so the first worker prepares what the tests need and records the steps in the handover notes
+- the worktree `<WT>`, and that `<MAIN>` is not touched, except for the lines the answers added to `.worktreeinclude`
+- that `<WT>` holds the ignored files `.worktreeinclude` names, the ones `ready` copied and the ones the Copy answers copied, and that the first worker prepares the rest the tests need, such as dependencies, and records the steps in the handover notes
 - `level <level> (<source>)`, the model and effort it gives the design session, the implementation session and the review seats, how many seats the level runs, and that `level=<level>` on a new run changes it
 - that everything after this runs on its own: per-task implementation and review rounds, the integration review when the plan has more than one task, the push and the pull request, and that saying stop ends the run
 
@@ -141,7 +141,7 @@ $FLOW/scripts/worktree.sh sync <name> <base>
 
 ### The work report and the pull request
 
-Read `finish.md` and run **The work report**, then **The pull request**.
+Read `finish.md` and run **The work report**, then **The pull request**, then **The decisions**.
 
 ### Report to the user
 
@@ -152,6 +152,7 @@ Every standalone run that got past the start message ends here, finished or stop
 - **how the base came in**: already in, merging cleanly, or merged after the merge task resolved the files it names, or why it did not
 
 - **the pull request URL**, when one was opened
+- **the decision issues**, when **The decisions** in `finish.md` ran: the URL of each issue in `filed`, each on a line of its own, or that no decision fell in the four areas, or the stop message it kept
 - **the worktree `<WT>`**, and that the work report lives under it until cleanup, and the review seat worktrees beside it, `review-<name of WT>-<seat>`, which the same cleanup removes. The probes of the seats are under `<WORKDIR>/seats/`
 - **the path of the work report** (`<WORKDIR>/log.md`), which opens in an editor with the screenshots inline
 - the review files, under `<WORKDIR>/review/`

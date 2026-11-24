@@ -179,6 +179,15 @@ user when nobody is assigned, and stops when someone else is. Act by `status`.
   `<WT>/work-reports/<stamp>-discarded/stopped.diff`, reset and cleaned `<WT>`, and moved it onto the base. Nothing
   was asked, because of **One session per project** in the Rules. `saved` carries `file`, `head`, `changes` and
   `merge`. Print one line, `saved and discarded the work left in <WT>: <file>`, and keep `saved` for the report.
+  Then act on the three lists `ready` carries. `run.sh worktree` runs on every run, so a `<WT>` that is reused gets
+  the files newly listed since, and a copy already in `<WT>` is never overwritten.
+  - `copied` not empty: print `copied <paths>` once.
+  - `notIgnored` not empty: say once that `<MAIN>/.worktreeinclude` lists these files but `<WT>` does not ignore
+    them, so they were not copied. A `.gitignore` rule that only `<MAIN>`'s working tree has is the usual cause.
+    **Never edit `.gitignore`.**
+  - `unlisted` not empty: take **Files `.worktreeinclude` does not name** in `workflow/worktree.md`, with
+    `$RUNNING/../workflow` in place of `$FLOW`. An unattended run does not ask: it prints
+    `not in .worktreeinclude, not copied: <paths>` and goes on.
 - **`stop`** with `foreign`: `<WT>` exists but is not a worktree of this repository, and nothing here may touch it.
   Stop. With `fetch-failed`, quote `message` and stop. With `assign-failed`, quote `message`, say which `step` failed
   (`login`, `read` or `add`), and stop.
@@ -208,8 +217,8 @@ to enter `<WT>` themselves, because their directory resets on every bash call.
 `git rev-parse --show-toplevel`, and enter `<WT>` again when it prints anything else. Between tasks `<WT>` holds a
 detached HEAD. A stop from here on, even one before the approval, leaves `<WT>` as phase 5 step 2 says.
 
-`<WT>` has none of `<MAIN>`'s ignored files, such as installed dependencies or a `.env`. The first worker prepares
-what the tests need and leaves the steps in the handover notes, so later tasks find them there. The submodules of `<WT>` are not initialized either. When the build or the tests need one, the first worker runs `git submodule update --init` in `<WT>` and leaves that in the handover notes too.
+`<WT>` has the ignored files `<MAIN>/.worktreeinclude` names, copied by `run.sh worktree` and by the Copy answers, and none of the others,
+such as installed dependencies. The first worker prepares what the tests still need and leaves the steps in the handover notes, so later tasks find them there. The submodules of `<WT>` are not initialized either. When the build or the tests need one, the first worker runs `git submodule update --init` in `<WT>` and leaves that in the handover notes too.
 
 ### Paths this clone must ignore
 
@@ -351,7 +360,8 @@ Every way the run ends comes here: the run order is done, the run stopped, or th
 - the worktree `<WT>`. The next run reuses it. The work reports live only under its `work-reports/`.
   `/annetaan:pj-cleanup <P>` moves them into `<MAIN>` and removes `<WT>` once the project is merged
 - that this run assigned `#<P>` to `<login>`, when `assignee.added` was true, and that the assignment stays
-- each merged issue with the URL of its pull request
+- each merged issue with the URL of its pull request, and the URLs of the decision issues its run filed, or the
+  reason none were
 - the issues the detail pass redrew, with what changed, the ones set aside because a redraw gave them an open blocker,
   and the ones closed with nothing left
 - a decision the run added to an issue and stopped on, as `<issue URL> D<k>`, with what the design session found

@@ -4,7 +4,8 @@ This skill runs one implementation as **design, then per task (implement, review
 one task, then a finish step**, with each role in a session of its own. The review rounds run through Markdown files
 in the run's work report directory, one per round and one reply to each, so the whole review stays readable after the
 run. A standalone run works in a worktree of its own under `.claude/worktrees/`, so your own working tree stays free
-and may be dirty. It always ends in a pull request.
+and may be dirty. It always ends in a pull request, and in an issue labelled `decision` for each design decision a
+person should read.
 
 workflow is the plugin's core skill for one implementation. You run it yourself for a change that fits one pull
 request. For larger work, pj4-running runs it once per sub-issue of a project (see [Driven from an issue](#driven-from-an-issue) and
@@ -98,7 +99,7 @@ adds that decision to the issue, stops, and leaves the box for you to tick.
 The pull request body is `log.md`, which begins with a head of `Implements` and `Part of`. The run pushes and opens
 the pull request as a draft against the project's base branch. pj4-running merges it.
 
-All of it happens in the worktree pj4-running made for the project, so your own working tree is left alone.
+All of it happens in the worktree pj4-running made for the project, so your own working tree is left alone, except for adding your answers to `.worktreeinclude`.
 
 A stop before every commit of the plan has passed review pushes nothing. pj4-running saves everything since the start
 point, commits included, to `stopped.diff` in the run's work report and puts the worktree back on the start point. The
@@ -127,16 +128,35 @@ fast-forward, and the worktree is removed, with its review files moved into your
 number named, it takes the one conflicting pull request of yours that GitHub reports, or asks which. A project's pull
 request from `pj/<n>` goes to `pj4-running`, which brings the source branch into the project's branch again.
 
+## Decisions
+
+A run makes decisions of its own along the way, and some of them deserve a person's eye. Once the pull request is
+open, review seat a reads the whole change once more, the design and the diff, and names each design decision in
+technology, infrastructure, database or delivery: a library, service or major version added or swapped, hosting,
+queues, caches or secrets, a store, a table or a migration, a deploy or release pipeline. The implementation session
+does not judge its own decisions. Decisions you settled yourself, an answered question, a ticked box in an issue or
+what your request named, are not filed.
+
+Each decision becomes one issue labelled `decision`, with four parts: what was decided, the other options and why this
+one, where it landed (the pull request and the files), and how to overturn it. The label is created when the
+repository lacks it. Close the issue once you have read it. To overturn the decision, run the request under "To
+overturn it" as it stands: it is a full `/annetaan:workflow` request. Filing never holds the pull request back, and a
+run that could not file says why in its final message.
+
 ## The worktree and cleaning up
 
 The run creates `.claude/worktrees/wf-<stamp>` on the tip of the base before the design starts, and never touches your
-clone. The worktree has none of your clone's ignored files, such as dependencies and `.env`. The first worker prepares
-them. A run that ends before its first task removes its worktree. Every other run leaves it, whether it opened a pull request
+clone, except for adding your answers to its `.worktreeinclude`. The run copies the ignored files that `.worktreeinclude` in your clone names, such as `.env.local` or
+`mise.local.toml`, into the worktree and into the review seats. It is the same file Claude Code's own `--worktree`
+reads. For an ignored file the list does not name, the run asks once whether to copy it, and writes the answer to the
+list as `/<path>` or `!/<path>`, so it is never asked again. The first worker prepares what remains, such as
+dependencies. A run that ends before its first task removes its worktree. Every other run leaves it, whether it opened a pull request
 or stopped midway.
 
 The review seats are git worktrees of their own, `review-wf-<stamp>-<seat>` beside the run's. No session works
 inside one: a seat writes its probes under `seats/` in the work report, and `flow.sh run` snapshots the run's working
-tree, puts the seat's worktree at it and runs the probe there. A seat lives as long as the run's worktree, so the
+tree, puts the seat's worktree at it and runs the probe there. A seat gets the files `.worktreeinclude` lists when it
+is created. A seat lives as long as the run's worktree, so the
 dependencies a probe installed in it serve every later task and round. The cleanup removes it.
 
 After you merge or close the pull request, `/annetaan:workflow-cleanup` moves the work report into `work-reports/` in
@@ -166,6 +186,8 @@ work-reports/2026-09-19-1346-a1b2c3d/
   checks.md      the check wanted: lines of the commit reports, written by the main session
   merge.md       the design, plan and detail of a merge task, written by the main session
   prompts/       the prompt of each sub-agent call, written by flow.sh prompt
+  decisions.md   the design decisions seat a judged at the finish, or `None.`
+  decisions.json the decision issues flow.sh decisions filed, so that a second run files none twice
   review/        one file per review round, the reply to each, and the evidence files
     task-1-evidence.md
     task-1-round-1-a.md         what seat a proved in round 1, and `-b` for seat b at `high`
@@ -216,7 +238,7 @@ before it touches anything**.
 ## What you need
 
 - to be inside a `git` repository with an `origin` remote on GitHub
-- `gh`, logged in, because every run ends in a pull request
+- `gh`, logged in, because every run ends in a pull request, and it also creates the `decision` issues and their label
 - your working tree may be dirty
 
 `gh pr create --attach` uploads the screenshots into the pull request body. That flag landed in **gh 2.99.0**, on
@@ -237,19 +259,21 @@ screenshots it could not attach.
 | `from-sync.md` | a merge of the source branch into a project's base branch that stopped on conflicts, for pj4-running |
 | `merge-task.md` | the merge task, which resolves conflicts under review, for the standalone finish, from-pr and from-sync |
 | `worktree.md` | the start check and the run's worktree, for the standalone run and from-pr |
-| `finish.md` | the work report and the pull request, for the standalone run and from-issue |
+| `finish.md` | the work report, the pull request and the decision issues, for the standalone run and from-issue |
 | `prompts/` | the templates `flow.sh prompt` fills into the prompt of each sub-agent call, one per kind, and `worktree-line.md`, the line every prompt ends with |
 | `roles/design.md` | the role for the design session, which writes the design and the plan into the work directory |
 | `roles/work.md` | the role for the implementation session |
 | `roles/review.md` | the role for a review seat |
 | `scripts/worktree.sh` | creates the run's worktree and checks its ignore rules. `workflow-cleanup` uses it to clean up |
 | `scripts/worktree.py` | the code `worktree.sh` runs |
+| `scripts/include.sh` | appends the answers about ignored files to `<MAIN>/.worktreeinclude` and copies the ones to copy into the worktree |
+| `scripts/include.py` | the code `include.sh` runs, and the one place that copies the ignored files `.worktreeinclude` names into a new worktree. `worktree.py`, `flow.py` and pj4-running's `run.py` import it |
 | `scripts/clone.py` | the one place that fetches from origin, under a lock on the clone's common git directory that every worktree shares. `worktree.py`, `level.py` and the pj4-running, pj-cleanup and pj1-plan scripts import it |
 | `scripts/level.sh` | reads the repository's level from origin's default branch and prints the model and effort it gives the design session, the implementation session, the review seats and pj's planner, project reviewer and issue writer |
 | `scripts/level.py` | the code `level.sh` runs |
 | `scripts/comments.sh` | fails on a comment outside the four kinds, or a silenced check the change adds, in the files a change touches. The implementation and review sessions run it |
 | `scripts/comments.py` | the code `comments.sh` runs |
-| `scripts/flow.sh` | makes the run's work directory and reads it back, reports a scope's round, cap, open findings and whether `approve` is allowed, runs a review seat's probe in a git worktree beside the run's, at a snapshot of the working tree, runs every probe of a round again and writes the draft of the round, removes the seats at cleanup, lints a review file, writes the pull request head and the `Level:` line into `log.md`, and writes the prompt of each sub-agent call |
+| `scripts/flow.sh` | makes the run's work directory and reads it back, reports a scope's round, cap, open findings and whether `approve` is allowed, runs a review seat's probe in a git worktree beside the run's, at a snapshot of the working tree, runs every probe of a round again and writes the draft of the round, removes the seats at cleanup, lints a review file, writes the pull request head and the `Level:` line into `log.md`, writes the prompt of each sub-agent call, and files the decision issues of `decisions.md` |
 | `scripts/flow.py` | the code `flow.sh` runs, and the one place the agent table of the levels lives, which `level.py` imports. `worktree.py` imports the stamp rules of the work directory names from it |
 | `review-files.md` | the shape of the review files and the evidence files, read by the seats, the main session and the implementation session |
 

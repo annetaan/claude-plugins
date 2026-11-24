@@ -198,11 +198,48 @@ changes-requested
 
 One line per finding the round left open: `fixed` with what changed, or `disagree` with the reason. A `fixed` line always carries `ran:` and `saw:` of the finding's command, run after the fix. A reply that changed code has a new evidence file beside it. A finding with `disagree` stays open, and the main session decides in the next round against the design. The line for a `stands again` finding is `fixed` or `disagree`, then `assumed:`, `ran:` and `saw:`, then what changed or the reason, for example `- R1.2 fixed: assumed: both fixes took the stale value to come from the cache; ran: <command>; saw: <output>; <what changed>`.
 
+## The decisions file
+
+At the finish, seat a writes `<WORKDIR>/decisions.md`, next to `log.md` and outside `review/`, and `flow.sh decisions` files one GitHub issue per entry. The headings are fixed and in English. The text is in the repository's language.
+
+````markdown
+# Decisions
+
+## Keep sessions in Redis
+
+Area: infrastructure
+
+### What was decided
+
+Sessions move from process memory to a Redis instance that every web process shares.
+
+### Other options and why this one
+
+Sticky sessions on the load balancer would keep the store in memory, but a deploy would still sign everyone out.
+
+### Where it landed
+
+- `src/session/store.ts`
+- `infra/redis.tf`
+
+### To overturn it
+
+```text
+/annetaan:workflow Keep sessions in process memory again: remove the Redis store from src/session/store.ts and infra/redis.tf, and pin each client to one web process at the load balancer.
+```
+````
+
+- `Area:` is `technology`, `infrastructure`, `database` or `delivery`.
+- Each entry has the four `### ` parts in this order. `### Where it landed` holds one `- ` bullet per backticked path. `### To overturn it` is one fenced block whose first line is a full `/annetaan:workflow` request, with no placeholder.
+- A run with nothing to report writes `# Decisions` followed by `None.` alone.
+
+`flow.sh decisions <WT> <m>` reads `decisions.md` of the newest work directory and files each entry as an issue labelled `decision`, `<m>` being the pull request's number. It creates the label first when it is missing, and leaves an existing one as it is. The issue's title is the entry's title, and its body holds the four parts as `## ` sections, with `Area: <area>` opening `## What was decided` and `Pull request: #<m>` opening `## Where it landed`. After each issue it writes `{"title","number","url"}` to `<WORKDIR>/decisions.json`, and a later run skips every entry whose title is there. It prints `{"status":"ok","filed":[...]}`, every issue filed for the file, earlier runs included. `None.` files nothing and makes no gh call. It stops with `no-run`, `no-decisions` when there is no `decisions.md`, `malformed` with the lint's reasons, before any gh call, and `gh` with gh's error and the issues filed before it.
+
 ## The lint
 
-Each writer lints its own file as the last step before it reports, and fixes the file until `ok` is true: the seat its seat file, the implementation session its evidence file and its reply, the main session its round file.
+Each writer lints its own file as the last step before it reports, and fixes the file until `ok` is true: the seat its seat file, seat a its `decisions.md`, the implementation session its evidence file and its reply, the main session its round file.
 
-`flow.sh lint <file>` takes the absolute path of one review file and prints `{"status":"ok","ok":<bool>,"kind":<kind>,"reasons":[...]}`. `kind` is `seat`, `round`, `reply` or `evidence`, read from the file name by the table in **Names**. The file passes when `reasons` is empty and `ok` is true. A file that does not exist stops with `no-file`. A name outside **Names** prints `kind` null and the reason `name`. The lint reads the file, its siblings in the same directory and, for a round file, its draft `<WORKDIR>/drafts/<the round file's name>`, `<WORKDIR>` being the directory above the round file's own, and nothing else: no `run.json`, no git, no probe. Lines inside a code fence are never read as a heading or an entry.
+`flow.sh lint <file>` takes the absolute path of one review file and prints `{"status":"ok","ok":<bool>,"kind":<kind>,"reasons":[...]}`. `kind` is `seat`, `round`, `reply` or `evidence`, read from the file name by the table in **Names**, or `decisions` for a file named `decisions.md` (see **The decisions file**). The file passes when `reasons` is empty and `ok` is true. A file that does not exist stops with `no-file`. A name outside **Names** prints `kind` null and the reason `name`. The lint reads the file, its siblings in the same directory and, for a round file, its draft `<WORKDIR>/drafts/<the round file's name>`, `<WORKDIR>` being the directory above the round file's own, and nothing else: no `run.json`, no git, no probe. Lines inside a code fence are never read as a heading or an entry.
 
 | Kind | Reason | Fails when |
 | --- | --- | --- |
@@ -224,6 +261,11 @@ Each writer lints its own file as the last step before it reports, and fixes the
 | reply | `ran` | a `fixed` line carries no `ran:` and `saw:` |
 | reply | `assumed` | the line for an id its round marks `stands again` carries no `assumed:` |
 | reply | `no-evidence` | a reply that holds a `fixed` line has no `<scope>-round-<r>-evidence.md` of its round beside it |
+| decisions | `sections` | the first line is not `# Decisions`, the rest is neither `None.` alone nor one or more `## <title>` entries with nothing before the first, or two entries have the same title |
+| decisions | `area` | the first line of an entry is not `Area: ` and one of `technology`, `infrastructure`, `database` or `delivery` |
+| decisions | `parts` | the `### ` headings of an entry are not `What was decided`, `Other options and why this one`, `Where it landed` and `To overturn it` in this order, text stands between `Area:` and the first of them, or one of the first two is empty |
+| decisions | `landed` | `### Where it landed` is empty, or holds a line that is not a `- ` bullet opening with a backticked path |
+| decisions | `overturn` | `### To overturn it` is not one fenced block alone whose first line inside is `/annetaan:workflow ` followed by text |
 
 A round leaves open the ids of its `## New findings` and the earlier entries it marks `stands` or `stands again`. `earlier-missing`, `missing`, `approve-open` and `assumed` all read that one list.
 

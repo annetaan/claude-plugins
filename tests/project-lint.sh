@@ -120,9 +120,9 @@ done
 echo "ok: a changed entry on a document passes with no symbol"
 for code in src/app.ts requirements.txt; do
   body_one "$code" "says the count comes from the settings"
-  [ "$(reasons "$TMP/one.md")" = '["no-symbols"]' ] || fail "a changed entry on $code printed: $(lint "$TMP/one.md")"
+  [ "$(ok "$TMP/one.md")" = "True" ] || fail "a changed entry on $code printed: $(lint "$TMP/one.md")"
 done
-echo "ok: a changed entry on a code file with no symbol fails no-symbols"
+echo "ok: --lint leaves a code entry with no symbol to --check"
 
 body x x "" >"$TMP/base.md"
 grep -v '^Only you know: whether the people who sign out' "$TMP/base.md" >"$TMP/noyk.md"

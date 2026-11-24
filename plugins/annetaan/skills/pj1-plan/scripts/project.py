@@ -24,6 +24,8 @@ LINE_ANCHOR_RE = re.compile(r"#L\d+\b", re.ASCII)
 PATH_LINE_RE = re.compile(r"(?<![\w.:/-])(?=[\w./-]*[A-Za-z])[\w.-]*[./][\w./-]*:\d+\b", re.ASCII)
 ROADMAP_PATHS = ["roadmap.md", "ROADMAP.md", "doc/roadmap.md", "doc/ROADMAP.md", "docs/roadmap.md", "docs/ROADMAP.md"]
 DOCUMENT_SUFFIXES = (".md", ".mdx", ".markdown", ".rst", ".adoc")
+WORD_RE = re.compile(r"[A-Za-z_$][\w$]*")
+FROM_PATH_RE = re.compile(r"\bfrom\s*(?:'[^'\n]*'|\"[^\"\n]*\")")
 
 def die(msg):
     print("project: " + msg, file=sys.stderr)
@@ -432,7 +434,7 @@ def parse(body):
         "stub": design == "To be drawn.",
     }
 
-def lint(p, paths=frozenset()):
+def lint(p, paths=frozenset(), holding_names=frozenset()):
     if p["stub"]:
         return {"ok": False, "reasons": ["stub"]}
     reasons = []
@@ -443,7 +445,7 @@ def lint(p, paths=frozenset()):
     if p["bad_entries"]:
         reasons.append("file-entry")
     known = {f["path"] for f in p["files"]} | paths
-    if any(f["kind"] == "changed" and not is_document(f["path"]) and not symbols(f, known) for f in p["files"]):
+    if any(f["kind"] == "changed" and f["path"] in holding_names and not symbols(f, known) for f in p["files"]):
         reasons.append("no-symbols")
     criteria = [l for l in p["secs"].get("Acceptance criteria", "").split("\n") if re.match(r"^\s*[-*]\s", l)]
     if not criteria or any("`" not in l for l in criteria):
@@ -874,6 +876,13 @@ if MODE == "next":
     print(json.dumps(next_step(project_view()), ensure_ascii=False))
     sys.exit(0)
 
+def holds_name(ref, path):
+    shown = subprocess.run(["git", "show", "%s:%s" % (ref, path)], capture_output=True)
+    if shown.returncode != 0:
+        return False
+    text = FROM_PATH_RE.sub(" ", shown.stdout.decode("utf-8", "replace"))
+    return any(word != "export" for word in WORD_RE.findall(text))
+
 def check(numbers):
     top = run("git", "rev-parse", "--show-toplevel")
     if top.returncode != 0:
@@ -905,7 +914,9 @@ def check(numbers):
         mine = several if n in several else []
         paths = root_files | {f["path"] for m in transitive_blockers(issue) if m in by_number for f in by_number[m]["files"]}
         paths |= {f["path"] for f in issue["files"]}
-        check_lint = lint(parse(body_of[n]), paths)
+        holding_names = {f["path"] for f in issue["files"]
+                         if f["kind"] == "changed" and not is_document(f["path"]) and holds_name(ref, f["path"])}
+        check_lint = lint(parse(body_of[n]), paths, holding_names)
 
         failures = []
         excusers = []

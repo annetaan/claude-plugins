@@ -44,12 +44,13 @@ Show the user:
 - the base branch, with "created now from `<from>` at `<sha>`" when this run created it, the branch pattern and the
   merge method, `rules.mergeMethod`
 - each parent closed at the start, as `#<Q>`
-- the worktree `<WT>`, where the whole run happens, and that `<MAIN>` is not touched, so the user can keep working
+- the worktree `<WT>`, where the whole run happens, and that `<MAIN>` is not touched, except for the lines the answers added to `.worktreeinclude`, so the user can keep working
   there
 - that `#<P>` is assigned to `<login>` (now, when this run assigned it), and that the assignment stays for the life of
   the project
-- that `<WT>` has none of `<MAIN>`'s ignored files, such as dependencies or a `.env`, so the first worker prepares
-  them
+- that `<WT>` holds the ignored files `.worktreeinclude` names, copied by `run.sh worktree` on this run or an
+  earlier one and by the Copy answers, and that the first worker prepares the rest the tests need, such as
+  dependencies, and records the steps in the handover notes
 - how each issue runs: a branch, workflow's **From an issue**, where a design session details the issue against the code
   on the base branch and may redraw its body and the order of the issues left, then one or more reviewed commits (with
   the review files in its work report) and an integration review when there is more than one, a draft pull request into
@@ -101,7 +102,15 @@ Nothing runs in parallel. There is one worktree, `<WT>`. For each issue `<k>` in
      Print `#<k> done (<i>/<N>): PR #<m> merged earlier, issue closed` and take the next issue. No workflow run and
      no handover rewrite.
    - **`pr.state` is `OPEN`** as `#<m>`: its commits passed review, and only the merge is left. Go to **When
-     workflow returns**, as `finished` with `<m>` and no handover lines. No workflow run and no handover rewrite.
+     workflow returns**, as `finished` with `<m>` and no handover lines. No workflow run and no handover rewrite. Its
+     `decisions` are the decision issues the run that opened `#<m>` filed, read back from GitHub by their label and
+     their `Pull request: #<m>` line:
+
+     ```bash
+     gh issue list --label decision --state all --limit 1000 --json url,body --jq '.[] | select(.body | contains("Pull request: #<m>\n")) | .url'
+     ```
+
+     No line printed means none were filed.
    - **`pr` is null**: make a fresh branch in `<WT>` from the tip of `origin/<base>`, then run From an issue.
 
      ```bash
@@ -248,10 +257,12 @@ Otherwise answer go on.
 workflow hands over to this section by name, with `finished`, `stopped`, `nothing-left` or `reordered`.
 
 **`finished`** carries the pull request `<m>`, the SHA of the last commit, the handover lines, the paths of any
-screenshots that could not be attached, and `stop requested` (yes or no).
+screenshots that could not be attached, `decisions`, the decision issues it filed or why none were filed, and
+`stop requested` (yes or no).
 
 **With `stop requested: yes`, do not merge.** The user said stop. Fold the handover lines as step 3 says, then go to
-phase 5. The pull request stays a draft, and the next run merges it.
+phase 5. The pull request stays a draft, and the next run merges it and reads its decision issues back from GitHub
+(the `pr.state` is `OPEN` case of phase 4 step 2).
 
 1. Write `$TMP/<k>-closed.md` worded as in the `merged` case of phase 4 step 2, naming `#<m>`. The merge into the base
    branch closes nothing, so `run.sh merge` closes the issue with it.
@@ -276,8 +287,9 @@ phase 5. The pull request stays a draft, and the next run merges it.
    - **`merged`**: go on.
 3. **Fold the handover lines into the notes**, as **Folding the handover lines** in SKILL.md says. With no
    handover lines, as on the `OPEN` path of phase 4 step 2, skip this step.
-4. Print one progress line: `#<k> done (<i>/<N>): PR #<m> merged`. After a context summary, rebuild the run order and
-   the progress from these lines and `project.sh <P>`.
+4. Print one progress line: `#<k> done (<i>/<N>): PR #<m> merged, decisions: <the URLs of the decision issues, or why
+   none were filed>`. After a context summary, rebuild the run order, the progress and the decision issues of each
+   merged issue from these lines and `project.sh <P>`.
 
 Then take the next issue. When the run order is done, go to phase 5 in SKILL.md.
 

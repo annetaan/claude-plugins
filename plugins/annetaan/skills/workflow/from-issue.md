@@ -140,7 +140,8 @@ Keep the handover lines from phase 4 (d) for pj4-running.
    The `--attach` rules apply as in **The pull request** in `finish.md`. When `attach` is false and there are screenshots, open the pull
    request with the `gh pr create` line above, without `--attach`, so it keeps `--draft --base <base branch>`. The
    file paths go into what you hand back. Nothing waits on the user.
-4. Return `finished`.
+4. **The decisions.** Run **The decisions** in `finish.md` with `<m>`.
+5. Return `finished`.
 
 ## The stop procedure
 
@@ -153,8 +154,8 @@ The case is decided by whether every task of the plan is committed and the integ
 approved. Look for the commits in `git log --oneline <START>..HEAD`.
 
 - **Every task is committed, and the integration review approved or did not run.** The stop came during phase 6, and the
-  working tree is clean. Run steps 1 to 3 of **Phase 6 from an issue** to the end: the report, the push and the draft
-  pull request. Then return `finished`, with `stop requested: yes` when the user said stop.
+  working tree is clean. Run steps 1 to 4 of **Phase 6 from an issue** to the end: the report, the push, the draft
+  pull request and the decisions. Then return `finished`, with `stop requested: yes` when the user said stop.
 - **Anything less.** Leave the working tree as it is. Push nothing. Send nothing more to the sessions in flight. Return
   `stopped`. pj4-running saves everything since `<START>`, commits included, to `<WORKDIR>/stopped.diff` with
   `run.sh save` when it gets the hand-back, and puts `<WT>` back on `<START>`. The next run redoes the issue. The seats'
@@ -166,7 +167,8 @@ approved. Look for the commits in `git log --oneline <START>..HEAD`.
 ## What it hands back to pj4-running
 
 - **`finished`**: the pull request number `m`, the SHA of the last commit, the handover lines, the paths of any
-  screenshots that could not be attached, and `stop requested` (yes or no).
+  screenshots that could not be attached, `decisions` (the URLs in `filed` of **The decisions** in `finish.md`, or
+  its stop message), and `stop requested` (yes or no).
 - **`stopped`**: the reason (`round cap`, `blocking`, `decision`, `detail`, `user`, `work-reports` or `finish`),
   `<WORKDIR>` (the absolute path, when phase 2 (b) made it, otherwise none), `<START>`, and the text of the `Unplanned:`
   report, the decision `#<n> D<k>` the design session asked, or the failing lint or `--check` JSON, or for `finish` the

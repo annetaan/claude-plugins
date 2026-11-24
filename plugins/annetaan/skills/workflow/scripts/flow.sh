@@ -16,9 +16,9 @@ usage: flow.sh run <WT> <seat> <probe dir>   snapshot the working tree of <WT>, 
                                               parent of the run whose run.json was written last; with a scope (task-<k>,
                                               integration or merge) also its next round, whether the cap is reached, the
                                               last verdict, the open findings and whether approve is allowed
-       flow.sh lint <file>                   check one review file against review-files.md and print ok, kind and reasons;
-                                              it reads the file, the files beside it and, for a round file, its draft
-                                              under drafts/
+       flow.sh lint <file>                   check one review file or a decisions.md against review-files.md and print ok,
+                                              kind and reasons; it reads the file, the files beside it and, for a round
+                                              file, its draft under drafts/
        flow.sh verify <WT> <scope>           run again every command of the scope's next round, the open earlier findings
                                               and the findings of each seat the run's level runs, sort them by the
                                               probe's exit, and write drafts/<scope>-round-<r>.md in the run's work
@@ -28,8 +28,11 @@ usage: flow.sh run <WT> <seat> <probe dir>   snapshot the working tree of <WT>, 
        flow.sh prompt <WT> <kind> [<scope>] [<seat>]
                                               write the prompt of one sub-agent call from prompts/<kind>.md to
                                               prompts/ of the run's work directory, and print its path, agent, model
-                                              and effort; report and design take no scope, work, seat, again, respond,
-                                              commit and detail take one, and seat also a seat, a or b
+                                              and effort; report, design and decisions take no scope, work, seat, again,
+                                              respond, commit and detail take one, and seat also a seat, a or b
+       flow.sh decisions <WT> <pr>           file one issue labelled decision per entry of decisions.md in the newest work
+                                              directory, each pointing at pull request #<pr>, skip the entries decisions.json
+                                              lists as filed, and print every issue filed for the file
 Every subcommand prints one JSON object with "status" and exits 0. "stop" carries "reason" and "message".
 <probe dir> has to be under <WT>/work-reports/. Exit 1 means a usage error or an unexpected failure.
 USAGE
@@ -58,7 +61,7 @@ case "$1" in
   record) [ $# -eq 2 ] || usage ;;
   prompt)
     case "${3:-}" in
-      report|design) [ $# -eq 3 ] || usage ;;
+      report|design|decisions) [ $# -eq 3 ] || usage ;;
       work|again|respond|commit|detail) [ $# -eq 4 ] || usage ;;
       seat)
         [ $# -eq 5 ] || usage
@@ -66,6 +69,10 @@ case "$1" in
         ;;
       *) usage ;;
     esac
+    ;;
+  decisions)
+    [ $# -eq 3 ] || usage
+    case "$3" in ''|0*|*[!0-9]*) usage ;; esac
     ;;
   *) usage ;;
 esac

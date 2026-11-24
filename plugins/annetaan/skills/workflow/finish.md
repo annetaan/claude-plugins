@@ -85,4 +85,27 @@ then tell the user in the final message, with `<version>` from `gh` in `worktree
 
 List the file paths and the pull request URL alongside. **Say nothing about the gh version when the change produced no screenshots.**
 
-When the push fails, quote the error and go to the entry's ending: **Report to the user** in `standalone.md`, or **The stop procedure** in `from-issue.md`. The branch and its commits stay in `<WT>`. When `gh pr create` exits non-zero, run `gh pr view <branch> --json url` first. If a pull request exists (a failed upload still creates one), carry on with its URL and the reattach step above. If none exists, quote the error and go to the entry's ending, as for a failed push. Otherwise carry the pull request URL into the entry's ending.
+When the push fails, quote the error and go to the entry's ending: **Report to the user** in `standalone.md`, or **The stop procedure** in `from-issue.md`. The branch and its commits stay in `<WT>`. When `gh pr create` exits non-zero, run `gh pr view <branch> --json url` first. If a pull request exists (a failed upload still creates one), carry on with its URL and the reattach step above. If none exists, quote the error and go to the entry's ending, as for a failed push. Otherwise go to **The decisions** with the pull request, then carry its URL into the entry's ending.
+
+## The decisions
+
+It runs once the pull request exists, with `<m>` as its number, the number at the end of its URL. Seat a reads the whole change and names the design decisions in technology, infrastructure, database or delivery that the run made on its own, and `flow.sh decisions` files each one as an issue labelled `decision`. **Nothing here holds the pull request back or counts as a failed step of the finish.** A non-zero exit of `flow.sh decisions` is quoted for the entry's ending like a stop, and does not stop the run, because the pull request already exists.
+
+The seat sessions of the last review have ended. This is a new seat a session, at every level, and it ends after step 2.
+
+1. **Start seat a.** Write its prompt:
+
+   ```bash
+   $FLOW/scripts/flow.sh prompt <WT> decisions
+   ```
+
+   It names `<WORKDIR>/design.md`, `<WORKDIR>/plan.md`, what the user settled, `<WORKDIR>/changes.diff`, `<WORKDIR>/log.md` and `Write: <WORKDIR>/decisions.md`. Start `annetaan:workflow-reviewer-a` with its line and the `model` and `effort` the JSON prints (**The prompts** in SKILL.md). When the seat returns and `<WORKDIR>/decisions.md` does not exist, start the seat once more with the same line.
+2. **File the issues.**
+
+   ```bash
+   $FLOW/scripts/flow.sh decisions <WT> <m>
+   ```
+
+   - **`ok`**: keep `filed` for the entry's ending. An empty `filed` means no decision fell in the four areas.
+   - **`malformed`**: `SendMessage` the seat one line that forwards `message` and names `<WORKDIR>/decisions.md`, and run step 2 once more when it reports.
+   - **`malformed` a second time, `no-decisions`, `gh` or `no-run`**: keep `message` for the entry's ending, and go on.

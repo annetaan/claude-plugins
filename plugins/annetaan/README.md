@@ -124,7 +124,7 @@ your decisions there too.
 ## Skills
 
 A skill whose `description` matches a request normally starts without being named. The ones here do not. `workflow`
-spawns several sessions, adds commits, creates a worktree and pushes a branch on its own. `workflow-cleanup` deletes
+spawns several sessions, adds commits, creates a worktree and pushes a branch on its own, and files issues labelled `decision`. `workflow-cleanup` deletes
 branches and removes a worktree. `pj-roadmap` and `level` create a worktree, push a branch and open a pull request. The pj
 skills create, edit and close issues and labels on GitHub, and `pj4-running` also creates each project's branch,
 pushes, opens and merges pull requests. The doc skills make a file next to your document, rewrite the document itself,
@@ -141,7 +141,7 @@ request is the exception: asking to resolve the conflicts of a pull request, in 
 Runs one implementation through sessions with different jobs. A design session writes the plan, then details each
 task as its turn comes. The design is drawn as if the request had always been required and moves existing code,
 contracts included, where that gives the better shape, and the start message shows what moves. An implementation session writes the code for one task. Review seats try to break it and write what they prove, each by a probe they run through `flow.sh`, to a file. A repository at `standard` has one seat, and `high` has two, on different models. The implementation session and the review seats are new for every task. It asks for no approval: you
-answer only the questions it cannot go on without, and a start message names the branch and the base. The run happens in `.claude/worktrees/wf-<stamp>`.
+answer only the questions it cannot go on without, and a start message names the branch and the base. The run happens in `.claude/worktrees/wf-<stamp>`. Once the pull request is open, review seat a names the design decisions in technology, infrastructure, database or delivery that the run made on its own, and each becomes an issue labelled `decision` with a request that overturns it ([details](skills/workflow/README.md#decisions)).
 
 The sessions follow [the judgement rules](skills/workflow/judgement.md). The design session settles what it can from
 the code, the history or a throwaway experiment, and lists those as model decisions, which the start message shows. You are
@@ -167,7 +167,7 @@ which record what the implementation session ran.
 
 ```mermaid
 flowchart TD
-    req(["your request"]) --> wt["worktree on the tip of the base<br/>work-reports/ and .claude/worktrees/ ignored?"] --> begin["flow.sh begin: START, the work directory and the level"] --> design["design session<br/>boundaries, acceptance criteria,<br/>plan of tasks, as files of the run"]
+    req(["your request"]) --> wt["worktree on the tip of the base<br/>work-reports/ and .claude/worktrees/ ignored?<br/>ignored files .worktreeinclude names copied"] --> begin["flow.sh begin: START, the work directory and the level"] --> design["design session<br/>boundaries, acceptance criteria,<br/>plan of tasks, as files of the run"]
     design --> ask["open questions, only when there are any<br/>start message, no approval<br/>branch and base named"]
     ask --> setup["branch in the worktree"]
     setup --> detail
@@ -193,7 +193,7 @@ flowchart TD
     integ -->|approve| sync["base merged in, only on a conflict<br/>resolved as one more reviewed task"]
     sync --> report["work report<br/>work-reports/2026-09-19-1346-a1b2c3d/"]
     report --> pr["push, then pull request<br/>log.md becomes the body"]
-    pr --> clean(["you merge it, then<br/>workflow-cleanup"])
+    pr --> decisions["review seat a judges the decisions<br/>one issue labelled decision each"] --> clean(["you merge it, then<br/>workflow-cleanup"])
 
     classDef human fill:#fff,stroke:#888,stroke-dasharray: 5 5
     class req,clean human
@@ -213,6 +213,11 @@ such as "コンフリクト解消して", with no skill named ([Conflicts](skill
 Every run leaves a work report behind, inside the repository under `work-reports/` so that you see them. The skill checks that git ignores `.claude/worktrees/` and `work-reports/` before it writes anything, and asks
 before adding them to `.git/info/exclude`. That file stays in your clone, so nothing is committed and `.gitignore` is
 never edited. `/annetaan:workflow-cleanup` moves the report into your clone's `work-reports/` once the run is over, and deletes the reports there beyond the 100 newest, by the time stamp in their name. It removes the review seat worktrees beside the run's worktree as well.
+
+`.worktreeinclude` in your clone's root lists, in `.gitignore` syntax, the ignored files copied into every worktree
+the skills create, such as `.env.local` or `mise.local.toml`. Claude Code reads the same file for its own worktrees.
+The skills ask once about an ignored file it does not name, and write the answer as `/<path>` to copy it or `!/<path>`
+to never copy it. You can edit the file by hand, and commit it or keep it out of git.
 
 ### pj1-plan, pj2-issues, pj3-doctor, pj4-running
 
@@ -350,9 +355,10 @@ Every write the four skills make to an issue, a relationship, a label or a comme
 The `ready`, `blocker`, `project` and `doing` labels are created when missing, and a label that already exists is reused as
 it is.
 
-`pj4-running` asks one more question before its first task. When git does not ignore `.claude/worktrees/`
+`pj4-running` asks more questions before its first task. When git does not ignore `.claude/worktrees/`
 or `work-reports/`, it asks to add them to `.git/info/exclude`. That file stays in your clone, so nothing is
-committed, and `.gitignore` is never edited. When an earlier run ended without saving its work in the worktree, for
+committed, and `.gitignore` is never edited. It also asks about the ignored files `.worktreeinclude` does not name,
+as workflow does, except that an unattended run only lists them and goes on. When an earlier run ended without saving its work in the worktree, for
 example a process that was killed, it does not ask: it saves that work to `work-reports/<stamp>-discarded/stopped.diff`
 in the worktree and discards it. The run then redoes that work. Run one session per project, because a
 second session's work in the worktree would be taken for a dead run's.
@@ -424,8 +430,8 @@ where every piece came from. It asks once. Then it commits the rewritten file on
 pull request into the branch you picked. `/annetaan:workflow-cleanup` removes the worktree and the branch after you
 merge it.
 
-It changes the structure and keeps every sentence. It never merges, never touches your working tree and never updates a
-pull request that is already open.
+It changes the structure and keeps every sentence. It never merges, never touches your working tree except for adding your answers to `.worktreeinclude`, and never
+updates a pull request that is already open.
 
 ```
 /annetaan:pj-roadmap
@@ -603,7 +609,7 @@ dropout: the round goes on with the seats that reported.
 | --- | --- | --- | --- |
 | `annetaan:workflow-design` | opus | medium | design. writes the design, the plan and each task's detail into the run's work directory, and tries a doubtful point in a throwaway experiment. In a pj run it also details one sub-issue against the code and may return its body redrawn |
 | `annetaan:workflow-worker` | opus | medium | implementation, for every task. shows each acceptance criterion by running it and writes the evidence file |
-| `annetaan:workflow-reviewer-a` | opus | high | review seat a, for every task, and the integration review when the plan has more than one task. tries to break the change and proves each finding by a run of a probe it wrote |
+| `annetaan:workflow-reviewer-a` | opus | high | review seat a, for every task, the integration review when the plan has more than one task, and the decisions at the finish. tries to break the change and proves each finding by a run of a probe it wrote |
 | `annetaan:workflow-reviewer-b` | fable | medium | review seat b, at `high` only. the same job as seat a on another model |
 | `annetaan:pj-planner` | opus | medium | planning for `pj1-plan` and `pj2-issues`. the projects, their designs and the waits between them, then one project's split into tasks. tries a doubtful point in a throwaway experiment |
 | `annetaan:pj-issue-writer` | opus | medium | one sub-issue, drawn against the code. drafts it for `pj2-issues`, revises it for `pj3-doctor`, and tries a doubtful point in a throwaway experiment |

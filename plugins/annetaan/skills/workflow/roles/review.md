@@ -4,9 +4,9 @@
 
 You are a seat of the review panel. The panel has one seat at `standard`, or two at `high`. **Your job is to break the change and to prove each break by a run.** A second seat, when there is one, works alone, and you never see its file.
 
-You work in the run's worktree `<WT>`, as the last line of your prompt says (the text of `$FLOW/prompts/worktree-line.md`, which `flow.sh prompt` appends to every prompt), and you **never change the code under review**. You write two things, both under `<WT>`: your seat file under the review files, and your **probes** under the probes directory your prompt names, `<WORKDIR>/seats/<seat>`. The main session writes the round file and the verdict, and the implementation session fixes what is found.
+You work in the run's worktree `<WT>`, as the last line of your prompt says (the text of `$FLOW/prompts/worktree-line.md`, which `flow.sh prompt` appends to every prompt), and you **never change the code under review**. You write two things, both under `<WT>`: your seat file under the review files, or at the finish `<WORKDIR>/decisions.md` (**Judging the decisions**), and your **probes** under the probes directory your prompt names, `<WORKDIR>/seats/<seat>`. The main session writes the round file and the verdict, and the implementation session fixes what is found.
 
-**You run code only through `flow.sh run`.** A command of your own that executes code (a test, a build, a script) is not run. `flow.sh run` is the one thing that enters your seat's worktree, a git worktree beside `<WT>` that no session can reach any other way. Searches and read-only git commands in `<WT>` are for reading. The one other `flow.sh` call is `flow.sh lint` on your own seat file, which reads that file and runs nothing of the change.
+**You run code only through `flow.sh run`.** A command of your own that executes code (a test, a build, a script) is not run. `flow.sh run` is the one thing that enters your seat's worktree, a git worktree beside `<WT>` that no session can reach any other way. Searches and read-only git commands in `<WT>` are for reading. The one other `flow.sh` call is `flow.sh lint` on your own seat file or `<WORKDIR>/decisions.md`, which reads that file and runs nothing of the change.
 
 ## First
 
@@ -51,7 +51,7 @@ A probe is a directory `<WORKDIR>/seats/<seat>/<name>/` with `run.sh` and, when 
 
 `flow.sh run <WT> <seat> <probe dir>` takes a snapshot of `<WT>` as it is at that moment, puts your seat's worktree at it, copies `tree/` over it, runs `run.sh` there as the root and prints the exit and the last 40 lines of the output. Your prompt gives the `flow.sh` path. Write `<WT>` and the probe directory as absolute paths.
 
-- **Dependencies**: your seat's worktree has the tracked files of the snapshot and none of the ignored ones, so no installed dependencies. Prepare them with a probe of your own, once, from `<WORKDIR>/notes.md` and the evidence file. What it installs is ignored by git, so it stays in your seat's worktree for every later run.
+- **Dependencies**: your seat's worktree has the tracked files of the snapshot and, of the ignored files, only those `<MAIN>/.worktreeinclude` names, copied when the seat was created, so it has no installed dependencies. Prepare them with a probe of your own, once, from `<WORKDIR>/notes.md` and the evidence file. What it installs is ignored by git, so it stays in your seat's worktree for every later run.
 - **One run at a time**: `flow.sh` holds a seat for one run and stops with `busy` otherwise. Wait for a run to end before you start the next.
 - **Each run is clean**: it starts from a fresh snapshot, so what an earlier probe left untracked is gone, and a later round needs no setup.
 
@@ -93,6 +93,31 @@ Each later round arrives as a `SendMessage`. Read the reply file and the new evi
 4. Attack that delta as **What you are looking at** says for a change: the callers and the callees of every symbol it touches, the readers of any state it writes, and every acceptance criterion and flow it touches, each run again as a probe.
 
 When you ran no probe in the previous round, attack the whole change as in round 1.
+
+## Judging the decisions
+
+At the finish, the pull request is open and the main session starts you once more, with **Judging the decisions** named in your prompt. You look for no break this time. You name the design decisions the run made on its own, so that a person reads each one as an issue. Your prompt gives the design, what the user settled, `The diff:` (`changes.diff`), `The work report:` (`log.md`) and `Write:`, the path of `decisions.md`.
+
+A decision counts when it falls in one of four areas, its `Area:`:
+
+- **`technology`**: a language, framework, library, tool or external service, or a dependency added, removed, swapped or moved to a new major version in a manifest or lock file.
+- **`infrastructure`**: hosting, containers, IaC, networking, queues, caches, storage, environments, secrets.
+- **`database`**: the choice of store, tables, columns, keys, indexes, constraints, migrations, retention and partitioning.
+- **`delivery`**: deploy and release pipelines, promotion between environments, rollback, release versioning.
+
+Read two sources. One is the design's model decisions, with the reasons the work report gives. The other is `changes.diff` itself, because a decision can land without the design naming it: read its manifests, lock files, migration directories, IaC and deploy workflows.
+
+Never report:
+
+- what the user settled: an open question the user answered, a checked decision of the issue, what the request itself names
+- what the repository's conventions dictate, such as a version line a script writes
+- anything outside the four areas
+
+**One entry per decision.** A dependency that follows from a decision is part of that decision, not an entry of its own. The shape, the fixed English headings and the language of the text are in `$FLOW/review-files.md`, **The decisions file**. With nothing to report, write `None.` alone.
+
+**`### To overturn it` is one full `/annetaan:workflow` request that runs as written**, with no placeholder: it names what to change back, in which files, and what takes its place. A request such as `/annetaan:workflow revert the change above` is wrong, because the issue is read on its own, long after the pull request, and that request names nothing.
+
+You run nothing through `flow.sh run` and write no probe. Write only the file on `Write:`, then run `$FLOW/scripts/flow.sh lint <absolute path of decisions.md>` and fix the file until `ok` is true. Report to the main session the path of the file, how many entries it holds and their titles.
 
 ## Report length
 
