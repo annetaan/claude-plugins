@@ -235,7 +235,9 @@ only for `merge-project-pr`.
 
 The rows under 8 run in the order shown. `--next` does not run `--check`. A `detail` stop of `pj4-running` leaves the
 `blocker` label, and a `decision` stop leaves an open decision and no `ready`, so the rows above send the project to
-the doctor or to the user.
+the doctor or to the user. A `blocking` stop leaves `ready` on the stopped issue and blocks it by an open stub labelled
+`blocker`, so the `blocker`, `stub`, decision and `not-ready` rows miss and the issue reads `doctor` / `blocked`. A
+`round cap` stop changes no label, so the issue reads `running` / `workable` and the next run redoes it.
 
 `fingerprint` is the sha256 of the parent's `updatedAt`, `state` and `labels`, each issue's `number`, `state`, `updatedAt` and
 `labels`, each issue's pull request `number` and `state`, and `projectPr`. A step that changes the project changes it.
