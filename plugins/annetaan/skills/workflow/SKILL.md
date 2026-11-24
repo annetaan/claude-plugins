@@ -9,7 +9,7 @@ One implementation, run as **design, then per task (implement, review rounds, on
 The review rounds run through Markdown files under the run's work report directory, described in
 `$FLOW/review-files.md`.
 
-The design session returns a **plan**: an ordered list of tasks. Implementation and review rounds run inside a task. A task the review approves becomes **one commit**. After the last task of a plan with more than one task, an **integration review** looks at the whole diff once. Then the flow finishes.
+The design session writes a **plan** into the run's work directory: an ordered list of tasks. Implementation and review rounds run inside a task. A task the review approves becomes **one commit**. After the last task of a plan with more than one task, an **integration review** looks at the whole diff once. Then the flow finishes.
 
 You are the main session, and you are the **orchestrator. You do not write code.** Sub-agents design, implement and review. You pass work between them and you are the only window onto the human.
 
@@ -108,8 +108,8 @@ Write the real path for `<WT>` and `<MAIN>` when you send it.
 
 **The implementation session and the review seats start fresh for every task.**
 
-**A task boundary throws away almost nothing.** The code is in git, the design and the plan are in your hands, and
-every finding is resolved because the task was approved. What is left is how this repository wants to be
+**A task boundary throws away almost nothing.** The code is in git, the design, the plan and each task's detail are files
+of the run in `<WORKDIR>` (**The run's files**), and every finding is resolved because the task was approved. What is left is how this repository wants to be
 worked in, and that travels as the handover notes (phase 4 (d)).
 
 **Every task, and the integration review when the plan has more than one task, run on the same agents**:
@@ -127,7 +127,7 @@ When no seat reported, phase 4 (b) step 1 starts them again.
 
 ## Phase 2: branch and work directory
 
-Run the steps of this phase that the entry's file names, **in this order, before you wake the implementation session**. The order matters.
+Run the steps of this phase that the entry's file names. Each entry's file names when (a) and (b) run, both before the implementation session wakes.
 
 ### (a) Create the branch
 
@@ -160,6 +160,25 @@ $FLOW/scripts/flow.sh begin <WT> --level <level> --source <source> [--issue <n> 
   `issue` and `parent` again. **The level** says how the agents come back, and when the run `status` names is an
   earlier one, so that phase 2 (b) is still ahead.
 
+### The run's files
+
+The design, the plan, the detail of each task, the handover notes, the adaptations, the `check wanted:` lines and the
+merge's design are files of `<WORKDIR>`, each with one writer.
+
+| File | Writer | Written |
+| --- | --- | --- |
+| `<WORKDIR>/design.md` | standalone: the design session; from an issue: the main session | standalone: phase 1, and again when the answers come back; from an issue: right after `begin`, with `project.sh --design`, and after each redraw that goes on |
+| `<WORKDIR>/plan.md` | the design session | with the plan, and again on every redraw of it |
+| `<WORKDIR>/detail/task-<k>.md` | the design session | task 1 with the plan, task k of 2 or more when phase 4 (d) asks |
+| `<WORKDIR>/notes.md` | the main session | from an issue and a sync right after `begin`; folded after each commit |
+| `<WORKDIR>/adaptations.md` | the main session, from an issue | on each adaptation the implementation session reports |
+| `<WORKDIR>/checks.md` | the main session | on each `check wanted:` line of a commit report |
+| `<WORKDIR>/merge.md` | the main session | when **The merge task** starts |
+
+**A prompt names a file and never carries its content**, with `<WORKDIR>` written out as an absolute path. A file that
+does not exist means none: no notes yet, no adaptation, no `check wanted:` line. A file the main session adds to is
+read with Read first and written whole with Write, the earlier lines kept, because Write overwrites.
+
 ## Phase 3: the implementation prompt
 
 **Every task starts a new implementation session, task 1 included.** This is the shape of the call. Phase 4 (a) is
@@ -168,7 +187,7 @@ where you make it.
 ```
 Agent(subagent_type: "annetaan:workflow-worker", description: "implementation, task k",
       model: "<agents.workflow-worker.model>", effort: "<agents.workflow-worker.effort>",
-      prompt: "Read $FLOW/roles/work.md first and follow the role it describes.\n\nDesign:\n<the full design>\n\nPlan:\n<the full plan>\n\nDetail design for this task:\n<what the design session returned for task k. For task 1, the part of the design that covers it>\n\nStart point START: <the SHA>\nBranch: <branch name>\nReview files: <absolute path of WORKDIR>/review\nScratch: <absolute path of WORKDIR>/scratch/work\n\nProgress:\n<the tasks already done and the commit that closed each, as the matching `git log --oneline` lines. \"none\" for task 1>\n\nHandover notes from the earlier sessions:\n<the notes you have been accumulating. \"none\" for task 1>\n\nImplement task k, \"<task name>\", of the plan. **Do not commit yet.** Write `task-<k>-evidence.md` under the review files. Report back once the tests pass.\n\n<the worktree line>")
+      prompt: "Read $FLOW/roles/work.md first and follow the role it describes.\n\nDesign: <absolute path of WORKDIR>/design.md\nPlan: <absolute path of WORKDIR>/plan.md\nDetail design for this task: <absolute path of WORKDIR>/detail/task-<k>.md\nHandover notes: <absolute path of WORKDIR>/notes.md\n\nStart point START: <the SHA>\nBranch: <branch name>\nReview files: <absolute path of WORKDIR>/review\nScratch: <absolute path of WORKDIR>/scratch/work\n\nProgress:\n<the tasks already done and the commit that closed each, as the matching `git log --oneline` lines. \"none\" for task 1>\n\nImplement task k, \"<task name>\", of the plan. **Do not commit yet.** Write `task-<k>-evidence.md` under the review files. Report back once the tests pass.\n\n<the worktree line>")
 ```
 
 ### Screenshots
@@ -201,6 +220,15 @@ the same message as the commit, so it runs while the commit does. Wait until bot
 **This is where a broken plan gets caught before anyone writes code against it.** An answer that says the boundary no
 longer holds goes to **When the plan breaks**.
 
+Before the implementation session starts, check that `<WORKDIR>/detail/task-<k>.md` exists, with one command:
+
+```bash
+ls <WORKDIR>/detail
+```
+
+When it is missing, ask the design session for it in one line by `SendMessage`, and wait for its report. A merge has no
+detail file: `<WORKDIR>/merge.md` takes the place of all three (`merge-task.md`).
+
 Then start a new implementation session with the phase 3 prompt.
 
 Check that the tests pass before you send anything to review, and that the evidence file the phase 3 prompt named exists under `<WORKDIR>/review/` (`task-<k>-evidence.md`, or `merge-evidence.md` in a merge). When it is missing, `SendMessage` the implementation session for it. `git status --porcelain` shows the change sitting in the working tree, and `git log -1` shows HEAD has not moved.
@@ -222,7 +250,7 @@ It prints what `status <WT>` prints, with `scope`, `round`, `cap`, `verdict`, `o
 ```
 Agent(subagent_type: "annetaan:workflow-reviewer-a", description: "review, task k, seat a",
       model: "<agents.workflow-reviewer-a.model>", effort: "<agents.workflow-reviewer-a.effort>",
-      prompt: "Read $FLOW/roles/review.md first and follow the role it describes.\n\nYou are seat a.\n\nDesign and acceptance criteria:\n<the full design>\n\nPlan:\n<the full plan>\n\nDetail design for this task:\n<the same one the implementation session got>\n\nProgress:\n<the tasks already done and the commit that closed each. \"none\" for task 1>\n\nHandover notes from the earlier sessions:\n<the notes, or none>\n\nReview files: <absolute path of WORKDIR>/review\nProbes: <absolute path of WORKDIR>/seats/a\nRun a probe with: $FLOW/scripts/flow.sh run <WT> a <probe dir>\n\nUnder review: task k, \"<task name>\". The diff sits between the working tree and HEAD (`git diff HEAD` plus untracked files). The evidence is `task-<k>-evidence.md`. Write your seat file as `<scope>-round-1-a.md` under the review files.\n\n<the worktree line>")
+      prompt: "Read $FLOW/roles/review.md first and follow the role it describes.\n\nYou are seat a.\n\nDesign: <absolute path of WORKDIR>/design.md\nPlan: <absolute path of WORKDIR>/plan.md\nDetail design for this task: <absolute path of WORKDIR>/detail/task-<k>.md\nHandover notes: <absolute path of WORKDIR>/notes.md\n\nProgress:\n<the tasks already done and the commit that closed each. \"none\" for task 1>\n\nReview files: <absolute path of WORKDIR>/review\nProbes: <absolute path of WORKDIR>/seats/a\nRun a probe with: $FLOW/scripts/flow.sh run <WT> a <probe dir>\n\nUnder review: task k, \"<task name>\". The diff sits between the working tree and HEAD (`git diff HEAD` plus untracked files). The evidence is `task-<k>-evidence.md`. Write your seat file as `<scope>-round-1-a.md` under the review files.\n\n<the worktree line>")
 ```
 
 The call for another seat is the same with its agent `annetaan:workflow-reviewer-<seat>`, its `model` and `effort` from `agents.workflow-reviewer-<seat>`, its letter in `You are seat <seat>`, `Probes:` under `seats/<seat>`, `flow.sh run <WT> <seat> <probe dir>` and `<scope>-round-1-<seat>.md`. Write `$FLOW` and `<WT>` out as absolute paths. All calls go in one message, so the seats run in parallel. In a run from an issue each prompt also carries the lines `from-issue.md` adds, and in a merge the lines `merge-task.md` gives.
@@ -238,7 +266,7 @@ The call for another seat is the same with its agent `annetaan:workflow-reviewer
 The seats started again remember only from round `<r>` on, and every later round goes to them by `SendMessage`. When none reports again, stop as the entry's file says for the round cap.
 
 2. **When every seat has reported**, run `$FLOW/scripts/flow.sh verify <WT> <scope>` with the Bash tool's `timeout` set to 600000, because it runs every probe in turn. It runs again the command of each finding in `open` and of each finding in the seat files of round `round`, sorts them by the probe's exit, and writes the draft `<WORKDIR>/drafts/<scope>-round-<r>.md` (see `$FLOW/review-files.md`, **A draft**). Its JSON carries the last 40 lines of each run as `output`, and `dropouts` the seats of the run with no seat file. A call the timeout cut off is run again with `run_in_background`, and you wait for its exit.
-3. **Keep, drop, merge, from the draft.** The draft already sorts by the exit: an earlier finding is `resolved`, `stands` or `stands again`, a new finding that exited non-zero is under `## New findings`, and the rest is under `## Dropped`. What is left is judgement. Keep a new finding when its `output` shows a failure that breaks the intent: the design, its criteria, the plan and the task detail. **Drop the rest with the reason.** Findings with one root cause become one entry that names every seat. Write `Breaks:` for each finding kept, and the `Seats:` line, a dropout said there. An earlier finding marked `reply: disagree` is judged against the intent: a `disagree` whose reason shows the failure does not break the intent is `resolved`, with the reason quoted. **There is no judge.** The round file holds every finding of every seat that you kept. Anything under `## Not run` that no seat could run goes to the round file's `## Not run`.
+3. **Keep, drop, merge, from the draft.** The draft already sorts by the exit: an earlier finding is `resolved`, `stands` or `stands again`, a new finding that exited non-zero is under `## New findings`, and the rest is under `## Dropped`. What is left is judgement. Keep a new finding when its `output` shows a failure that breaks the intent: the design, its criteria, the plan and the task detail, read from `<WORKDIR>/design.md`, `<WORKDIR>/plan.md` and `<WORKDIR>/detail/task-<k>.md`, or from `<WORKDIR>/merge.md` in a merge. **Drop the rest with the reason.** Findings with one root cause become one entry that names every seat. Write `Breaks:` for each finding kept, and the `Seats:` line, a dropout said there. An earlier finding marked `reply: disagree` is judged against the intent: a `disagree` whose reason shows the failure does not break the intent is `resolved`, with the reason quoted. **There is no judge.** The round file holds every finding of every seat that you kept. Anything under `## Not run` that no seat could run goes to the round file's `## Not run`.
 4. **Write the round file** `<scope>-round-<r>.md` from the draft with Write, in the shape `$FLOW/review-files.md` gives: `Seats:` (the model each seat ran on, a fallback and a dropout said here), `## Earlier findings`, `## New findings`, `## Dropped`, `## Not run` and `## Verdict`. The verdict is yours, and when `approve` is allowed is in `$FLOW/review-files.md`, **A review round**. Before the Write, run `$FLOW/scripts/flow.sh status <WT> <scope>` and read `approve`. `approve-no-evidence` in `why` rules `approve` out until the implementation session writes the evidence file the rule names: `SendMessage` it for that file, as (a) does for a missing evidence file, and run status again once it is there. `approve-open` in `why` means `approve` needs every finding in `open` marked `resolved` in this round's `## Earlier findings`, and `## New findings` reading `None.`. Otherwise the verdict is `changes-requested`. After the Write, run `$FLOW/scripts/flow.sh lint <absolute path of the round file>` and rewrite the round file until `ok` is true, before the verdict goes to (c) or (d). An `approve` over a finding the file itself leaves open shows there as `approve-open`, and the verdict is then `changes-requested`. `draft` means a line was not copied as the draft holds it: copy it again from the draft, and never edit the draft.
 
 `approve` goes to (d). After a round file that is not `approve`, run `$FLOW/scripts/flow.sh status <WT> <scope>` again and read `cap`: true stops as **The round cap** says, false goes to (c).
@@ -263,24 +291,24 @@ Go back to (b).
 beside the one above, so the detail runs while the commit does. The approved change is what the commit takes, so the
 working tree already holds the code task k+1 starts from.
 
-> Task k, "<task name>", passed review and is being committed now. Its approved change sits in the working tree of `<WT>`, uncommitted, and the commit takes it unchanged. Detail task k+1, "<task name>", against the code as it stands in the working tree, untracked files included. What the earlier tasks actually produced outranks what the design predicted. Follow **Detailing a task** in your role instruction. If the task boundary itself no longer holds, say that instead.
+> Task k, "<task name>", passed review and is being committed now. Its approved change sits in the working tree of `<WT>`, uncommitted, and the commit takes it unchanged. Detail task k+1, "<task name>", against the code as it stands in the working tree, untracked files included, and write it to `<absolute path of WORKDIR>/detail/task-<k+1>.md`. What the earlier tasks actually produced outranks what the design predicted. Follow **Detailing a task** in your role instruction. If the task boundary itself no longer holds, say that instead.
 
 Check it yourself with `git log -1 --oneline`, `git status --porcelain`, and `git branch --show-current` to confirm the branch has not moved. Anything left in the working tree needs an explanation from the implementation session. Screenshots inside `<WORKDIR>` are ignored by git and can stay.
 
-**Add those notes to the handover notes you keep.** Fold the duplicates together. Once the whole thing runs past
-fifteen lines, drop the oldest. The next task's implementation prompt carries this, and it is the only thing that
-outlives a session.
+**Fold the commit report's notes into `<WORKDIR>/notes.md` with Write**, after a Read of it when it exists. Fold
+the duplicates together. Once the whole thing runs past fifteen lines, drop the oldest. The next task's implementation
+prompt names this file, and it is the only thing that outlives a session.
 
-**When the commit report has a `check wanted:` line** (a task's, or the fix commit of the integration review in `standalone.md`), keep it out of the handover notes and hold it separately for the work report (`finish.md`).
+**When the commit report has a `check wanted:` line** (a task's, or the fix commit of the integration review in `standalone.md`), keep it out of the handover notes. Append each one word for word to `<WORKDIR>/checks.md`: Read it when it exists, then Write it with the earlier lines kept. The work report gathers them from there (`finish.md`).
 
-**Give the user a one-line progress report**: `task k/N done: <short SHA> <commit subject> (commit k since START <short SHA>)`. A long context can be summarised away. The plan and the progress rebuild from the progress lines, and `START` and `WORKDIR` from `flow.sh status <WT>`. When the commit report had a `check wanted:` line (task or integration fix commit), pass it on to the user as a line of its own after the progress line, word for word, so that a summary still leaves a copy.
+**Give the user a one-line progress report**: `task k/N done: <short SHA> <commit subject> (commit k since START <short SHA>)`. A long context can be summarised away. After a context summary, the plan comes back from `<WORKDIR>/plan.md`, only the progress from the progress lines, and `START` and `WORKDIR` from `flow.sh status <WT>`.
 
 **This task's implementation session and the seat sessions are finished here.** Do not send them anything after this. The next
 task starts new ones, and the seats' worktrees stay beside `<WT>`, re-pointed by the next `flow.sh run`. After the last task's commit, the entry's file says what comes next, and whether that task's implementation session stays alive. The seat sessions end here either way.
 
 ### When the plan breaks
 
-When the detail pass in (a) says the boundary no longer holds, or the implementation session reports that the design will not work, stop that task and have the design session **redraw the remaining plan** with `SendMessage`. Tell the user what the new plan is in one message and go on without waiting. A redraw changes the task count that phase 5 goes by. A change to the design itself goes back to the user the same way a "no" or "conditional" in phase 1 does, and in From an issue it ends the run as `from-issue.md` says (the stop `decision`).
+When the detail pass in (a) says the boundary no longer holds, or the implementation session reports that the design will not work, stop that task and have the design session **redraw the remaining plan**: a one-line `SendMessage` that names `<WORKDIR>/plan.md` and what broke. The design session rewrites that file and reports the new task names. Tell the user what the new plan is in one message and go on without waiting. A redraw changes the task count that phase 5 goes by. A change to the design itself goes back to the user the same way a "no" or "conditional" in phase 1 does, and in From an issue it ends the run as `from-issue.md` says (the stop `decision`).
 
 ### The round cap
 
@@ -297,10 +325,10 @@ When `cap` of `$FLOW/scripts/flow.sh status <WT> <scope>` is true after a round 
 - **A seat never changes the tree of `<WT>`.** It writes only its probes under `<WORKDIR>/seats/<seat>/` and its seat file, and executes only through `flow.sh run`. You write the round file and no other file of the review, and the implementation session fixes what is found. The seats' worktrees stay beside `<WT>` until the cleanup removes them.
 - **A review file is final once its writer has linted it and reported.** Each round and each reply is a new file under `<WORKDIR>/review/`, in the shape `$FLOW/review-files.md` gives, and so is each evidence file. Its writer fixes it until `flow.sh lint` passes, and nobody edits it after the report.
 - **The design session lives for the whole flow, in the standalone flow and in From an issue. An implementation session and the seat sessions live for one task.** Inside a task they continue through `SendMessage`, because throwing the context away between rounds repeats arguments that were already settled. At the commit they are finished, and the next task starts new ones. The implementation session of a one-task plan also writes the work report.
-- **Keep the reports from the sub-agents short.** The role instructions cap them. A report that pastes a diff or a log fills the one context that holds the whole plan, which is yours. When a long one arrives, say so, and ask for the gist next time.
+- **Keep the reports from the sub-agents short.** The role instructions cap them. A report that pastes a diff or a log fills the one context that runs the whole flow, which is yours. When a long one arrives, say so, and ask for the gist next time.
 - **One task is one commit, and a commit happens only after the review approves.** A commit mid-round drops the diff out of the working-tree view the review reads.
 - **No branches, no history rewriting from the sub-sessions.** The main session owns `git checkout -b`, run in `<WT>`. `git rebase`, `git reset --hard` and `--amend` break the `START` comparison. The role instructions say the same.
-- **Each Bash call runs one command with its values written out.** No shell variables, no `$(...)`, no chaining. Read the output whole. pj4-running drives this flow in runs that cannot answer a permission question, and auto mode's classifier may refuse a command no rule matches.
+- **Each Bash call runs one command with its values written out.** No shell variables, no `$(...)`, no chaining. A command's own redirect into a file, `> <path>`, is part of that one command, as **Commands** in `pj1-plan/between-skills.md` allows. Read the output whole. pj4-running drives this flow in runs that cannot answer a permission question, and auto mode's classifier may refuse a command no rule matches.
 - **A URL in a message to the user stands between spaces.** Only a plain ASCII space or a line break touches either end: no bracket, punctuation or quote, and no particle or full-width punctuation in a language written without spaces. Write it bare, outside backticks and Markdown links. A terminal such as Ghostty ends a link at the first space, so anything touching the URL becomes part of the link and opens the wrong page (`$FLOW/../pj1-plan/between-skills.md`, **Issues in a report**).
 - **Never write into `work-reports/` without checking it is ignored.** Unchecked, the report and the screenshots ride into the next commit. `worktree.sh ignore` (standalone, From a pull request) and pj4-running (From an issue, From a sync) check it before anything is written there, and `flow.sh begin` checks it again. Never edit `.gitignore`.
 - **The standalone flow never touches `<MAIN>`.** Never switch, stash, commit or clean there. Everything runs in `<WT>`.
