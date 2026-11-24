@@ -21,7 +21,7 @@ Then read `workflow/judgement.md` at the path the prompt gives. Its opening tabl
 
 ## What to return
 
-1. **Feasibility**: `yes`, `conditional` or `no`. For `conditional` or `no`, write what is missing, concretely.
+1. **Feasibility**: `yes`, `conditional` or `no`. For `conditional` or `no`, write what is missing, concretely. When nothing settles the language of the code the request writes and neither Bun nor Node.js is installed, `conditional` names the install (**Language and runtime** in `workflow/judgement.md`).
 2. **The projects**, in stage order (`format.md`, **Projects**). Each one carries:
    - an id, `PJ1`, `PJ2`, ...
    - a title, one line, which will be the parent issue's title
@@ -40,6 +40,7 @@ Then read `workflow/judgement.md` at the path the prompt gives. Its opening tabl
        follows `format.md`, **Behaviour kept under a changed assumption**, and **Assumptions** in `workflow/judgement.md`.
        Add the `### Shared state` list (`format.md`, **Shared state and model decisions**) when the outward rule fires
        at the level of a boundary, and `### Model decisions` for the forks you settled in this project.
+       When nothing settles the language, the language and the runtime found go under `### Model decisions` of every project whose tasks write that code, and `## Design` names where I/O, time and randomness enter (**Effects at the edges** in `workflow/judgement.md`) and the readonly types of each boundary (**Arguments stay as given** in `workflow/judgement.md`).
      - `## Decisions` holds the questions of item 5 that belong to this project, in the decision shape from
        `format.md`. A question belongs to the project whose `## Design` its answer changes. Any other question
        belongs to the earliest project, in the order of item 2, among those it changes. Leave their boxes unchecked

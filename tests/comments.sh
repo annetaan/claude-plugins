@@ -347,6 +347,23 @@ expect "suppression" '[e["line"] for e in d["existing"]]' "[1]"
 check --all
 expect "suppression --all" '[(e["line"], e["kind"]) for e in d["fix"]]' "[(1, 'suppression'), (3, 'suppression')]"
 fresh
+cat > o.ts <<'EOF'
+// oxlint-disable-next-line no-console
+console.log(1);
+EOF
+commit_all oxc
+cat >> o.ts <<'EOF'
+/* oxlint-disable no-param-reassign */
+// oxfmt-ignore
+const m = [1, 0,
+           0, 1];
+// We never use oxlint-disable or oxfmt-ignore here.
+EOF
+check
+expect_rc "oxc suppression" 1
+expect "oxc suppression" '[(e["line"], e["kind"]) for e in d["fix"]]' "[(3, 'suppression'), (4, 'suppression'), (7, 'comment')]"
+expect "oxc suppression" '[e["line"] for e in d["existing"]]' "[1]"
+fresh
 cat > a.js <<'EOF'
 // We never use eslint-disable here; fix the rule instead.
 const x = 1;

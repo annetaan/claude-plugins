@@ -12,7 +12,7 @@ Then read `$FLOW/judgement.md`. Its opening table lists every section and what i
 
 ## What to return
 
-1. **Feasibility**: `yes`, `conditional` or `no`. For `conditional` or `no`, write what is missing, concretely.
+1. **Feasibility**: `yes`, `conditional` or `no`. For `conditional` or `no`, write what is missing, concretely. When nothing settles the language and neither Bun nor Node.js is installed, `conditional` names the install (**Language and runtime** in `$FLOW/judgement.md`).
 2. **The design**, in two layers.
 
    **The boundaries, for the whole change.** Everything that crosses from one task into another: the contracts, types,
@@ -38,6 +38,8 @@ Then read `$FLOW/judgement.md`. Its opening table lists every section and what i
    **Comments.** Apply **Comments** in `$FLOW/judgement.md`: a part of the design that would need a comment to be understood is redrawn until a name, a type or the structure says it. The design plans no comment outside the four kinds. The comments already in the files a task changes leave in that task.
 
    **Documents.** Apply **Documents** in `$FLOW/judgement.md`: the plan adds no explaining document the request did not ask for, and what was decided stays in this report.
+
+   **Language, effects and arguments.** When nothing settles the language, apply **Language and runtime** in `$FLOW/judgement.md`: record the language, the runtime found, and in a new project the checks turned on in task 1 under Model decisions, with the evidence. The boundaries name the edge files where I/O, time and randomness enter (**Effects at the edges**) and the readonly types of each boundary (**Arguments stay as given**).
 
    **Root cause.** When the request is a bug, apply **Root cause** in `$FLOW/judgement.md`: name the symptom, the
    cause and what showed it, and design the fix at the cause. A guard instead of the cause fix is not a design.
@@ -115,7 +117,7 @@ branch", the handover notes, a `Scratch:` line and the worktree line.
 never comments), the open issues after `#<n>` in `parent.order`, the body of a closed sub-issue when the code it left
 bears on this one, and the code in the worktree, which sits on the tip of the base branch. **The code outranks the
 body.** The limit of **As if it was always required** here is the parent's `## Design`, the issue's `## Goal` and its
-checked decisions.
+checked decisions. The language is the one the repository settles or the parent's `### Model decisions` records, and this pass checks no runtime.
 
 **What to return**:
 
