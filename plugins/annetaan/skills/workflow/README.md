@@ -4,7 +4,8 @@ This skill runs one implementation as **design, then per task (implement, review
 one task, then a finish step**, with each role in a session of its own. The review rounds run through Markdown files
 in the run's work report directory, one per round and one reply to each, so the whole review stays readable after the
 run. A standalone run works in a worktree of its own under `.claude/worktrees/`, so your own working tree stays free
-and may be dirty. It always ends in a pull request.
+and may be dirty. It always ends in a pull request, and in an issue labelled `decision` for each design decision a
+person should read.
 
 workflow is the plugin's core skill for one implementation. You run it yourself for a change that fits one pull
 request. For larger work, pj4-running runs it once per sub-issue of a project (see [Driven from an issue](#driven-from-an-issue) and
@@ -127,6 +128,21 @@ fast-forward, and the worktree is removed, with its review files moved into your
 number named, it takes the one conflicting pull request of yours that GitHub reports, or asks which. A project's pull
 request from `pj/<n>` goes to `pj4-running`, which brings the source branch into the project's branch again.
 
+## Decisions
+
+A run makes decisions of its own along the way, and some of them deserve a person's eye. Once the pull request is
+open, review seat a reads the whole change once more, the design and the diff, and names each design decision in
+technology, infrastructure, database or delivery: a library, service or major version added or swapped, hosting,
+queues, caches or secrets, a store, a table or a migration, a deploy or release pipeline. The implementation session
+does not judge its own decisions. Decisions you settled yourself, an answered question, a ticked box in an issue or
+what your request named, are not filed.
+
+Each decision becomes one issue labelled `decision`, with four parts: what was decided, the other options and why this
+one, where it landed (the pull request and the files), and how to overturn it. The label is created when the
+repository lacks it. Close the issue once you have read it. To overturn the decision, run the request under "To
+overturn it" as it stands: it is a full `/annetaan:workflow` request. Filing never holds the pull request back, and a
+run that could not file says why in its final message.
+
 ## The worktree and cleaning up
 
 The run creates `.claude/worktrees/wf-<stamp>` on the tip of the base before the design starts, and never touches your
@@ -158,6 +174,8 @@ work-reports/2026-09-19-1346-a1b2c3d/
                  with the level, its source and the review counts, the head and that line written by panel.sh record
   changes.diff   the diff from the start commit to HEAD
   run.json       the start commit, the level and its source, the issue and the parent, written once by panel.sh begin
+  decisions.md   the design decisions seat a judged at the finish, or `None.`
+  decisions.json the decision issues panel.sh decisions filed, so that a second run files none twice
   review/        one file per review round, the reply to each, and the evidence files
     task-1-evidence.md
     task-1-round-1-a.md         what seat a proved in round 1, and `-b` for seat b at `high`
@@ -209,7 +227,7 @@ before it touches anything**.
 ## What you need
 
 - to be inside a `git` repository with an `origin` remote on GitHub
-- `gh`, logged in, because every run ends in a pull request
+- `gh`, logged in, because every run ends in a pull request, and it also creates the `decision` issues and their label
 - your working tree may be dirty
 
 `gh pr create --attach` uploads the screenshots into the pull request body. That flag landed in **gh 2.99.0**, on
@@ -230,7 +248,7 @@ screenshots it could not attach.
 | `from-sync.md` | a merge of the source branch into a project's base branch that stopped on conflicts, for pj4-running |
 | `merge-task.md` | the merge task, which resolves conflicts under review, for the standalone finish, from-pr and from-sync |
 | `worktree.md` | the start check and the run's worktree, for the standalone run and from-pr |
-| `finish.md` | the work report and the pull request, for the standalone run and from-issue |
+| `finish.md` | the work report, the pull request and the decision issues, for the standalone run and from-issue |
 | `roles/design.md` | the role for the design session, which returns the design and the plan |
 | `roles/work.md` | the role for the implementation session |
 | `roles/review.md` | the role for a review seat |
@@ -241,7 +259,7 @@ screenshots it could not attach.
 | `scripts/level.py` | the code `level.sh` runs, and the one place the level table lives |
 | `scripts/comments.sh` | fails on a comment outside the four kinds, or a silenced check the change adds, in the files a change touches. The implementation and review sessions run it |
 | `scripts/comments.py` | the code `comments.sh` runs |
-| `scripts/panel.sh` | makes the run's work directory and reads it back, reports a scope's round, cap, open findings and whether `approve` is allowed, runs a review seat's probe in a git worktree beside the run's, at a snapshot of the working tree, runs every probe of a round again and writes the draft of the round, removes the seats at cleanup, lints a review file, and writes the pull request head and the `Level:` line into `log.md` |
+| `scripts/panel.sh` | makes the run's work directory and reads it back, reports a scope's round, cap, open findings and whether `approve` is allowed, runs a review seat's probe in a git worktree beside the run's, at a snapshot of the working tree, runs every probe of a round again and writes the draft of the round, removes the seats at cleanup, lints a review file, writes the pull request head and the `Level:` line into `log.md`, and files the decision issues of `decisions.md` |
 | `scripts/panel.py` | the code `panel.sh` runs. `worktree.py` imports the stamp rules of the work directory names from it |
 | `review-files.md` | the shape of the review files and the evidence files, read by the seats, the main session and the implementation session |
 

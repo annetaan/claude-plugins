@@ -124,7 +124,7 @@ your decisions there too.
 ## Skills
 
 A skill whose `description` matches a request normally starts without being named. The ones here do not. `workflow`
-spawns several sessions, adds commits, creates a worktree and pushes a branch on its own. `workflow-cleanup` deletes
+spawns several sessions, adds commits, creates a worktree and pushes a branch on its own, and files issues labelled `decision`. `workflow-cleanup` deletes
 branches and removes a worktree. `pj-roadmap` and `level` create a worktree, push a branch and open a pull request. The pj
 skills create, edit and close issues and labels on GitHub, and `pj4-running` also creates each project's branch,
 pushes, opens and merges pull requests. The doc skills make a file next to your document, rewrite the document itself,
@@ -141,7 +141,7 @@ request is the exception: asking to resolve the conflicts of a pull request, in 
 Runs one implementation through sessions with different jobs. A design session writes the plan, then details each
 task as its turn comes. The design is drawn as if the request had always been required and moves existing code,
 contracts included, where that gives the better shape, and the start message shows what moves. An implementation session writes the code for one task. Review seats try to break it and write what they prove, each by a probe they run through `panel.sh`, to a file. A repository at `standard` has one seat, and `high` has two, on different models. The implementation session and the review seats are new for every task. It asks for no approval: you
-answer only the questions it cannot go on without, and a start message names the branch and the base. The run happens in `.claude/worktrees/wf-<stamp>`.
+answer only the questions it cannot go on without, and a start message names the branch and the base. The run happens in `.claude/worktrees/wf-<stamp>`. Once the pull request is open, review seat a names the design decisions in technology, infrastructure, database or delivery that the run made on its own, and each becomes an issue labelled `decision` with a request that overturns it ([details](skills/workflow/README.md#decisions)).
 
 The sessions follow [the judgement rules](skills/workflow/judgement.md). The design session settles what it can from
 the code, the history or a throwaway experiment, and lists those as model decisions, which the start message shows. You are
@@ -193,7 +193,7 @@ flowchart TD
     integ -->|approve| sync["base merged in, only on a conflict<br/>resolved as one more reviewed task"]
     sync --> report["work report<br/>work-reports/2026-09-19-1346-a1b2c3d/"]
     report --> pr["push, then pull request<br/>log.md becomes the body"]
-    pr --> clean(["you merge it, then<br/>workflow-cleanup"])
+    pr --> decisions["review seat a judges the decisions<br/>one issue labelled decision each"] --> clean(["you merge it, then<br/>workflow-cleanup"])
 
     classDef human fill:#fff,stroke:#888,stroke-dasharray: 5 5
     class req,clean human
@@ -603,7 +603,7 @@ dropout: the round goes on with the seats that reported.
 | --- | --- | --- | --- |
 | `annetaan:workflow-design` | opus | medium | design. returns the design and the plan, and tries a doubtful point in a throwaway experiment. In a pj run it also details one sub-issue against the code and may return its body redrawn |
 | `annetaan:workflow-worker` | opus | medium | implementation, for every task. shows each acceptance criterion by running it and writes the evidence file |
-| `annetaan:workflow-reviewer-a` | opus | high | review seat a, for every task, and the integration review when the plan has more than one task. tries to break the change and proves each finding by a run of a probe it wrote |
+| `annetaan:workflow-reviewer-a` | opus | high | review seat a, for every task, the integration review when the plan has more than one task, and the decisions at the finish. tries to break the change and proves each finding by a run of a probe it wrote |
 | `annetaan:workflow-reviewer-b` | fable | medium | review seat b, at `high` only. the same job as seat a on another model |
 | `annetaan:pj-planner` | opus | medium | planning for `pj1-plan` and `pj2-issues`. the projects, their designs and the waits between them, then one project's split into tasks. tries a doubtful point in a throwaway experiment |
 | `annetaan:pj-issue-writer` | opus | medium | one sub-issue, drawn against the code. drafts it for `pj2-issues`, revises it for `pj3-doctor`, and tries a doubtful point in a throwaway experiment |

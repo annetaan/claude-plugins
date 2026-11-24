@@ -237,7 +237,7 @@ Sticky sessions on the load balancer would keep the store in memory, but a deplo
 
 ## The lint
 
-Each writer lints its own file as the last step before it reports, and fixes the file until `ok` is true: the seat its seat file, the implementation session its evidence file and its reply, the main session its round file.
+Each writer lints its own file as the last step before it reports, and fixes the file until `ok` is true: the seat its seat file, seat a its `decisions.md`, the implementation session its evidence file and its reply, the main session its round file.
 
 `panel.sh lint <file>` takes the absolute path of one review file and prints `{"status":"ok","ok":<bool>,"kind":<kind>,"reasons":[...]}`. `kind` is `seat`, `round`, `reply` or `evidence`, read from the file name by the table in **Names**, or `decisions` for a file named `decisions.md` (see **The decisions file**). The file passes when `reasons` is empty and `ok` is true. A file that does not exist stops with `no-file`. A name outside **Names** prints `kind` null and the reason `name`. The lint reads the file, its siblings in the same directory and, for a round file, its draft `<WORKDIR>/drafts/<the round file's name>`, `<WORKDIR>` being the directory above the round file's own, and nothing else: no `run.json`, no git, no probe. Lines inside a code fence are never read as a heading or an entry.
 

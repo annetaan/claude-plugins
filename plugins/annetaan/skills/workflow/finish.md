@@ -82,4 +82,29 @@ then tell the user in the final message, with `<version>` from `gh` in `worktree
 
 List the file paths and the pull request URL alongside. **Say nothing about the gh version when the change produced no screenshots.**
 
-When the push fails, quote the error and go to the entry's ending: **Report to the user** in `standalone.md`, or **The stop procedure** in `from-issue.md`. The branch and its commits stay in `<WT>`. When `gh pr create` exits non-zero, run `gh pr view <branch> --json url` first. If a pull request exists (a failed upload still creates one), carry on with its URL and the reattach step above. If none exists, quote the error and go to the entry's ending, as for a failed push. Otherwise carry the pull request URL into the entry's ending.
+When the push fails, quote the error and go to the entry's ending: **Report to the user** in `standalone.md`, or **The stop procedure** in `from-issue.md`. The branch and its commits stay in `<WT>`. When `gh pr create` exits non-zero, run `gh pr view <branch> --json url` first. If a pull request exists (a failed upload still creates one), carry on with its URL and the reattach step above. If none exists, quote the error and go to the entry's ending, as for a failed push. Otherwise go to **The decisions** with the pull request, then carry its URL into the entry's ending.
+
+## The decisions
+
+It runs once the pull request exists, with `<m>` as its number, the number at the end of its URL. Seat a reads the whole change and names the design decisions in technology, infrastructure, database or delivery that the run made on its own, and `panel.sh decisions` files each one as an issue labelled `decision`. **Nothing here holds the pull request back or counts as a failed step of the finish.** A non-zero exit of `panel.sh decisions` is quoted for the entry's ending like a stop, and does not stop the run, because the pull request already exists.
+
+The seat sessions of the last review have ended. This is a new seat a session, at every level, with `model` and `effort` from `agents.workflow-reviewer-a`, and it ends after step 2.
+
+1. **Start seat a.**
+
+   ```
+   Agent(subagent_type: "annetaan:workflow-reviewer-a", description: "decisions",
+         model: "<agents.workflow-reviewer-a.model>", effort: "<agents.workflow-reviewer-a.effort>",
+         prompt: "Read $FLOW/roles/review.md first and follow the role it describes, and within it **Judging the decisions**.\n\nDesign:\n<the full design>\n\nSettled by the user:\n<each open question with the user's answer, or none>\n\nThe diff: <WORKDIR>/changes.diff\nThe work report: <WORKDIR>/log.md\nWrite: <WORKDIR>/decisions.md\n\n<the worktree line>")
+   ```
+
+   Write `$FLOW`, `<WORKDIR>` and `<WT>` out as absolute paths. From an issue, the design is the issue's body as the detail pass left it, and what the user settled is its checked decisions. When the seat returns and `<WORKDIR>/decisions.md` does not exist, start the seat once more with the same call.
+2. **File the issues.**
+
+   ```bash
+   $FLOW/scripts/panel.sh decisions <WT> <m>
+   ```
+
+   - **`ok`**: keep `filed` for the entry's ending. An empty `filed` means no decision fell in the four areas.
+   - **`malformed`**: `SendMessage` the seat with `message`, and run step 2 once more when it reports.
+   - **`malformed` a second time, `no-decisions`, `gh` or `no-run`**: keep `message` for the entry's ending, and go on.
