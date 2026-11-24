@@ -1,6 +1,6 @@
 # How to judge a fork, a change and a fix
 
-> This file is read by every role of the workflow skill and of the pj skills, after the repository's own instructions. The role file says where each record goes and how a human overturns it. **The repository's conventions outrank this file.** Roles of the workflow skill find it as `$FLOW/judgement.md`, where `$FLOW` is the directory their own opening line names. The pj roles get its absolute path in their prompt.
+> This file is read by every role of the workflow skill and of the pj skills, after the repository's own instructions. The role file says where each record goes and how a human overturns it. **The repository's conventions outrank this file.** Roles of the workflow skill find it as `$FLOW/judgement.md`, where `$FLOW` is the directory their own opening line names. The pj roles get its absolute path in their prompt. A file this one names by its bare name, such as `typescript.md`, sits next to it.
 
 ## Where each section applies
 
@@ -14,6 +14,9 @@
 | Remove before adding | what leaves, and in which task | - | nothing for an input nobody is shown to send, dead code out | - |
 | As if it was always required | the shape, and what moves with it | - | everything in the task that states the old shape | what a search still finds stating the old shape |
 | Reader load | each new layer, each home of state | - | the code it writes | - |
+| Language and runtime | the language when none is settled, the runtime found, a new project's checks | - | the type check, run apart from the code | - |
+| Effects at the edges | where I/O, time and randomness enter | - | logic in pure functions | an effect inside the logic, shown by a lint run or a test |
+| Arguments stay as given | the readonly types of each boundary | - | no argument mutated | a mutated argument, shown by a lint run, the type check or a test on a frozen input |
 | Comments | a design that needs one is redrawn; the comments in a task's files leave with it | - | writes none outside the four kinds, removes those in the files it changes, runs the check | a comment outside the four kinds, shown by `comments.sh`; a `@ts-expect-error` outside a type test, shown by a run without it |
 | Documents | no explaining document the request did not ask for | - | - | - |
 | Every call has a row | a design that replaces or routes every X: the search, and each X found with its row | - | - | - |
@@ -129,6 +132,42 @@ Reading costs two things: **the layers between a question and its answer**, and 
 **The test: a reader new to the code answers "where does X come from?" and "what can change X?" in thirty seconds each**, for each value X the change introduces or moves. A finding or a decision under this section names X and lists the hops or the writers, found by search. Without that list it is taste.
 
 The section applies to what the change writes. Existing code is measured only where the design moves it.
+
+## Language and runtime
+
+**When nothing settles the language of the code to write, it is TypeScript.** What the repository's conventions or its existing code settle outranks this. The choice is a model decision, with the evidence that nothing was settled (**Model decisions**).
+
+**The runtime is whichever of Bun and Node.js is installed**, at the versions **Runtime** in `typescript.md` gives. With neither, the role that chooses the language returns Feasibility `conditional` and names the install. The roles that work under a chosen language check no runtime.
+
+**Running TypeScript checks no type**, under Bun or under Node's type stripping. The type check is a command of its own (**Type check** in `typescript.md`).
+
+A new project turns on the checks of **A new project's checks** in `typescript.md` in its first task.
+
+## Effects at the edges
+
+**Logic is pure functions.** I/O, time and randomness are read at the edge and passed in as values. The design names the edge files.
+
+Getting it wrong: a function calls `Date.now()` to decide whether a token has expired. It takes `now` as an argument instead, and its caller at the edge reads the clock.
+
+The TypeScript lint rules that hold this are in **Lint rules for effects and arguments** in `typescript.md`.
+
+### How the two rules are held
+
+This section and **Arguments stay as given** follow **A lesson becomes a check**.
+
+- A new project turns the checks on in its first task.
+- In a repository whose lint lacks a rule, the rule applies to the code the change writes.
+- A review seat proves a finding by the repository's own lint when it has the rule. Otherwise it uses a probe that carries the rule's configuration:
+  - the probe's configuration exempts exactly the edge files the design names
+  - only a diagnostic on a line the change wrote is a finding
+  - when the edge is a function and no file pattern can say it, the finding is a test on a frozen input
+- Turning a rule on for a whole existing repository is work outside the task, and is reported as such.
+
+## Arguments stay as given
+
+**No function mutates an argument, and the types say so**: `readonly` in TypeScript, a frozen dataclass or a tuple in Python, and the like. A function that has to produce a changed value returns a new one. The design gives the readonly types of each boundary.
+
+Its TypeScript lint rules are in **Lint rules for effects and arguments** in `typescript.md`. It is held as **How the two rules are held** under **Effects at the edges** says.
 
 ## Comments
 

@@ -103,7 +103,7 @@ itself is the human's job.
 
 | Label | What it means |
 | --- | --- |
-| `ready` | Every decision is settled and the body is complete for its day. pj4-running details it against the code, then works on it. |
+| `ready` | Every decision is settled and the body is complete for its day. pj4-running can work on it. |
 | `blocker` | pj4-running stopped on this. Settle it before anything else. |
 | `project` | The parent issue of a pj project. Its sub-issues are the project's tasks. |
 | `doing` | A pj project whose sub-issues are filed. It marks the parent issue. |
@@ -206,10 +206,12 @@ A `pj3-doctor` or `pj4-running` run is unattended when its args carry the word `
 - **The level.** `level=<level>` in the args, `standard` or `high`, overrides the repository's level for the run (**The level** in
   `workflow/SKILL.md`). `pj-auto` passes it to every run when it was given one. Without it, each run reads
   the level from origin's default branch.
-- **The mode.** `pj-auto` starts every run with `--permission-mode acceptEdits`, and adds the run's directory with
-  `--add-dir`. File edits and file-writing shell commands then run without asking inside the main working tree, the
-  project's worktree and that directory. Outside them, a shell write is refused, so a run writes its files to `$TMP`
-  or the worktree, never under `.git/` or a system temp directory.
+- **The mode.** `pj-auto` starts every run with `--permission-mode auto`, grants it the rules every drive needs with
+  `--allowedTools`, and adds the run's directory with `--add-dir`. File edits then run without asking inside the main
+  working tree, the project's worktree and that directory, and auto mode's classifier runs or refuses each other call
+  no rule decides. A refused call is not a question: the run takes another way its skill allows, or ends as
+  needs-user, naming the call. A run writes its files to `$TMP` or the worktree, never under `.git/` or a system temp
+  directory, because outside them the classifier judges the write and may refuse it.
 - **The project.** Only rule 1 of **Picking the project** applies. No number, or a number that points at no option,
   ends the run as needs-user without asking. Rules 2 to 4 do not apply.
 - **Questions.** An unattended run never calls `AskUserQuestion`. The approval question (`pj3-doctor` phase 4,
@@ -381,8 +383,8 @@ The progress lines a run prints, such as `project #<P>` or `#<k> rewritten`, the
 
 ## Commands
 
-Claude Code asks before it runs a command it cannot check, and a run started `unattended` cannot answer, so the run
-stalls. The skills therefore keep to single commands.
+Claude Code asks before it runs a command no rule matches. A manual run then waits on the user, and an unattended run
+hands the command to auto mode's classifier, which may refuse it. The skills therefore keep to single commands.
 
 - **One command per Bash call.** Each Bash call runs one command as the skill shows it, with every path and value
   written out in full.
