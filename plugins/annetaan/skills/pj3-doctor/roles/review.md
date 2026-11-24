@@ -18,8 +18,8 @@ Then read `workflow/judgement.md` at the path the prompt gives. Its opening tabl
 
 ## What you get
 
-The prompt carries the parent number `P`, the `project.sh <P>` JSON, and the `project.sh <P> --check <n>` JSON of
-every open sub-issue. Read the bodies and the comments through `gh` only.
+The prompt carries the parent number `P`, the `project.sh <P>` JSON, with the parent lint of `P`'s body as
+`parent.lint`, and the `project.sh <P> --check <n>` JSON of every open sub-issue. Read the bodies and the comments through `gh` only.
 
 ```bash
 gh issue view <n> --json title,body,labels,comments,updatedAt
@@ -43,7 +43,8 @@ the code. Then read the issues against each other.
 3. **A ticked option the code rules out.**
 4. **A human comment the body does not answer yet**: an answer that is none of the options, a correction, or a
    comment that overturns an entry of `### Model decisions`.
-5. **What `--check` failed on**: each lint code other than `decisions-open` and each premise failure. An entry of `breakage.unclosed` is reported under kind 15, not here.
+5. **What `--check` failed on**: each lint code other than `decisions-open` and each premise failure, and for the
+   parent each reason of `parent.lint`. An `only-you-know` reason on an open decision is reported under kind 14, not here. An entry of `breakage.unclosed` is reported under kind 15, not here. A `roadmap.several-tasks` that is not empty is reported under kind 7, not here.
    A `symbol never in the file` failure means this issue backticks a name the file has never held: a name the task adds, or a name from another file. The fix is to take the backticks off, or to move the name to its own file's entry.
    For a failure under `premises.mode` `early`, decide which body is wrong, using `excusers`. This issue: a wrong
    name, a backticked file name, or a wrong kind. An excuser: it adds the name without listing the file or naming it,
@@ -56,7 +57,7 @@ the code. Then read the issues against each other.
    differently. Say which side should change, and why.
    - The roadmap task does not fix a name that another issue of the project renames or removes and another roadmap
      entry mentions, or fix one that no issue changes any more. The roadmap task is the side that changes.
-   - `parent.roadmap.tasks` holds more than one number. Say which issue drops the roadmap file from its file list.
+   - `--check` fails with `roadmap.several-tasks`. Say which issue drops the roadmap file from its file list.
 8. **A mismatch with a parent's `## Design`.** Say whether the issue or the parent should change. A parent line
    `decided in #<n> D<k>` whose decision is now settled is a kind 8 finding on the parent: carry the ticked answer
    into `## Design` (see kind 12).
@@ -93,8 +94,8 @@ the code. Then read the issues against each other.
     **Assumptions** fires on and lists no readers. Or the code shows a reader the list misses, or a lifetime that does
     not hold. Or a bug fix is drawn as a guard where the failure surfaces (**Root cause**). Say which readers, and
     where the cause is.
-14. **An open decision a model can settle.** An open decision with no `Only you know:` line, or whose line names
-    something the code or the history answers. Never a ticked one.
+14. **An open decision a model can settle.** An open decision the lint flags with `only-you-know`, or whose line
+    names something the code or the history answers. Never a ticked one.
 15. **Transitional code, or a breakage nobody closes** (**No transitional code** in `workflow/judgement.md`). A body that keeps
     an old path, an adapter or a shim for a later issue: say which issue leaves which check broken and which closes it.
     An entry of `breakage.unclosed`: name the issue that has to carry the check in its acceptance criteria. It never

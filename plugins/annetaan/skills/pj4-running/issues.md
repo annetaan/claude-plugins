@@ -179,46 +179,54 @@ workflow hands over to this section by name, with the design session's `Body:`, 
    `## Goal` and every existing decision, boxes as ticked, are untouched in the diff. Under `Stop: ask` the one change
    to `## Decisions` is the decision appended after the highest `D<n>`, with no box checked. A user ticking boxes and
    `pr-humans` both rely on that.
-2. **Write the body.** Read `updatedAt` again with `gh issue view <k> --json updatedAt`. When it is not the one kept in
-   step 1, a human edited the issue during the pass: write nothing and take the stop `user` in
-   **When workflow returns**, saying so. Otherwise:
+2. **Write the body**, guarded by the `updatedAt` kept in step 1 (`pj1-plan/between-skills.md`, **Writing to
+   GitHub**).
 
    ```bash
-   gh issue edit <k> --body-file "$TMP/<k>-redrawn.md"
+   $RUNNING/../pj1-plan/scripts/issue.sh edit <k> --since <updatedAt> --body "$TMP/<k>-redrawn.md"
    ```
+
+   A `moved` stop means a human edited the issue during the pass, and nothing was written. Take the stop `user` in
+   **When workflow returns**, saying so.
 
    Under `Stop: ask`, steps 1 and 2 are all that run here. Take the stop `decision` in **When workflow returns**.
-3. **Write the edges and the order.** For each `Order:` line:
+3. **Write the edges and the order.** For each `Order:` line, one call. Each `relate` runs the cycle check after an
+   edge it adds, and takes that edge back off when it made a cycle.
 
    ```bash
-   gh issue edit <a> --add-blocked-by <b>
+   $RUNNING/../pj1-plan/scripts/issue.sh relate <a> add <b>
    ```
 
    ```bash
-   gh issue edit <a> --remove-blocked-by <b>
+   $RUNNING/../pj1-plan/scripts/issue.sh relate <a> remove <b>
    ```
 
-   Then `project.sh <P> --order`. When it fails, undo the edges you wrote, each with the opposite flag, and count it as
-   a failure of this step. Otherwise rewrite `## Order` from the parent's body as GitHub has it now:
-
-   ```bash
-   $RUNNING/../pj1-plan/scripts/project.sh <P> --order-body > "$TMP/<P>-order.md"
-   ```
+   Then rewrite `## Order` from the parent's body as GitHub has it now, with the parent's `updatedAt` from a fresh
+   read:
 
    ```bash
-   gh issue edit <P> --body-file "$TMP/<P>-order.md"
+   $RUNNING/../pj1-plan/scripts/project.sh <P>
    ```
+
+   ```bash
+   $RUNNING/../pj1-plan/scripts/issue.sh order <P> --since <parent.updatedAt>
+   ```
+
+   **A `cycle` stop**, from one `relate` or from `order`: undo the edges this step already wrote, each with the
+   opposite subcommand, and count it as a failure of this step. A `moved` stop from `order`: read `project.sh <P>`
+   again and run `order` again once with the new `parent.updatedAt`. A second one is a failure of this step.
 
    With no `Order:` line, skip this step.
 4. **Post the notes.** Write one comment per `Notes:` line to a file under `$TMP` and post it on `#<m>`. Write one on
    `#<k>` with the change lines of `Body:` and the `Order:` lines. Every comment starts with `**[pj4-running]**`.
 
    ```bash
-   gh issue comment <m> --body-file "$TMP/<k>-note-<m>.md"
+   $RUNNING/../pj1-plan/scripts/issue.sh comment <m> --body "$TMP/<k>-note-<m>.md"
    ```
 
-5. **Check the issue again.** Run `project.sh <P> --check <k>` and require `lint.ok`, an empty `premises.failures` and an
-   empty `breakage.unclosed`. The last list is project-wide, so a redraw that drops a closer's criterion is caught here.
+5. **Check the issue again.** Run `project.sh <P> --check <k>` and require `lint.ok`, an empty `premises.failures`, an
+   empty `breakage.unclosed` and an empty `roadmap.several-tasks`. `breakage.unclosed` is project-wide, so a redraw that
+   drops a closer's criterion is caught here.
 6. **A failure.** A failure that is format-only you fix yourself first, as `pj1-plan/between-skills.md` says under
    **Format-only fixes**: a lint reason in step 1, or `symbol never in the file` or a lint reason in step 5. `<before>`
    is `$TMP/<k>-redrawn.md` and `<after>` is `$TMP/<k>-form.md`.
@@ -237,7 +245,7 @@ workflow hands over to this section by name, with the design session's `Body:`, 
 
    Any other failure in step 1, 3 or 5, and a failure that outlasts the fix, goes back to the design session once, with
    `SendMessage`, carrying the lint reasons, the diff or the failing JSON. It returns a new `Body:` and `Order:`, and the
-   steps run again. A second failure takes the stop `detail`. A failure in step 3, the edges and `--order`, is never
+   steps run again. A second failure takes the stop `detail`. A failure in step 3, the edges and the order, is never
    format-only.
 
 Print `#<k> redrawn`. When `#<k>` has an open blocker after step 3 (read `project.sh <P>` again), answer `reordered`.
@@ -310,44 +318,70 @@ Then act by the reason, and go to phase 5. Every comment below is written to a f
 `**[pj4-running]**`. When `save` printed `saved`, each comment of `blocking`, `detail` and `round cap` says that
 the work so far, commits included, is saved on the machine that ran this, at `file`, that the next run redoes the
 issue, and which paths of `left` stay in `<WT>` when there are any. After a `save` that failed or stopped, it says that
-the work stays in `<WT>`.
+the work stays in `<WT>`. `blocking`, `decision`, `detail` and `round cap` each make one `run.sh stop` call with
+their comment file, `$TMP/<k>-stopped.md`, as `--comment`, and `run.sh` refuses a file that does not start with
+`**[pj4-running]**`.
 
-- **`blocking`**: make sure `blocker` exists. File the stub in the shape of `pj1-plan/format.md` **Stubs**, from the
-  `Unplanned:` text, blocking `#<k>`.
+- **`blocking`**: write the stub to `$TMP/stub-<j>.md` in the shape of `pj1-plan/format.md` **Stubs**, from the
+  `Unplanned:` text. The comment says the run stopped, that `#<k>` is blocked by a stub filed under the parent, and
+  why. The call files the stub labelled `blocker`, blocking `#<k>`, then posts the comment.
 
   ```bash
-  gh issue create --parent <P> --blocking <k> --label blocker --title "<title>" --body-file "$TMP/stub-<j>.md"
+  $RUNNING/scripts/run.sh stop <P> <k> blocking --comment "$TMP/<k>-stopped.md" --stub "$TMP/stub-<j>.md" --title "<title>"
   ```
 
-  Post a comment on `#<k>`: the run stopped, `#<k>` is blocked by the stub `#<b>`, and why.
+  `--next` reads `doctor` / `blocked` on `#<k>`: `#<k>` keeps `ready` and is blocked by the open stub, which carries
+  `blocker`.
 - **`decision`**: the design session found something only the user can settle, and **A redrawn issue** wrote the body
-  with the new decision `D<d>` to GitHub. Take `ready` off, and put no `blocker` on, because the user comes first.
+  with the new decision `D<d>` to GitHub. The comment names `#<k> D<d>`, says what the design session found and that
+  the issue is held until it is settled, and says to tick it and run `/annetaan:pj3-doctor`. The call takes `ready`
+  off, puts no `blocker` on, because the user comes first, and brings every open sub-issue's title to `wantedTitle`
+  (`pj1-plan/between-skills.md`, **Titles**).
 
   ```bash
-  gh issue edit <k> --remove-label ready
+  $RUNNING/scripts/run.sh stop <P> <k> decision --comment "$TMP/<k>-stopped.md"
   ```
 
-  Bring the title to `wantedTitle` from `project.sh <P>` (`pj1-plan/between-skills.md`, **Titles**) with
-  `gh issue edit <k> --title "<wantedTitle>"`. Post a comment on `#<k>` that names `#<k> D<d>`, says what the design
-  session found and that the issue is held until it is settled, and says to tick it and run `/annetaan:pj3-doctor`.
   `--next` reads `user` / `decisions`, and after the tick `doctor` / `not-ready`.
-- **`detail`**: the redrawn body or its edges did not get past the checks twice. Make sure `blocker` exists, then
-  `gh issue edit <k> --remove-label ready --add-label blocker`. Post a comment on `#<k>` with the failing lint or
-  `--check` JSON, and say to settle it with `/annetaan:pj3-doctor`. `--next` reads `doctor` / `blocker`.
-- **`round cap`**: keep the labels. The body still holds, and the review did not settle. Post a comment on `#<k>`
-  listing the points left open.
+- **`detail`**: the redrawn body or its edges did not get past the checks twice. The comment holds the failing lint
+  or `--check` JSON and says to settle it with `/annetaan:pj3-doctor`. The call puts `blocker` on and takes `ready`
+  off.
+
+  ```bash
+  $RUNNING/scripts/run.sh stop <P> <k> detail --comment "$TMP/<k>-stopped.md"
+  ```
+
+  `--next` reads `doctor` / `blocker`.
+- **`round cap`**: the body still holds, and the review did not settle. The comment lists the points left open. The
+  call keeps the labels.
+
+  ```bash
+  $RUNNING/scripts/run.sh stop <P> <k> round-cap --comment "$TMP/<k>-stopped.md"
+  ```
 - **`user`**: nothing goes to GitHub.
 - **`work-reports`**: report it. It should not happen after the check in **Paths this clone must ignore** in SKILL.md.
 - **`finish`**: report the failed step of workflow's finish, its message, and the path of `log.md` when there is one.
   The next run stops on the commits as `unpushed` in phase 4 step 2, which names the way out.
 
+Act by what `run.sh stop` prints.
+
+- **`stopped`**: the writes and the comment are on GitHub. After `blocking`, keep `stub.number` and `stub.url` for
+  the report.
+- **`stop`** with `no-marker` and no `step`: nothing was written. Write the comment file again, starting with
+  `**[pj4-running]**`, and run the call again.
+- **`stop`** with a `step`: the writes before `step` are on GitHub, and the comment is not. Report `reason`,
+  `message`, `step` and `stub` when it is there, say what was left unwritten, and run nothing again, because a second
+  `blocking` call files a second stub. Go to phase 5.
+- Any other `stop` falls under the `run.sh` rule in **Paths: `$RUNNING`** in SKILL.md.
+
 **`nothing-left`** carries `<WORKDIR>`, `<START>` and the evidence: the design session found that the code on the base
-branch already makes the goal true. Run the same `save` call, so that `<WT>` is clean and the branch is gone. Post a comment on
-`#<k>` with the evidence, `ran:` and `saw:` per acceptance criterion, and close it as completed, so it still counts as a
+branch already makes the goal true. Run the same `save` call, so that `<WT>` is clean and the branch is gone. Write a
+comment to `$TMP/<k>-nothing-left.md` that starts with `**[pj4-running]**` and gives the evidence, `ran:` and `saw:`
+per acceptance criterion. `issue.sh close` posts it and closes `#<k>` as completed in one call, so it still counts as a
 closer in `parent.breakage`.
 
 ```bash
-gh issue close <k> --reason completed
+$RUNNING/../pj1-plan/scripts/issue.sh close <k> --reason completed --comment "$TMP/<k>-nothing-left.md"
 ```
 
 Print `#<k> done (<i>/<N>): nothing left, closed` and take the next issue. No handover rewrite.

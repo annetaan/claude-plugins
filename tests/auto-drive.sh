@@ -128,16 +128,118 @@ assert lines[-1]["noLine"] == [1, 2], lines[-1]
 ' || fail "no-line: unexpected drive: $OUT"
 echo "ok: no last line without the message is still no-line"
 
-"$TMP/skills/pj-auto/scripts/auto.sh" --rules | python3 -I -c '
+unset CLAUDE_CONFIG_DIR
+USER_SETTINGS="$HOME/.claude/settings.json"
+PROJECT_SETTINGS="$TMP/repo/.claude/settings.json"
+LOCAL_SETTINGS="$TMP/repo/.claude/settings.local.json"
+mkdir -p "$HOME/.claude" "$TMP/repo/.claude"
+
+settings() {
+  rm -f "$USER_SETTINGS" "$PROJECT_SETTINGS" "$LOCAL_SETTINGS"
+  [ -z "$1" ] || printf '%s\n' "$1" > "$USER_SETTINGS"
+  [ -z "$2" ] || printf '%s\n' "$2" > "$PROJECT_SETTINGS"
+  [ -z "$3" ] || printf '%s\n' "$3" > "$LOCAL_SETTINGS"
+}
+
+judged() {
+  RULES="$("$TMP/skills/pj-auto/scripts/auto.sh" --rules "$@")" || fail "auto.sh --rules $* exited non-zero"
+}
+
+expect() {
+  printf '%s\n' "$RULES" | python3 -I -c '
+import json, os, sys
+rule, verdict, where, by = (sys.argv[1:] + [""])[:4]
+e = json.loads(sys.stdin.read())
+files = {
+    "user": os.path.join(os.environ["HOME"], ".claude", "settings.json"),
+    "project": os.path.join(e["main"], ".claude", "settings.json"),
+    "local": os.path.join(e["main"], ".claude", "settings.local.json"),
+    "": None,
+}
+hit = [j for j in e["base"] + e["extra"] if j["rule"] == rule]
+assert hit, rule
+want = {"rule": rule, "verdict": verdict, "file": files[where], "by": by or None}
+assert hit[0] == want, (hit[0], want)
+' "$@" || fail "expected $2 for $1 ($3 ${4:-}): $RULES"
+}
+
+settings "" "" ""
+judged
+printf '%s\n' "$RULES" | python3 -I -c '
 import json, sys
+skills = sys.argv[1]
 e = json.loads(sys.stdin.read())
 rules = [b["rule"] for b in e["base"]]
-assert len(rules) == 8, rules
-assert "Bash(" + sys.argv[1] + "/workflow/scripts/panel.sh:*)" in rules, rules
-assert "Bash(" + sys.argv[1] + "/workflow/scripts/level.sh:*)" in rules, rules
-assert "Bash(" + sys.argv[1] + "/workflow/scripts/comments.sh:*)" in rules, rules
-' "$TMP/skills" || fail "auto.sh --rules does not list eight base rules with panel.sh, level.sh and comments.sh"
-echo "ok: auto.sh --rules lists eight base rules, panel.sh, level.sh and comments.sh among them"
+assert len(rules) == 9, rules
+for script in ("pj1-plan/scripts/issue.sh", "workflow/scripts/panel.sh", "workflow/scripts/level.sh", "workflow/scripts/comments.sh"):
+    assert "Bash(" + skills + "/" + script + ":*)" in rules, (script, rules)
+for b in e["base"]:
+    assert sorted(b) == ["by", "file", "rule", "verdict"], b
+' "$TMP/skills" || fail "auto.sh --rules does not list nine base rules with issue.sh, panel.sh, level.sh and comments.sh: $RULES"
+echo "ok: auto.sh --rules lists nine base rules, issue.sh, panel.sh, level.sh and comments.sh among them"
+
+settings '{"permissions": {"allow": ["Bash(gh:*)"]}}' '{"permissions": {"allow": ["Bash(git:*)"]}}' ""
+judged 'Bash(git status:*)' 'Bash(ghx:*)'
+expect 'Bash(gh:*)' covered user 'Bash(gh:*)'
+expect 'Bash(git status:*)' covered project 'Bash(git:*)'
+expect 'Bash(ghx:*)' missing ""
+for form in 'Bash(gh *)' 'Bash' 'Bash(*)'; do
+  settings "" "" "{\"permissions\": {\"allow\": [\"$form\"]}}"
+  judged
+  expect 'Bash(gh:*)' covered local "$form"
+done
+settings '{"permissions": {"allow": ["Bash(gh pr:*)", "Bash(npm run test:*)"], "ask": ["Bash(npm publish:*)"]}}' "" ""
+judged 'Bash(npm run test --watch=false:*)'
+expect 'Bash(gh:*)' missing ""
+expect 'Bash(npm run test --watch=false:*)' covered user 'Bash(npm run test:*)'
+grep -qF 'becomes `Bash(<the full command>:*)`' "$ROOT/plugins/annetaan/skills/pj-auto/SKILL.md" || fail "pj-auto/SKILL.md step 2 does not judge each repository command whole"
+if grep -qF 'Bash(<program>' "$ROOT/plugins/annetaan/skills/pj-auto/SKILL.md"; then fail "pj-auto/SKILL.md still stands a program-wide rule in for the repository commands"; fi
+echo "ok: auto.sh --rules covers a rule by the same string, a prefix, the space form and the tool alone"
+
+settings "{\"permissions\": {\"allow\": [\"Read(/$TMP/**)\"]}}" "" ""
+judged
+expect "Read(/$TMP/skills/**)" covered user "Read(/$TMP/**)"
+mkdir -p "$HOME/skills/pj-auto/scripts"
+cp "$TMP/skills/pj-auto/scripts/auto.sh" "$HOME/skills/pj-auto/scripts/auto.sh"
+settings '{"permissions": {"allow": ["Read(~/skills/**)"]}}' "" ""
+RULES="$("$HOME/skills/pj-auto/scripts/auto.sh" --rules)" || fail "the copy of auto.sh under HOME exited non-zero"
+expect "Read(/$HOME/skills/**)" covered user 'Read(~/skills/**)'
+echo "ok: auto.sh --rules covers the Read rule by a glob written with ~/ or //"
+
+settings '{"permissions": {"ask": ["Bash(gh pr:*)"]}}' '{"permissions": {"allow": ["Bash(gh:*)"]}}' '{"permissions": {"deny": ["Bash(gh pr merge)"]}}'
+judged
+expect 'Bash(gh:*)' blocked local 'Bash(gh pr merge)'
+settings '{"permissions": {"ask": ["Bash(gh pr:*)"]}}' '{"permissions": {"allow": ["Bash(gh:*)"]}}' ""
+judged
+expect 'Bash(gh:*)' blocked user 'Bash(gh pr:*)'
+echo "ok: auto.sh --rules lets deny and ask win over allow"
+
+settings "" "" '{"permissions": {"allow": ["Bash(gh:*)"]}'
+judged 'Bash(pnpm:*)'
+expect 'Bash(pnpm:*)' missing ""
+expect 'Bash(gh:*)' missing ""
+printf '%s\n' "$RULES" | python3 -I -c '
+import json, os, sys
+e = json.loads(sys.stdin.read())
+local = [s for s in e["settings"] if s["file"] == os.path.join(e["main"], ".claude", "settings.local.json")]
+assert len(local) == 1 and local[0]["exists"] and local[0]["error"], e["settings"]
+assert [s for s in e["settings"] if s is not local[0] and s["error"]] == [], e["settings"]
+assert all(sorted(s) == ["error", "exists", "file"] for s in e["settings"]), e["settings"]
+' || fail "the settings file with a JSON error is not named: $RULES"
+echo "ok: auto.sh --rules reports missing and a settings file with an error"
+
+settings "" "" ""
+judged 'Bash(pnpm:*)' 'Bash(git status:*)' 'Bash(make:*)'
+printf '%s\n' "$RULES" | python3 -I -c '
+import json, sys
+e = json.loads(sys.stdin.read())
+assert [j["rule"] for j in e["extra"]] == ["Bash(pnpm:*)", "Bash(git status:*)", "Bash(make:*)"], e["extra"]
+assert [j["verdict"] for j in e["extra"]] == ["missing"] * 3, e["extra"]
+' || fail "extra does not follow the arguments: $RULES"
+if REFUSED="$("$TMP/skills/pj-auto/scripts/auto.sh" --rules 'Bash(gh:*)' 'Read(x)' 2>"$TMP/rules.err")"; then fail "--rules Read(x) exited 0"; fi
+[ -z "$REFUSED" ] || fail "--rules Read(x) printed: $REFUSED"
+grep -qxF 'auto: not a Bash(<command>:*) rule: Read(x)' "$TMP/rules.err" || fail "--rules Read(x) did not name the rule: $(cat "$TMP/rules.err")"
+echo "ok: auto.sh --rules judges the rules it is given and refuses another form"
 
 "$TMP/skills/pj-auto/scripts/auto.sh" --rules | python3 -I -c '
 import json, os, re, sys

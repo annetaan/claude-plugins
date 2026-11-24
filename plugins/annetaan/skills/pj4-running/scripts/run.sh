@@ -16,6 +16,8 @@ usage: run.sh start <P>                       check the clone, gh and the reposi
        run.sh pr <P> --body <file>            open the pull request from the base branch into <from>, once every sub-issue is closed and the base contains <from>
        run.sh save <P> --to <file> --since <sha>
                                               save everything in the run's worktree since <sha>, commits and uncommitted work (tracked changes plus untracked files), to <file> as one binary diff, then put the worktree back on <sha> and delete the run's branch, keeping ignored files
+       run.sh stop <P> <k> <blocking|decision|detail|round-cap> --comment <file> [--stub <file> --title <t>]
+                                              write what the stop asks of GitHub through issue.sh, the comment on #<k> last: blocking files the stub under <P>, labelled blocker and blocking #<k>; decision takes ready off #<k> and syncs the titles; detail puts blocker on #<k> and takes ready off; round-cap only comments. --stub and --title go with blocking alone
 Every subcommand prints one JSON object with "status" and exits 0. "stop" carries "reason" and "message".
 Exit 1 means a usage error or an unexpected failure.
 USAGE
@@ -46,6 +48,15 @@ case "$1" in
   pr)       [ $# -eq 4 ] && [ "$3" = "--body" ] || usage
             [ -f "$4" ] || die "no such file: $4" ;;
   save)     [ $# -eq 6 ] && [ "$3" = "--to" ] && [ "$5" = "--since" ] || usage ;;
+  stop)     { [ $# -eq 6 ] || [ $# -eq 10 ]; } && [ "$5" = "--comment" ] || usage
+            number "the issue" "$3"
+            [ -f "$6" ] || die "no such file: $6"
+            case "$4" in
+              blocking)                  [ $# -eq 10 ] && [ "$7" = "--stub" ] && [ "$9" = "--title" ] || usage
+                                         [ -f "$8" ] || die "no such file: $8" ;;
+              decision|detail|round-cap) [ $# -eq 6 ] || usage ;;
+              *)                         usage ;;
+            esac ;;
   *)        usage ;;
 esac
 

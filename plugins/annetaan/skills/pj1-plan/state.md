@@ -11,20 +11,23 @@ agree on between them is in `between-skills.md`, both next to this file.
 query, the pull requests into the base branch in one `gh pr list`, and where the branches of this project and the
 projects it waits on stand in one more GraphQL query. `--order` also reads one query per
 project it follows through `waitsOn`. It writes nothing to GitHub. **It is the only parser of a sub-issue body, of
-a parent's `Base:` and `Roadmap:` lines, of a pull request's head and of the roadmap file.** Every skill and the issue writer go through it. Pass `-R <owner/repo>` to read a repository other than the current one.
+a parent body and its `Base:` and `Roadmap:` lines, of a pull request's head and of the roadmap file.** Every skill and the issue writer go through it. Pass `-R <owner/repo>` to read a repository other than the current one.
 
 Every mode that reads a parent fails with `project: #<P> has no Base: line` when the parent body has none, or has
 one that does not name both branches. It also fails with `project: #<P> is blocked by #<X>, which is no project` when
 an issue the parent is blocked by has no `Base:` line, for this parent and for every project a walk of `--order` or
-`--check` follows. `--lint`, `--same-words` and `--roadmap` read no parent.
+`--check` follows. `--parent-body` checks the `Base:` line but not the issues the parent is blocked by, because it
+stops right after the parent is read. `--lint`, `--parent-lint`, `--same-words` and `--roadmap` read no parent.
 
 ```bash
 project.sh <P>               # the whole project, as JSON
 project.sh <P> --order       # the run order, and the ## Order list to write
 project.sh <P> --order-body  # the parent body with its ## Order list replaced, as text
+project.sh <P> --parent-body <file>   # the parent body with everything from ## Goal on replaced by the file, as text
 project.sh <P> --next        # what to run next on the project, and a fingerprint (see What comes next)
 project.sh <P> --check <n> [<n>...]   # whether each sub-issue's body still holds against the code and the project (see Is the body still current?)
 project.sh --lint <file>     # the lint of one body, from a file, or from standard input with -
+project.sh --parent-lint <file>   # the lint of one parent body, from a file, or from standard input with -
 project.sh --same-words <before> <after>   # whether the two bodies differ in backticks and whitespace only
 project.sh --roadmap [<ref>] # the roadmap file, in the work tree or at <ref>, checked against the format (see format.md)
 ```
@@ -32,15 +35,16 @@ project.sh --roadmap [<ref>] # the roadmap file, in the work tree or at <ref>, c
 `project.sh <P>` prints:
 
 ```
-{"parent": {"number", "title", "state", "stateReason", "updatedAt", "labels": [names], "base", "from",
+{"parent": {"number", "title", "url", "state", "stateReason", "updatedAt", "labels": [names], "base", "from",
             "baseExists", "merged", "projectPr", "waitedOnBy": [numbers], "startable",
-            "waitsOn": [{"number", "title", "state", "stateReason", "base", "merged"}],
+            "waitsOn": [{"number", "title", "url", "state", "stateReason", "base", "merged"}],
             "order": [numbers],
             "orderCheck": {"ok", "unknown": [numbers], "duplicate": [numbers],
                            "early": [{"number", "blocker"}], "missing": [numbers]},
             "roadmap": {"path", "entry", "tasks": [numbers], "task": number or null, "missing": [numbers]} or null,
-            "breakage": [{"issue", "check", "closedBy": [numbers], "state"}]},
- "issues": [{"number", "title", "wantedTitle", "state", "stateReason", "updatedAt", "labels": [names],
+            "breakage": [{"issue", "check", "closedBy": [numbers], "state"}],
+            "lint": {"ok", "reasons": [codes]}},
+ "issues": [{"number", "title", "url", "wantedTitle", "state", "stateReason", "updatedAt", "labels": [names],
              "blockedBy": [{"number", "state", "parent"}], "blocking": [numbers],
              "pr": {"number", "state", "isDraft", "url"} or null, "stub",
              "designPaths": [paths], "leftBroken": [checks],
@@ -48,6 +52,8 @@ project.sh --roadmap [<ref>] # the roadmap file, in the work tree or at <ref>, c
              "lint": {"ok", "reasons": [codes]}}]}
 ```
 
+- `url` is the issue's GitHub URL, on the parent, on each issue and on each `waitsOn` entry. A skill reads a link
+  from it and never builds one.
 - `labels` on the parent is the names of its labels, the same as `labels` on an issue.
 - `base` is the base branch the parent's `Base:` line names, and `from` is the branch it is made from
   (`format.md`, **The parent issue body**).
@@ -73,6 +79,7 @@ project.sh --roadmap [<ref>] # the roadmap file, in the work tree or at <ref>, c
   transitive `blockedBy` and carry the check in their acceptance criteria. `state` is `unclosed` with no closer, else
   `planned` while the breaker is open, else `closed` when a closer is closed, else `open`. `leftBroken` on an issue is
   the checks its `### Left broken` names.
+- `lint` on the parent is what `--parent-lint` prints for its body (`format.md`, **What the lint checks**).
 - `wantedTitle` is the title with the decision count from `format.md` **The title**. Every sub-issue carries it, closed
   ones included. A skill edits an open issue's title when the two differ, and never retitles a closed one
   (`between-skills.md`, **Titles**).
@@ -82,13 +89,15 @@ project.sh --roadmap [<ref>] # the roadmap file, in the work tree or at <ref>, c
 - `stub` is true when `## Design` reads `To be drawn.`.
 - `designPaths` is the paths of the file list that opens `## Design` (`format.md`, **The file list**).
 - `decisions` counts the `### D<n>.` entries by how many boxes each has checked (`format.md`, **Decisions**).
-- `lint` is what `--lint` prints for the body (`format.md`, **What the lint checks**).
+- `lint` is the `ok` and `reasons` that `--lint` prints for the body (`format.md`, **What the lint checks**).
 
 **The pull request of an issue** is a pull request into the base branch whose head reads `Implements #<n>`. An open
 one wins over a merged one, and the lower number wins within the same state. One closed without a merge never counts.
 
-`--lint` needs no parent and touches neither GitHub nor git. It prints `{"ok", "reasons"}` and exits 0 whatever the
-result. The issue writer runs it on a body before returning it:
+`--lint` needs no parent and touches neither GitHub nor git. It prints
+`{"ok", "reasons", "decisions": {"total", "settled", "open", "contradictory"}}` and exits 0 whatever the result.
+`--parent-lint` reads a parent body the same way and prints `{"ok", "reasons"}`. The issue writer runs `--lint` on a
+body before returning it:
 
 ```bash
 project.sh --lint - <<'EOF'
@@ -118,7 +127,8 @@ only once it exists, which moves local refs and nothing else. Each object has th
 {"number", "base", "from", "baseExists", "ok", "lint": {"ok", "reasons"},
  "premises": {"mode": "full" | "early" | "none", "excusers": [numbers],
               "failures": [{"path", "symbol" (when one is missing), "why"}]},
- "breakage": {"unclosed": [{"issue", "check"}]}}
+ "breakage": {"unclosed": [{"issue", "check"}]},
+ "roadmap": {"several-tasks": [numbers]}}
 ```
 
 When a name is missing from its file at the ref, `"why"` is `symbol not found` when the file's history held the name,
@@ -130,8 +140,9 @@ reads and the paths in the file lists of the issue's blockers, so a backticked f
 can be stricter than `issues[].lint`.
 
 `breakage.unclosed` holds the `unclosed` entries of the whole project, not only this issue's, and is filled under
-every `premises.mode`. `ok` is true when the lint is clear, no premise failed and no breakage of
-the project is unclosed. `premises.mode` is `none` while the base branch does not
+every `premises.mode`. `roadmap.several-tasks` holds the numbers in `parent.roadmap.tasks` when it holds more than one
+and this issue is among them, else it is empty, and it is filled under every `premises.mode`. `ok` is true when the
+lint is clear, no premise failed, no breakage of the project is unclosed and `roadmap.several-tasks` is empty. `premises.mode` is `none` while the base branch does not
 exist and a project in `waitsOn` is not `merged`, while an open blocker is outside the project, or while an open
 issue in the transitive `blockedBy` is a stub. `excusers` names the open blockers the check read (see **Is the body
 still current?**).
@@ -147,7 +158,15 @@ fails when the projects wait on each other: `project: the projects have a cycle:
 replaced by `list`: one `1. #<n>` per line, framed by blank lines. A body with no `## Order` heading gets the heading
 and the list before its first `## ` heading outside a code fence, or at the end. The lines above the first heading,
 `Base:` and `Roadmap:`, stay as they are. It fails like `--order` on a cycle.
-Its own read of the body is the re-read that **Writing to GitHub** (`between-skills.md`) asks for.
+`issue.sh order` writes this text, guarded by `--since` (`between-skills.md`, **Writing to GitHub**).
+
+`--parent-body <file>` is the same splice for the sections from `## Goal` on, and the diff of a parent change reads
+it. It prints the parent's body as GitHub has it now, with the CR removed, keeps the lines above its first `## Goal`
+heading outside a code fence, `## Order` among them, and puts the file after them, with the file's leading and
+trailing blank lines dropped and one newline at the end. It writes nothing. It fails with
+`project: the parent body has no ## Goal heading` when the body has no such heading, and with
+`project: <file> does not start at ## Goal` when the file's first non-blank line is not `## Goal`. It reads only the
+parent, not the pull requests or the branches.
 
 `--same-words <before> <after>` reads two files, touches neither GitHub nor git, and exits 0 on two readable files. It
 prints `{"ok", "lint"}`. `ok` is true when the two files hold the same words once every backtick is gone and every
@@ -216,7 +235,9 @@ only for `merge-project-pr`.
 
 The rows under 8 run in the order shown. `--next` does not run `--check`. A `detail` stop of `pj4-running` leaves the
 `blocker` label, and a `decision` stop leaves an open decision and no `ready`, so the rows above send the project to
-the doctor or to the user.
+the doctor or to the user. A `blocking` stop leaves `ready` on the stopped issue and blocks it by an open stub labelled
+`blocker`, so the `blocker`, `stub`, decision and `not-ready` rows miss and the issue reads `doctor` / `blocked`. A
+`round cap` stop changes no label, so the issue reads `running` / `workable` and the next run redoes it.
 
 `fingerprint` is the sha256 of the parent's `updatedAt`, `state` and `labels`, each issue's `number`, `state`, `updatedAt` and
 `labels`, each issue's pull request `number` and `state`, and `projectPr`. A step that changes the project changes it.
