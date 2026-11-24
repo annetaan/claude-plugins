@@ -38,11 +38,11 @@ goes on without waiting. Say "stop" to end the run, and ask again to overturn a 
 Each task's implementation session shows every acceptance criterion by running it, on the tree under review, and writes
 the runs to an evidence file. A bug fix with a cheap test path starts with a failing test. Review seats try to break the change and prove every finding by a run of a probe they wrote: a command, what it
 printed, and what the design requires. A repository at `standard` has one seat, and `high` has two, on different
-models. `panel.sh verify` reruns each command, the open findings of earlier rounds included, sorts the findings by the
+models. `flow.sh verify` reruns each command, the open findings of earlier rounds included, sorts the findings by the
 probe's exit and writes the draft of the round. The main session keeps only a
 failure that breaks the design, and writes the round and its verdict from the draft. From round 2 on, each seat attacks
 only what changed since the tree it reviewed last. What no seat could run is listed in the pull
-request under its own heading. Each session lints the review file it writes with `panel.sh lint` before it reports, so
+request under its own heading. Each session lints the review file it writes with `flow.sh lint` before it reports, so
 a seat file, a round file, a reply or an evidence file that drifts from the format is fixed where it is written.
 
 Five more rules apply across the roles. The design removes what the request makes unnecessary before it adds anything,
@@ -135,7 +135,7 @@ them. A run that ends before its first task removes its worktree. Every other ru
 or stopped midway.
 
 The review seats are git worktrees of their own, `review-wf-<stamp>-<seat>` beside the run's. No session works
-inside one: a seat writes its probes under `seats/` in the work report, and `panel.sh run` snapshots the run's working
+inside one: a seat writes its probes under `seats/` in the work report, and `flow.sh run` snapshots the run's working
 tree, puts the seat's worktree at it and runs the probe there. A seat lives as long as the run's worktree, so the
 dependencies a probe installed in it serve every later task and round. The cleanup removes it.
 
@@ -155,9 +155,9 @@ Every run writes a work report. It lives under the worktree's `work-reports/` un
 work-reports/2026-09-19-1346-a1b2c3d/
   log.md         on a run from an issue first the `Implements` and `Part of` head, then what changed, how it was
                  verified, the checks wanted, what the review changed, the screenshots, and last one `Level:` line
-                 with the level, its source and the review counts, the head and that line written by panel.sh record
+                 with the level, its source and the review counts, the head and that line written by flow.sh record
   changes.diff   the diff from the start commit to HEAD
-  run.json       the start commit, the level and its source, the issue and the parent, written once by panel.sh begin
+  run.json       the start commit, the level and its source, the issue and the parent, written once by flow.sh begin
   review/        one file per review round, the reply to each, and the evidence files
     task-1-evidence.md
     task-1-round-1-a.md         what seat a proved in round 1, and `-b` for seat b at `high`
@@ -166,14 +166,14 @@ work-reports/2026-09-19-1346-a1b2c3d/
     task-1-round-1-evidence.md  after a round that changed code
     integration-round-1.md      plans of two or more tasks, with one file per seat
   seats/         the probes of the review seats, `a/<name>/run.sh` and its `tree/`
-  drafts/        the draft of each round file, under the round file's name, written by panel.sh verify from the reruns
+  drafts/        the draft of each round file, under the round file's name, written by flow.sh verify from the reruns
   scratch/       throwaway scripts of the implementation session
   before.png     before and after, when the change shows on screen
   after.png
 ```
 
 The directory name is the local time the run started, plus the short SHA of the commit it started from. A second run
-of the same minute and commit gets `-2`, `-3` after the name. `panel.sh status` names the current run, the one whose
+of the same minute and commit gets `-2`, `-3` after the name. `flow.sh status` names the current run, the one whose
 `run.json` was written last. The design session's throwaway
 experiments go in `work-reports/<stamp>-design/`, next to the report directory and not inside it.
 
@@ -191,8 +191,8 @@ that were actually run, what the review changed, and which commit answers which 
 `log.md` becomes the pull request body. On a run from an issue it starts with the head `Implements #<n>` and
 `Part of #<P>`. It ends with one `Level:` line: the level the run used, its source, the tasks, the task rounds, the
 integration rounds and the findings, as
-`Level: standard (file) · tasks 2 · task rounds 3 · integration rounds 1 · findings 4`. `panel.sh record` writes both, the
-head from the issue and the parent and the line from the level and source that `panel.sh begin` stored in `run.json`.
+`Level: standard (file) · tasks 2 · task rounds 3 · integration rounds 1 · findings 4`. `flow.sh record` writes both, the
+head from the issue and the parent and the line from the level and source that `flow.sh begin` stored in `run.json`.
 `/annetaan:level` reads these lines from the merged pull requests. `review/` holds how each finding was raised and answered.
 
 ## Screenshots
@@ -241,8 +241,8 @@ screenshots it could not attach.
 | `scripts/level.py` | the code `level.sh` runs, and the one place the level table lives |
 | `scripts/comments.sh` | fails on a comment outside the four kinds, or a silenced check the change adds, in the files a change touches. The implementation and review sessions run it |
 | `scripts/comments.py` | the code `comments.sh` runs |
-| `scripts/panel.sh` | makes the run's work directory and reads it back, reports a scope's round, cap, open findings and whether `approve` is allowed, runs a review seat's probe in a git worktree beside the run's, at a snapshot of the working tree, runs every probe of a round again and writes the draft of the round, removes the seats at cleanup, lints a review file, and writes the pull request head and the `Level:` line into `log.md` |
-| `scripts/panel.py` | the code `panel.sh` runs. `worktree.py` imports the stamp rules of the work directory names from it |
+| `scripts/flow.sh` | makes the run's work directory and reads it back, reports a scope's round, cap, open findings and whether `approve` is allowed, runs a review seat's probe in a git worktree beside the run's, at a snapshot of the working tree, runs every probe of a round again and writes the draft of the round, removes the seats at cleanup, lints a review file, and writes the pull request head and the `Level:` line into `log.md` |
+| `scripts/flow.py` | the code `flow.sh` runs. `worktree.py` imports the stamp rules of the work directory names from it |
 | `review-files.md` | the shape of the review files and the evidence files, read by the seats, the main session and the implementation session |
 
 The design, implementation and review sessions run on agents that ship with the plugin (`../../agents/`). Design is

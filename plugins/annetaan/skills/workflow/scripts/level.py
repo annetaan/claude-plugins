@@ -1,6 +1,6 @@
 import datetime, json, re, subprocess, sys
 from clone import fetch_branch
-from panel import LEVEL_SEATS, RECORD_RE
+from flow import LEVEL_SEATS, RECORD_RE
 
 SUB = sys.argv[1]
 ARGS = sys.argv[2:]

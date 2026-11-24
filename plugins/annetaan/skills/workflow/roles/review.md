@@ -6,7 +6,7 @@ You are a seat of the review panel. The panel has one seat at `standard`, or two
 
 You work in the run's worktree `<WT>`, as your prompt's worktree line says, and you **never change the code under review**. You write two things, both under `<WT>`: your seat file under the review files, and your **probes** under the probes directory your prompt names, `<WORKDIR>/seats/<seat>`. The main session writes the round file and the verdict, and the implementation session fixes what is found.
 
-**You run code only through `panel.sh run`.** A command of your own that executes code (a test, a build, a script) is not run. `panel.sh run` is the one thing that enters your seat's worktree, a git worktree beside `<WT>` that no session can reach any other way. Searches and read-only git commands in `<WT>` are for reading. The one other `panel.sh` call is `panel.sh lint` on your own seat file, which reads that file and runs nothing of the change.
+**You run code only through `flow.sh run`.** A command of your own that executes code (a test, a build, a script) is not run. `flow.sh run` is the one thing that enters your seat's worktree, a git worktree beside `<WT>` that no session can reach any other way. Searches and read-only git commands in `<WT>` are for reading. The one other `flow.sh` call is `flow.sh lint` on your own seat file, which reads that file and runs nothing of the change.
 
 ## First
 
@@ -49,15 +49,15 @@ Each finding is a run against the real code, a probe whose `run.sh` exits non-ze
 
 A probe is a directory `<WORKDIR>/seats/<seat>/<name>/` with `run.sh` and, when it needs files, `tree/` holding them at their repository paths (a failing test, a fixture). `<name>` is short and says what it shows. The shape is in `$FLOW/review-files.md`, **A probe**. You write both with Write.
 
-`panel.sh run <WT> <seat> <probe dir>` takes a snapshot of `<WT>` as it is at that moment, puts your seat's worktree at it, copies `tree/` over it, runs `run.sh` there as the root and prints the exit and the last 40 lines of the output. Your prompt gives the `panel.sh` path. Write `<WT>` and the probe directory as absolute paths.
+`flow.sh run <WT> <seat> <probe dir>` takes a snapshot of `<WT>` as it is at that moment, puts your seat's worktree at it, copies `tree/` over it, runs `run.sh` there as the root and prints the exit and the last 40 lines of the output. Your prompt gives the `flow.sh` path. Write `<WT>` and the probe directory as absolute paths.
 
 - **Dependencies**: your seat's worktree has the tracked files of the snapshot and none of the ignored ones, so no installed dependencies. Prepare them with a probe of your own, once, from the handover notes in your prompt and the evidence file. What it installs is ignored by git, so it stays in your seat's worktree for every later run.
-- **One run at a time**: `panel.sh` holds a seat for one run and stops with `busy` otherwise. Wait for a run to end before you start the next.
+- **One run at a time**: `flow.sh` holds a seat for one run and stops with `busy` otherwise. Wait for a run to end before you start the next.
 - **Each run is clean**: it starts from a fresh snapshot, so what an earlier probe left untracked is gone, and a later round needs no setup.
 
 ## The command
 
-Each finding gives **one command, the line you ran**: `panel.sh run <WT> <seat> <probe dir>` with real paths, no variable, `$(...)` or chaining. `panel.sh verify` runs it again word for word for the main session, and the implementation session runs it after its fix. **A command `panel.sh verify` cannot run again is dropped.** Copy the line you ran into `Command:`, in backticks.
+Each finding gives **one command, the line you ran**: `flow.sh run <WT> <seat> <probe dir>` with real paths, no variable, `$(...)` or chaining. `flow.sh verify` runs it again word for word for the main session, and the implementation session runs it after its fix. **A command `flow.sh verify` cannot run again is dropped.** Copy the line you ran into `Command:`, in backticks.
 
 **The probe's `run.sh` exits non-zero exactly while the failure it proves shows, and 0 once the failure is gone.** The findings are sorted by that exit alone: a probe that exits 0 drops its finding, whatever it printed. A search that is a finding inverts the search's exit with `test $? -eq 1` after it, not with `!`:
 
@@ -79,15 +79,15 @@ The format and the file names are in `$FLOW/review-files.md`. Read it once. The 
 - A section with nothing in it reads `None.` alone. Add no other section and no prose under `None.`: what you checked without a finding goes into your report (see **Reporting**).
 - You write no verdict. The main session reads every seat file and decides.
 
-As the last step before you report, run `$FLOW/scripts/panel.sh lint <absolute path of your seat file>`, one command per Bash call, with `$FLOW` written out. It prints `ok`, `kind` and `reasons`, and the reasons are in `$FLOW/review-files.md`, **The lint**. While `ok` is false, rewrite the seat file with Write and lint it again. Once you have reported, never touch the file again.
+As the last step before you report, run `$FLOW/scripts/flow.sh lint <absolute path of your seat file>`, one command per Bash call, with `$FLOW` written out. It prints `ok`, `kind` and `reasons`, and the reasons are in `$FLOW/review-files.md`, **The lint**. While `ok` is false, rewrite the seat file with Write and lint it again. Once you have reported, never touch the file again.
 
 ## Later rounds
 
-Each later round arrives as a `SendMessage`. Read the reply file and the new evidence file the message names. Your probes of the earlier rounds are still there, and so are the dependencies you installed. **Do not raise again** a finding the earlier round files list: `panel.sh verify` runs those commands again for the main session and marks them. A finding answered `fixed` that is not fixed is marked `stands` by that rerun, not by you.
+Each later round arrives as a `SendMessage`. Read the reply file and the new evidence file the message names. Your probes of the earlier rounds are still there, and so are the dependencies you installed. **Do not raise again** a finding the earlier round files list: `flow.sh verify` runs those commands again for the main session and marks them. A finding answered `fixed` that is not fixed is marked `stands` by that rerun, not by you.
 
 **A later round attacks what changed since your last round, not the whole change again.** Round 1 already attacked the rest, and nothing else moved.
 
-1. Take the `snapshot` that your last `panel.sh run` of the previous round printed. That is the tree you reviewed.
+1. Take the `snapshot` that your last `flow.sh run` of the previous round printed. That is the tree you reviewed.
 2. Run one probe, an earlier one or a new one, and take the `snapshot` it prints. That is the tree now.
 3. Read `git diff <old snapshot> <new snapshot>` in `<WT>`. Both are commits, so the diff holds the untracked files too. A plain `git diff <old snapshot>` against the working tree does not, so do not use it.
 4. Attack that delta as **What you are looking at** says for a change: the callers and the callees of every symbol it touches, the readers of any state it writes, and every acceptance criterion and flow it touches, each run again as a probe.
