@@ -365,9 +365,10 @@ next and starts that step as a fresh `claude -p` run in unattended mode, one pro
 report to decide, only the project on GitHub.
 
 It asks one approval question per drive, and only when a step would run (the question which project comes before it, when
-the project is not given, not the one this conversation is on and not the only candidate): a summary of the project, what the steps do and which of the
-permissions they need your settings lack, then start or not. That approval covers the whole drive, and the runs ask nothing. Each run starts in Claude Code's acceptEdits mode,
-so it edits and writes files inside your clone, the project's worktree and a directory of its own without asking. The merges
+the project is not given, not the one this conversation is on and not the only candidate): a summary of the project, what the steps do and which of
+your rules block the ones the runs are granted, then start or not. That approval covers the whole drive, and the runs ask nothing. Each run starts in Claude Code's auto mode,
+with the rules every drive needs granted on the command line. It edits files inside your clone, the project's worktree and a
+directory of its own without asking, and auto mode's classifier runs or refuses each other command. The merges
 into the project's branch happen. The project's own pull request is never merged. The drive keeps the Mac from idle sleep
 until it ends (closing the lid still sleeps it), and a run may wait up to 60 minutes after its last turn for its background work.
 
@@ -385,12 +386,12 @@ whole session, so a long project costs many.
 What it needs:
 
 - the `claude` CLI on the PATH
-- the rules every drive needs, because the runs cannot ask: `Bash(gh:*)`, `Bash(git:*)`, the six script rules, and a
-  `Read` rule for the plugin's skills directory. pj-auto shows them with the real paths before it asks, because the
-  plugin's directory differs per machine. Edits need no rule, because the runs start in acceptEdits mode.
-- the repository's own commands, such as the install, the tests and the type checks. pj-auto finds them in `CLAUDE.md`,
-  `AGENTS.md`, the package files, CI and the project's handover notes, and names any your settings lack, or block,
-  before it asks. Add them to your settings.
+- Claude Code's auto mode, which the runs start in.
+- no deny or ask rule in your settings over `Bash(gh:*)`, `Bash(git:*)`, the six script rules or the `Read` rule for the
+  plugin's skills directory, because a run cannot answer an ask. You need not add them: pj-auto grants them to each run
+  and names any rule of yours that blocks one before it asks. The repository's own commands, such as the tests, go to
+  auto mode's classifier. When the drive ends, it lists the calls each run reported as refused in `claude -p`'s
+  `permission_denials`.
 - no sub-issue that changes files under `.claude/` can run unattended, because Claude Code asks before writing there
   whatever your rules say. pj-auto names such issues. The drive stops at one, and `/annetaan:pj4-running` run by hand
   does it.
