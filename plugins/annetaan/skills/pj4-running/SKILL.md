@@ -31,7 +31,7 @@ prompt for a sub-agent. Sub-agents have not read this instruction, so a relative
 them nothing.
 Collapse the `..` in a path to a sibling skill, so that the command text names `<skills>/pj1-plan/scripts/project.sh` and not
 `<skills>/pj4-running/../pj1-plan/scripts/project.sh`. A permission rule matches the text of the command, and the rules
-`pj-auto` shows name the collapsed path. This holds in the prompts for sub-agents too.
+`pj-auto` grants name the collapsed path. This holds in the prompts for sub-agents too.
 
 **Read `$RUNNING/../pj1-plan/between-skills.md` and `$RUNNING/../pj1-plan/state.md` before anything else.**
 `pj1-plan/between-skills.md` holds the labels, the base branch, the handover comment, the blockers, the comments, the pull

@@ -7,7 +7,7 @@ usage() {
   cat >&2 <<'USAGE'
 usage: auto.sh <P> --log <dir> [--level <level>]   drive project <P> until it needs the user, logging into the existing directory <dir>;
                                                --level passes level=<level>, standard or high, to every run
-usage: auto.sh --rules [<rule>...]             judge the rules every drive needs, and each Bash(<command>:*) rule given, against the user's settings
+usage: auto.sh --rules                         judge the rules every drive grants its runs against the deny and ask rules of the user's settings
 In the drive form, every line on standard output is one JSON object with "status": started, begin, step or ended.
 Create <dir>/stop to end the drive after the current step.
 Exit 1 means a usage error. Otherwise it exits 0.
@@ -15,18 +15,29 @@ USAGE
   exit 1
 }
 
+base_rules() {
+  local skills
+  skills="$(cd "$(dirname "$0")/../.." && pwd)"
+  printf '%s\n' \
+    "Bash(gh:*)" \
+    "Bash(git:*)" \
+    "Bash($skills/pj1-plan/scripts/project.sh:*)" \
+    "Bash($skills/pj1-plan/scripts/issue.sh:*)" \
+    "Bash($skills/pj4-running/scripts/run.sh:*)" \
+    "Bash($skills/workflow/scripts/panel.sh:*)" \
+    "Bash($skills/workflow/scripts/level.sh:*)" \
+    "Bash($skills/workflow/scripts/comments.sh:*)" \
+    "Read(/$skills/**)"
+}
+
 rules() {
-  local main skills
+  local main
   main="$(git worktree list --porcelain 2>/dev/null | sed -n 's/^worktree //p' | head -n 1)"
   [ -n "$main" ] || die "not inside a git repository"
-  skills="$(cd "$(dirname "$0")/../.." && pwd)"
-  python3 -I -c '
+  base_rules | python3 -I -c '
 import json, os, re, sys
-main, skills, args = sys.argv[1], sys.argv[2], sys.argv[3:]
-for a in args:
-    if not re.fullmatch(r"Bash\((.+):\*\)", a, re.S):
-        print("auto: not a Bash(<command>:*) rule: " + a, file=sys.stderr)
-        sys.exit(1)
+main = sys.argv[1]
+names = [line.rstrip("\n") for line in sys.stdin if line.strip()]
 files = [
     os.path.join(os.environ.get("CLAUDE_CONFIG_DIR") or os.path.join(os.path.expanduser("~"), ".claude"), "settings.json"),
     os.path.join(main, ".claude", "settings.json"),
@@ -36,7 +47,7 @@ settings = []
 lists = []
 for f in files:
     e = {"file": f, "exists": False, "error": None}
-    found = {"allow": [], "deny": [], "ask": []}
+    found = {"deny": [], "ask": []}
     if os.path.exists(f):
         e["exists"] = True
         try:
@@ -70,7 +81,7 @@ def read_path(arg):
 def under(path, d):
     return path == d or path.startswith(d.rstrip("/") + "/")
 
-def matches(have, need, narrower):
+def blocks(have, need):
     if have == need:
         return True
     ht, ha = parse(have)
@@ -81,47 +92,33 @@ def matches(have, need, narrower):
         return True
     if nt == "Bash":
         want = na[:-2]
-        is_prefix = ha.endswith(":*") or ha.endswith(" *")
-        command = ha[:-2] if is_prefix else ha
-        return (is_prefix and at_boundary(want, command)) or (narrower and at_boundary(command, want))
+        command = ha[:-2] if ha.endswith(":*") or ha.endswith(" *") else ha
+        return at_boundary(want, command) or at_boundary(command, want)
     if nt == "Read":
         want = read_path(na)[:-3]
         path = read_path(ha)
         if path is None:
             return False
         glob = path.endswith("/**")
-        if glob and under(want, path[:-3]):
-            return True
-        return narrower and under(path[:-3] if glob else path, want)
+        return (glob and under(want, path[:-3])) or under(path[:-3] if glob else path, want)
     return False
 
 def judge(rule):
-    for kind, verdict, narrower in (("deny", "blocked", True), ("ask", "blocked", True), ("allow", "covered", False)):
+    for kind in ("deny", "ask"):
         for f, found in lists:
             for have in found[kind]:
-                if matches(have, rule, narrower):
-                    return {"rule": rule, "verdict": verdict, "file": f, "by": have}
-    return {"rule": rule, "verdict": "missing", "file": None, "by": None}
+                if blocks(have, rule):
+                    return {"rule": rule, "verdict": "blocked", "file": f, "by": have}
+    return {"rule": rule, "verdict": "granted", "file": None, "by": None}
 
-names = [
-    "Bash(gh:*)",
-    "Bash(git:*)",
-    "Bash(" + skills + "/pj1-plan/scripts/project.sh:*)",
-    "Bash(" + skills + "/pj1-plan/scripts/issue.sh:*)",
-    "Bash(" + skills + "/pj4-running/scripts/run.sh:*)",
-    "Bash(" + skills + "/workflow/scripts/panel.sh:*)",
-    "Bash(" + skills + "/workflow/scripts/level.sh:*)",
-    "Bash(" + skills + "/workflow/scripts/comments.sh:*)",
-    "Read(/" + skills + "/**)",
-]
-print(json.dumps({"status": "rules", "main": main, "base": [judge(r) for r in names], "extra": [judge(r) for r in args], "settings": settings}, ensure_ascii=False))
-' "$main" "$skills" "$@"
+print(json.dumps({"status": "rules", "main": main, "base": [judge(r) for r in names], "settings": settings}, ensure_ascii=False))
+' "$main"
   exit $?
 }
 
 command -v python3 >/dev/null 2>&1 || die "python3 is not installed"
 
-if [ $# -ge 1 ] && [ "$1" = "--rules" ]; then shift; rules "$@"; fi
+if [ $# -eq 1 ] && [ "$1" = "--rules" ]; then rules; fi
 
 [ $# -eq 3 ] || [ $# -eq 5 ] || usage
 [ "$2" = "--log" ] || usage
@@ -187,6 +184,9 @@ fi
 
 emit status=started log="$LOG" main="$MAIN" project:="$P"
 
+ALLOWED=()
+while IFS= read -r rule; do ALLOWED+=("$rule"); done < <(base_rules)
+
 command -v caffeinate >/dev/null 2>&1 && caffeinate -i -w $$ >/dev/null 2>&1 &
 
 next_step() {
@@ -235,7 +235,7 @@ while :; do
   DIR="$LOG/$I-$RUN"
   mkdir "$DIR" || end child-failed "$CUR" "cannot create $DIR"
   emit status=begin i:="$I" run="$RUN" why="$WHY" issue:="${ISSUE:-null}" at="$(now)" dir="$DIR" out="$OUT" err="$ERR" log="$LOG"
-  (cd "$MAIN" && CLAUDE_CODE_PRINT_BG_WAIT_CEILING_MS=3600000 claude -p "/annetaan:$SKILL $P unattended tmp=$DIR$LEVEL_ARG" --permission-mode acceptEdits --add-dir "$DIR" --output-format json < /dev/null > "$OUT" 2> "$ERR")
+  (cd "$MAIN" && CLAUDE_CODE_PRINT_BG_WAIT_CEILING_MS=3600000 claude -p "/annetaan:$SKILL $P unattended tmp=$DIR$LEVEL_ARG" --permission-mode auto --allowedTools "${ALLOWED[@]}" --add-dir "$DIR" --output-format json < /dev/null > "$OUT" 2> "$ERR")
   CODE=$?
 
   VERDICT="$(python3 -I -c '
