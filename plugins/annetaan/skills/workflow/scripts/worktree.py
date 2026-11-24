@@ -1,5 +1,6 @@
 import json, os, re, shutil, subprocess, sys, time
 from clone import clone_lock, fetch, fetch_branch
+from include import include
 from panel import stamped
 
 PANEL_SH = sys.argv[1]
@@ -239,7 +240,8 @@ def create():
             name = "%s-%d" % (stamp, n)
         wt = os.path.join(wt_root(main), name)
         git(main, "worktree", "add", "--quiet", "--detach", wt, "refs/remotes/origin/" + base)
-    emit(status="ready", main=main, worktree=wt, name=name, base=base, head=git(wt, "rev-parse", "HEAD").strip())
+    emit(status="ready", main=main, worktree=wt, name=name, base=base, head=git(wt, "rev-parse", "HEAD").strip(),
+         **include(wt))
 
 def ignore():
     main = located()

@@ -81,6 +81,7 @@ setup_pj() {
   cp "$PANEL_SRC" "$TMP/pj/skills/workflow/scripts/panel.sh"
   cp "${PANEL_SRC%.sh}.py" "$TMP/pj/skills/workflow/scripts/panel.py"
   cp "$(dirname "$SCRIPT")/clone.py" "$TMP/pj/skills/workflow/scripts/clone.py"
+  cp "$(dirname "$SCRIPT")/include.py" "$TMP/pj/skills/workflow/scripts/include.py"
   cat > "$TMP/pj/skills/pj1-plan/scripts/project.sh" <<'FAKE'
 #!/usr/bin/env bash
 echo '{"parent":{"number":1,"title":"P","state":"CLOSED","base":"pj/1","from":"main","merged":true}}'

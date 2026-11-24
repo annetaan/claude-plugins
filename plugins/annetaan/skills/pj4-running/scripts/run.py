@@ -2,6 +2,7 @@ import json, os, re, shutil, subprocess, sys, time
 
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "..", "workflow", "scripts"))
 from clone import fetch_branch
+from include import include
 
 PROJECT_SH, SUB, P = sys.argv[1], sys.argv[2], int(sys.argv[3])
 ARGS = sys.argv[4:]
@@ -514,7 +515,7 @@ def worktree():
         git(main, "worktree", "add", "--detach", wt, tip)
         action = "created"
     emit(status="ready", worktree=wt, action=action, head=git(wt, "rev-parse", "HEAD").strip(),
-         assignee=assignee, saved=saved)
+         assignee=assignee, saved=saved, **include(wt))
 
 def ignore():
     main, wt = located()
