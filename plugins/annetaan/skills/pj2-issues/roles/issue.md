@@ -50,7 +50,7 @@ the other tasks at the same time. Stay inside yours.
    in its body. The other side is yours: when your task adds a symbol that a later task of this project uses, name
    it in that file's entry in your own body, so the later task's `--check` can count it. In a `changed` entry a new
    symbol goes without backticks, as above. An `added` entry names the file or symbol it follows. The boundaries to match are in the parent's `## Design` and in the `## Design` of each parent in
-   `Waits on:`, read with `gh issue view <Q> --json body`. Prose after the list says how the pieces fit. A branch
+   `Waits on:`, read with `gh issue view <Q> --json body`. Prose after the list says how the pieces fit. The code is in the language the repository settles or the parent's `### Model decisions` records, and you check no runtime. The prose names the edge files where I/O, time and randomness enter (**Effects at the edges** in `workflow/judgement.md`) and the readonly types of each boundary the task makes or uses (**Arguments stay as given** in `workflow/judgement.md`). A branch
    your own task keeps from existing code follows `pj1-plan/format.md`, **Behaviour kept under a changed assumption**, and
    **Assumptions** and **Why existing behaviour is there** in `workflow/judgement.md`: name who it serves in that prose, or
    settle it from history. When your task's own writes fire the outward rule of **Assumptions**, add the `### Shared

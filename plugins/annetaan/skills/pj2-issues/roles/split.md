@@ -87,6 +87,7 @@ becomes part of this split, or you say that it needs a request of its own.
     inherits the failure.
   - A check that runs on the sub-issue's pull request cannot be left broken, required or not, such as a test that CI
     runs on every pull request (`pj1-plan/format.md`, **Declared breakage**).
+- **The code is in the language the repository settles or the one the parent's `### Model decisions` records.** `pj1-plan` chose it and checked the runtime, so the split checks none, and `conditional` keeps its one meaning. The parent's `## Design` names where I/O, time and randomness enter (**Effects at the edges** in `workflow/judgement.md`) and the readonly types of what one task passes to another (**Arguments stay as given** in `workflow/judgement.md`). A parent that leaves them out gets them in item 2.
 - **Parts a reviewer can judge alone stay apart.** A task that holds two such parts is split where the design gives
   it a seam.
 - **When the "Roadmap task:" line says yes, the last task is the roadmap task** (`pj1-plan/format.md`, **The roadmap task**).
