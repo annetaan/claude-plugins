@@ -47,8 +47,8 @@ without waiting for an answer. The start message states:
 
 - the Model decisions, one line each
 - the name of the new branch, and `base: <base>`
-- the worktree `<WT>`, and that `<MAIN>` is not touched
-- that `<WT>` lacks `<MAIN>`'s ignored files (dependencies, `.env`), so the first worker prepares what the tests need and records the steps in the handover notes
+- the worktree `<WT>`, and that `<MAIN>` is not touched, except for the lines the answers added to `.worktreeinclude`
+- that `<WT>` holds the ignored files `.worktreeinclude` names, the ones `ready` copied and the ones the Copy answers copied, and that the first worker prepares the rest the tests need, such as dependencies, and records the steps in the handover notes
 - `level <level> (<source>)`, the model and effort it gives the design session, the implementation session and the review seats, how many seats the level runs, and that `level=<level>` on a new run changes it
 - that everything after this runs on its own: per-task implementation and review rounds, the integration review when the plan has more than one task, the push and the pull request, and that saying stop ends the run
 
