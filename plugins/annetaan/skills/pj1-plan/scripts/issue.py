@@ -28,8 +28,7 @@ MARKERS = ("**[pj3-doctor]**", "**[pj4-running]**", "**[pj-cleanup]**")
 HANDOVER = "**[pj4-running]** Handover notes"
 
 LABELS = {
-    "ready": ("0E8A16", "Every decision is settled and the body is complete for its day. "
-                        "pj4-running details it against the code, then works on it."),
+    "ready": ("0E8A16", "Every decision is settled and the body is complete for its day. pj4-running can work on it."),
     "blocker": ("B60205", "pj4-running stopped on this. Settle it before anything else."),
     "project": ("5319E7", "The parent issue of a pj project. Its sub-issues are the project's tasks."),
     "doing": ("1D76DB", "A pj project whose sub-issues are filed. It marks the parent issue."),

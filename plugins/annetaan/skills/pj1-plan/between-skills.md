@@ -103,7 +103,7 @@ itself is the human's job.
 
 | Label | What it means |
 | --- | --- |
-| `ready` | Every decision is settled and the body is complete for its day. pj4-running details it against the code, then works on it. |
+| `ready` | Every decision is settled and the body is complete for its day. pj4-running can work on it. |
 | `blocker` | pj4-running stopped on this. Settle it before anything else. |
 | `project` | The parent issue of a pj project. Its sub-issues are the project's tasks. |
 | `doing` | A pj project whose sub-issues are filed. It marks the parent issue. |

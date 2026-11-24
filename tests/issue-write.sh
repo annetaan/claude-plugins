@@ -108,22 +108,29 @@ VIEW_FIELDS="--json state,updatedAt,labels,parent,body"
 
 setup
 out="$(cd "$TMP" && python3 -I -c '
+import re
 import sys
 sys.path.insert(0, sys.argv[1])
 import issue
 assert issue.MARKERS == ("**[pj3-doctor]**", "**[pj4-running]**", "**[pj-cleanup]**"), issue.MARKERS
 assert issue.check_marker(sys.argv[2]) is None
 assert issue.check_marker(sys.argv[3]) == sys.argv[3] + " does not start with a marker"
-' "$TMP/a" "$TMP/marked.md" "$TMP/plain.md" 2>&1)" || fail "import: $out"
+long = [name for name, (_, text) in issue.LABELS.items() if len(text) > 100]
+assert not long, "label descriptions over 100 characters: %s" % long
+with open(sys.argv[4], encoding="utf-8") as f:
+    rows = dict(re.findall(r"^\| `([^`]+)` \| (.+) \|$", f.read().split("## Labels\n", 1)[1].split("\n## ", 1)[0], re.M))
+want = {name: text for name, (_, text) in issue.LABELS.items()}
+assert rows == want, "the Labels table of between-skills.md differs from LABELS: %s" % sorted(set(rows.items()) ^ set(want.items()))
+' "$TMP/a" "$TMP/marked.md" "$TMP/plain.md" "$SCRIPTS/../between-skills.md" 2>&1)" || fail "import: $out"
 [ -z "$out" ] || fail "the import printed: $out"
 [ ! -s "$FAKE/gh.log" ] && [ ! -s "$FAKE/project.log" ] || fail "the import ran a command: $(cat "$FAKE/gh.log" "$FAKE/project.log")"
-echo "ok: issue.py imports MARKERS and check_marker and runs no command"
+echo "ok: issue.py imports MARKERS and check_marker, runs no command, keeps every label description within 100 characters, and matches the Labels table"
 
 setup
 echo ready > "$FAKE/labels"
 out="$("$A" label 2 --add ready,blocker --remove doing)"
 [ "$(status "$out")" = ok ] || fail "label: $out"
-logged "label create ready --color 0E8A16 --description Every decision is settled and the body is complete for its day. pj4-running details it against the code, then works on it." \
+logged "label create ready --color 0E8A16 --description Every decision is settled and the body is complete for its day. pj4-running can work on it." \
   || fail "label did not make sure ready exists: $(cat "$FAKE/gh.log")"
 logged "label create blocker --color B60205 --description pj4-running stopped on this. Settle it before anything else." \
   || fail "label did not create blocker: $(cat "$FAKE/gh.log")"
