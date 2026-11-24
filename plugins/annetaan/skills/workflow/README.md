@@ -83,7 +83,7 @@ The implementation session and the review seats **start fresh for every task**, 
 whatever the task. A task boundary is a cheap place to
 start over. The code is in git, the plan is a file of the run, and every review finding is resolved. What is left
 is how this repository wants to be worked in, and that rides along as **handover notes**: five lines
-from each session, folded together into the run's `notes.md`, capped at fifteen.
+from each session, folded together into `<WORKDIR>/notes.md`, where `<WORKDIR>` is the run's work report directory, capped at fifteen.
 
 ## Driven from an issue
 

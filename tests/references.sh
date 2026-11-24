@@ -19,6 +19,7 @@ NAME = r"[A-Za-z_][A-Za-z0-9_]*"
 PATH = r"[A-Za-z0-9._/-]"
 FENCE = re.compile(r"^\s*(```|~~~)")
 SPAN = re.compile(r"(`+)(.+?)\1")
+RUN_FILE = re.compile(r"(?<![/.<$\w-])(?:(?:design|plan|notes|adaptations|checks|merge)\.md|detail/task-\S*?\.md)(?![\w-])")
 
 listed = [p for p in subprocess.run(
     ["git", "-C", root, "ls-files", "--cached", "--others", "--exclude-standard", "--", PLUGIN],
@@ -134,6 +135,9 @@ for p in sorted(q for q in listed if q.endswith(".md")):
                 find(i, f"<skills>/{target} does not exist")
         if fenced:
             continue
+        if own == "workflow":
+            for m in RUN_FILE.finditer(line):
+                find(i, f"{m.group(0)} is a file of the run: write it <WORKDIR>/{m.group(0)}")
 
         for m in SPAN.finditer(re.sub(r"\[[^\]]*\]\(", "](", line)):
             s = m.group(2).strip()
@@ -143,6 +147,8 @@ for p in sorted(q for q in listed if q.endswith(".md")):
                 count += 1
                 if not exists(os.path.join(SKILLS, s)):
                     find(i, f"{s} does not exist")
+            elif own == "workflow" and RUN_FILE.fullmatch(s):
+                continue
             elif own and s.endswith(".md"):
                 if exists(resolve(p, s)):
                     count += 1
@@ -246,6 +252,23 @@ cat > "$S/two/guide.md" <<'EOF'
 
 ## Steps
 EOF
+mkdir -p "$S/workflow/prompts" "$S/workflow/roles"
+cat > "$S/workflow/SKILL.md" <<'EOF'
+---
+name: workflow
+---
+# Workflow
+
+Write `<WORKDIR>/design.md`, then <WORKDIR>/detail/task-<k>.md, `task-<k>-evidence.md` and `log.md`.
+
+Read `roles/design.md`.
+
+```
+plan.md
+```
+EOF
+printf 'Design: <WORKDIR>/design.md\n' > "$S/workflow/prompts/design.md"
+printf '# The design session\n' > "$S/workflow/roles/design.md"
 printf '*.doc-meta.md\n' > "$GOOD/.gitignore"
 printf 'See `missing.md`, **Nope** in `gone.md`.\n' > "$S/one/notes.doc-meta.md"
 git -C "$GOOD" init -q
@@ -266,6 +289,10 @@ broken() {
 }
 
 broken bare one/SKILL.md 'Read `guide.md`.' "guide.md is a file of two: write it with the skill's name"
+broken run-file workflow/SKILL.md 'Keep `notes.md`.' 'notes.md is a file of the run: write it <WORKDIR>/notes.md'
+broken run-detail workflow/SKILL.md 'Read detail/task-<k>.md.' 'detail/task-<k>.md is a file of the run: write it <WORKDIR>/detail/task-<k>.md'
+broken run-prompt workflow/prompts/design.md 'Design: design.md' 'design.md is a file of the run: write it <WORKDIR>/design.md'
+broken run-role workflow/roles/design.md 'Read `plan.md`.' 'plan.md is a file of the run: write it <WORKDIR>/plan.md'
 broken qualified one/SKILL.md 'Read `two/none.md`.' 'two/none.md does not exist'
 broken short one/SKILL.md 'Read `$ONE/none.md`.' '$ONE/none.md does not exist'
 broken opening one/notes.md 'Read `$ONE/notes.md`.' 'uses $ONE/ but its opening lines do not name `$ONE`'
