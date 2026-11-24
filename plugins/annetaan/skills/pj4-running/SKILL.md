@@ -40,9 +40,12 @@ when an issue is ready and workable. Everything below refers to them. `$RUNNING/
 issues and their bodies, and is read only at the sections this file names: **The run order**, **Stubs**, **Fixed
 tokens** and **Writing bodies**.
 
-This skill uses five more things:
+This skill uses six more things:
 
 - the script `$RUNNING/../pj1-plan/scripts/project.sh`, written `project.sh` below
+- the script `$RUNNING/../pj1-plan/scripts/issue.sh`, written `issue.sh` below, the writer of the issues, the
+  relationships and the comments this file and `issues.md` write themselves. Its subcommands and stops are in
+  `pj1-plan/between-skills.md` under **Writing to GitHub**
 - the script `$RUNNING/../workflow/scripts/level.sh`, written `level.sh` below (see **The level**)
 - the script `$RUNNING/../workflow/scripts/panel.sh`, written `panel.sh` below
 - the script `$RUNNING/scripts/run.sh`, written `run.sh` below. Every subcommand prints one JSON object with a
@@ -267,16 +270,31 @@ workflow hands over to this section by name. An `Unplanned:` report marked `late
    drawn.
 
    ```bash
-   gh issue create --parent <P> --title "<title>" --body-file "$TMP/stub-<j>.md"
+   $RUNNING/../pj1-plan/scripts/issue.sh sub <P> --title "<title>" --body "$TMP/stub-<j>.md"
    ```
 
-3. Tell the user in one line, and keep the number for the report.
+   A `lint` stop means the body left the shape of **Stubs**: write it again in that shape, once, and report a second
+   stop.
+
+3. Tell the user in one line, and keep the `number` and `url` it printed for the report.
 
 ## Folding the handover lines
 
 Fold the handover lines into the notes. Merge duplicates, keep fifteen lines at most, and drop the oldest
-first. Rewrite the parent's handover comment as `pj1-plan/between-skills.md` says under "The handover comment": read
-its `updated_at` again first, and keep any change a human made since. Create it when there is none.
+first. Read the handover comment again with the command in `pj1-plan/between-skills.md` under "The handover comment",
+work any change a human made into the notes, and write them to `$TMP/handover.md`, starting with the line
+`**[pj4-running]** Handover notes`. Rewrite the comment with the `updated_at` of that read, or post it when the read
+found none.
+
+```bash
+$RUNNING/../pj1-plan/scripts/issue.sh handover <P> --since <updated_at> --body "$TMP/handover.md"
+```
+
+```bash
+$RUNNING/../pj1-plan/scripts/issue.sh handover <P> --body "$TMP/handover.md"
+```
+
+A `moved` stop means a human changed the comment since the read: read it again and merge.
 
 ## Before workflow runs
 
@@ -387,11 +405,11 @@ section does not name never reads as done.
   without asking.
 - **Take a project only when nobody else is assigned to its parent.** `run.sh worktree` assigns the user and leaves
   the assignment in place for the life of the project.
-- **Only this session writes to GitHub.** workflow runs in this same session and pushes and opens the draft pull
-  request there. Every comment starts with `**[pj4-running]**`.
+- **Only this session writes to GitHub, and it writes issues, relationships, labels and comments only through
+  `issue.sh` and `run.sh`.** workflow runs in this same session and pushes and opens the draft pull request there. Every comment starts with `**[pj4-running]**`.
 - **One task at a time.**
 - **Everything runs in `<WT>`.** Never switch, stash, commit or clean in `<MAIN>`. The user works there.
-- **Never `--admin`. Never create a label with `--force`. Always pass a body with `--body-file`.**
+- **Never `--admin`.**
 - **Never merge the project's pull request.** It goes into `<from>`, and the user merges it.
 - **Never merge a pull request that `project.sh` does not report as the issue's `pr`.**
 - **The next run never uses the work a stopped run left in `<WT>` or saved to `stopped.diff`, commits included.** The issue is redone.
@@ -401,7 +419,8 @@ section does not name never reads as done.
   pushed as a fast-forward by `run.sh sync`. The project's pull request is opened from that branch as it stands on
   origin.
 - **Close an issue or a parent only through `run.sh close` or `run.sh merge`, which refuse one that is not due or a
-  comment file that starts with no marker, and close as completed**, or as completed after `nothing-left` in `issues.md`.
+  comment file that starts with no marker, and close as completed**, or through `issue.sh close` as completed after
+  `nothing-left` in `issues.md`.
 - **Edit an existing sub-issue's body, the edges between existing sub-issues and the parent's `## Order` only in **A redrawn issue** in `issues.md`, and a
   sub-issue's title only through `run.sh stop` on a `decision` stop.** The one other write is a stub filed by **Unplanned work** or by `run.sh stop` on a `blocking` stop, with its `--blocking` edge.
 - An unattended run never calls `AskUserQuestion` and ends with one `unattended:` line.

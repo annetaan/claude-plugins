@@ -344,6 +344,9 @@ What they need:
 - For `pj4-running`: write access and a project branch that accepts a merge with no approving review. Your own
   working tree may be dirty, because the run works in a worktree of its own.
 
+Every write the four skills make to an issue, a relationship, a label or a comment goes through one script,
+`issue.sh`, which checks what it writes and stops when someone changed the issue since the skill read it.
+
 The `ready`, `blocker`, `project` and `doing` labels are created when missing, and a label that already exists is reused as
 it is.
 
