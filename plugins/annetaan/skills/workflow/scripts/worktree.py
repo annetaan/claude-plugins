@@ -1,8 +1,8 @@
 import json, os, re, shutil, subprocess, sys, time
 from clone import clone_lock, fetch, fetch_branch
-from panel import stamped
+from flow import stamped
 
-PANEL_SH = sys.argv[1]
+FLOW_SH = sys.argv[1]
 SUB = sys.argv[2]
 ARGS = sys.argv[3:]
 
@@ -370,7 +370,7 @@ def cleanup():
             k: v for k, v in out.items()})
     tree, errors, br = out["worktree"], [], out["branch"]
 
-    r = run(PANEL_SH, "close", tree["path"], cwd=main)
+    r = run(FLOW_SH, "close", tree["path"], cwd=main)
     try:
         tree["seats"] = json.loads(r.stdout)["removed"] if r.returncode == 0 else []
     except (ValueError, KeyError):

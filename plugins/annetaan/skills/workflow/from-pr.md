@@ -50,7 +50,7 @@ the worktree as **Ending with nothing changed** in `worktree.md` says. Then run 
 from the JSON **The level** read, before **The merge**, so that `start` is the pull request's head:
 
 ```bash
-$FLOW/scripts/panel.sh begin <WT> --level <level> --source <source>
+$FLOW/scripts/flow.sh begin <WT> --level <level> --source <source>
 ```
 
 ## The merge

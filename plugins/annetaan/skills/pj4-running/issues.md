@@ -115,13 +115,13 @@ Nothing runs in parallel. There is one worktree, `<WT>`. For each issue `<k>` in
        that stopped early did not do, so run `status` first:
 
        ```bash
-       $RUNNING/../workflow/scripts/panel.sh status <WT>
+       $RUNNING/../workflow/scripts/flow.sh status <WT>
        ```
 
        When it prints `ok` with an `issue` equal to `<k>`, run `record`, which leaves a head already there as it is:
 
        ```bash
-       $RUNNING/../workflow/scripts/panel.sh record <WT>
+       $RUNNING/../workflow/scripts/flow.sh record <WT>
        ```
 
        - **`record` prints `ok`**: the user picks the way out. Pushing `<branch>` with

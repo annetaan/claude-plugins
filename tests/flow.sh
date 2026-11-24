@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-SCRIPT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)/plugins/annetaan/skills/workflow/scripts/panel.sh"
-SCRIPT="${PANEL_SH:-$SCRIPT}"
+SCRIPT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)/plugins/annetaan/skills/workflow/scripts/flow.sh"
+SCRIPT="${FLOW_SH:-$SCRIPT}"
 
 TMP="$(mktemp -d)"
 trap 'rm -rf "$TMP"' EXIT
@@ -301,7 +301,7 @@ echo "ok: begin records the level and source it is given, unchanged, in run.json
 refused() {
   local rc=0
   "$SCRIPT" "$@" > /dev/null 2>&1 || rc=$?
-  [ "$rc" = 1 ] || fail "panel.sh $* exited $rc, not 1"
+  [ "$rc" = 1 ] || fail "flow.sh $* exited $rc, not 1"
 }
 
 setup
@@ -370,7 +370,7 @@ out="$("$SCRIPT" begin "$TMP" --level high --source default)"
 echo "ok: status stops with no-run when no directory holds a run.json, and begin stops with unknown outside a worktree"
 
 REVIEW_FILES="$(cd "$(dirname "$SCRIPT")/.." && pwd)/review-files.md"
-CMD='`/abs/skills/workflow/scripts/panel.sh run /abs/wt a /abs/wt/work-reports/2026-09-19-1346-a1b2c3d/seats/a/probe`'
+CMD='`/abs/skills/workflow/scripts/flow.sh run /abs/wt a /abs/wt/work-reports/2026-09-19-1346-a1b2c3d/seats/a/probe`'
 
 write() {
   mkdir -p "$(dirname "$1")"
@@ -609,7 +609,7 @@ breaks "$D/task-4-round-2.md" finding "Breaks: the second sign-in shows the old 
 breaks "$D/task-4-round-2.md" finding "Found by: a, b" "Found by: a and b"
 breaks "$D/task-4-round-2.md" finding "Command: $CMD" "Command (seat a): $CMD"
 breaks "$D/task-4-round-2.md" command "Command: $CMD" "Command: ${CMD//\`/}"
-breaks "$D/task-4-round-2.md" command "Command: \`/abs/skills/workflow/scripts/panel.sh run /abs/wt a " "Command: \`/abs/skills/workflow/scripts/panel.sh run /abs/wt c "
+breaks "$D/task-4-round-2.md" command "Command: \`/abs/skills/workflow/scripts/flow.sh run /abs/wt a " "Command: \`/abs/skills/workflow/scripts/flow.sh run /abs/wt c "
 breaks "$D/task-4-round-2.md" seats "Seats: a on opus, b on fable" ""
 breaks "$D/task-4-round-2.md" seats "Seats: a on opus, b on fable" "Seats: a on opus
 Seats: b on fable"
@@ -866,7 +866,7 @@ round_file "$R/task-1-round-3.md" "- R1.2 stands again: ran: $CMD; saw: exit 1; 
 [ "$(scoped task-1 '[d["round"], d["cap"], d["open"]]')" = "[4, False, [{'id': 'R1.2', 'stood': 2, 'reply': None}]]" ] || fail "status after round 3"
 for bad in task-x task-0 review; do
   out="$("$SCRIPT" status "$WT" "$bad" 2>&1)" && fail "status $bad exited 0: $out"
-  [ "$out" = "panel: no such scope: $bad" ] || fail "status $bad: $out"
+  [ "$out" = "flow: no such scope: $bad" ] || fail "status $bad: $out"
 done
 refused status "$WT" task-1 task-2
 refused status relative/wt task-1
@@ -911,7 +911,7 @@ setup
 out="$("$SCRIPT" status "$WT" task-1)"
 [ "$(echo "$out" | json 'd["reason"]')" = no-run ] || fail "status task-1 before begin: $out"
 out="$("$SCRIPT" status "$WT" task-x 2>&1)" && fail "status task-x before begin exited 0: $out"
-[ "$out" = "panel: no such scope: task-x" ] || fail "status task-x before begin: $out"
+[ "$out" = "flow: no such scope: task-x" ] || fail "status task-x before begin: $out"
 echo "ok: status refuses a bad scope before begin, and stops with no-run on a good one"
 
 ran_line() { printf '`%s run %s %s %s`' "$SCRIPT" "$WT" "$1" "$2"; }
@@ -1100,7 +1100,7 @@ rc=0
 "$SCRIPT" verify "$WT" task-1 > "$TMP/verify.out" 2> "$TMP/verify.err" || rc=$?
 [ "$rc" = 1 ] || fail "verify with an earlier probe gone exited $rc: $(cat "$TMP/verify.out")"
 case "$(cat "$TMP/verify.err")" in
-  "panel: R1."*) ;;
+  "flow: R1."*) ;;
   *) fail "verify with an earlier probe gone: $(cat "$TMP/verify.err")" ;;
 esac
 [ ! -e "$W/drafts/task-1-round-2.md" ] || fail "verify wrote a draft after an earlier probe was gone"
@@ -1110,7 +1110,7 @@ setup
 out="$("$SCRIPT" verify "$WT" task-1)"
 [ "$(echo "$out" | json '[d["status"], d["reason"]]')" = "['stop', 'no-run']" ] || fail "verify task-1 before begin: $out"
 out="$("$SCRIPT" verify "$WT" task-x 2>&1)" && fail "verify task-x before begin exited 0: $out"
-[ "$out" = "panel: no such scope: task-x" ] || fail "verify task-x before begin: $out"
+[ "$out" = "flow: no such scope: task-x" ] || fail "verify task-x before begin: $out"
 refused verify "$WT"
 refused verify "$WT" task-1 x
 refused verify relative/wt task-1

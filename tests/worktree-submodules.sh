@@ -5,8 +5,8 @@ SCRIPT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)/plugins/annetaan/skills
 SCRIPT="${WORKTREE_SH:-$SCRIPT}"
 CLEANUP_SRC="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)/plugins/annetaan/skills/pj-cleanup/scripts/cleanup.sh"
 CLEANUP_SRC="${CLEANUP_SH:-$CLEANUP_SRC}"
-PANEL_SRC="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)/plugins/annetaan/skills/workflow/scripts/panel.sh"
-PANEL_SRC="${PANEL_SH:-$PANEL_SRC}"
+FLOW_SRC="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)/plugins/annetaan/skills/workflow/scripts/flow.sh"
+FLOW_SRC="${FLOW_SH:-$FLOW_SRC}"
 
 TMP="$(mktemp -d)"
 trap 'chmod -R u+rwx "$TMP" 2>/dev/null || true; rm -rf "$TMP"' EXIT
@@ -57,14 +57,14 @@ setup_pj() {
   cp "${CLEANUP_SRC%.sh}.py" "$TMP/pj/skills/pj-cleanup/scripts/cleanup.py"
   cp "$SCRIPT" "$TMP/pj/skills/workflow/scripts/worktree.sh"
   cp "${SCRIPT%.sh}.py" "$TMP/pj/skills/workflow/scripts/worktree.py"
-  cp "$PANEL_SRC" "$TMP/pj/skills/workflow/scripts/panel.sh"
-  cp "${PANEL_SRC%.sh}.py" "$TMP/pj/skills/workflow/scripts/panel.py"
+  cp "$FLOW_SRC" "$TMP/pj/skills/workflow/scripts/flow.sh"
+  cp "${FLOW_SRC%.sh}.py" "$TMP/pj/skills/workflow/scripts/flow.py"
   cp "$(dirname "$SCRIPT")/clone.py" "$TMP/pj/skills/workflow/scripts/clone.py"
   cat > "$TMP/pj/skills/pj1-plan/scripts/project.sh" <<'FAKE'
 #!/usr/bin/env bash
 echo '{"parent":{"number":1,"title":"P","state":"CLOSED","base":"pj/1","from":"main","merged":true}}'
 FAKE
-  chmod +x "$TMP/pj/skills/pj-cleanup/scripts/cleanup.sh" "$TMP/pj/skills/workflow/scripts/worktree.sh" "$TMP/pj/skills/workflow/scripts/panel.sh" \
+  chmod +x "$TMP/pj/skills/pj-cleanup/scripts/cleanup.sh" "$TMP/pj/skills/workflow/scripts/worktree.sh" "$TMP/pj/skills/workflow/scripts/flow.sh" \
            "$TMP/pj/skills/pj1-plan/scripts/project.sh"
   CLEANUP="$TMP/pj/skills/pj-cleanup/scripts/cleanup.sh"
   git init -q "$TMP/subsrc"
@@ -103,7 +103,7 @@ seat_run() {
   local dir="$WT/work-reports/2026-01-01-0000-aaaaaaa/seats/$1/p"
   mkdir -p "$dir"
   echo 'echo repro > repro.sh' > "$dir/run.sh"
-  "$PANEL_SRC" run "$WT" "$1" "$dir" > /dev/null
+  "$FLOW_SRC" run "$WT" "$1" "$dir" > /dev/null
 }
 
 seats_gone() {

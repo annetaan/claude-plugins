@@ -234,13 +234,13 @@ e = json.loads(sys.stdin.read())
 assert sorted(e) == ["base", "main", "settings", "status"], sorted(e)
 rules = [b["rule"] for b in e["base"]]
 assert len(rules) == 9, rules
-for script in ("pj1-plan/scripts/issue.sh", "workflow/scripts/panel.sh", "workflow/scripts/level.sh", "workflow/scripts/comments.sh"):
+for script in ("pj1-plan/scripts/issue.sh", "workflow/scripts/flow.sh", "workflow/scripts/level.sh", "workflow/scripts/comments.sh"):
     assert "Bash(" + skills + "/" + script + ":*)" in rules, (script, rules)
 for b in e["base"]:
     assert sorted(b) == ["by", "file", "rule", "verdict"], b
     assert (b["verdict"], b["file"], b["by"]) == ("granted", None, None), b
-' "$TMP/skills" || fail "auto.sh --rules does not grant nine base rules with issue.sh, panel.sh, level.sh and comments.sh: $RULES"
-echo "ok: auto.sh --rules lists nine base rules, issue.sh, panel.sh, level.sh and comments.sh among them, all granted with no settings"
+' "$TMP/skills" || fail "auto.sh --rules does not grant nine base rules with issue.sh, flow.sh, level.sh and comments.sh: $RULES"
+echo "ok: auto.sh --rules lists nine base rules, issue.sh, flow.sh, level.sh and comments.sh among them, all granted with no settings"
 
 settings '{"permissions": {"allow": ["Bash(ghx:*)", "Bash(gh:*)"]}}' "" ""
 judged

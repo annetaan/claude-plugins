@@ -45,7 +45,7 @@ def stop(reason, message):
     raise Stop(reason, message)
 
 def die(msg):
-    print("panel: " + msg, file=sys.stderr)
+    print("flow: " + msg, file=sys.stderr)
     sys.exit(1)
 
 def git(where, *args, env=None):
@@ -330,7 +330,7 @@ def run_args(line):
     if len(words) != 5 or FORBIDDEN & set(line):
         return None
     script, sub, wt, seat, probe = words
-    if (os.path.isabs(script) and script.endswith("/panel.sh") and sub == "run" and os.path.isabs(wt)
+    if (os.path.isabs(script) and script.endswith("/flow.sh") and sub == "run" and os.path.isabs(wt)
             and seat in SEATS and probe.startswith(wt.rstrip("/") + "/work-reports/")):
         return script, wt, seat, probe
     return None
@@ -507,7 +507,7 @@ def verify(wt, scope):
         raiser = parse_review(os.path.join(review, "%s-round-%d.md" % (scope, j)))
         command, args = command_of(section(raiser, "New findings")["blocks"][n - 1])
         if args is None:
-            die("%s could not be run again: its Command is not one panel.sh run line" % fid)
+            die("%s could not be run again: its Command is not one flow.sh run line" % fid)
         result = rerun(args)
         if result["status"] == "stop":
             die("%s could not be run again: %s" % (fid, result["message"]))

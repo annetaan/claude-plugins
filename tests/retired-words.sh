@@ -23,6 +23,8 @@ level 1 |
 level 2 |
 level 3 |
 levels 1 |
+panel.sh |
+panel.py |
 EOF
 )"
 

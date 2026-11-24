@@ -37,13 +37,13 @@ This entry asks nothing. Its ending is **What it hands back to pj4-running** bel
   `<source>` from the `level.sh show` JSON pj4-running settled:
 
   ```bash
-  $FLOW/scripts/panel.sh begin <WT> --level <level> --source <source> --issue <n> --parent <P>
+  $FLOW/scripts/flow.sh begin <WT> --level <level> --source <source> --issue <n> --parent <P>
   ```
 
   A `stop` with `not-ignored` takes the stop procedure with the reason `work-reports`. Never ask about `.gitignore`
   here.
 
-  After a context summary, `panel.sh status <WT>` names this run only when its `issue` is `n`. A `no-run`, or an
+  After a context summary, `flow.sh status <WT>` names this run only when its `issue` is `n`. A `no-run`, or an
   `issue` other than `n`, null included, is an earlier run's work directory in the reused `<WT>`: phase 2 (b) has not
   run, its `start` and `workdir` are not taken, and the level is the JSON pj4-running settled (**The level** in
   SKILL.md).
@@ -133,7 +133,7 @@ Keep the handover lines from phase 4 (d) for pj4-running.
 
    > List the adaptations the implementation session made to the issue's design under what changed, and what the detail
    > pass redrew in the issue.
-2. **`changes.diff`, then `panel.sh record`**, as written in `finish.md`. It writes the head of
+2. **`changes.diff`, then `flow.sh record`**, as written in `finish.md`. It writes the head of
    `pj1-plan/between-skills.md` **Pull requests** from the `--issue` and `--parent` that `begin` got.
 3. **Push, then open the pull request.**
 
@@ -167,9 +167,9 @@ approved. Look for the commits in `git log --oneline <START>..HEAD`.
 - **Anything less.** Leave the working tree as it is. Push nothing. Send nothing more to the sessions in flight. Return
   `stopped`. pj4-running saves everything since `<START>`, commits included, to `<WORKDIR>/stopped.diff` with
   `run.sh save` when it gets the hand-back, and puts `<WT>` back on `<START>`. The next run redoes the issue. The seats'
-  worktrees stay beside `<WT>`, and the next run's `panel.sh run` re-points them.
+  worktrees stay beside `<WT>`, and the next run's `flow.sh run` re-points them.
 - **A step of phase 6 fails before the pull request exists.** Return `stopped` with the reason `finish`, the step
-  that failed, its error message, and the path of `log.md` when step 1 wrote it. A `stop` from `panel.sh record` in
+  that failed, its error message, and the path of `log.md` when step 1 wrote it. A `stop` from `flow.sh record` in
   step 2 is such a failure, with step 2 named and its `message` as the error.
 
 ## What it hands back to pj4-running
