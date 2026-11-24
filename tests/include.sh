@@ -163,3 +163,10 @@ r="$(bash "$INCLUDE" remember "$WT" --copy $'Icon\r')"
 second="$(create)"
 [ "$(echo "$second" | json 'd["copied"], d["unlisted"]')" = "(['Icon\\r'], [])" ] || fail "second create Icon<CR>: $second"
 echo "ok: a file whose name holds a carriage return is unlisted under its real name, remembered and copied"
+
+SKILLS="$(dirname "$(dirname "$SCRIPTS")")"
+for f in $(grep -l "Run steps 3 to [0-9] of \*\*The worktree\*\*" "$SKILLS"/*/SKILL.md); do
+  bare="$(grep -n -e 'never in `<MAIN>`' -e "Write nothing before" "$f" | grep -v worktreeinclude || true)"
+  [ -z "$bare" ] || fail "$f keeps a run out of <MAIN> without the .worktreeinclude exception: $bare"
+done
+echo "ok: every skill that runs step 3 of The worktree names the .worktreeinclude exception in its rules"
