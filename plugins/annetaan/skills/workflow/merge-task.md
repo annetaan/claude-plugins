@@ -37,22 +37,22 @@ git diff --name-only --diff-filter=U
 
 ## The rounds
 
-Phases 3 and 4 run as written for task 1, with a new implementation session and the review seats, five rounds,
-and the worktree line in every prompt, except for these.
+Phases 3 and 4 run as written for task 1, with a new implementation session and the review seats, five rounds, and
+every prompt written by `flow.sh prompt` with the scope `merge`: `flow.sh prompt <WT> work merge`,
+`seat merge <seat>`, `again merge`, `respond merge` and `commit merge`. They differ from a task's in these.
 
-- Every prompt names `Design, plan and detail: <absolute path of WORKDIR>/merge.md` in place of
-  `<WORKDIR>/design.md`, `<WORKDIR>/plan.md` and `<WORKDIR>/detail/task-1.md`.
-
-- The phase 3 prompt: "Start point START: `<M>`. Branch: `<into>`. This is a merge in progress. Resolve the
-  conflicts, and `git add` each file you resolve. Write `merge-evidence.md` under the review files. Never run `git merge --abort`, `git reset` or `git commit`: the
-  merge state is the task. Follow **Work outside the task** in your role instruction."
-- The review prompt, to each seat: "This is a merge. `git diff HEAD` also shows everything `<incoming>` brings. Review the
-  resolution: each conflicted file against both sides, with `git diff HEAD -- <file>` and
-  `git diff MERGE_HEAD -- <file>`, and any change outside those files. The evidence is `merge-evidence.md`. Write round 1 as `merge-round-1-<seat>.md`." `<scope>` of phase 4 (b) is `merge`. The round files are `merge-round-<r>.md`, each written from the draft `drafts/merge-round-<r>.md` that `flow.sh verify` writes, the replies `merge-round-<r>-reply.md`, and the evidence of a reply that changed code `merge-round-<r>-evidence.md`. The acceptance criteria above are commands, so the evidence is those commands and their output, plus the flows the conflicted files take part in. A restart in round `<r>` of 2 or more (phase 4 (b), **When no seat reports**) names `merge-round-<r>-<seat>.md` and the newest merge evidence file, `merge-round-<j>-evidence.md` or else `merge-evidence.md`, in place of `merge-evidence.md`.
-- **The commit**, in phase 4 (d): "The merge passed review. Run `git add -A`, then `git commit --no-edit`, which
-  records the merge with both parents and the message git prepared. Check that `git status --porcelain` prints
-  nothing and that `git rev-parse --verify --quiet MERGE_HEAD` fails, and report back", with the notes for the next
-  session as written.
+- Every prompt names `Design, plan and detail: <WORKDIR>/merge.md` in place of `<WORKDIR>/design.md`,
+  `<WORKDIR>/plan.md` and `<WORKDIR>/detail/task-1.md`.
+- The `work` prompt gives HEAD, `<M>`, as the start point and no branch, says that the merge is in progress, that each
+  resolved file is added with `git add`, that `git merge --abort`, `git reset` and `git commit` are never run, and asks
+  for `merge-evidence.md`: the commands of the acceptance criteria above and their output, plus the flows the
+  conflicted files take part in.
+- The `seat` prompt has each seat review the resolution, each conflicted file against both sides with
+  `git diff HEAD -- <file>` and `git diff MERGE_HEAD -- <file>`, and any change outside those files.
+- `<scope>` of phase 4 (b) is `merge`. The round files are `merge-round-<r>.md`, each written from the draft `drafts/merge-round-<r>.md` that `flow.sh verify` writes, the replies `merge-round-<r>-reply.md`, and the evidence of a reply that changed code `merge-round-<r>-evidence.md`.
+- **The commit**, in phase 4 (d), is the `commit merge` prompt: `git add -A`, then `git commit --no-edit`, which
+  records the merge with both parents and the message git prepared, then the checks that `git status --porcelain`
+  prints nothing and that `MERGE_HEAD` is gone, with the notes for the next session.
 
 Check it yourself with `git log -1 --oneline` and `git rev-parse --verify --quiet MERGE_HEAD`. Print
 `merge done: <short SHA>`.

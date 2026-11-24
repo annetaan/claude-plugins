@@ -2,6 +2,18 @@ import fcntl, json, os, re, shutil, subprocess, sys, tempfile, time
 
 SEATS = ("a", "b")
 LEVEL_SEATS = {"standard": ("a",), "high": SEATS}
+AGENTS = {
+    "workflow-design": {"standard": ("opus", "medium"), "high": ("fable", "medium")},
+    "pj-planner": {"standard": ("opus", "medium"), "high": ("fable", "medium")},
+    "pj-reviewer": {"standard": ("opus", "medium"), "high": ("fable", "medium")},
+    "workflow-worker": {"standard": ("opus", "medium"), "high": ("opus", "high")},
+    "pj-issue-writer": {"standard": ("opus", "medium"), "high": ("opus", "high")},
+    "workflow-reviewer-a": {"standard": ("opus", "high"), "high": ("opus", "high")},
+    "workflow-reviewer-b": {"high": ("fable", "medium")},
+}
+SKILLS = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+PROMPTS = os.path.join(SKILLS, "workflow", "prompts")
+BLOCK = re.compile(r"<if ([a-z]+)>")
 TAIL = 40
 STAMP = re.compile(r"\d{4}-\d{2}-\d{2}-\d{4}(-|$)")
 SCOPE = r"task-[1-9]\d*|integration|merge"
@@ -78,13 +90,17 @@ def nearest_clone_dir(wt):
         where = parent
     return where if run("git", "-C", where, "rev-parse", "--git-dir").returncode == 0 else None
 
-def worktrees_by_path(where):
-    out = {}
+def worktree_entries(where):
+    entries = []
     for block in git(where, "worktree", "list", "--porcelain").split("\n\n"):
         lines = block.splitlines()
         if lines and lines[0].startswith("worktree "):
-            out[os.path.realpath(lines[0][len("worktree "):])] = any(l.startswith("prunable") for l in lines[1:])
-    return out
+            branch = next((l[len("branch refs/heads/"):] for l in lines[1:] if l.startswith("branch refs/heads/")), None)
+            entries.append((lines[0][len("worktree "):], any(l.startswith("prunable") for l in lines[1:]), branch))
+    return entries
+
+def worktrees_by_path(where):
+    return {os.path.realpath(path): prunable for path, prunable, _ in worktree_entries(where)}
 
 def require_live_wt(wt):
     where = nearest_clone_dir(wt)
@@ -547,6 +563,66 @@ def verify(wt, scope):
             scope, r, "\n".join(earlier_lines) or "None.", "\n\n".join(new_blocks) or "None.", "\n".join(dropped_lines)))
     emit(status="ok", scope=scope, round=r, draft=draft, dropouts=dropouts, earlier=earlier, new=new, dropped=dropped)
 
+def render(template, values, holds):
+    kept, open_blocks = [], []
+    for line in template.split("\n"):
+        m = BLOCK.fullmatch(line)
+        if m:
+            open_blocks.append(m.group(1) in holds)
+        elif line == "<end>":
+            open_blocks.pop()
+        elif all(open_blocks):
+            kept.append(line)
+    text = re.sub(r"\n{3,}", "\n\n", "\n".join(kept))
+    table = dict(values)
+    return re.sub(r"<(%s)>" % "|".join(map(re.escape, table)), lambda m: table[m.group(1)], text)
+
+def prompt(wt, kind, scope=None, seat=None):
+    if scope is not None and not re.fullmatch(SCOPE, scope):
+        die("no such scope: " + scope)
+    workdir, record = current_run(wt)
+    k = int(scope[len("task-"):]) if scope and scope.startswith("task-") else None
+    if kind == "detail" and (k is None or k < 2):
+        die("detail needs task-<k> with k of 2 or more: %s" % scope)
+    if kind == "design" and record["issue"] is None:
+        die("design needs a run begun with --issue")
+    state = scope_state(os.path.join(workdir, "review"), scope) if scope is not None else {}
+    if state.get("round") == 1 and (kind in ("again", "respond") or (kind, scope) == ("work", "integration")):
+        die("%s %s has no round file to name before round 1" % (kind, scope))
+    agent = {"work": "workflow-worker", "report": "workflow-worker", "design": "workflow-design",
+             "seat": "workflow-reviewer-%s" % seat}.get(kind)
+    if agent is not None and record["level"] not in AGENTS[agent]:
+        die("level %s runs no %s" % (record["level"], agent))
+    model, effort = AGENTS[agent][record["level"]] if agent is not None else (None, None)
+    entries = worktree_entries(wt)
+    branch = next((b for path, _, b in entries if os.path.realpath(path) == os.path.realpath(wt)), None)
+    progress = git(wt, "log", "--oneline", "%s..HEAD" % record["start"]).strip()
+    values = [("skills", SKILLS), ("WT", wt), ("MAIN", entries[0][0]), ("branch", branch or "none"),
+              ("WORKDIR", workdir), ("START", record["start"]), ("head", git(wt, "rev-parse", "HEAD").strip()),
+              ("progress", progress or "none")]
+    if scope is not None:
+        values += [("scope", scope), ("round", str(state["round"])), ("last", str(state["round"] - 1))]
+    if k is not None:
+        values += [("k", str(k)), ("prev", str(k - 1))]
+    if seat is not None:
+        values.append(("seat", seat))
+    holds = []
+    if record["issue"] is not None:
+        values += [("n", str(record["issue"])), ("P", str(record["parent"]))]
+        holds.append("issue")
+    if scope is not None:
+        holds += ["task" if k is not None else scope, "first" if state["round"] == 1 else "restart"]
+    names = [kind] + (["respond"] if (kind, scope) == ("work", "integration") else []) + ["worktree-line"]
+    parts = []
+    for name in names:
+        with open(os.path.join(PROMPTS, name + ".md"), encoding="utf-8") as f:
+            parts.append(f.read().rstrip("\n"))
+    path = os.path.join(workdir, "prompts", "-".join([kind] + [w for w in (scope, seat) if w]) + ".md")
+    os.makedirs(os.path.dirname(path), exist_ok=True)
+    with open(path, "w", encoding="utf-8") as f:
+        f.write(render("\n\n".join(parts), tuple(values), tuple(holds)) + "\n")
+    emit(status="ok", path=path, agent=agent, model=model, effort=effort)
+
 def record_line(level, source, tasks, task_rounds, integration_rounds, findings):
     return "Level: %s (%s) · tasks %d · task rounds %d · integration rounds %d · findings %d" % (
         level, source, tasks, task_rounds, integration_rounds, findings)
@@ -582,7 +658,7 @@ def record(wt):
 
 def main(sub, path, *args):
     table = {"run": lambda *given: emit(**run_probe(*given)), "close": close, "begin": begin, "status": status,
-             "lint": lint, "verify": verify, "record": record}
+             "lint": lint, "verify": verify, "record": record, "prompt": prompt}
     try:
         table[sub](os.path.normpath(path), *args)
     except Stop as s:

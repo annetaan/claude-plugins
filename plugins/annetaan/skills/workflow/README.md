@@ -165,6 +165,7 @@ work-reports/2026-09-19-1346-a1b2c3d/
   adaptations.md the adaptations of a run from an issue, written by the main session
   checks.md      the check wanted: lines of the commit reports, written by the main session
   merge.md       the design, plan and detail of a merge task, written by the main session
+  prompts/       the prompt of each sub-agent call, written by flow.sh prompt
   review/        one file per review round, the reply to each, and the evidence files
     task-1-evidence.md
     task-1-round-1-a.md         what seat a proved in round 1, and `-b` for seat b at `high`
@@ -227,7 +228,7 @@ screenshots it could not attach.
 
 | File | What it is |
 | --- | --- |
-| `SKILL.md` | the procedure for the orchestrator, which is the main session: which file each entry reads, the worktree line, the agents, phases 2 to 4 and the rules every entry shares |
+| `SKILL.md` | the procedure for the orchestrator, which is the main session: which file each entry reads, the agents, the prompts, phases 2 to 4 and the rules every entry shares |
 | `standalone.md` | the standalone run: design, the open questions and the start message, the integration review and the finish |
 | `judgement.md` | the rules every role of workflow and the pj skills reads. It opens with a table that maps each section to the roles that apply it, and holds what a human is asked, model decisions, experiments, assumptions, root cause, evidence, removing before adding, designing as if always required, reader load, the language and runtime when none is settled, effects at the edges, arguments left as given, comments, documents, existing workarounds, what two failed fixes share, and turning a repeated lesson into the strongest check that holds it |
 | `typescript.md` | what only a TypeScript change needs: the runtime, the type check, a new project's checks and the lint rules for effects and arguments, which `judgement.md` cites by section |
@@ -237,6 +238,7 @@ screenshots it could not attach.
 | `merge-task.md` | the merge task, which resolves conflicts under review, for the standalone finish, from-pr and from-sync |
 | `worktree.md` | the start check and the run's worktree, for the standalone run and from-pr |
 | `finish.md` | the work report and the pull request, for the standalone run and from-issue |
+| `prompts/` | the templates `flow.sh prompt` fills into the prompt of each sub-agent call, one per kind, and `worktree-line.md`, the line every prompt ends with |
 | `roles/design.md` | the role for the design session, which writes the design and the plan into the work directory |
 | `roles/work.md` | the role for the implementation session |
 | `roles/review.md` | the role for a review seat |
@@ -244,11 +246,11 @@ screenshots it could not attach.
 | `scripts/worktree.py` | the code `worktree.sh` runs |
 | `scripts/clone.py` | the one place that fetches from origin, under a lock on the clone's common git directory that every worktree shares. `worktree.py`, `level.py` and the pj4-running, pj-cleanup and pj1-plan scripts import it |
 | `scripts/level.sh` | reads the repository's level from origin's default branch and prints the model and effort it gives the design session, the implementation session, the review seats and pj's planner, project reviewer and issue writer |
-| `scripts/level.py` | the code `level.sh` runs, and the one place the level table lives |
+| `scripts/level.py` | the code `level.sh` runs |
 | `scripts/comments.sh` | fails on a comment outside the four kinds, or a silenced check the change adds, in the files a change touches. The implementation and review sessions run it |
 | `scripts/comments.py` | the code `comments.sh` runs |
-| `scripts/flow.sh` | makes the run's work directory and reads it back, reports a scope's round, cap, open findings and whether `approve` is allowed, runs a review seat's probe in a git worktree beside the run's, at a snapshot of the working tree, runs every probe of a round again and writes the draft of the round, removes the seats at cleanup, lints a review file, and writes the pull request head and the `Level:` line into `log.md` |
-| `scripts/flow.py` | the code `flow.sh` runs. `worktree.py` imports the stamp rules of the work directory names from it |
+| `scripts/flow.sh` | makes the run's work directory and reads it back, reports a scope's round, cap, open findings and whether `approve` is allowed, runs a review seat's probe in a git worktree beside the run's, at a snapshot of the working tree, runs every probe of a round again and writes the draft of the round, removes the seats at cleanup, lints a review file, writes the pull request head and the `Level:` line into `log.md`, and writes the prompt of each sub-agent call |
+| `scripts/flow.py` | the code `flow.sh` runs, and the one place the agent table of the levels lives, which `level.py` imports. `worktree.py` imports the stamp rules of the work directory names from it |
 | `review-files.md` | the shape of the review files and the evidence files, read by the seats, the main session and the implementation session |
 
 The design, implementation and review sessions run on agents that ship with the plugin (`../../agents/`). Design is

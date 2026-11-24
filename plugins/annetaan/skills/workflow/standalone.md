@@ -28,12 +28,14 @@ Create the design session's scratch directory first:
 mkdir -p <WORKDIR>/scratch/design
 ```
 
-Hand the user's request to the design session as it was written, with the work directory, the worktree line (see **The worktree line** in SKILL.md) and a `Scratch:` line.
+Hand the user's request to the design session as it was written, with the work directory and a `Scratch:` line. This is
+the one sub-agent prompt you write by hand, because it carries the request verbatim. Write `$FLOW` out, and end it with
+the text of `$FLOW/prompts/worktree-line.md`, the real paths written for `<WT>` and `<MAIN>`.
 
 ```
 Agent(subagent_type: "annetaan:workflow-design", description: "design",
       model: "<agents.workflow-design.model>", effort: "<agents.workflow-design.effort>",
-      prompt: "Read $FLOW/roles/design.md first and follow the role it describes.\n\nThe request:\n<the user's request, verbatim>\n\nWork directory: <absolute path of WORKDIR>\n\n<the worktree line>\n\nScratch: <absolute path of WORKDIR>/scratch/design")
+      prompt: "Read $FLOW/roles/design.md first and follow the role it describes.\n\nThe request:\n<the user's request, verbatim>\n\nWork directory: <absolute path of WORKDIR>\n\nScratch: <absolute path of WORKDIR>/scratch/design\n\n<the text of $FLOW/prompts/worktree-line.md>")
 ```
 
 `annetaan:workflow-design` ships with this plugin and takes its model and effort from the level, `agents.workflow-design` of the level JSON. It is told never to change the repository, and to write only the run's files under its `Work directory:` and experiments under its `Scratch:` directory, by instruction.
@@ -103,16 +105,11 @@ The target is the working tree against `START` (`git diff <START>` plus untracke
 together. The working tree should be empty at this point. Fixes from the integration review land uncommitted in the
 working tree, so later rounds see them in the same diff.
 
-**The integration review starts new seats**, model and effort included, with the steps of phase 4 (b) in SKILL.md: every seat in one message, `flow.sh verify`, the round file. `<scope>` is `integration`, so the files are `integration-round-<r>-<seat>.md` and `integration-round-<r>.md`. The prompt is the phase 4 (b) prompt naming `<WORKDIR>/design.md`, `<WORKDIR>/plan.md` and `<WORKDIR>/notes.md` and no detail file, with the commit that closed each task (the matching `git log --oneline` lines) in the Progress line, and this request in place of "Under review":
+**The integration review starts new seats**, model and effort included, with the steps of phase 4 (b) in SKILL.md: every seat in one message, `flow.sh verify`, the round file. `<scope>` is `integration`, so the files are `integration-round-<r>-<seat>.md` and `integration-round-<r>.md`. Each seat's prompt is `$FLOW/scripts/flow.sh prompt <WT> seat integration <seat>`. It names `<WORKDIR>/design.md`, `<WORKDIR>/plan.md` and `<WORKDIR>/notes.md` and no detail file, carries the commit that closed each task as the progress, and asks for **the boundaries** between the tasks and, in round 1, for the walk of every acceptance criterion and every flow under `## Walk`, since no evidence file exists before round 1. A restart from round 2 on (phase 4 (b), **When no seat reports**) leaves the walk out, because the lint allows `## Walk` only in round 1.
 
-> Every task is committed. This is the integration review. The target is `git diff <START>` plus untracked files, read in `<WT>`. Write round 1 as `integration-round-1-<seat>.md`. The tasks were reviewed one at a time, so look at **the boundaries**: types and contracts between functions that call each other across tasks, names that do not match, duplicated implementations, and acceptance criteria for the whole design that are still unmet. No evidence file exists before round 1, because the tree is clean. Record the walk of every acceptance criterion and every flow of the whole design under `## Walk`, each run as a probe, with `ran:` and `saw:`, or `not run:`.
-
-A restart in round `<r>` of 2 or more (phase 4 (b), **When no seat reports**) sends this request with three changes: "Write round `<r>` as `integration-round-<r>-<seat>.md`", the sentence on no evidence file and the `## Walk` sentence left out, because the lint allows `## Walk` only in `integration-round-1-<seat>.md`, and the evidence being the newest `integration-round-<j>-evidence.md`, or, when no reply has fixed code, the `## Walk` of the `integration-round-1-<seat>.md` files.
-
-**`changes-requested` starts a new implementation session as well**, with the phase 3 call, model and effort included, and its `Scratch:` line, and each reply that changes code comes with `integration-round-<r>-evidence.md`. It names `<WORKDIR>/design.md`, `<WORKDIR>/plan.md` and `<WORKDIR>/notes.md` and no detail file, the progress is
-every task, and the request is to answer the integration review. From there the (b), (c) loop is the same as phase 4, with the `integration-round-<r>`
+**`changes-requested` starts a new implementation session as well**, with `$FLOW/scripts/flow.sh prompt <WT> work integration` and its `Agent` call. That prompt names the same files, carries every task as the progress, and asks for the answer to the round file just written, and each reply that changes code comes with `integration-round-<r>-evidence.md`. From there the (b), (c) loop is the same as phase 4, with `again integration` and `respond integration`, the `integration-round-<r>`
 files, and the `integration` scope has the same cap, counted the same way, by `cap` of
-`$FLOW/scripts/flow.sh status <WT> integration`. No session gets rebuilt during those rounds. Fixes become **one commit** after the review approves, with a
+`$FLOW/scripts/flow.sh status <WT> integration`. No session gets rebuilt during those rounds. Fixes become **one commit** after the review approves, by `$FLOW/scripts/flow.sh prompt <WT> commit integration`, with a
 subject that says what it is, such as "integration review fixes". No fixes means no commit.
 
 Review says `approve`, every finding is resolved, tests pass. Phase 6 starts when all three hold.

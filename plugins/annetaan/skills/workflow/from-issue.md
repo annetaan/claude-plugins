@@ -19,8 +19,8 @@ These values are already in your context. Nothing arrives as an argument.
 - the run's worktree `<WT>`, and `<MAIN>`, the main working tree. The session is in `<WT>`, and the branch is
   checked out there
 - `attach` from pj4-running's `run.sh start`, which has run its checks: whether `--attach` works
-- the `level.sh show` JSON, from **The level** in pj4-running. The design session, the worker and the review seats take
-  their `model` and `effort` from it
+- the `level.sh show` JSON, from **The level** in pj4-running. `begin` takes `level` and `source` from it, and each
+  session's `model` and `effort` come from `flow.sh prompt` (**The prompts** in SKILL.md)
 
 pj4-running has already run its checks (`gh`) on `<WT>` and confirmed that `work-reports/` is ignored there.
 Every command below runs in `<WT>`. Never touch `<MAIN>`. The user works in it during the run.
@@ -64,19 +64,17 @@ This entry asks nothing. Its ending is **What it hands back to pj4-running** bel
 
 ## The detail pass
 
-Read `$FLOW/roles/design.md` only to name it in the prompt. The design session reads it itself. Create
-`<WORKDIR>/scratch/design` with `mkdir -p`. Then start the design session.
+Create `<WORKDIR>/scratch/design` with `mkdir -p`. Then write the prompt:
 
-```
-Agent(subagent_type: "annetaan:workflow-design", description: "detail issue #<n>",
-      model: "<agents.workflow-design.model>", effort: "<agents.workflow-design.effort>",
-      prompt: "Read $FLOW/roles/design.md first and follow the role it describes, and within it **Detailing an issue**.\n\nThe issue: #<n>, \"<issue title>\"\nThe parent: #<P>\nWaits on: <#Q1, #Q2, or none>\nThe format of an issue: $FLOW/../pj1-plan/format.md\nThe script that reads a project: $FLOW/../pj1-plan/scripts/project.sh\n\nWork directory: <WORKDIR>\nDesign: <WORKDIR>/design.md\nHandover notes: <WORKDIR>/notes.md\n\nScratch: <WORKDIR>/scratch/design\n\n<the worktree line>")
+```bash
+$FLOW/scripts/flow.sh prompt <WT> design
 ```
 
-`annetaan:workflow-design` takes its model and effort from the level, `agents.workflow-design` of the level JSON.
+and start the design session with its line, `annetaan:workflow-design` with the `model` and `effort` the JSON prints
+(**The prompts** in SKILL.md). The prompt names the issue, the parent, where the parents it waits on are listed, the
+format of an issue, `project.sh`, the run's files and the scratch directory.
 **When its model is `fable` and it cannot start** (a weekly limit, a rate limit, the model is unavailable),
-spawn it again with the same prompt, `model: "opus"` and the same `effort`. Collapse
-the `..` in the two paths into `<skills>/pj1-plan/...`, as `pj4-running/SKILL.md` says for `$RUNNING`.
+spawn it again with the same prompt file, `model: "opus"` and the same `effort`.
 
 By what comes back:
 
@@ -95,8 +93,8 @@ By what comes back:
   `project.sh <P> --design <n>` command as in phase 2 (b) after every pass of pj4-running's **A redrawn issue** that
   answers go on, so that it holds the issue as it now reads on GitHub.
 - **The plan and the detail**: the design session's `<WORKDIR>/plan.md` and `<WORKDIR>/detail/task-<k>.md`.
-- **The commit**: in phase 4 (d), ask for a subject that follows the repository's style and names the task. A plan of
-  one task names the issue title.
+- **The commit**: the `commit` prompt of phase 4 (d) asks for a subject that follows the repository's style and names
+  the task, and for a plan of one task the issue title, the first line of `<WORKDIR>/design.md`.
 
 ## Phases 3 and 4
 
@@ -104,14 +102,10 @@ They run as written in SKILL.md, phase 4 (a) and (d) included: from task 2 onwar
 while the task before it is committed. Each
 task gets a new implementation session and new review seats, five rounds, one commit. **When the plan breaks** and a
 `Diverged:` report go to the design session with `SendMessage`. A new `Body:` from it goes through **A redrawn issue**
-again, and `Stop: ask` is the stop `decision`. Existing decisions stay byte for byte in every redraw. The prompts gain
-a line each.
-
-- The phase 3 prompt: "This run comes from issue #<n>. Follow **Work outside the task** in your role instruction."
-- The prompt of each seat: "The design is issue #<n>. Its checked decisions bind."
-- Every prompt, implementation and seats alike, carries **the worktree line** (**The worktree line** in SKILL.md).
-- Every review request, each seat's round 1 prompt and each later-round `SendMessage`, also carries the line
-  `Adaptations: <WORKDIR>/adaptations.md`.
+again, and `Stop: ask` is the stop `decision`. Existing decisions stay byte for byte in every redraw. `flow.sh prompt`
+reads the issue from `run.json`, so the prompts carry the issue's lines on their own: the implementation session
+follows **Work outside the task**, each seat is told that the issue's checked decisions bind, and every review request
+names `<WORKDIR>/adaptations.md`.
 
 Keep the handover lines from phase 4 (d) for pj4-running.
 
@@ -128,10 +122,8 @@ Keep the handover lines from phase 4 (d) for pj4-running.
 
 ## Phase 6 from an issue
 
-1. **The work report.** Read `finish.md`. The request in **The work report** in `finish.md` gains this:
-
-   > List the adaptations the implementation session made to the issue's design, in `<WORKDIR>/adaptations.md`, under
-   > what changed, and what the detail pass redrew in the issue.
+1. **The work report.** Read `finish.md` and run **The work report** there. Its `report` prompt also asks for the
+   adaptations in `<WORKDIR>/adaptations.md` and what the detail pass redrew in the issue.
 2. **`changes.diff`, then `flow.sh record`**, as written in `finish.md`. It writes the head of
    `pj1-plan/between-skills.md` **Pull requests** from the `--issue` and `--parent` that `begin` got.
 3. **Push, then open the pull request.**
