@@ -178,8 +178,8 @@ When `noLine` is not empty, add one line naming the steps that ended without a l
 
 Each `step` line and the `ended` line carry `denials`, the tool calls that run was refused, as `claude -p` reports them
 in `permission_denials`, each with `tool` and `input`. Under the line of the step they belong to, list each one as
-`refused <tool>: <input>`. The `ended` line's denials belong to step `ended.i` and go under its line. So every refusal of
-the drive shows at once.
+`refused <tool>: <input>`. The `ended` line's denials belong to step `ended.i` and go under its line. So every refusal
+`claude -p` reported shows at once.
 
 ## Rules
 
