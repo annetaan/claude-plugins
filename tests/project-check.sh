@@ -24,7 +24,8 @@ git init -q --bare origin.git
   mkdir src
   printf 'export function foo() {}\nexport function oldName() {}\nexport function parseBody() {}\nexport const $el = 1\n' > src/app.ts
   printf "export * from './app';\nexport * from './old';\n" > src/index.ts
-  git add README.md src/app.ts src/index.ts
+  printf '# Roadmap\n\n## Retry\n\nRetry a failed step.\n' > roadmap.md
+  git add README.md roadmap.md src/app.ts src/index.ts
   GIT_AUTHOR_DATE="1999-01-01T00:00:00Z" GIT_COMMITTER_DATE="1999-01-01T00:00:00Z" git commit -q -m "init"
   printf 'export function foo() {}\n' > src/app.ts
   git add src/app.ts
@@ -53,16 +54,18 @@ if args[:2] == ["api", "graphql"]:
                 + os.environ.get("FX_EXTRA_ENTRY", "") + "\n"
                 "## Acceptance criteria\n\n- `foo` is renamed.\n\n"
                 "## Decisions\n\nNone.\n\n## Out of scope\n\nNothing.\n")
-        sub = {"number": 2, "title": "Rename foo", "state": "OPEN", "stateReason": None,
+        sub = {"number": 2, "url": "https://github.com/test/repo/issues/2", "title": "Rename foo", "state": "OPEN", "stateReason": None,
                "updatedAt": "2000-01-01T00:00:00Z", "body": body,
                "labels": {"nodes": [{"name": "ready"}]},
                "blockedBy": {"nodes": []}, "blocking": {"nodes": []}}
         subs = [sub]
         if os.environ.get("FX_TWO"):
-            subs.append(dict(sub, number=3, title="Rename foo again"))
-        parent = {"number": 1, "title": "Project", "state": "OPEN", "stateReason": None,
+            subs.append(dict(sub, number=3, url="https://github.com/test/repo/issues/3", title="Rename foo again"))
+        parent = {"number": 1, "url": "https://github.com/test/repo/issues/1", "title": "Project", "state": "OPEN", "stateReason": None,
                   "updatedAt": "2000-01-01T00:00:00Z",
-                  "body": "Base: `pj/1` from `main`\n\n## Goal\n\nx\n",
+                  "body": "Base: `pj/1` from `main`\n"
+                          + ("Roadmap: `roadmap.md` Retry\n" if os.environ.get("FX_ROADMAP") else "")
+                          + "\n## Goal\n\nx\n",
                   "labels": {"nodes": []}, "blockedBy": {"nodes": []}, "blocking": {"nodes": []},
                   "subIssues": {"totalCount": len(subs), "nodes": subs}}
         print(json.dumps({"data": {"repository": {"issue": parent}}}))
@@ -219,3 +222,27 @@ out="$(multi 2 99 2>"$TMP/err")" || rc=$?
 [ -z "$out" ] || fail "--check 2 99 printed on stdout: $out"
 grep -q '#99 is not a sub-issue of #1' "$TMP/err" || fail "--check 2 99 said: $(cat "$TMP/err")"
 echo "ok: --check dies before printing when one number is no sub-issue"
+
+roadmap_entry='- `roadmap.md` (changed): deletes the Retry entry.'
+several_out="$(cd "$TMP/work" && FX_ROADMAP=1 FX_TWO=1 FX_EXTRA_ENTRY="$roadmap_entry" bash "$SCRIPT" -R test/repo 1 --check 2 3)" \
+  || fail "--check 2 3 with two roadmap tasks exited non-zero"
+printf '%s\n' "$several_out" | python3 -c '
+import json, sys
+lines = [json.loads(l) for l in sys.stdin]
+assert [d["number"] for d in lines] == [2, 3], lines
+for d in lines:
+    assert d["roadmap"]["several-tasks"] == [2, 3], d
+    assert d["ok"] is False, d
+    assert d["premises"]["failures"] == [], d["premises"]
+' || fail "--check 2 3 with two roadmap tasks printed: $several_out"
+echo "ok: --check fails every roadmap task when several list the file"
+
+one_out="$(cd "$TMP/work" && FX_ROADMAP=1 FX_EXTRA_ENTRY="$roadmap_entry" bash "$SCRIPT" -R test/repo 1 --check 2)" \
+  || fail "--check 2 with one roadmap task exited non-zero"
+printf '%s' "$one_out" | python3 -c '
+import json, sys
+d = json.load(sys.stdin)
+assert d["roadmap"]["several-tasks"] == [], d
+assert d["ok"] is True, d
+' || fail "--check 2 with one roadmap task printed: $one_out"
+echo "ok: --check passes the one roadmap task"

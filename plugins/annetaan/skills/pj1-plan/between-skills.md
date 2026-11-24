@@ -101,23 +101,15 @@ itself is the human's job.
 
 ## Labels
 
-| Label | Color | Description |
-| --- | --- | --- |
-| `ready` | `0E8A16` | Every decision is settled and the body is complete for its day. pj4-running details it against the code, then works on it. |
-| `blocker` | `B60205` | pj4-running stopped on this. Settle it before anything else. |
-| `project` | `5319E7` | The parent issue of a pj project. Its sub-issues are the project's tasks. |
-| `doing` | `1D76DB` | A pj project whose sub-issues are filed. It marks the parent issue. |
+| Label | What it means |
+| --- | --- |
+| `ready` | Every decision is settled and the body is complete for its day. pj4-running details it against the code, then works on it. |
+| `blocker` | pj4-running stopped on this. Settle it before anything else. |
+| `project` | The parent issue of a pj project. Its sub-issues are the project's tasks. |
+| `doing` | A pj project whose sub-issues are filed. It marks the parent issue. |
 
-**Make sure a label exists right before a skill first adds it in a run.** Run the label's command. An error saying the
-label already exists means the repository has it, and it is reused as it is. **Never pass `--force`.** It would
-overwrite the color and the description of a label the repository already uses.
-
-```bash
-gh label create ready --color 0E8A16 --description "Every decision is settled and the body is complete for its day. pj4-running details it against the code, then works on it."
-gh label create blocker --color B60205 --description "pj4-running stopped on this. Settle it before anything else."
-gh label create project --color 5319E7 --description "The parent issue of a pj project. Its sub-issues are the project's tasks."
-gh label create doing --color 1D76DB --description "A pj project whose sub-issues are filed. It marks the parent issue."
-```
+**`issue.sh label`, `sub --label` and `parent` make sure a label exists before they first add it**, with the color
+and the description `issue.py` holds. A label the repository already has is reused as it is and never overwritten.
 
 Only `pj3-doctor` adds `ready`, after its project review, to an issue that meets the bar
 for it (`state.md`, **When an issue is ready**). Ticking boxes on GitHub settles decisions and leaves the label
@@ -135,8 +127,8 @@ stays on a closed parent. Nothing reads it to decide anything: a project counts 
 `ready` comes off when something changes what the body says, such as a decision elsewhere. **Whoever takes it off
 leaves a comment** on the issue saying what changed and where. A skill marks that comment (see **Comments**).
 
-An issue loses `blocker` when it gets `ready`. `pj3-doctor` adds the one and removes the other in one
-command.
+An issue loses `blocker` when it gets `ready`. `pj3-doctor` adds the one and removes the other in one `issue.sh
+label` call.
 
 **Whenever `pj4-running` takes `ready` off an issue, it adds `blocker`**, except on a `decision` stop. There the issue
 holds a decision only the user can settle, so the user comes first, and `pj3-doctor` after the tick. Any other issue it
@@ -148,7 +140,7 @@ stopped on is then always the first thing `pj3-doctor` takes up.
 Read the number they were given, if any.
 
 ```bash
-gh issue list --label project --state open --limit 100 --json number,title,subIssuesSummary --jq 'sort_by(.number)'
+gh issue list --label project --state open --limit 100 --json number,title,url,subIssuesSummary --jq 'sort_by(.number)'
 gh issue view <n> --json number,state,labels,parent
 ```
 
@@ -233,11 +225,11 @@ A `pj3-doctor` or `pj4-running` run is unattended when its args carry the word `
 ## Titles
 
 The count in a sub-issue title (`format.md`, **The title**) is written only by `pj2-issues` and `pj3-doctor`, each
-with one title sync after its bodies are on GitHub. The sync is this block, run once per parent.
+with one title sync after its bodies are on GitHub. The sync is this command, run once per parent. It brings the title
+of each open sub-issue to its `wantedTitle` and prints the numbers it retitled as `changed`.
 
 ```bash
-project.sh <P>
-gh issue edit <k> --title "<wantedTitle>"   # each OPEN sub-issue whose wantedTitle differs from its title
+issue.sh titles <P>
 ```
 
 - A closed issue is never retitled.
@@ -251,14 +243,22 @@ The parent carries one comment that starts with `**[pj4-running]** Handover note
 line. It holds what the workflow sessions learnt about working in this repository: the commands that run the tests,
 the conventions kept, the traps hit.
 
-`pj4-running` reads it at the start of a run and rewrites it in place after every merge. Before a rewrite, read the
-comment's `updated_at` again and work in any change a human made since.
+`pj4-running` reads it at the start of a run and rewrites it in place after every merge. The read is this command.
 
 ```bash
 gh api "repos/{owner}/{repo}/issues/<P>/comments" --paginate --jq '.[] | select(.body | startswith("**[pj4-running]** Handover notes")) | {id, updated_at, body}'
-gh api -X PATCH "repos/{owner}/{repo}/issues/comments/<id>" -F body=@<file>
-gh issue comment <P> --body-file <file>    # the first time, when there is none
 ```
+
+The rewrite passes the `updated_at` of that read as `--since`. When the read found no comment, the first one is
+posted without it.
+
+```bash
+issue.sh handover <P> --since <updated_at> --body <file>
+issue.sh handover <P> --body <file>
+```
+
+A `moved` stop means a human changed the comment, removed it or posted one since the read. Read it again and work
+their change in.
 
 ## Blockers
 
@@ -270,25 +270,28 @@ issue holds an open decision, and the user ticks it first.
    blocked by it.
 
    ```bash
-   gh issue create --parent <P> --blocking <n> --label blocker --title "<title>" --body-file <file>
+   run.sh stop <P> <n> blocking --comment <file> --stub <file> --title "<title>"
    ```
 
+   `run.sh` (`pj4-running/scripts/run.sh`) files the stub labelled `blocker`, blocking `<n>`, then posts the marked
+   comment on `<n>`.
 2. **On the stopped issue itself, with `ready` taken off.** Its own body no longer holds: the detail
    pass could not draw a body that passes the checks.
 
    ```bash
-   gh issue edit <n> --remove-label ready --add-label blocker
-   gh issue comment <n> --body-file <file>
+   run.sh stop <P> <n> detail --comment <file>
    ```
+
+   It puts `blocker` on, takes `ready` off, then posts the marked comment.
 
 Either way a marked comment on the stopped issue says what diverged.
 
 `pj3-doctor` resolves both. A blocker that needs no code of its own is resolved by rewriting the issue in
-question. A stub blocker resolved that way is then closed with a marked comment that points at the rewrite.
+question. A stub blocker resolved that way is then closed with a marked comment that points at the rewrite, in one
+call.
 
 ```bash
-gh issue comment <m> --body-file <file>
-gh issue close <m> --reason completed
+issue.sh close <m> --reason completed --comment <file>
 ```
 
 ## Comments
@@ -302,6 +305,9 @@ Every comment a skill's main session posts starts with a bold marker, then the t
 | `**[pj-cleanup]**` | `pj-cleanup` |
 
 **A comment with no marker is from a human.** A skill reads it as one.
+
+`issue.sh comment`, `close` and `handover` refuse a file that does not start with one of these markers, with the stop
+`no-marker`. `handover` takes only a file that starts with `**[pj4-running]** Handover notes`.
 
 `pj1-plan` and `pj2-issues` file issues and post no comments. The review of a pull request lives in the review files
 of its work report (the `workflow` skill), so a pull request carries no review-thread markers.
@@ -362,9 +368,13 @@ main)`, never `https://github.com/<owner>/<repo>/pull/466(pj/212 into main)` or
 The rule also holds where a report format in a skill puts punctuation right after `#<n>` or a URL: the output puts a
 space between them, as in `(waits on https://github.com/<owner>/<repo>/issues/7 , closed without a merge)`.
 
-```bash
-gh repo view --json url --jq .url    # once per run; append /issues/<n> or /pull/<n>
-```
+Every URL comes from `project.sh` or from the command that names the issue, never from one put together by hand:
+
+- `url` on the parent, on each issue and on each entry of `parent.waitsOn` in `project.sh <P>` (`state.md`,
+  **Reading a project**)
+- `pr.url` on an issue's pull request, and `projectPr` on the parent
+- the `url` that `issue.sh parent` and `issue.sh sub` print
+- for a candidate whose `project.sh <P>` failed, the `url` of the `gh issue list` in **Picking the project**
 
 The progress lines a run prints, such as `project #<P>` or `#<k> rewritten`, the headers of
 `AskUserQuestion` and everything written to GitHub keep `#<n>`. GitHub draws a link from `#<n>` on its own pages.
@@ -412,7 +422,58 @@ Print `#<k> format fixed`, and name the fix in the report.
 
 ## Writing to GitHub
 
-- **Always pass a body with `--body-file`.** A body passed with `--body` on the command line breaks on quotes and
-  backticks.
-- **Re-read `updatedAt` right before an edit.** When it moved since you read the body, someone changed the issue in
-  the meantime. Read it again and keep their change in what you write. Never overwrite a body you have not read.
+**Every write to an issue, a relationship, a label or a comment goes through `issue.sh`**, next to `project.sh` in
+`scripts/issue.sh`. Reads stay with `gh` and `project.sh`. Each subcommand reads a body or a comment from a file
+written with Write, so a call is one command.
+
+| Subcommand | What it does |
+| --- | --- |
+| `label <n> [--add <name>,...] [--remove <name>,...]` | adds and removes labels on `#<n>` in one call, at least one of the two, and makes sure each label it adds exists (**Labels**) |
+| `parent --title <t> --from <branch> [--blocked-by <Q>,<R>] [--roadmap <path> <heading>] --body <file>` | lints the body with its `Base:` line and, given `--roadmap`, its `Roadmap:` line, files the parent labelled `project`, blocked by the parents named, then writes those lines above the body with the parent's number |
+| `sub <P> --title <t> [--blocked-by <n>,<m>] [--blocking <k>] [--label <name>] --body <file>` | files a sub-issue of `#<P>` with its edges and label, refuses a body whose lint fails on anything but `decisions-open` and `stub`, and runs the cycle check of `project.sh <P> --order` after its edges |
+| `relate <n> add\|remove <m>` | adds or removes "`#<n>` blocked by `#<m>`", between two sub-issues or two parents, runs the cycle check on the project after an add, and takes the edge back off when it made a cycle |
+| `order <P> --since <updatedAt>` | writes the parent body that `project.sh <P> --order-body` prints (`state.md`, **Reading a project**) |
+| `titles <P>` | brings each open sub-issue's title to `wantedTitle` and skips the closed ones (**Titles**) |
+| `edit <n> --since <updatedAt> --body <file> [--title <t>]` | writes a body, and the title when one is given; refuses a parent body that fails `project.sh --parent-lint`, and lints no sub-issue body |
+| `comment <n> --body <file>` | posts a marked comment (**Comments**) |
+| `handover <P> [--since <updated_at>] --body <file>` | rewrites the parent's handover comment; without `--since`, posts it only when the parent has none (**The handover comment**) |
+| `close <n> --reason completed\|not-planned --comment <file>` | posts the marked comment and closes `#<n>` in one write; on an issue already closed, writes nothing |
+
+**`--since` goes on the writes that replace text**: `edit`, `order` and `handover`. It is the `updatedAt` of the
+issue, or the `updated_at` of the handover comment, from the read the text was drawn against. Labels, titles,
+relationships and new comments replace no text a human wrote, and take none.
+
+**The output** is one JSON object, and the exit is 0 on a write and on a refusal.
+
+- A write prints `status` `ok`. `parent` and `sub` add `number` and `url`, and `titles` adds `changed`, the numbers
+  it retitled.
+- A refusal prints `status` `stop`, with a `reason` and a `message`.
+- Exit 1 is a usage error or an unexpected failure, with `issue: <message>` on stderr. It is handled as a command that
+  failed.
+
+**The five stops.** Each changes nothing on GitHub, except `cycle`, which undoes its own edge.
+
+- `moved`: the issue's `updatedAt`, or the handover comment's `updated_at`, changed since the `--since` given. The
+  stop adds the new value under that name and, when the call names a file, `github`, the path of `<file>.github`,
+  which holds GitHub's text. The model merges the human's change and writes again with the new value, except where a
+  skill takes the stop `user`. A first `handover` stops `moved` when a handover comment already exists, and one with
+  `--since` stops `moved` when the comment is gone.
+- `closed`: the issue written to is closed. For `sub`, `order` and `handover` that is `#<P>`. `close` and `titles`
+  never stop on it.
+- `no-marker`: the comment file does not start with a marker (**Comments**). The model fixes the file and runs the
+  call again.
+- `lint`: `parent`, `sub`, or `edit` on a parent refused the body, and the stop adds `reasons`, the codes `project.sh`
+  printed. The body goes back to the writer that drew it, or to the planner, and the call runs again with the body that
+  comes back.
+- `cycle`: an edge made a cycle and was taken back off. After `sub` the issue stays filed without its edges, and the
+  stop adds its `number` and `url`. The run reports the edge as a split error, says what was written, and stops.
+
+**The checks run in this order**, all before the first write: usage, `no-marker`, `lint`, `closed`, `moved`. `order`
+checks `cycle` between `closed` and `moved`, and the `cycle` of `sub` and `relate` comes after the write it takes back.
+
+**A `moved` stop from `order`** names no file. Read `project.sh <P>` again and run `order` again with its
+`parent.updatedAt`, once: `--order-body` builds the body from GitHub's current text, so the human's change is kept. A
+second `moved` is reported, and the next `pj3-doctor` run rewrites the order.
+
+**A stop that a skill's step does not name is a failure of that step**, reported with what was written, as for a
+command that fails halfway.

@@ -53,22 +53,17 @@ later. Once it exists, work the project needs from elsewhere becomes a stub in t
 ### Relationships
 
 Dependencies live in GitHub's own relationships, so the issue page shows them and a command can read them. **Never
-also list them in a body.** Two copies drift apart.
-
-```bash
-gh issue create --parent <P> --blocked-by <n>,<m> --title "<title>" --body-file <file>
-gh issue edit <n> --add-blocked-by <m>
-gh issue edit <n> --remove-blocked-by <m>
-gh issue edit <P> --add-blocked-by <Q>          # parent P waits on parent Q
-```
+also list them in a body.** Two copies drift apart. The skills write the edges with `issue.sh relate`, `issue.sh sub
+--blocked-by` and `issue.sh parent --blocked-by` (`between-skills.md`, **Writing to GitHub**).
 
 A sub-issue edge runs between two sub-issues of the same parent. A parent edge runs between two parents. An edge never
 runs between a parent and a sub-issue, between sub-issues of different projects, or from a parent to an issue that is
 no project. `project.sh` fails on the last one.
 
-**No cycles**, within a project or between projects. After any change to the relationships, run
-`project.sh <P> --order` on the project whose edges changed, and for a parent edge on the blocked parent. It fails
-and names the cycle when there is one, of either kind. Undo the edge that made it.
+**No cycles**, within a project or between projects. `project.sh <P> --order` fails and names the cycle when there is
+one, of either kind. `issue.sh relate` and `issue.sh sub` run it after an edge they add, on the project whose edges
+changed, and take the edge back off when it made a cycle. `pj1-plan` checks the edges `issue.sh parent` wrote with
+`project.sh <P> --order` after filing.
 
 ## The roadmap file
 
@@ -161,22 +156,23 @@ issue's title and whether it is open or closed, so the list shows the progress w
 - **`pj2-issues` writes it when it files the sub-issues, and `pj3-doctor` rewrites it** from
   `project.sh <P> --order`, whose `list` keeps the human's order wherever the blockers allow it. The closed issues
   come first, then the open ones. An issue closed as not planned leaves the list.
-- **`pj4-running` rewrites it only after a detail pass changed the edges**, through `project.sh <P> --order-body`. A
-  closed issue shows as closed where it stands.
+- **`pj4-running` rewrites it only after a detail pass changed the edges.** A closed issue shows as closed where it
+  stands.
+- All three write it with `issue.sh order`, which writes the body `project.sh <P> --order-body` prints.
 
 `project.sh <P>` reads the list as `parent.order` and checks it as `parent.orderCheck`
 (`state.md`, **Reading a project**). An issue missing from the list, such as a stub filed during a run, waits for
 `pj3-doctor` to place it.
 
 `Base:` names the project's base branch and, after `from`, the branch it is made from. That second branch is the one
-the user merges the base branch into at the end. `pj1-plan` files the parent, then adds the line to the
-body. It takes two steps because the branch name carries the parent's number. The line is written before the branch
+the user merges the base branch into at the end. `issue.sh parent` files the parent and writes the line above the
+body in one call, once the parent's number, which the branch name carries, is known. The line is written before the branch
 exists, and `pj4-running` creates the branch later (`between-skills.md`, **The base branch**). Nobody changes the
 line after that. A skill that rewrites the parent body keeps the line as it is.
 
 The `Roadmap:` line is on one parent only, the one that carries the initiative's roadmap entry, and every other parent
-has `Base:` alone. `<path>` and `<entry heading>` are `path` and the `heading` of one entry from `project.sh --roadmap`. `pj1-plan`
-writes the `Roadmap:` line in the same edit as `Base:`, and nobody changes it afterwards. A skill that rewrites the
+has `Base:` alone. `<path>` and `<entry heading>` are `path` and the `heading` of one entry from `project.sh --roadmap`. `issue.sh
+parent` writes the `Roadmap:` line on the carrier in the same call as `Base:`, and nobody changes it afterwards. A skill that rewrites the
 parent body keeps it too. The lines above `## Goal` belong to the main session, and every planner body starts at
 `## Goal`.
 
@@ -221,7 +217,9 @@ parent body keeps it too. The lines above `## Goal` belong to the main session, 
 Only you know: <the thing only a human can answer>
 
 - [ ] <option A>
+  <what it changes: the behaviour, the names, the files>
 - [ ] <option B> (recommended)
+  <what it changes>
 
 ### D2. ...
 
@@ -325,7 +323,7 @@ read `Add retry settings (0/2)`, then `Add retry settings (1/2)`, then `Add retr
   numbering the parts of a split.
 - **Nobody writes the count by hand.** A writer returns a title without it. `project.sh` derives the title an issue
   should carry as `wantedTitle` (`state.md`, **Reading a project**), and the skills bring the titles in line with it
-  (`between-skills.md`, **Titles**).
+  with `issue.sh titles` (`between-skills.md`, **Titles**).
 - Ticking a box on GitHub leaves the title as it was until the next `pj3-doctor` run. `pj4-running` also writes the
   count, when it appends a decision to an issue and stops.
 - A parent's title carries no count.
@@ -407,7 +405,8 @@ The labels a stub may carry are in (`between-skills.md`, **Labels**).
 
 A parent with a `Roadmap:` line has one **roadmap task**: the one sub-issue whose file list names the roadmap file.
 No other task lists that file. `project.sh` identifies it as `parent.roadmap.task` (`state.md`, **Reading a
-project**), and reads more than one such issue as no task, which the reviewer raises.
+project**). It reads more than one such issue as no task, and `--check` fails each of them with
+`roadmap.several-tasks`.
 
 - **It is blocked by every other sub-issue**, so it is last in `## Order` and its change reaches `<from>` in the
   project's pull request. `pj2-issues` files it with those edges, and `pj3-doctor` adds an edge for each number in
@@ -438,11 +437,28 @@ ref, and a path missing at the ref holds no name.
 | `no-symbols` | a `changed` entry on a code file that holds a name names no symbol |
 | `criteria` | there is no acceptance criterion, or a criterion has no backticked anchor |
 | `breakage-entry` | `### Left broken` has no bullet, or a bullet has no backticked check |
+| `line-number` | the body, outside code fences, points at a file by line number as `<path>:<n>` or `#L<n>` |
+| `option-shape` | an option has no indented line under it: the next non-blank line is not indented, or is an option |
 | `decision-shape` | a decision does not have 2 to 4 options, or does not have exactly one `(recommended)` |
+| `only-you-know` | a decision has no line that starts with `Only you know:` followed by text |
 | `decisions-open` | a decision is open |
 | `decisions-contradictory` | a decision is contradictory |
 
-The lint does not look at `Only you know:`, at `### Shared state` or at `### Model decisions`. The main sessions and the project reviewer do.
+The lint does not look at `### Shared state` or at `### Model decisions`. The main sessions and the project reviewer do.
+
+`project.sh --parent-lint` reports these codes in `reasons` for a parent body (**The parent issue body**), and
+`project.sh <P>` prints them as `parent.lint`.
+
+| Code | Fails when |
+| --- | --- |
+| `base` | no line above the first heading reads `Base: `, a backticked `pj/<n>`, ` from ` and a backticked branch |
+| `roadmap` | a `Roadmap:` line above the first heading names none of the six roadmap paths, or has no heading after the path |
+| `order` | a line under `## Order` is neither blank nor `<i>. #<n>` |
+| `sections` | the headings other than `## Order` are not `## Goal`, `## Design`, `## Decisions`, `## Out of scope` in that order, or `## Order` comes after `## Goal` |
+| `decision-shape` | as in the sub-issue lint, with `None.` passing |
+| `only-you-know` | as in the sub-issue lint |
+| `decisions-open` | as in the sub-issue lint |
+| `decisions-contradictory` | as in the sub-issue lint |
 
 ## Fixed tokens
 
@@ -464,4 +480,5 @@ Everything else is prose in the repository's language.
 
 - **Write in the language the repository uses.** Look at the README and recent issues. Where the repository gives
   nothing to go on, write in the language the user is using. Talk to the user in the user's language.
-- **Never point at a file by line number.** Point with a path and a symbol name.
+- **Never point at a file by line number.** Point with a path and a symbol name. The lint fails `<path>:<n>` and
+  `#L<n>` (`line-number`). Every other form, such as `line 42`, is read by eye.

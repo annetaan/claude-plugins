@@ -24,7 +24,8 @@ user.
 
 This skill uses these files:
 
-- the script `$AUTO/scripts/auto.sh`. `auto.sh --rules` prints the rules every drive needs and the user's settings.
+- the script `$AUTO/scripts/auto.sh`. `auto.sh --rules` judges the rules every drive needs, and the rules it is
+  given, against the user's settings.
 - the script `$AUTO/../pj1-plan/scripts/project.sh`, written `project.sh` below
 - the script `$AUTO/../workflow/scripts/level.sh`, written `level.sh` below
 
@@ -77,26 +78,18 @@ user** says for that reason, and end.
 Runs only when a step would run. The runs cannot ask, so show the user what their settings lack before the question.
 
 1. The rules every drive needs and what the settings hold: run `$AUTO/scripts/auto.sh --rules` and read the output
-   whole. `main` is `<MAIN>`. `base` lists the eight rules, each with the files whose `allow` list holds that exact
-   string, and `settings` lists the three settings files with their `allow`, `deny` and `ask` rules.
+   whole. `main` is `<MAIN>`. `base` lists nine rules, each already judged: `verdict` is `covered`, `blocked` or
+   `missing`, `file` is the settings file that decided it and `by` the rule in that file, both null for `missing`.
+   `settings` names the three settings files, each with `exists` and `error`.
 2. The repository's own commands: install, tests, type checks, lint, build. Find them with Read and Glob in `<MAIN>`:
    `CLAUDE.md`, `AGENTS.md` and `CONTRIBUTING.md`; the root manifest and lockfile that name the package manager
    (`package.json` scripts with `pnpm-lock.yaml`, `package-lock.json`, `yarn.lock` or `bun.lockb`; `Makefile`;
    `pyproject.toml`; `Cargo.toml`; `go.mod`); the CI workflows under `.github/workflows/`. Also the parent's handover
-   comment, read with the command in `pj1-plan/between-skills.md`, **The handover comment**. Each command becomes
-   `Bash(<program>:*)`, such as `Bash(pnpm:*)` for `pnpm install`. Write a narrower `Bash(<program> <subcommand>:*)`
-   only when the user's rules are already written that way.
-3. Judge each rule, the eight base rules and those of step 2, against the lists of every file:
-   - **covered**: an `allow` rule matches. It is the same string; a `:*` rule whose prefix starts the command; the
-     space form `Bash(gh *)`, which counts as `Bash(gh:*)`; the tool name alone (`Bash`, `Bash(*)`, `Read`); or, for a
-     `Read` rule, a path glob that contains the needed path (expand `~/`, and read `//` as an absolute path). Note
-     the file.
-   - **blocked**: a `deny` or `ask` rule matches. It is the same string, or it is narrower than the needed rule, that
-     is its prefix begins with the needed rule's prefix, such as `Bash(gh pr merge:*)` against `Bash(gh:*)`. Blocked
-     wins over covered. Note the rule and the file, so that the user sees which command will stop.
-   - **missing**: otherwise.
-
-   A file with an `error` is named, and its rules count as absent.
+   comment, read with the command in `pj1-plan/between-skills.md`, **The handover comment**. Each command, whole,
+   becomes `Bash(<the full command>:*)`, such as `Bash(npm run test:*)` for `npm run test`.
+3. Judge the rules of step 2: run `$AUTO/scripts/auto.sh --rules` again with each rule of step 2 as one argument,
+   and read `extra`, which holds those rules in the order given, judged as `base` is. A file with an `error` is
+   named, and its rules count as absent.
 4. Paths no rule opens: run `$AUTO/../pj1-plan/scripts/project.sh <P>` with the real path, collapsed as **Paths** in
    `pj3-doctor` and `pj4-running` say. Each open sub-issue with a `designPaths` entry that starts with `.claude/` is a
    step the drive cannot run: Claude Code asks before it writes under a repository's `.claude/` whatever the rules
@@ -127,7 +120,7 @@ Otherwise a step would run. Show a summary first:
 - that no other session may run on the same project while the drive runs: a dirty worktree is taken for a dead run's
   and discarded
 - the permissions: every rule from **The permissions**, one line each, as `covered (<file>)`, `missing`, or
-  `blocked (<rule> in <file>)`. For each repository command, where it was found. Each issue under `.claude/` as
+  `blocked (<by> in <file>)`. For each repository command, where it was found. Each issue under `.claude/` as
   `<issue URL> writes <path>`, with the note that the drive stops there and that `/annetaan:pj4-running <P>` run by
   hand does that issue.
 

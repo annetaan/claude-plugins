@@ -123,3 +123,102 @@ for code in src/app.ts requirements.txt; do
   [ "$(ok "$TMP/one.md")" = "True" ] || fail "a changed entry on $code printed: $(lint "$TMP/one.md")"
 done
 echo "ok: --lint leaves a code entry with no symbol to --check"
+
+body x x "" >"$TMP/base.md"
+grep -v '^Only you know: whether the people who sign out' "$TMP/base.md" >"$TMP/noyk.md"
+got="$(reasons "$TMP/noyk.md")"
+[ "$got" = '["only-you-know"]' ] || fail "a decision with no Only you know line printed $got, wanted [\"only-you-know\"]"
+echo "ok: a decision with no Only you know line fails only-you-know"
+
+grep -v '^  Nothing changes\.' "$TMP/base.md" >"$TMP/last.md"
+grep -v '^  Adds a prompt\.' "$TMP/base.md" >"$TMP/next.md"
+for f in last next; do
+  got="$(reasons "$TMP/$f.md")"
+  [ "$got" = '["option-shape"]' ] || fail "an option with no indented line ($f) printed $got, wanted [\"option-shape\"]"
+done
+python3 - "$TMP/base.md" >"$TMP/fenced.md" <<'PY'
+import sys
+print(open(sys.argv[1]).read().replace("  Adds a prompt.\n", "  ```sh\n  prompt\n  ```\n"), end="")
+PY
+got="$(reasons "$TMP/fenced.md")"
+[ "$got" = '[]' ] || fail "an option with an indented code block under it printed $got, wanted []"
+echo "ok: an option with no indented line fails option-shape"
+
+for hit in '`src/app.ts:42`' 'see a/b:7' '`src/app.ts#L42-L50`' 'https://github.com/o/r/blob/main/src/app.ts#L42' '参照src/app.ts:42' 'src/app.ts#L42を参照'; do
+  body x x "" "- $hit" >"$TMP/hit.md"
+  got="$(reasons "$TMP/hit.md")"
+  [ "$got" = '["line-number"]' ] || fail "$hit printed $got, wanted [\"line-number\"]"
+done
+for miss in '`localhost:8080`' 'https://example.com:443/path' 'at 10:30' '`127.0.0.1:8080`' '`Dockerfile:3`' '
+```
+src/app.ts:42
+```'; do
+  body x x "" "- $miss" >"$TMP/miss.md"
+  got="$(reasons "$TMP/miss.md")"
+  [ "$got" = '[]' ] || fail "$miss printed $got, wanted []"
+done
+echo "ok: a pointer by line number fails line-number and a port does not"
+
+got="$(lint "$TMP/open.md" | python3 -c "import json, sys; print(json.dumps(json.load(sys.stdin)['decisions'], sort_keys=True))")"
+[ "$got" = '{"contradictory": 0, "open": 1, "settled": 1, "total": 2}' ] || fail "--lint printed decisions $got"
+echo "ok: --lint prints the decision counts"
+
+parent() {
+  cat <<EOF
+${1-Base: \`pj/7\` from \`main\`}
+${2-}
+
+## Order
+
+${3-1. #8}
+
+## Goal
+
+x
+
+## Design
+
+y
+
+## Decisions
+
+${4-None.}
+
+## Out of scope
+
+${5-z}
+EOF
+}
+decision() {
+  printf '### D1. Which?\n\nWhy.\n\n%s\n\n- [%s] A (recommended)\n  a\n%s\n' "${3-Only you know: the users.}" "$1" "${2-- [ ] B
+  b}"
+}
+plint() { bash "$SCRIPT" --parent-lint - | python3 -c "import json, sys; d = json.load(sys.stdin); print(d['ok'], json.dumps(d['reasons']))"; }
+check_parent() {
+  local want="$1"; shift
+  got="$(parent "$@" | plint)"
+  [ "$got" = "$want" ] || fail "--parent-lint printed $got, wanted $want"
+}
+B='Base: `pj/7` from `main`'
+check_parent 'True []' "$B" 'Roadmap: `docs/roadmap.md` Retry settings' '1. #8
+2. #9' "$(decision x)"
+check_parent 'False ["base"]' 'Base: pj/7 from main'
+check_parent 'False ["roadmap"]' "$B" 'Roadmap: `notes.md` Retry settings'
+check_parent 'False ["roadmap"]' "$B" 'Roadmap: `docs/roadmap.md`'
+check_parent 'False ["order"]' "$B" '' '1. #8 first'
+check_parent 'False ["sections"]' "$B" '' '1. #8' 'None.
+
+## Notes'
+check_parent 'False ["decision-shape"]' "$B" '' '1. #8' "$(decision x '')"
+check_parent 'False ["only-you-know"]' "$B" '' '1. #8' "$(decision x '- [ ] B
+  b' '')"
+check_parent 'False ["decisions-open"]' "$B" '' '1. #8' "$(decision ' ')"
+check_parent 'False ["decisions-contradictory"]' "$B" '' '1. #8' "$(decision x '- [x] B
+  b')"
+got="$(printf '%s\n\n## Goal\n\nx\n\n## Order\n\n1. #8\n\n## Design\n\ny\n\n## Decisions\n\nNone.\n\n## Out of scope\n\nz\n' "$B" | plint)"
+[ "$got" = 'False ["sections"]' ] || fail "## Order after ## Goal printed $got"
+echo "ok: --parent-lint names each broken rule and passes a parent in the format"
+
+got="$(printf '%s\n\n## Goal\n\nx\n\n## Design\n\ny\n\n## Decisions\n\nNone.\n\n## Out of scope\n\nz\n' "$B" | plint)"
+[ "$got" = 'True []' ] || fail "a parent with None. and no Roadmap line printed $got"
+echo "ok: --parent-lint passes None. and no Roadmap line"

@@ -19,12 +19,19 @@ json() { python3 -c 'import json,sys; d=json.load(sys.stdin); print(eval(sys.arg
 
 mkdir -p "$TMP/skills/pj4-running/scripts" "$TMP/skills/pj1-plan/scripts" "$TMP/skills/workflow/scripts" "$TMP/bin"
 cp "$SCRIPTS/run.sh" "$SCRIPTS/run.py" "$TMP/skills/pj4-running/scripts/"
+cp "$SCRIPTS/../../pj1-plan/scripts/issue.py" "$TMP/skills/pj1-plan/scripts/"
 cp "$SCRIPTS/../../workflow/scripts/clone.py" "$TMP/skills/workflow/scripts/"
 SCRIPT="$TMP/skills/pj4-running/scripts/run.sh"
 
 cat > "$TMP/skills/pj1-plan/scripts/project.sh" <<'EOF'
 #!/usr/bin/env bash
 echo '{"parent":{"number":1,"base":"pj/1","waitsOn":[]},"issues":[{"number":2,"state":"OPEN","pr":{"number":3,"state":"OPEN"}}]}'
+EOF
+
+cat > "$TMP/skills/pj1-plan/scripts/issue.sh" <<'EOF'
+#!/usr/bin/env bash
+echo "$*" >> "$FAKE/issue.log"
+echo '{"status":"ok"}'
 EOF
 
 export FAKE="$TMP/fake"
@@ -54,14 +61,15 @@ case "$1 $2" in
       esac
       printf 'test\tpass\t1m\n'
     fi ;;
-  "pr ready"|"pr merge"|"issue comment"|"issue close") ;;
+  "pr ready"|"pr merge") ;;
   *) echo "unexpected gh $*" >&2; exit 1 ;;
 esac
 EOF
-chmod +x "$TMP/bin/gh" "$TMP/skills/pj1-plan/scripts/project.sh"
+chmod +x "$TMP/bin/gh" "$TMP/skills/pj1-plan/scripts/project.sh" "$TMP/skills/pj1-plan/scripts/issue.sh"
 export PATH="$TMP/bin:$PATH"
 
-echo closed > "$TMP/closed.md"
+echo "**[pj4-running]** closed" > "$TMP/closed.md"
+echo closed > "$TMP/unmarked.md"
 
 setup() {
   local workflow="$1" ruleset="$2" checks="$3"
@@ -217,3 +225,19 @@ out="$(merge --wait 1)"
 [ "$(echo "$out" | json 'd["reason"]')" = no-checks ] || fail "required check never registers reason: $out"
 grep -q '^pr merge' "$FAKE/gh.log" && fail "merged with no required check: $(cat "$FAKE/gh.log")"
 echo "ok: stops with no-checks when the base branch requires a check and none registers"
+
+setup "$ON_PR" '[]' pass
+out="$("$SCRIPT" merge 1 2 3 --comment "$TMP/unmarked.md")"
+[ "$(echo "$out" | json 'd["status"]')" = stop ] || fail "unmarked comment: $out"
+[ "$(echo "$out" | json 'd["reason"]')" = no-marker ] || fail "unmarked comment reason: $out"
+[ -s "$FAKE/gh.log" ] && fail "called gh with an unmarked comment: $(cat "$FAKE/gh.log")"
+[ -s "$FAKE/issue.log" ] && fail "called issue.sh with an unmarked comment: $(cat "$FAKE/issue.log")"
+echo "ok: merge refuses an unmarked comment before it reads or merges anything"
+
+setup "$ON_PR" '[]' pass
+out="$(merge)"
+[ "$(echo "$out" | json 'd["issue"]')" = closed ] || fail "issue not closed: $out"
+[ "$(cat "$FAKE/issue.log")" = "close 2 --reason completed --comment $TMP/closed.md" ] \
+  || fail "issue.sh calls: $(cat "$FAKE/issue.log")"
+grep -q '^issue' "$FAKE/gh.log" && fail "wrote to the issue through gh: $(cat "$FAKE/gh.log")"
+echo "ok: merge closes the issue through issue.sh close"
