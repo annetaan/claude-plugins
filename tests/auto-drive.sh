@@ -142,6 +142,54 @@ assert lines[-1]["noLine"] == [1, 2], lines[-1]
 ' || fail "no-line: unexpected drive: $OUT"
 echo "ok: no last line without the message is still no-line"
 
+DENIED='{"is_error":false,"result":"stuck\nunattended: needs-user make test was refused","permission_denials":[{"tool_name":"Bash","tool_use_id":"t1","tool_input":{"command":"make test","description":"d"}},{"tool_name":"Write","tool_use_id":"t2","tool_input":{"file_path":"/etc/x","content":"c"}},{"tool_name":"WebFetch","tool_use_id":"t3","tool_input":{"url":"https://example.com"}}]}'
+FX_RESULT="$DENIED" run_drive
+[ "$(statuses)" = "started begin ended" ] || fail "denials: unexpected statuses: $(statuses)"
+printf '%s\n' "$OUT" | tail -n 1 | python3 -I -c '
+import json, sys
+e = json.loads(sys.stdin.read())
+assert e["reason"] == "needs-user", e
+assert e["i"] == 1, e
+assert e["denials"] == [
+    {"tool": "Bash", "input": "make test"},
+    {"tool": "Write", "input": "/etc/x"},
+    {"tool": "WebFetch", "input": "{\"url\":\"https://example.com\"}"},
+], e
+' || fail "denials: the needs-user ended line is wrong: $(printf '%s\n' "$OUT" | tail -n 1)"
+
+DONE_DENIED='{"is_error":false,"result":"ok\nunattended: done","permission_denials":[{"tool_name":"Bash","tool_use_id":"t1","tool_input":{"command":"make test","description":"d"}}]}'
+FX_RESULT="$DONE_DENIED" run_drive
+printf '%s\n' "$OUT" | python3 -I -c '
+import json, sys
+lines = [json.loads(l) for l in sys.stdin]
+steps = [l for l in lines if l["status"] == "step"]
+assert len(steps) == 2, lines
+for s in steps:
+    assert s["denials"] == [{"tool": "Bash", "input": "make test"}], s
+assert lines[-1]["reason"] == "done", lines[-1]
+assert lines[-1]["i"] is None, lines[-1]
+assert lines[-1]["denials"] == [], lines[-1]
+' || fail "denials: a done drive with a refused call is wrong: $OUT"
+
+FX_RESULT='not json' run_drive
+printf '%s\n' "$OUT" | tail -n 1 | python3 -I -c '
+import json, sys
+e = json.loads(sys.stdin.read())
+assert e["reason"] == "child-failed", e
+assert e["denials"] == [], e
+' || fail "denials: the child-failed ended line is wrong: $(printf '%s\n' "$OUT" | tail -n 1)"
+
+run_drive
+printf '%s\n' "$OUT" | python3 -I -c '
+import json, sys
+lines = [json.loads(l) for l in sys.stdin]
+carrying = [l for l in lines if l["status"] in ("step", "ended")]
+assert len(carrying) == 3, lines
+for l in carrying:
+    assert l["denials"] == [], l
+' || fail "denials: a clean drive carries a refused call: $OUT"
+echo "ok: the step and ended lines carry the tool calls the run was refused, each once"
+
 unset CLAUDE_CONFIG_DIR
 USER_SETTINGS="$HOME/.claude/settings.json"
 PROJECT_SETTINGS="$TMP/repo/.claude/settings.json"

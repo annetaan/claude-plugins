@@ -390,7 +390,7 @@ What it needs:
 - no deny or ask rule in your settings over `Bash(gh:*)`, `Bash(git:*)`, the six script rules or the `Read` rule for the
   plugin's skills directory, because a run cannot answer an ask. You need not add them: pj-auto grants them to each run
   and names any rule of yours that blocks one before it asks. The repository's own commands, such as the tests, go to
-  auto mode's classifier.
+  auto mode's classifier. When the drive ends, it lists every call a run was refused.
 - no sub-issue that changes files under `.claude/` can run unattended, because Claude Code asks before writing there
   whatever your rules say. pj-auto names such issues. The drive stops at one, and `/annetaan:pj4-running` run by hand
   does it.

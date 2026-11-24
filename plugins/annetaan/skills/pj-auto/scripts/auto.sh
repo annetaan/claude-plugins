@@ -162,13 +162,14 @@ MAIN=""
 NOLINE=""
 FINISHED=0
 STEP_I=null
+DENIALS="[]"
 
 now() { date -u +%Y-%m-%dT%H:%M:%SZ; }
 
 end() {
   local nolist
   nolist="[$(echo "$NOLINE" | tr -s ' ' ',' | sed 's/^,//; s/,$//')]"
-  emit status=ended reason="$1" next:="$2" message="$3" noLine:="$nolist" i:="$STEP_I" log="$LOG"
+  emit status=ended reason="$1" next:="$2" message="$3" noLine:="$nolist" i:="$STEP_I" denials:="$DENIALS" log="$LOG"
   exit 0
 }
 
@@ -258,6 +259,28 @@ else:
     print("no-line")
 ' "$OUT")"
 
+  DENIALS="$(python3 -I -c '
+import json, sys
+try:
+    d = json.load(open(sys.argv[1]))
+except Exception:
+    d = None
+found = d.get("permission_denials") if isinstance(d, dict) else None
+out = []
+for x in found if isinstance(found, list) else []:
+    if not isinstance(x, dict):
+        continue
+    ti = x.get("tool_input") if isinstance(x.get("tool_input"), dict) else {}
+    if "command" in ti:
+        given = ti["command"]
+    elif "file_path" in ti:
+        given = ti["file_path"]
+    else:
+        given = json.dumps(ti, ensure_ascii=False, separators=(",", ":"))
+    out.append({"tool": x.get("tool_name"), "input": given})
+print(json.dumps(out, ensure_ascii=False))
+' "$OUT")"
+
   if [ "$CODE" -ne 0 ] || [ "$VERDICT" = "failed" ]; then
     end child-failed "$CUR" "$SKILL failed: see $ERR and $OUT"
   fi
@@ -284,8 +307,9 @@ print(found)
       [ -n "$BG" ] && end bg-killed "$CUR" "claude -p stopped the background tasks of step $I, still running after its wait: $BG"
       RESULT=no-line; NOLINE="$NOLINE $I" ;;
   esac
-  emit status=step i:="$I" run="$RUN" why="$WHY" issue:="${ISSUE:-null}" at="$(now)" log="$LOG" result="$RESULT"
+  emit status=step i:="$I" run="$RUN" why="$WHY" issue:="${ISSUE:-null}" at="$(now)" log="$LOG" result="$RESULT" denials:="$DENIALS"
   STEP_I=null
+  DENIALS="[]"
 
   next_step
   if [ "$(jget "$NEXT_JSON" fingerprint)" = "$(jget "$CUR" fingerprint)" ]; then

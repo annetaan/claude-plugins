@@ -163,7 +163,8 @@ line, and for `bg-killed`, the `err` path. Name the next action from the reason:
 - `done`: the project is closed. `/annetaan:pj-cleanup <P>` removes its worktree and base branch and brings the local
   `<from>` up to date.
 - `needs-user`: quote the last run's reason, and run the matching skill by hand, `/annetaan:pj3-doctor <P>` or
-  `/annetaan:pj4-running <P>`, where the user approves what the drive could not.
+  `/annetaan:pj4-running <P>`, where the user approves what the drive could not. When a refused call is listed under
+  that step, name it as what the user approves in that run.
 - `no-progress` and `doctor-cap`: run `/annetaan:pj3-doctor <P>` by hand.
 - `child-failed`: give the `out` and `err` paths from the `begin` line of step `ended.i`.
 - `bg-killed`: quote the message, which names the tasks that were stopped, and give the `err` path from the `begin` line
@@ -174,6 +175,11 @@ line, and for `bg-killed`, the `err` path. Name the next action from the reason:
 - `project`, `not-a-repo`, `no-claude`: quote the message.
 
 When `noLine` is not empty, add one line naming the steps that ended without a last line.
+
+Each `step` line and the `ended` line carry `denials`, the tool calls that run was refused, as `claude -p` reports them
+in `permission_denials`, each with `tool` and `input`. Under the line of the step they belong to, list each one as
+`refused <tool>: <input>`. The `ended` line's denials belong to step `ended.i` and go under its line. So every refusal of
+the drive shows at once.
 
 ## Rules
 
