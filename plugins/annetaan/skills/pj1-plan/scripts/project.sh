@@ -15,6 +15,7 @@ usage: project.sh [-R <owner/repo>] <parent>               the whole project, as
        project.sh [-R <owner/repo>] <parent> --parent-body <file>
                                                            the parent body with everything from ## Goal on replaced by
                                                            <file>, as text
+       project.sh [-R <owner/repo>] <parent> --design <n>  the approved design of sub-issue <n>, as Markdown text
        project.sh --lint <file|->                          lint one sub-issue body, read from a file or standard input
        project.sh --parent-lint <file|->                   lint one parent body, read from a file or standard input
        project.sh --same-words <before> <after>            whether two bodies differ in backticks and whitespace only
@@ -30,6 +31,8 @@ usage: project.sh [-R <owner/repo>] <parent>               the whole project, as
         writes. It fails like --order when the blocked-by relationships have a cycle.
 --parent-body reads the parent only. It prints the lines above the parent's first ## Goal outside a code fence, then
         <file>, which has to start at ## Goal.
+--design reads the parent's query only and writes nothing. It dies when <n> is no sub-issue of the parent, or when
+        a decision of <n> is open or contradictory.
 --lint and --parent-lint touch neither GitHub nor git and always exit 0.
 --same-words touches neither GitHub nor git and always exits 0 on two readable files, printing {"ok", "lint"}: ok is
         true when the two bodies have the same words once backticks are gone and whitespace is one space, and lint is
@@ -40,7 +43,7 @@ USAGE
   exit 1
 }
 
-REPO=""; MODE="project"; PARENT=""; TARGETS=""; LINT_FILE=""; BODY_FILE=""
+REPO=""; MODE="project"; PARENT=""; TARGETS=""; LINT_FILE=""; BODY_FILE=""; DESIGN_N=""
 SAME_BEFORE=""; SAME_AFTER=""
 ROADMAP_REF=""
 while [ $# -gt 0 ]; do
@@ -50,6 +53,9 @@ while [ $# -gt 0 ]; do
     --order-body) MODE="order-body"; shift ;;
     --parent-body) [ $# -ge 2 ] || usage; MODE="parent-body"; BODY_FILE="$2"; shift 2 ;;
     --next)    MODE="next"; shift ;;
+    --design)  MODE="design"; DESIGN_N="${2:-}"
+               [ -n "$DESIGN_N" ] && [ -z "${DESIGN_N//[0-9]/}" ] || die "--design takes one issue number"
+               shift 2 ;;
     --check)   MODE="check"; shift
                while [ $# -gt 0 ] && [ -n "$1" ] && [ -z "${1//[0-9]/}" ]; do TARGETS="$TARGETS $1"; shift; done
                [ -n "$TARGETS" ] || die "--check takes issue numbers" ;;
@@ -123,6 +129,11 @@ query($owner: String!, $name: String!, $n: Int!) {
 
 if [ "$MODE" = "check" ]; then
   python3 "$PY_FILE" check "$TMP/issues.json" "$REPO" $TARGETS
+  exit 0
+fi
+
+if [ "$MODE" = "design" ]; then
+  python3 "$PY_FILE" design "$TMP/issues.json" "$REPO" "$DESIGN_N"
   exit 0
 fi
 
