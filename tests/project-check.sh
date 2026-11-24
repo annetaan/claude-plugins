@@ -23,7 +23,8 @@ git init -q --bare origin.git
   echo readme > README.md
   mkdir src
   printf 'export function foo() {}\nexport function oldName() {}\nexport function parseBody() {}\nexport const $el = 1\n' > src/app.ts
-  git add README.md src/app.ts
+  printf "export * from './app';\nexport * from './old';\n" > src/index.ts
+  git add README.md src/app.ts src/index.ts
   GIT_AUTHOR_DATE="1999-01-01T00:00:00Z" GIT_COMMITTER_DATE="1999-01-01T00:00:00Z" git commit -q -m "init"
   printf 'export function foo() {}\n' > src/app.ts
   git add src/app.ts
@@ -157,6 +158,31 @@ got="$(chk_failures '- `src/app.ts` (changed): uses `parse`
 ')"
 [ "$got" = "[('src/app.ts', 'parse', 'symbol never in the file')]" ] || fail "a name inside a longer held name printed $got"
 echo "ok: --check reads a name inside a longer name as symbol never in the file"
+
+chk_lint() {
+  (cd "$TMP/work" && FX_EXTRA_ENTRY="$1" bash "$SCRIPT" -R test/repo 1 --check 2) | python3 -c "
+import json, sys
+d = json.load(sys.stdin)
+print(d['lint']['reasons'], [(f['path'], f.get('symbol'), f['why']) for f in d['premises']['failures']])"
+}
+
+got="$(chk_lint '- `src/index.ts` (changed): re-exports the new module too
+')"
+[ "$got" = "[] []" ] || fail "a re-export file entry with no symbol printed $got"
+echo "ok: --check needs no symbol on a code file that holds no name"
+
+got="$(chk_lint '- `src/app.ts` (changed): exports one more function
+')"
+[ "$got" = "['no-symbols'] []" ] || fail "a code entry with no symbol printed $got"
+echo "ok: --check fails no-symbols on a code file that holds a name"
+
+got="$(chk_lint '- `src/index.ts` (changed): re-exports `UserId`
+')"
+[ "$got" = "[] [('src/index.ts', 'UserId', 'symbol never in the file')]" ] || fail "a re-export file entry naming UserId printed $got"
+got="$(chk_lint '- `src/index.ts` (changed): re-exports UserId
+')"
+[ "$got" = "[] []" ] || fail "the same entry without backticks printed $got"
+echo "ok: a format-only fix clears a name a re-export file never held"
 
 git clone -q --depth 1 -b main "file://$TMP/origin.git" "$TMP/shallow"
 for name in Temporal oldName; do

@@ -252,13 +252,16 @@ every existing decision stay as they are, and it may append one decision when on
   and `A.b` as `b`. A backticked span with spaces, such as a test name, is no symbol. **A backticked span that names
   a file is a path and never a symbol**, whether the file is in this issue's file list, in the repository, or in a
   blocker's file list. That includes a file at the root: `package.json` in a `package.json` entry names no symbol.
-- **A `changed` entry on a code file names at least one symbol, and every symbol it names exists in that file at the tip of the
-  base branch once every issue in its `blockedBy` has merged.** `--check` looks each one up. A file a blocker lists
+- **A `changed` entry on a code file names at least one symbol when the file holds a name, and every symbol it names
+  exists in that file at the tip of the base branch once every issue in its `blockedBy` has merged.** `--check` looks
+  each one up. A file a blocker lists
   as `added` counts as existing, so it is `changed` here, never `added`. A file a blocker lists as `deleted` is never
   `changed` or `deleted` here. A symbol a blocker adds counts as existing only when that blocker lists the file and
   names the symbol somewhere in its body. `--check` reads the open blockers' bodies for this while they are open. The projects this one waits on are
   merged into `<from>` before `pj2-issues` splits it, so their code is already there. A new name, or a name from
   another file, goes without backticks or into its own file's entry.
+- **A code file holds a name** unless, once the quoted path after each `from` is left out, every word in it is
+  `export`. A file of `export * from './a';` lines holds none, and its entry says what changes with no symbol.
 - **A document has no symbols.** A document is a path that ends in `.md`, `.mdx`, `.markdown`, `.rst` or `.adoc`,
   compared without case. Every other path is a code file. A `changed` entry on a document needs no symbol, and
   `--check` looks up none of the names in it: it reads only whether the path exists. No check stops on how a
@@ -423,7 +426,8 @@ project**), and reads more than one such issue as no task, which the reviewer ra
 ### What the lint checks
 
 `project.sh --lint` reports these codes in `reasons`, for the part of the bar a script can see
-(`state.md`, **When an issue is ready**).
+(`state.md`, **When an issue is ready**). `--check` alone reports `no-symbols`, because only it reads the file at the
+ref, and a path missing at the ref holds no name.
 
 | Code | Fails when |
 | --- | --- |
@@ -431,7 +435,7 @@ project**), and reads more than one such issue as no task, which the reviewer ra
 | `sections` | the five headings are not all there, in order |
 | `no-files` | the file list is empty |
 | `file-entry` | an entry has no kind or no description |
-| `no-symbols` | a `changed` entry on a code file names no symbol |
+| `no-symbols` | a `changed` entry on a code file that holds a name names no symbol |
 | `criteria` | there is no acceptance criterion, or a criterion has no backticked anchor |
 | `breakage-entry` | `### Left broken` has no bullet, or a bullet has no backticked check |
 | `decision-shape` | a decision does not have 2 to 4 options, or does not have exactly one `(recommended)` |
