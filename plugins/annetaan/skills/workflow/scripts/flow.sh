@@ -25,6 +25,11 @@ usage: flow.sh run <WT> <seat> <probe dir>   snapshot the working tree of <WT>, 
                                               directory
        flow.sh record <WT>                   write the pull request head, when the run comes from an issue, and the Level:
                                               line into log.md of the newest work directory, from its run.json
+       flow.sh prompt <WT> <kind> [<scope>] [<seat>]
+                                              write the prompt of one sub-agent call from prompts/<kind>.md to
+                                              prompts/ of the run's work directory, and print its path, agent, model
+                                              and effort; report and design take no scope, work, seat, again, respond,
+                                              commit and detail take one, and seat also a seat, a or b
 Every subcommand prints one JSON object with "status" and exits 0. "stop" carries "reason" and "message".
 <probe dir> has to be under <WT>/work-reports/. Exit 1 means a usage error or an unexpected failure.
 USAGE
@@ -51,6 +56,17 @@ case "$1" in
   lint) [ $# -eq 2 ] || usage ;;
   verify) [ $# -eq 3 ] || usage ;;
   record) [ $# -eq 2 ] || usage ;;
+  prompt)
+    case "${3:-}" in
+      report|design) [ $# -eq 3 ] || usage ;;
+      work|again|respond|commit|detail) [ $# -eq 4 ] || usage ;;
+      seat)
+        [ $# -eq 5 ] || usage
+        case "$5" in a|b) ;; *) usage ;; esac
+        ;;
+      *) usage ;;
+    esac
+    ;;
   *) usage ;;
 esac
 

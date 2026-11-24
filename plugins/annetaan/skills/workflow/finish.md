@@ -6,17 +6,24 @@
 
 **A session that worked on the code writes the work report, in every mode. Do not write it yourself.**
 
+First write the request:
+
+```bash
+$FLOW/scripts/flow.sh prompt <WT> report
+```
+
+It asks for `<WORKDIR>/log.md`: what changed, how it was verified per acceptance criterion and flow from the newest
+evidence files, what neither the implementation nor the review could run, the `check wanted:` lines of
+`<WORKDIR>/checks.md`, the model decisions, what the review changed, the files a merge resolved, the screenshots, and
+which commit answers which task. Send its line to the session that worked on the code:
+
 - When **Bringing the base in** in `standalone.md` ran the merge task, that implementation session is alive. `SendMessage` it. This
   comes before the cases below.
 - When phase 5 was skipped, the last task's implementation session is still alive (the entry keeps it after phase 4 (d)). `SendMessage` it.
 - When the integration review asked for fixes, that implementation session is still alive. `SendMessage` it.
-- When the integration review approved with nothing to fix, no session is left. Start one with the phase 3 call, its `model` and `effort` included, carrying the progress and naming `<WORKDIR>/notes.md`, `<WORKDIR>/design.md` and `<WORKDIR>/plan.md`, and ask it for the report and nothing else.
-
-The request:
-
-> Write a work report at `<WORKDIR>/log.md`. If this repository has `.github/PULL_REQUEST_TEMPLATE.md`, use it as the skeleton. Otherwise read a few recent merged pull requests (`gh pr list --state merged --limit 5`) and follow how they are written. With nothing to go on, choose a structure yourself. Whatever structure you choose, a reader has to come away with: what changed, how it was verified, per acceptance criterion and flow, read from the newest evidence file of each task under `./review/`, and also from the newest `integration-round-<r>-evidence.md` and the newest merge evidence file (`merge-evidence.md` or `merge-round-<r>-evidence.md`) when they exist, the newest one of each kind being what holds for the final tree, and also from `## Walk` of the `integration-round-1-<seat>.md` files when they exist, a heading of its own for what neither the implementation nor the review could run and what a person has to run by hand (left out when there is nothing), a heading of its own gathering the `check wanted:` lines of the commit reports, read from `<WORKDIR>/checks.md` (left out when that file does not exist), the model decisions with their reasons and evidence, read from `<WORKDIR>/design.md` and the forks settled in `<WORKDIR>/plan.md`, so that a reader can overturn one, what the review changed, the review's `## Not run` entries and the test and type check results, read from the files under `./review/`, the files a merge resolved, read from `<WORKDIR>/merge.md` when it exists, the screenshots if the change shows on screen, and which commit answers which task in the plan in `<WORKDIR>/plan.md`. Screenshots sit in the same directory, so link them relatively, as `![before](./before.png)`. Write it in the language this repository uses. **Do not create files outside this directory.**
-
-<the worktree line>
+- When the integration review approved with nothing to fix, no session is left. Start `annetaan:workflow-worker`
+  with the line and the `model` and `effort` the JSON prints (**The prompts** in SKILL.md). The prompt names the role,
+  the run's files and the progress, so it serves a session started for the report alone.
 
 **Keep the file name `log.md`.** Claude Code refuses a Write from a sub-agent when the name of the `.md` file
 starts with `report`, `summary`, `findings` or `analysis`, in any case ("Subagents should return findings as text,

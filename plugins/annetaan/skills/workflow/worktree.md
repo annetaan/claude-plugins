@@ -63,7 +63,7 @@ The standalone flow works in a git worktree of its own, `.claude/worktrees/wf-<s
    Where that tool is not available, `cd <WT>`. Print `worktree <WT> base <base>` once. **Every command from here to
    the end of the run runs in `<WT>`.** After a context summary, run `git rev-parse --show-toplevel`, and enter
    `<WT>` again when it prints anything else.
-6. **The worktree line.** From here on, every sub-agent prompt ends with **The worktree line** in SKILL.md: the design, the implementation, the review seats, the integration review seats and the report session.
+6. **Every sub-agent stays in `<WT>`.** A sub-session does not start there by itself. From here on, `flow.sh prompt` ends every prompt it writes with `$FLOW/prompts/worktree-line.md`, which sends the session into `<WT>` and keeps it out of `<MAIN>`, and the one prompt written by hand, phase 1 in `standalone.md`, ends with that text too.
 7. `<WT>` has none of `<MAIN>`'s ignored files, such as installed dependencies or a `.env`. The first worker prepares what the tests need and leaves the steps in the handover notes, so later tasks find them there. The submodules of `<WT>` are not initialized either. When the build or the tests need one, the first worker runs `git submodule update --init` in `<WT>` and leaves that in the handover notes too.
 
 ### Ending with nothing changed

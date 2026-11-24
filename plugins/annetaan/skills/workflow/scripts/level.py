@@ -1,6 +1,6 @@
 import datetime, json, re, subprocess, sys
 from clone import fetch_branch
-from flow import LEVEL_SEATS, RECORD_RE
+from flow import AGENTS, LEVEL_SEATS, RECORD_RE
 
 SUB = sys.argv[1]
 ARGS = sys.argv[2:]
@@ -8,16 +8,6 @@ ARGS = sys.argv[2:]
 PATH_IN_REPO = ".claude/annetaan-level.md"
 
 DEFAULT_LEVEL = "standard"
-
-AGENTS = {
-    "workflow-design": {"standard": ("opus", "medium"), "high": ("fable", "medium")},
-    "pj-planner": {"standard": ("opus", "medium"), "high": ("fable", "medium")},
-    "pj-reviewer": {"standard": ("opus", "medium"), "high": ("fable", "medium")},
-    "workflow-worker": {"standard": ("opus", "medium"), "high": ("opus", "high")},
-    "pj-issue-writer": {"standard": ("opus", "medium"), "high": ("opus", "high")},
-    "workflow-reviewer-a": {"standard": ("opus", "high"), "high": ("opus", "high")},
-    "workflow-reviewer-b": {"high": ("fable", "medium")},
-}
 
 SOURCE_ORDER = ("file", "default", "override")
 
