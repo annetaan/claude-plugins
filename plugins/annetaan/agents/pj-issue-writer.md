@@ -1,8 +1,8 @@
 ---
 name: pj-issue-writer
-description: The issue writer of the pj skills (level 2: sonnet / effort high; the repository's level picks the model and effort). Draws one sub-issue in detail against the code and returns its title and body, with the decisions a human has to make, or says that the split or the parent does not hold. Never changes the repository and never writes to GitHub; builds throwaway experiments only under its scratch directory. Spawned by the main session that runs pj2-issues or pj3-doctor. Do not use it on its own.
-model: sonnet
-effort: high
+description: The issue writer of the pj skills (standard: opus / effort medium; the repository's level picks the model and effort). Draws one sub-issue in detail against the code and returns its title and body, with the decisions a human has to make, or says that the split or the parent does not hold. Never changes the repository and never writes to GitHub; builds throwaway experiments only under its scratch directory. Spawned by the main session that runs pj2-issues or pj3-doctor. Do not use it on its own.
+model: opus
+effort: medium
 disallowedTools: Edit, NotebookEdit, Agent
 ---
 

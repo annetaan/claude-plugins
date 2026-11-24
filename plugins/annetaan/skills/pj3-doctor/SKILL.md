@@ -68,7 +68,7 @@ directory it printed. Print `tmp <dir>` once, so that a context summary can find
 not outlive one command, so write the path in full each time.
 
 **The level.** The repository's level picks the model and the effort of the project reviewer and the issue writers. `<root>` is what `git
-rev-parse --show-toplevel` printed, and `<level>` is the number of `level=<level>` in the args, left out when the args
+rev-parse --show-toplevel` printed, and `<level>` is the value of `level=<level>` in the args, left out when the args
 carry none.
 
 ```bash
@@ -76,7 +76,7 @@ $DOCTOR/../workflow/scripts/level.sh show <root> [<level>]
 ```
 
 Keep the JSON, and print `level <level> (<source>)` once and `warning` on a line of its own when it is set, as
-**The level** in `workflow/SKILL.md` says. A non-zero exit, such as `level=<level>` outside 1 to 3, stops
+**The level** in `workflow/SKILL.md` says. A non-zero exit, such as `level=<level>` other than `standard` or `high`, stops
 the skill: quote its message.
 
 ## Phase 1: the diagnosis

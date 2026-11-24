@@ -1,6 +1,6 @@
 ---
 name: workflow-reviewer-b
-description: Seat b of the review panel of the workflow skill (level 3: fable / effort medium; the repository's level picks the model and effort), which runs only at level 3. Reads the change in the run's worktree, tries to break it, proves each finding by a run through panel.sh, and writes its findings to a seat file in the run's work report directory. Never changes the code under review. Spawned by the main session that runs the workflow skill, together with seat a. Do not use it on its own.
+description: Seat b of the review panel of the workflow skill (high: fable / effort medium; the repository's level picks the model and effort), which runs only at `high`. Reads the change in the run's worktree, tries to break it, proves each finding by a run through panel.sh, and writes its findings to a seat file in the run's work report directory. Never changes the code under review. Spawned by the main session that runs the workflow skill, together with seat a. Do not use it on its own.
 model: fable
 effort: medium
 disallowedTools: Edit, NotebookEdit, Agent

@@ -5,9 +5,9 @@ die() { echo "level: $*" >&2; exit 1; }
 
 usage() {
   cat >&2 <<'USAGE'
-usage: level.sh show <dir> [<n>]                    the level of the clone at <dir>, read from .claude/annetaan-level.md on
+usage: level.sh show <dir> [<level>]                the level of the clone at <dir>, read from .claude/annetaan-level.md on
                                                     origin's default branch, and the model and effort it gives each levelled
-                                                    agent. <n>, 1, 2 or 3, overrides it
+                                                    agent. <level>, standard or high, overrides it
        level.sh history <dir>                       the Level: lines of the pull requests merged since the level file's
                                                     evaluated date, grouped by level and source
 Every subcommand prints one JSON object with "status" and exits 0.
@@ -21,7 +21,7 @@ case "$1" in
   show)
     case $# in
       2) ;;
-      3) case "$3" in 1|2|3) ;; *) usage ;; esac ;;
+      3) case "$3" in standard|high) ;; *) usage ;; esac ;;
       *) usage ;;
     esac ;;
   history)

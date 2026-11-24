@@ -1,5 +1,8 @@
 import json, os, re, shutil, subprocess, sys, time
 
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "..", "workflow", "scripts"))
+from clone import fetch_branch
+
 PROJECT_SH, SUB, P = sys.argv[1], sys.argv[2], int(sys.argv[3])
 ARGS = sys.argv[4:]
 
@@ -59,10 +62,6 @@ def repo_view():
     if r.returncode != 0:
         die("cannot read the repository: " + r.stderr.strip())
     return json.loads(r.stdout)
-
-def fetch(main, base):
-    return run("git", "-C", main, "fetch", "--quiet", "origin",
-               "+refs/heads/%s:refs/remotes/origin/%s" % (base, base)).returncode == 0
 
 def api_json(*args):
     r = run("gh", "api", *args)
@@ -403,7 +402,7 @@ def start():
         out["created"] = {"sha": sha}
         out["project"] = dict(summary, baseExists=True)
 
-    if not fetch(main, base):
+    if fetch_branch(main, base).returncode != 0:
         stop("fetch-failed", "cannot fetch %s from origin" % base, **out)
 
     found = rules(repo, base, view, main)
@@ -473,7 +472,7 @@ def claim(wt):
 def worktree():
     main, wt = located()
     base = project(P)["parent"]["base"]
-    if not fetch(main, base):
+    if fetch_branch(main, base).returncode != 0:
         stop("fetch-failed", "cannot fetch %s from origin" % base, worktree=wt)
     assignee = claim(wt)
     tip = "origin/" + base
@@ -551,7 +550,7 @@ def branch():
     base = project(P)["parent"]["base"]
     if run("git", "check-ref-format", "--branch", b).returncode != 0:
         die("not a valid branch name: " + b)
-    if not fetch(main, base):
+    if fetch_branch(main, base).returncode != 0:
         stop("fetch-failed", "cannot fetch %s from origin" % base, branch=b)
     changes = git(wt, "status", "--porcelain").splitlines()
     if changes:
@@ -664,7 +663,7 @@ def merge():
         if method is None:
             stop("no-merge-method", "the rules on %s leave no merge method that %s allows"
                  % (base, view["nameWithOwner"]), pr=m)
-        if not fetch(main, b):
+        if fetch_branch(main, b).returncode != 0:
             stop("checks-unreadable", "cannot fetch %s from origin to read its workflows" % b, pr=m)
         workflow = pull_request_workflow(main, "origin/" + b, base)
         if workflow is None:
@@ -705,7 +704,7 @@ def merge():
         else:
             closed = "closed"
 
-    if not fetch(main, base):
+    if fetch_branch(main, base).returncode != 0:
         errors.append({"step": "fetch", "message": "cannot fetch %s from origin" % base})
     r = run("git", "-C", wt, "switch", "--detach", "origin/" + base)
     if r.returncode != 0:
@@ -771,7 +770,7 @@ def sync():
         stop("not-due", "#%d has open sub-issues, or none at all" % P, **out)
     if not parent["baseExists"]:
         stop("base-gone", "%s is gone from origin" % base, **out)
-    if not fetch(main, base) or not fetch(main, frm):
+    if fetch_branch(main, base).returncode != 0 or fetch_branch(main, frm).returncode != 0:
         stop("fetch-failed", "cannot fetch %s and %s from origin" % (base, frm), **out)
     tip = git(wt, "rev-parse", "origin/" + base).strip()
     if "--push" in ARGS:
@@ -798,7 +797,7 @@ def sync():
     r = run("git", "-C", wt, "push", "--quiet", "origin", "HEAD:refs/heads/" + base)
     if r.returncode != 0:
         stop("push-rejected", "cannot push the merge to %s: %s" % (base, r.stderr.strip()), sha=sha, **out)
-    fetch(main, base)
+    fetch_branch(main, base)
     emit(status="merged", sha=sha, **out)
 
 def project_pr():
@@ -814,7 +813,7 @@ def project_pr():
         stop("not-due", "#%d has open sub-issues, or none at all" % P, **out)
     if not parent["baseExists"]:
         stop("base-gone", "%s is gone from origin" % base, **out)
-    if not fetch(main, base) or not fetch(main, frm):
+    if fetch_branch(main, base).returncode != 0 or fetch_branch(main, frm).returncode != 0:
         stop("fetch-failed", "cannot fetch %s and %s from origin" % (base, frm), **out)
     if not contains(main, "origin/" + base, "origin/" + frm):
         stop("behind", "%s does not contain origin/%s. run.sh sync %d first" % (base, frm, P), **out)

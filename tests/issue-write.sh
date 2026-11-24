@@ -10,11 +10,12 @@ fail() { echo "FAIL: $*" >&2; exit 1; }
 
 json() { python3 -c 'import json,sys; d=json.load(sys.stdin); print(eval(sys.argv[1]))' "$1"; }
 
-mkdir -p "$TMP/a" "$TMP/b" "$TMP/bin"
+mkdir -p "$TMP/a" "$TMP/b/pj1-plan/scripts" "$TMP/b/workflow/scripts" "$TMP/bin"
 cp "$SCRIPTS/issue.sh" "$SCRIPTS/issue.py" "$TMP/a/"
-cp "$SCRIPTS/issue.sh" "$SCRIPTS/issue.py" "$SCRIPTS/project.sh" "$SCRIPTS/project.py" "$TMP/b/"
+cp "$SCRIPTS/issue.sh" "$SCRIPTS/issue.py" "$SCRIPTS/project.sh" "$SCRIPTS/project.py" "$TMP/b/pj1-plan/scripts/"
+cp "$SCRIPTS/../../workflow/scripts/clone.py" "$TMP/b/workflow/scripts/"
 A="$TMP/a/issue.sh"
-B="$TMP/b/issue.sh"
+B="$TMP/b/pj1-plan/scripts/issue.sh"
 
 cat > "$TMP/a/project.sh" <<'EOF'
 #!/usr/bin/env bash

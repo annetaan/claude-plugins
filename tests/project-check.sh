@@ -182,7 +182,7 @@ echo "ok: --check with several numbers prints one line each, in the order given"
 count_calls() {
   rm -f "$TMP/gh.log" "$TMP/call.log"
   (cd "$TMP/work" && FX_TWO=1 FX_GH_LOG="$TMP/gh.log" FX_GIT_LOG="$TMP/call.log" bash "$SCRIPT" -R test/repo 1 --check "$@" >/dev/null)
-  echo "gh: $(sort "$TMP/gh.log" | uniq -c | tr -s ' ' | tr '\n' ';') fetches: $(grep -c '^fetch' "$TMP/call.log" || true)"
+  echo "gh: $(sort "$TMP/gh.log" | uniq -c | tr -s ' ' | tr '\n' ';') fetches: $(grep -cE '^(-C [^ ]+ )?fetch ' "$TMP/call.log" || true)"
 }
 one_calls="$(count_calls 2)"
 many_calls="$(count_calls 2 3)"

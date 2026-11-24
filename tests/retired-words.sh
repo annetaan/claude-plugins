@@ -19,6 +19,10 @@ both seats |
 both review seats |
 the other seat |
 those last three |
+level 1 |
+level 2 |
+level 3 |
+levels 1 |
 EOF
 )"
 
@@ -68,7 +72,7 @@ check "$ROOT" "$RETIRED" || fail "retired wording under plugins/annetaan, README
 
 GOOD="$TMP/good"
 mkdir -p "$GOOD/plugins/annetaan/.claude-plugin" "$GOOD/plugins/annetaan/skills/workflow" "$GOOD/.claude-plugin" "$GOOD/tests" "$GOOD/.claude"
-printf '# Annetaan\n\nA plugin with two review seats at level 3.\n' > "$GOOD/plugins/annetaan/README.md"
+printf '# Annetaan\n\nA plugin with two review seats at `high`.\n' > "$GOOD/plugins/annetaan/README.md"
 printf '# Workflow\n\nDesign, implement, review.\nThe design is read, then the review runs.\n' > "$GOOD/plugins/annetaan/skills/workflow/README.md"
 printf '{\n  "name": "annetaan",\n  "description": "Design and review skills"\n}\n' > "$GOOD/plugins/annetaan/.claude-plugin/plugin.json"
 printf '# Root\n\nBreaking changes need a decision.\n' > "$GOOD/README.md"

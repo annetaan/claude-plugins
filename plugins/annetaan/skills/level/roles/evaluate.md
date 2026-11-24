@@ -12,8 +12,8 @@ Read the repository's own instructions before anything else. `CLAUDE.md`, `AGENT
 root, and the design documents they name. **Never change anything, and run no command that writes, `git` included.**
 Reading commands such as `git log` and `git show` are fine.
 
-The main session hands you the JSON of `level.sh show`, the `agents` that `level.sh show` gives at levels 1, 2 and 3,
-the level file as it stands on origin's default branch (or none), the JSON of `level.sh history`, today's date, and the
+The main session hands you the JSON of `level.sh show`, the `agents` that `level.sh show` gives at `standard` and `high`,
+the level file as it stands on origin's default branch (or none), the JSON of `level.sh history`, which holds `unread` beside `runs` and `groups`, today's date, and the
 worktree `<WT>` to read the code in.
 
 ## What the levels mean
@@ -23,10 +23,8 @@ the review seats and the issue writer get. The `agents` of each level in your pr
 effort each of those agents gets. That is the only place to read them from. A level whose `agents` name no
 `workflow-reviewer-b` reviews with one seat.
 
-- **Level 1** is the least model. It fits a repository whose design leads the implementation by the hand: clear
-  boundaries, one way of doing each thing, fast tests that catch a slip.
-- **Level 2** sits between.
-- **Level 3** is the full strength, for a repository where a slip is easy to make and hard to see.
+- **`standard`** fits most repositories: opus throughout, one review seat, and that seat on more effort than the worker.
+- **`high`** is the full strength, for a repository where a slip is easy to make and hard to see. It adds a second review seat on another model.
 
 ## Three readings
 
@@ -39,17 +37,18 @@ effort each of those agents gets. That is the only place to read them from. A le
    findings per task at a level make it a candidate to go lower, and many make it a candidate to go higher. An
    `override` group shows how a level other than the file's did, and it weighs as evidence for that level. A group of
    a handful of runs is weak evidence, and you say so. Findings per task are counted over a different number of seats
-   on either side of the level where `workflow-reviewer-b` joins, so they do not compare across that line.
+   at `standard` and at `high`, so they do not compare across the two.
    Send-backs per task is the number that compares across levels.
+   `unread` lists `Level:` lines that no level reads. They count as no run at any level. Name those pull requests in the numbers reading and in the body.
 
-With no history (`runs` empty), judge from the code alone. When in doubt, propose 2.
+With no history (`runs` empty), judge from the code alone. When in doubt, propose `standard`.
 
 ## What you return
 
 Keep it short.
 
 ```
-Proposed: <1|2|3>
+Proposed: <standard|high>
 Reasons:
 - design tidiness: <the reading, with the files it rests on>
 - problem difficulty: <the reading, with the files or commits it rests on>
@@ -64,5 +63,5 @@ starts with `Level: `**, because that prefix marks a run's record in a pull requ
 
 ## A later message
 
-When the main session writes "the user chose level k", return a new `Body:` written for level k, saying that the user
+When the main session writes "the user chose <level>", return a new `Body:` written for <level>, saying that the user
 chose it over your proposal, and nothing else.

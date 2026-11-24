@@ -272,7 +272,7 @@ done
 echo "ok: two runs of one seat started together give one ran and one busy, eight times"
 
 setup
-out="$("$SCRIPT" begin "$WT" --level 3 --source default)"
+out="$("$SCRIPT" begin "$WT" --level high --source default)"
 [ "$(echo "$out" | json 'd["status"]')" = ok ] || fail "begin status: $out"
 start="$(echo "$out" | json 'd["start"]')"
 [ "$start" = "$(git -C "$WT" rev-parse HEAD)" ] || fail "begin start is not HEAD: $out"
@@ -283,18 +283,18 @@ case "$workdir" in
 esac
 [ -d "$workdir/review" ] && [ -d "$workdir/seats" ] && [ -f "$workdir/run.json" ] || fail "begin did not make review/, seats/ and run.json"
 read_back="$("$SCRIPT" status "$WT")"
-[ "$(echo "$read_back" | json '[d["status"], d["start"], d["workdir"], d["level"], d["source"], d["issue"], d["parent"]]')" = "['ok', '$start', '$workdir', 3, 'default', None, None]" ] || fail "status after begin: $read_back"
+[ "$(echo "$read_back" | json '[d["status"], d["start"], d["workdir"], d["level"], d["source"], d["issue"], d["parent"]]')" = "['ok', '$start', '$workdir', 'high', 'default', None, None]" ] || fail "status after begin: $read_back"
 echo "ok: begin makes the work directory with review/, seats/ and run.json, and status reads back what begin wrote"
 
 setup
-for given in "2 override" "1 file"; do
+for given in "standard override" "high file"; do
   level="${given% *}"
   source="${given#* }"
   out="$("$SCRIPT" begin "$WT" --level "$level" --source "$source")"
-  [ "$(echo "$out" | json '[d["level"], d["source"]]')" = "[$level, '$source']" ] || fail "begin output for $given: $out"
-  [ "$(json '[d["level"], d["source"]]' < "$(echo "$out" | json 'd["workdir"]')/run.json")" = "[$level, '$source']" ] || fail "run.json for $given"
+  [ "$(echo "$out" | json '[d["level"], d["source"]]')" = "['$level', '$source']" ] || fail "begin output for $given: $out"
+  [ "$(json '[d["level"], d["source"]]' < "$(echo "$out" | json 'd["workdir"]')/run.json")" = "['$level', '$source']" ] || fail "run.json for $given"
   read_back="$("$SCRIPT" status "$WT")"
-  [ "$(echo "$read_back" | json '[d["level"], d["source"]]')" = "[$level, '$source']" ] || fail "status for $given: $read_back"
+  [ "$(echo "$read_back" | json '[d["level"], d["source"]]')" = "['$level', '$source']" ] || fail "status for $given: $read_back"
 done
 echo "ok: begin records the level and source it is given, unchanged, in run.json and in status"
 
@@ -305,21 +305,22 @@ refused() {
 }
 
 setup
-"$SCRIPT" begin "$WT" --level 3 --source default --issue 12 --parent 88 > /dev/null
+"$SCRIPT" begin "$WT" --level high --source default --issue 12 --parent 88 > /dev/null
 read_back="$("$SCRIPT" status "$WT")"
 [ "$(echo "$read_back" | json '[d["issue"], d["parent"]]')" = "[12, 88]" ] || fail "status issue and parent: $read_back"
 refused begin "$WT" --source default
-refused begin "$WT" --level 3
+refused begin "$WT" --level high
 refused begin "$WT" --level 4 --source default
-refused begin "$WT" --level 3 --source other
-refused begin "$WT" --level 3 --source default --issue 12
-refused begin relative/wt --level 3 --source default
-echo "ok: begin writes --issue and --parent to run.json, and refuses a missing --level or --source, --level 4, --source other, --issue without --parent and a relative <WT>"
+refused begin "$WT" --level 2 --source default
+refused begin "$WT" --level high --source other
+refused begin "$WT" --level high --source default --issue 12
+refused begin relative/wt --level high --source default
+echo "ok: begin writes --issue and --parent to run.json, and refuses a missing --level or --source, --level 4, --level 2, --source other, --issue without --parent and a relative <WT>"
 
 setup
 grep -vx 'work-reports/' "$MAIN/.git/info/exclude" > "$TMP/exclude"
 cp "$TMP/exclude" "$MAIN/.git/info/exclude"
-out="$("$SCRIPT" begin "$WT" --level 3 --source default)"
+out="$("$SCRIPT" begin "$WT" --level high --source default)"
 [ "$(echo "$out" | json 'd["reason"]')" = not-ignored ] || fail "not-ignored reason: $out"
 [ ! -e "$WT/work-reports" ] || fail "begin wrote under work-reports/ when it is not ignored"
 echo "ok: begin stops with not-ignored and writes nothing when work-reports/ is not ignored"
@@ -334,16 +335,16 @@ echo other > "$MAIN/a"
 git -C "$MAIN" commit -q -am other
 git -C "$WT" merge -q "other" > /dev/null 2>&1 && fail "the merge did not conflict"
 [ -f "$MAIN/.git/worktrees/wf-test/MERGE_HEAD" ] || fail "no merge in progress"
-out="$("$SCRIPT" begin "$WT" --level 3 --source default)"
+out="$("$SCRIPT" begin "$WT" --level high --source default)"
 [ "$(echo "$out" | json 'd["start"]')" = "$before_merge" ] || fail "begin during a merge: $out"
 [ -f "$MAIN/.git/worktrees/wf-test/MERGE_HEAD" ] || fail "begin removed MERGE_HEAD"
 echo "ok: begin during a merge in progress takes the commit the merge started on"
 
 for try in 1 2 3; do
   setup
-  first="$("$SCRIPT" begin "$WT" --level 3 --source default | json 'd["workdir"]')"
+  first="$("$SCRIPT" begin "$WT" --level high --source default | json 'd["workdir"]')"
   sum_before="$(cksum < "$first/run.json")"
-  second="$("$SCRIPT" begin "$WT" --level 2 --source override | json 'd["workdir"]')"
+  second="$("$SCRIPT" begin "$WT" --level standard --source override | json 'd["workdir"]')"
   [ "$second" = "$first-2" ] && break
   [ "$try" != 3 ] || fail "a second begin made $second, not $first-2"
 done
@@ -352,10 +353,10 @@ done
 echo "ok: a second begin on the same commit in the same minute makes <name>-2, and status reads the second"
 
 setup
-workdir="$("$SCRIPT" begin "$WT" --level 3 --source default | json 'd["workdir"]')"
+workdir="$("$SCRIPT" begin "$WT" --level high --source default | json 'd["workdir"]')"
 later="$WT/work-reports/9999-12-31-2359-fffffff"
 mkdir -p "$later" "$WT/work-reports/9999-12-31-2359-design"
-echo '{"start": "fffffff", "level": 1, "source": "file", "issue": null, "parent": null}' > "$later/run.json"
+echo '{"start": "fffffff", "level": "standard", "source": "file", "issue": null, "parent": null}' > "$later/run.json"
 touch -t 200001010000 "$later/run.json"
 read_back="$("$SCRIPT" status "$WT")"
 [ "$(echo "$read_back" | json 'd["workdir"]')" = "$workdir" ] || fail "status past a later name: $read_back"
@@ -364,7 +365,7 @@ echo "ok: status reads the run.json written last, past a later name and past dir
 setup
 out="$("$SCRIPT" status "$WT")"
 [ "$(echo "$out" | json 'd["reason"]')" = no-run ] || fail "no-run reason: $out"
-out="$("$SCRIPT" begin "$TMP" --level 3 --source default)"
+out="$("$SCRIPT" begin "$TMP" --level high --source default)"
 [ "$(echo "$out" | json 'd["reason"]')" = unknown ] || fail "begin unknown reason: $out"
 echo "ok: status stops with no-run when no directory holds a run.json, and begin stops with unknown outside a worktree"
 
@@ -844,11 +845,11 @@ scoped() {
 }
 
 setup
-R="$("$SCRIPT" begin "$WT" --level 3 --source default | json 'd["workdir"]')/review"
+R="$("$SCRIPT" begin "$WT" --level high --source default | json 'd["workdir"]')/review"
 plain="$("$SCRIPT" status "$WT")"
 [ "$(echo "$plain" | json 'list(d)')" = "['status', 'start', 'workdir', 'level', 'source', 'issue', 'parent']" ] || fail "status without a scope: $plain"
 [ "$(scoped task-1 '[d["scope"], d["round"], d["cap"], d["verdict"], d["open"], d["approve"]]')" = "['task-1', 1, False, None, [], {'allowed': False, 'why': ['approve-no-evidence']}]" ] || fail "status before round 1"
-[ "$(scoped task-1 '[d["start"], d["level"], d["source"]]')" = "['$(git -C "$WT" rev-parse HEAD)', 3, 'default']" ] || fail "status with a scope lost the run's keys"
+[ "$(scoped task-1 '[d["start"], d["level"], d["source"]]')" = "['$(git -C "$WT" rev-parse HEAD)', 'high', 'default']" ] || fail "status with a scope lost the run's keys"
 evidence_file "$R/task-1-evidence.md"
 [ "$(scoped task-1 'd["approve"]')" = "{'allowed': True, 'why': []}" ] || fail "status before round 1 with the evidence"
 round_file "$R/task-1-round-1.md" None. "$(finding R1.1)
@@ -881,7 +882,7 @@ rounds() {
 }
 
 setup
-R="$("$SCRIPT" begin "$WT" --level 3 --source default | json 'd["workdir"]')/review"
+R="$("$SCRIPT" begin "$WT" --level high --source default | json 'd["workdir"]')/review"
 for scope in task-1 integration merge; do
   rounds "$scope" 1 4
   [ "$(scoped "$scope" '[d["round"], d["cap"]]')" = "[5, False]" ] || fail "$scope cap after four rounds"
@@ -897,7 +898,7 @@ done
 echo "ok: status counts the cap the same for task, integration and merge"
 
 setup
-R="$("$SCRIPT" begin "$WT" --level 3 --source default | json 'd["workdir"]')/review"
+R="$("$SCRIPT" begin "$WT" --level high --source default | json 'd["workdir"]')/review"
 [ "$(scoped integration '[d["round"], d["verdict"], d["approve"]]')" = "[1, None, {'allowed': False, 'why': ['approve-no-evidence']}]" ] || fail "integration before round 1 with no seat file"
 seat_file "$R/integration-round-1-a.md" none
 [ "$(scoped integration 'd["approve"]')" = "{'allowed': False, 'why': ['approve-no-evidence']}" ] || fail "integration with a seat file and no walk"
@@ -961,7 +962,7 @@ verified() {
 }
 
 setup
-W="$("$SCRIPT" begin "$WT" --level 3 --source default | json 'd["workdir"]')"
+W="$("$SCRIPT" begin "$WT" --level high --source default | json 'd["workdir"]')"
 R="$W/review"
 fails="$(probe a fails "printf '%s\\n' 'the value is two' 'last \`tick\`' '' '   '; exit 1")"
 later="$(probe a later 'echo fine')"
@@ -1009,7 +1010,7 @@ round_from_draft "$W/drafts/task-1-round-1.md" "$R/task-1-round-1.md"
 echo "ok: verify sorts the findings of both seats by the probe's exit"
 
 setup
-W="$("$SCRIPT" begin "$WT" --level 3 --source default | json 'd["workdir"]')"
+W="$("$SCRIPT" begin "$WT" --level high --source default | json 'd["workdir"]')"
 R="$W/review"
 findings_file "$R/task-1-round-1-a.md" "the value is two" "$(ran_line a "$(probe a fails 'echo two; exit 1')")"
 [ "$(verified task-1 '[d["dropouts"], [f["id"] for f in d["new"]], d["dropped"]]')" = "[['b'], ['R1.1'], []]" ] || fail "verify with one seat file: $(cat "$TMP/verify.out")"
@@ -1019,23 +1020,21 @@ round_from_draft "$W/drafts/task-1-round-1.md" "$R/task-1-round-1.md"
 [ "$(sed -n '/^## New findings/,/^## Dropped/p' "$W/drafts/merge-round-1.md" | grep -cx 'None.')" = 1 ] || fail "the merge draft's new findings do not read None."
 grep -qx -- '- a: no seat file' "$W/drafts/merge-round-1.md" && grep -qx -- '- b: no seat file' "$W/drafts/merge-round-1.md" || fail "the merge draft does not name both seats"
 echo "ok: verify lists a seat with no file as a dropout"
-for n in 1 2; do
-  setup
-  W="$("$SCRIPT" begin "$WT" --level "$n" --source default | json 'd["workdir"]')"
-  R="$W/review"
-  findings_file "$R/task-1-round-1-a.md" "the value is two" "$(ran_line a "$(probe a fails 'echo two; exit 1')")"
-  [ "$(verified task-1 '[d["dropouts"], [f["id"] for f in d["new"]], d["dropped"]]')" = "[[], ['R1.1'], []]" ] || fail "verify at level $n with seat a's file: $(cat "$TMP/verify.out")"
-  [ "$(sed -n '/^## Dropped/,$p' "$W/drafts/task-1-round-1.md")" = "## Dropped
+setup
+W="$("$SCRIPT" begin "$WT" --level standard --source default | json 'd["workdir"]')"
+R="$W/review"
+findings_file "$R/task-1-round-1-a.md" "the value is two" "$(ran_line a "$(probe a fails 'echo two; exit 1')")"
+[ "$(verified task-1 '[d["dropouts"], [f["id"] for f in d["new"]], d["dropped"]]')" = "[[], ['R1.1'], []]" ] || fail "verify at standard with seat a's file: $(cat "$TMP/verify.out")"
+[ "$(sed -n '/^## Dropped/,$p' "$W/drafts/task-1-round-1.md")" = "## Dropped
 
-- a: none" ] || fail "the draft's dropped at level $n: $(cat "$W/drafts/task-1-round-1.md")"
-done
+- a: none" ] || fail "the draft's dropped at standard: $(cat "$W/drafts/task-1-round-1.md")"
 round_from_draft "$W/drafts/task-1-round-1.md" "$R/task-1-round-1.md"
-[ "$(verified merge 'd["dropouts"]')" = "['a']" ] || fail "verify merge at level 2 with no seat file: $(cat "$TMP/verify.out")"
-grep -q -- '^- b:' "$W/drafts/merge-round-1.md" && fail "the merge draft at level 2 names seat b"
-echo "ok: verify below level 3 reads seat a alone"
+[ "$(verified merge 'd["dropouts"]')" = "['a']" ] || fail "verify merge at standard with no seat file: $(cat "$TMP/verify.out")"
+grep -q -- '^- b:' "$W/drafts/merge-round-1.md" && fail "the merge draft at standard names seat b"
+echo "ok: verify at standard reads seat a alone"
 
 setup
-W="$("$SCRIPT" begin "$WT" --level 3 --source default | json 'd["workdir"]')"
+W="$("$SCRIPT" begin "$WT" --level high --source default | json 'd["workdir"]')"
 R="$W/review"
 mkdir -p "$REPORT/seats/a/empty"
 bare="$SCRIPT run $WT a $(probe a bare 'exit 1')"
@@ -1052,7 +1051,7 @@ round_from_draft "$W/drafts/task-1-round-1.md" "$R/task-1-round-1.md"
 echo "ok: verify drops a command that cannot be run again"
 
 setup
-W="$("$SCRIPT" begin "$WT" --level 3 --source default | json 'd["workdir"]')"
+W="$("$SCRIPT" begin "$WT" --level high --source default | json 'd["workdir"]')"
 R="$W/review"
 fixme="$(probe a fixme 'test "$(cat a)" = fixed || { echo "a is $(cat a)"; exit 1; }')"
 still="$(probe a still 'echo still broken; exit 1')"
@@ -1090,7 +1089,7 @@ round_from_draft "$W/drafts/task-1-round-3.md" "$R/task-1-round-3.md"
 echo "ok: verify marks earlier findings resolved, stands and stands again"
 
 setup
-W="$("$SCRIPT" begin "$WT" --level 3 --source default | json 'd["workdir"]')"
+W="$("$SCRIPT" begin "$WT" --level high --source default | json 'd["workdir"]')"
 R="$W/review"
 gone="$(probe a gone 'echo two; exit 1')"
 findings_file "$R/task-1-round-1-a.md" "the value is two" "$(ran_line a "$gone")"
@@ -1118,7 +1117,7 @@ refused verify relative/wt task-1
 echo "ok: verify refuses a bad scope before begin, and stops with no-run on a good one"
 
 setup
-W="$("$SCRIPT" begin "$WT" --level 3 --source default | json 'd["workdir"]')"
+W="$("$SCRIPT" begin "$WT" --level high --source default | json 'd["workdir"]')"
 R="$W/review"
 one="$(probe a one 'test "$(cat a)" = fixed || { echo one fails; exit 1; }')"
 fine="$(probe a fine 'echo fine')"
@@ -1157,7 +1156,7 @@ gives "$R/task-1-round-2.md" "['draft']"
 echo "ok: lint holds a round file to the draft"
 
 setup
-W="$("$SCRIPT" begin "$WT" --level 3 --source default | json 'd["workdir"]')"
+W="$("$SCRIPT" begin "$WT" --level high --source default | json 'd["workdir"]')"
 R="$W/review"
 quiet="$(probe a quiet 'exit 1')"
 findings_file "$R/task-1-round-1-a.md" "it fails quietly" "$(ran_line a "$quiet")"
@@ -1197,10 +1196,10 @@ reviewed() {
 }
 
 setup
-W="$("$SCRIPT" begin "$WT" --level 2 --source file --issue 3 --parent 1 | json 'd["workdir"]')"
+W="$("$SCRIPT" begin "$WT" --level standard --source file --issue 3 --parent 1 | json 'd["workdir"]')"
 reviewed
 printf '## What changed\n\nthe body\n\n\n' > "$W/log.md"
-LINE="Level: 2 (file) · tasks 2 · task rounds 3 · integration rounds 2 · findings 4"
+LINE="Level: standard (file) · tasks 2 · task rounds 3 · integration rounds 2 · findings 4"
 [ "$(recorded '[d["status"], d["line"]]')" = "['ok', '$LINE']" ] || fail "record: $(cat "$TMP/record.out")"
 printf 'Implements #3\nPart of #1\n\n## What changed\n\nthe body\n\n%s\n' "$LINE" > "$TMP/log.want"
 diff "$TMP/log.want" "$W/log.md" || fail "record: log.md is not the head, the body and the Level: line"
@@ -1224,7 +1223,7 @@ import json, sys
 print(json.dumps([{"number": 9, "url": "u9", "mergedAt": "2026-11-12T00:00:00Z", "body": open(sys.argv[1], encoding="utf-8").read()}]))
 ' "$W/log.md")"
 out="$(FX_GH_JSON="$gh_json" PATH="$TMP/bin:$PATH" "$LEVEL_SH" history "$WT")" || fail "history exited non-zero: $out"
-[ "$(echo "$out" | json '[d["since"]] + [(r["pr"], r["level"], r["source"], r["tasks"], r["taskRounds"], r["integrationRounds"], r["findings"]) for r in d["runs"]]')" = "[None, (9, 2, 'file', 2, 3, 2, 4)]" ] || fail "history did not read the recorded log.md back: $out"
+[ "$(echo "$out" | json '[d["since"]] + [(r["pr"], r["level"], r["source"], r["tasks"], r["taskRounds"], r["integrationRounds"], r["findings"]) for r in d["runs"]]')" = "[None, (9, 'standard', 'file', 2, 3, 2, 4)]" ] || fail "history did not read the recorded log.md back: $out"
 echo "ok: record: level.sh history reads the recorded log.md back"
 
 before="$(cksum < "$W/log.md")"
@@ -1250,9 +1249,9 @@ mkdir "$R"
 echo "ok: record: no log.md gives stop no-log, no review/ gives stop no-review"
 
 setup
-W="$("$SCRIPT" begin "$WT" --level 3 --source default | json 'd["workdir"]')"
-printf 'Implements #7\r\n\r\nbody\r\nLevel: 2 (file) · tasks 1 · task rounds 1 · integration rounds 0 · findings 0\r\n' > "$W/log.md"
-LINE="Level: 3 (default) · tasks 0 · task rounds 0 · integration rounds 0 · findings 0"
+W="$("$SCRIPT" begin "$WT" --level high --source default | json 'd["workdir"]')"
+printf 'Implements #7\r\n\r\nbody\r\nLevel: high (file) · tasks 1 · task rounds 1 · integration rounds 0 · findings 0\r\n' > "$W/log.md"
+LINE="Level: high (default) · tasks 0 · task rounds 0 · integration rounds 0 · findings 0"
 [ "$(recorded 'd["line"]')" = "$LINE" ] || fail "record standalone: $(cat "$TMP/record.out")"
 printf 'Implements #7\r\n\r\nbody\n\n%s\n' "$LINE" > "$TMP/log.want"
 cmp "$TMP/log.want" "$W/log.md" || fail "record standalone: the top of log.md moved: $(od -c "$W/log.md")"

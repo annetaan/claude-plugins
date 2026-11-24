@@ -37,7 +37,7 @@ goes on without waiting. Say "stop" to end the run, and ask again to overturn a 
 
 Each task's implementation session shows every acceptance criterion by running it, on the tree under review, and writes
 the runs to an evidence file. A bug fix with a cheap test path starts with a failing test. Review seats try to break the change and prove every finding by a run of a probe they wrote: a command, what it
-printed, and what the design requires. A repository below level 3 has one seat, and level 3 has two, on different
+printed, and what the design requires. A repository at `standard` has one seat, and `high` has two, on different
 models. `panel.sh verify` reruns each command, the open findings of earlier rounds included, sorts the findings by the
 probe's exit and writes the draft of the round. The main session keeps only a
 failure that breaks the design, and writes the round and its verdict from the draft. From round 2 on, each seat attacks
@@ -160,7 +160,7 @@ work-reports/2026-09-19-1346-a1b2c3d/
   run.json       the start commit, the level and its source, the issue and the parent, written once by panel.sh begin
   review/        one file per review round, the reply to each, and the evidence files
     task-1-evidence.md
-    task-1-round-1-a.md         what seat a proved in round 1, and `-b` for seat b at level 3
+    task-1-round-1-a.md         what seat a proved in round 1, and `-b` for seat b at `high`
     task-1-round-1.md           the main session's round, from its draft
     task-1-round-1-reply.md
     task-1-round-1-evidence.md  after a round that changed code
@@ -191,7 +191,7 @@ that were actually run, what the review changed, and which commit answers which 
 `log.md` becomes the pull request body. On a run from an issue it starts with the head `Implements #<n>` and
 `Part of #<P>`. It ends with one `Level:` line: the level the run used, its source, the tasks, the task rounds, the
 integration rounds and the findings, as
-`Level: 2 (file) · tasks 2 · task rounds 3 · integration rounds 1 · findings 4`. `panel.sh record` writes both, the
+`Level: standard (file) · tasks 2 · task rounds 3 · integration rounds 1 · findings 4`. `panel.sh record` writes both, the
 head from the issue and the parent and the line from the level and source that `panel.sh begin` stored in `run.json`.
 `/annetaan:level` reads these lines from the merged pull requests. `review/` holds how each finding was raised and answered.
 
@@ -235,6 +235,7 @@ screenshots it could not attach.
 | `roles/review.md` | the role for a review seat |
 | `scripts/worktree.sh` | creates the run's worktree and checks its ignore rules. `workflow-cleanup` uses it to clean up |
 | `scripts/worktree.py` | the code `worktree.sh` runs |
+| `scripts/clone.py` | the one place that fetches from origin, under a lock on the clone's common git directory that every worktree shares. `worktree.py`, `level.py` and the pj4-running, pj-cleanup and pj1-plan scripts import it |
 | `scripts/level.sh` | reads the repository's level from origin's default branch and prints the model and effort it gives the design session, the implementation session, the review seats and pj's planner, project reviewer and issue writer |
 | `scripts/level.py` | the code `level.sh` runs, and the one place the level table lives |
 | `scripts/comments.sh` | fails on a comment outside the four kinds, or a silenced check the change adds, in the files a change touches. The implementation and review sessions run it |
@@ -245,4 +246,4 @@ screenshots it could not attach.
 
 The design, implementation and review sessions run on agents that ship with the plugin (`../../agents/`). Design is
 `annetaan:workflow-design`. Implementation is `annetaan:workflow-worker`
-and review is seat `annetaan:workflow-reviewer-a`, joined at level 3 by `annetaan:workflow-reviewer-b` on another model. The models and efforts are in the agent table of [the plugin README](../../README.md), and those of the design session, the implementation session and the review seats at each level of the repository in its level table.
+and review is seat `annetaan:workflow-reviewer-a`, joined at `high` by `annetaan:workflow-reviewer-b` on another model. The models and efforts are in the agent table of [the plugin README](../../README.md), and those of the design session, the implementation session and the review seats at each level of the repository in its level table.

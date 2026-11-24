@@ -87,11 +87,12 @@ printf '%s\n' "$OUT" | tail -n 1 | grep -q '"reason": "done"' || fail "the drive
 echo "ok: a drive of done steps ends as before"
 
 if grep -q "level=" "$FAKE_LOG/args"; then fail "a drive without --level passed a level: $(cat "$FAKE_LOG/args")"; fi
-run_drive --level 1
-[ "$(grep -c " tmp=[^ ]* level=1 " "$FAKE_LOG/args")" = 2 ] || fail "--level 1 did not reach every run: $(cat "$FAKE_LOG/args")"
-echo "ok: --level 1 passes level=1 to every claude -p, and no --level passes none"
+run_drive --level high
+[ "$(grep -c " tmp=[^ ]* level=high " "$FAKE_LOG/args")" = 2 ] || fail "--level high did not reach every run: $(cat "$FAKE_LOG/args")"
+echo "ok: --level high passes level=high to every claude -p, and no --level passes none"
 
 if "$TMP/skills/pj-auto/scripts/auto.sh" 7 --log "$TMP" --level 4 >/dev/null 2>&1; then fail "--level 4 exited 0"; fi
+if "$TMP/skills/pj-auto/scripts/auto.sh" 7 --log "$TMP" --level 2 >/dev/null 2>&1; then fail "--level 2 exited 0"; fi
 if "$TMP/skills/pj-auto/scripts/auto.sh" 7 --log "$TMP" --tier 1 >/dev/null 2>&1; then fail "--tier 1 exited 0"; fi
 echo "ok: a bad --level exits 1"
 

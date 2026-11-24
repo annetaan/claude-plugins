@@ -1,5 +1,8 @@
 import json, os, re, subprocess, sys
 
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "..", "workflow", "scripts"))
+from clone import fetch_branch
+
 PROJECT_SH, WORKTREE_SH, PANEL_SH, SUB = sys.argv[1:5]
 P = int(sys.argv[5]) if len(sys.argv) > 5 else None
 ARGS = sys.argv[6:]
@@ -74,10 +77,6 @@ def read_project(p):
         stop("project", r.stderr.strip())
     return json.loads(r.stdout)["parent"]
 
-def fetch(main, branch):
-    return run("git", "-C", main, "fetch", "--quiet", "origin",
-               "+refs/heads/%s:refs/remotes/origin/%s" % (branch, branch)).returncode == 0
-
 def on_origin(main, branch):
     r = run("git", "-C", main, "ls-remote", "--exit-code", "--heads", "origin", "refs/heads/" + branch)
     if r.returncode == 0:
@@ -140,7 +139,7 @@ def plan(p):
         if tree["submodules"]:
             loses.append("submodules")
 
-    if not fetch(main, frm):
+    if fetch_branch(main, frm).returncode != 0:
         stop("fetch-failed", "cannot fetch %s from origin" % frm)
     remote = on_origin(main, base)
     if remote is None:
@@ -150,7 +149,7 @@ def plan(p):
     if has_ref(main, "refs/heads/" + base):
         holder = checked_out_in(trees, base)
         held = ["origin/" + frm]
-        if remote and fetch(main, base):
+        if remote and fetch_branch(main, base).returncode == 0:
             held.append("origin/" + base)
         if holder and os.path.realpath(holder) != os.path.realpath(wt):
             local = {"action": "keep", "why": "checked-out", "worktree": holder}

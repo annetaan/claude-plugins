@@ -5,8 +5,8 @@ die() { echo "auto: $*" >&2; exit 1; }
 
 usage() {
   cat >&2 <<'USAGE'
-usage: auto.sh <P> --log <dir> [--level <n>]   drive project <P> until it needs the user, logging into the existing directory <dir>;
-                                               --level passes level=<n>, 1, 2 or 3, to every run
+usage: auto.sh <P> --log <dir> [--level <level>]   drive project <P> until it needs the user, logging into the existing directory <dir>;
+                                               --level passes level=<level>, standard or high, to every run
 usage: auto.sh --rules [<rule>...]             judge the rules every drive needs, and each Bash(<command>:*) rule given, against the user's settings
 In the drive form, every line on standard output is one JSON object with "status": started, begin, step or ended.
 Create <dir>/stop to end the drive after the current step.
@@ -130,7 +130,7 @@ LOG="$3"
 LEVEL_ARG=""
 if [ $# -eq 5 ]; then
   [ "$4" = "--level" ] || usage
-  case "$5" in 1|2|3) LEVEL_ARG=" level=$5" ;; *) usage ;; esac
+  case "$5" in standard|high) LEVEL_ARG=" level=$5" ;; *) usage ;; esac
 fi
 case "$P" in ''|*[!0-9]*) die "the project must be a number: $P" ;; esac
 [ -d "$LOG" ] || die "no such directory: $LOG"

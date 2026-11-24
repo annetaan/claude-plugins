@@ -75,7 +75,7 @@ the whole order of the project picked.
 When the args carry `tmp=<dir>`, `$TMP` below is that directory. Otherwise run `mktemp -d` once and use the
 directory it printed. Print `tmp <dir>` once, so that a context summary can find it again. The start may already
 write comment files there. A shell variable does not outlive one command, so write the path in full each time.
-When the args carry `level=<n>`, `<n>` sets the repository's level for this run (see **The level**).
+When the args carry `level=<level>`, `<level>` sets the repository's level for this run (see **The level**).
 
 Then check everything the run needs.
 
@@ -249,15 +249,15 @@ uncommitted work, so the report names that work with `git -C <WT> diff` in place
 
 The repository's level picks the model and the effort of workflow's design session, its implementation session and
 its review seats.
-Run `level.sh` once, in `<WT>`, as **The level** in `workflow/SKILL.md` says, with `<n>` from `level=<n>`
+Run `level.sh` once, in `<WT>`, as **The level** in `workflow/SKILL.md` says, with `<level>` from `level=<level>`
 in the args, left out when the args carry none.
 
 ```bash
-$RUNNING/../workflow/scripts/level.sh show <WT> [<n>]
+$RUNNING/../workflow/scripts/level.sh show <WT> [<level>]
 ```
 
 Print `level <level> (<source>)` once, and `warning` on a line of its own when it is set. Keep the JSON: From an issue
-and From a sync take it as settled. A non-zero exit, such as `level=<n>` outside 1 to 3, stops the run: quote its
+and From a sync take it as settled. A non-zero exit, such as `level=<level>` other than `standard` or `high`, stops the run: quote its
 message, and leave `<WT>` as phase 5 step 2 says. An unattended run ends as needs-user.
 
 ## Unplanned work

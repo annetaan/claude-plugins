@@ -1,5 +1,8 @@
 import hashlib, json, os, re, subprocess, sys
 
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "..", "workflow", "scripts"))
+from clone import fetch_branch
+
 MODE = sys.argv[1]
 
 SECTIONS = ["Goal", "Design", "Acceptance criteria", "Decisions", "Out of scope"]
@@ -807,7 +810,7 @@ def check(numbers):
         if n not in by_number:
             die("#%d is not a sub-issue of #%d" % (n, parent["number"]))
     for branch in [made_from] + ([base] if base_exists else []):
-        fetch = run("git", "fetch", "--quiet", "origin", "+refs/heads/%s:refs/remotes/origin/%s" % (branch, branch))
+        fetch = fetch_branch(".", branch)
         if fetch.returncode != 0:
             die("cannot fetch %s from origin: %s" % (branch, fetch.stderr.strip()))
     ref = "origin/" + (base if base_exists else made_from)

@@ -1,7 +1,7 @@
 import fcntl, json, os, re, shutil, subprocess, sys, tempfile, time
 
 SEATS = ("a", "b")
-LEVEL_SEATS = {1: ("a",), 2: ("a",), 3: SEATS}
+LEVEL_SEATS = {"standard": ("a",), "high": SEATS}
 TAIL = 40
 STAMP = re.compile(r"\d{4}-\d{2}-\d{2}-\d{4}(-|$)")
 SCOPE = r"task-[1-9]\d*|integration|merge"
@@ -25,8 +25,8 @@ FORBIDDEN = set("$\"';&|<>()`")
 REASONS = ("sections", "id", "finding", "command", "entry", "seats", "no-round", "mark", "earlier-missing", "verdict",
            "approve-open", "approve-no-evidence", "draft", "line", "missing", "ran", "assumed", "no-evidence")
 RECORD_RE = re.compile(
-    r"^Level: ([123]) \((file|override|default)\) · tasks (\d+) · task rounds (\d+)"
-    r" · integration rounds (\d+) · findings (\d+)$")
+    (r"^Level: (%s) \((file|override|default)\) · tasks (\d+) · task rounds (\d+)"
+     r" · integration rounds (\d+) · findings (\d+)$") % "|".join(LEVEL_SEATS))
 HEAD_LINE = re.compile(r"(Implements|Part of) #\d+\s*")
 
 def run(*cmd, cwd=None, env=None):
@@ -201,7 +201,7 @@ def begin(wt, *options):
         os.makedirs(os.path.join(workdir, sub))
     opts = dict(zip(options[::2], options[1::2]))
     issue, parent = opts.get("--issue"), opts.get("--parent")
-    record = {"start": start, "level": int(opts["--level"]), "source": opts["--source"],
+    record = {"start": start, "level": opts["--level"], "source": opts["--source"],
               "issue": int(issue) if issue is not None else None,
               "parent": int(parent) if parent is not None else None}
     with open(os.path.join(workdir, "run.json"), "w") as f:
@@ -548,7 +548,7 @@ def verify(wt, scope):
     emit(status="ok", scope=scope, round=r, draft=draft, dropouts=dropouts, earlier=earlier, new=new, dropped=dropped)
 
 def record_line(level, source, tasks, task_rounds, integration_rounds, findings):
-    return "Level: %d (%s) · tasks %d · task rounds %d · integration rounds %d · findings %d" % (
+    return "Level: %s (%s) · tasks %d · task rounds %d · integration rounds %d · findings %d" % (
         level, source, tasks, task_rounds, integration_rounds, findings)
 
 def record(wt):

@@ -1,4 +1,5 @@
 import json, os, re, shutil, subprocess, sys, time
+from clone import clone_lock, fetch, fetch_branch
 from panel import stamped
 
 PANEL_SH = sys.argv[1]
@@ -24,10 +25,6 @@ def git(where, *args):
     if r.returncode != 0:
         die("git %s failed: %s" % (" ".join(args), r.stderr.strip()))
     return r.stdout
-
-def fetch(main, base):
-    return run("git", "-C", main, "fetch", "--quiet", "origin",
-               "+refs/heads/%s:refs/remotes/origin/%s" % (base, base)).returncode == 0
 
 def worktrees(main):
     out = []
@@ -82,7 +79,7 @@ def contains(main, ancestor, ref):
 def head_contains(main, tip, pr):
     head = pr["headSha"]
     if run("git", "-C", main, "cat-file", "-e", head + "^{commit}").returncode != 0:
-        r = run("git", "-C", main, "fetch", "--quiet", "origin", "refs/pull/%d/head" % pr["number"])
+        r = fetch(main, "refs/pull/%d/head" % pr["number"])
         if r.returncode != 0:
             stop("fetch-failed", "cannot fetch the head of pull request #%d from origin" % pr["number"])
     return contains(main, tip, head)
@@ -229,18 +226,19 @@ def create():
     base = ARGS[0]
     if run("git", "check-ref-format", "--branch", base).returncode != 0:
         die("not a valid branch name: " + base)
-    if not fetch(main, base):
+    if fetch_branch(main, base).returncode != 0:
         r = run("git", "-C", main, "ls-remote", "--exit-code", "--heads", "origin", "refs/heads/" + base)
         if r.returncode == 2:
             stop("base-missing", "origin has no branch %s" % base, base=base)
         stop("fetch-failed", "cannot fetch %s from origin" % base, base=base)
     stamp = "wf-" + time.strftime("%Y-%m-%d-%H%M")
-    name, n = stamp, 1
-    while os.path.lexists(os.path.join(wt_root(main), name)) or name in wf_names(main):
-        n += 1
-        name = "%s-%d" % (stamp, n)
-    wt = os.path.join(wt_root(main), name)
-    git(main, "worktree", "add", "--quiet", "--detach", wt, "refs/remotes/origin/" + base)
+    with clone_lock(main):
+        name, n = stamp, 1
+        while os.path.lexists(os.path.join(wt_root(main), name)) or name in wf_names(main):
+            n += 1
+            name = "%s-%d" % (stamp, n)
+        wt = os.path.join(wt_root(main), name)
+        git(main, "worktree", "add", "--quiet", "--detach", wt, "refs/remotes/origin/" + base)
     emit(status="ready", main=main, worktree=wt, name=name, base=base, head=git(wt, "rev-parse", "HEAD").strip())
 
 def ignore():
@@ -337,7 +335,7 @@ def plan(name):
 
     update = {"action": "none"}
     if state == "merged":
-        if not fetch(main, base):
+        if fetch_branch(main, base).returncode != 0:
             stop("fetch-failed", "cannot fetch %s from origin" % base)
         target = sha(main, "refs/remotes/origin/" + base)
         holder = checked_out_in(main, base)
@@ -451,7 +449,7 @@ def sync():
         stop("unfinished", "%s holds an unfinished merge" % wt, **out)
     if git(wt, "status", "--porcelain").strip():
         stop("dirty", "%s has uncommitted changes" % wt, **out)
-    if not fetch(main, base):
+    if fetch_branch(main, base).returncode != 0:
         stop("fetch-failed", "cannot fetch %s from origin" % base, **out)
     head = git(wt, "rev-parse", "HEAD").strip()
     incoming = "refs/remotes/origin/" + base
