@@ -360,7 +360,8 @@ Every way the run ends comes here: the run order is done, the run stopped, or th
 - the worktree `<WT>`. The next run reuses it. The work reports live only under its `work-reports/`.
   `/annetaan:pj-cleanup <P>` moves them into `<MAIN>` and removes `<WT>` once the project is merged
 - that this run assigned `#<P>` to `<login>`, when `assignee.added` was true, and that the assignment stays
-- each merged issue with the URL of its pull request
+- each merged issue with the URL of its pull request, and the URLs of the decision issues its run filed, or the
+  reason none were
 - the issues the detail pass redrew, with what changed, the ones set aside because a redraw gave them an open blocker,
   and the ones closed with nothing left
 - a decision the run added to an issue and stopped on, as `<issue URL> D<k>`, with what the design session found

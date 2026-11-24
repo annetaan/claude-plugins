@@ -122,7 +122,7 @@ $FLOW/scripts/worktree.sh sync <name> <base>
 
 ### The work report and the pull request
 
-Read `finish.md` and run **The work report**, then **The pull request**.
+Read `finish.md` and run **The work report**, then **The pull request**, then **The decisions**.
 
 ### Report to the user
 
@@ -133,6 +133,7 @@ Every standalone run that got past the start message ends here, finished or stop
 - **how the base came in**: already in, merging cleanly, or merged after the merge task resolved the files it names, or why it did not
 
 - **the pull request URL**, when one was opened
+- **the decision issues**, when **The decisions** in `finish.md` ran: the URL of each issue in `filed`, each on a line of its own, or that no decision fell in the four areas, or the stop message it kept
 - **the worktree `<WT>`**, and that the work report lives under it until cleanup, and the review seat worktrees beside it, `review-<name of WT>-<seat>`, which the same cleanup removes. The probes of the seats are under `<WORKDIR>/seats/`
 - **the path of the work report** (`<WORKDIR>/log.md`), which opens in an editor with the screenshots inline
 - the review files, under `<WORKDIR>/review/`

@@ -1,11 +1,11 @@
 ---
 name: workflow
-description: Runs one implementation as design, then per task (implement, review rounds, one commit), then an integration review when the plan has more than one task, then a finish step that merges the base in and resolves the conflicts under review when the branch conflicts with it, pushes and opens a pull request. Also resolves the conflicts of a pull request that is already open, with the same review rounds, and pushes the merge to its branch. A conflict in a project's pull request from `pj/<n>` goes to pj4-running. The standalone run works in a git worktree of its own, `.claude/worktrees/wf-<stamp>`, and leaves the main working tree alone, except for adding the user's answers to its `.worktreeinclude`. The review rounds run through Markdown files in the run's work report directory. Use it only when the user names this skill or invokes /annetaan:workflow, when the user asks to resolve the conflicts of a pull request ("resolve the conflicts on #12", "コンフリクト解消して"), or when pj4-running loads it to run one sub-issue of a project or to resolve a merge of the project's source branch, because it spawns several sub-sessions, adds commits and opens a pull request without asking for approval. Do not use it for a one-off implementation request or for an ordinary code review request.
+description: Runs one implementation as design, then per task (implement, review rounds, one commit), then an integration review when the plan has more than one task, then a finish step that merges the base in and resolves the conflicts under review when the branch conflicts with it, pushes and opens a pull request, then files each design decision in technology, infrastructure, database or delivery that review seat a finds as an issue labelled `decision`. Also resolves the conflicts of a pull request that is already open, with the same review rounds, and pushes the merge to its branch. A conflict in a project's pull request from `pj/<n>` goes to pj4-running. The standalone run works in a git worktree of its own, `.claude/worktrees/wf-<stamp>`, and leaves the main working tree alone, except for adding the user's answers to its `.worktreeinclude`. The review rounds run through Markdown files in the run's work report directory. Use it only when the user names this skill or invokes /annetaan:workflow, when the user asks to resolve the conflicts of a pull request ("resolve the conflicts on #12", "コンフリクト解消して"), or when pj4-running loads it to run one sub-issue of a project or to resolve a merge of the project's source branch, because it spawns several sub-sessions, adds commits, opens a pull request and files issues without asking for approval. Do not use it for a one-off implementation request or for an ordinary code review request.
 ---
 
 # workflow
 
-One implementation, run as **design, then per task (implement, review rounds, one commit), then an integration review when the plan has more than one task, then a finish step that pushes and opens a pull request**, with each role in its own session.
+One implementation, run as **design, then per task (implement, review rounds, one commit), then an integration review when the plan has more than one task, then a finish step that pushes and opens a pull request, then files each design decision in technology, infrastructure, database or delivery that review seat a finds as an issue labelled `decision`**, with each role in its own session.
 The review rounds run through Markdown files under the run's work report directory, described in
 `$FLOW/review-files.md`.
 
@@ -46,9 +46,10 @@ which runs a probe the seat wrote (see `$FLOW/review-files.md`, **A probe**), an
 seats at the cleanup. `panel.sh verify <WT> <scope>` runs again every command of a review round and writes the draft
 of its round file (phase 4 (b)). `panel.sh lint <file>` checks one review file against `$FLOW/review-files.md`, and each
 writer runs it on its own file before it reports. The finish runs `panel.sh record <WT>`, which writes the pull request
-head and the `Level:` line into `log.md` (`finish.md`, **The work report**). `<WT>` is the absolute path, and `lint` takes
-the absolute path of the file. All seven print one JSON object with a `status`, as `worktree.sh` does. A non-zero exit is quoted and stops the run, the
-same way.
+head and the `Level:` line into `log.md` (`finish.md`, **The work report**). The finish runs `panel.sh decisions <WT> <m>`, which files the issues of `decisions.md` (`finish.md`, **The decisions**). `<WT>` is the absolute path, and `lint` takes
+the absolute path of the file. All eight print one JSON object with a `status`, as `worktree.sh` does. A non-zero exit is quoted and stops the run, the
+same way, except for `decisions`: the pull request already exists then, so its exit is quoted in the ending and the run
+goes on (`finish.md`, **The decisions**).
 
 ## The level
 
@@ -115,7 +116,8 @@ worked in, and that travels as the handover notes (phase 4 (d)).
 
 **Every task, and the integration review when the plan has more than one task, run on the same agents**:
 `annetaan:workflow-worker` for implementation, and one `annetaan:workflow-reviewer-<seat>` for each seat of `seats`,
-the review panel. There is no per-task choice to make.
+the review panel. There is no per-task choice to make. Seat a runs once more at the finish, to judge the decisions
+(`finish.md`, **The decisions**).
 They ship with this plugin. **Every `Agent` call for `annetaan:workflow-worker` and for an
 `annetaan:workflow-reviewer-<seat>` passes `model` and `effort` from `agents.<name>` of the level JSON** (see **The
 level**), so the calls below carry them. The design session runs on `annetaan:workflow-design`, which ships with

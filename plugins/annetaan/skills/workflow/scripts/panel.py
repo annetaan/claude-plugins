@@ -24,14 +24,22 @@ ANSWER = re.compile(r"- (%s) (fixed|disagree): \S" % FINDING_ID)
 SUB_BULLET = re.compile(r"\s+- (ran|saw|not run):")
 FORBIDDEN = set("$\"';&|<>()`")
 REASONS = ("sections", "id", "finding", "command", "entry", "seats", "no-round", "mark", "earlier-missing", "verdict",
-           "approve-open", "approve-no-evidence", "draft", "line", "missing", "ran", "assumed", "no-evidence")
+           "approve-open", "approve-no-evidence", "draft", "line", "missing", "ran", "assumed", "no-evidence",
+           "area", "parts", "landed", "overturn")
 RECORD_RE = re.compile(
     (r"^Level: (%s) \((file|override|default)\) · tasks (\d+) · task rounds (\d+)"
      r" · integration rounds (\d+) · findings (\d+)$") % "|".join(LEVEL_SEATS))
 HEAD_LINE = re.compile(r"(Implements|Part of) #\d+\s*")
+DECISIONS = "decisions.md"
+DECISIONS_RECORD = "decisions.json"
+AREAS = ("technology", "infrastructure", "database", "delivery")
+PARTS = ("What was decided", "Other options and why this one", "Where it landed", "To overturn it")
+DECISION_LABEL = ("decision", "FBCA04", "A design decision a workflow run made on its own. Read it, then close it.")
+LANDED = re.compile(r"- `[^`]+`")
+OVERTURN = re.compile(r"/annetaan:workflow \S")
 
-def run(*cmd, cwd=None, env=None):
-    return subprocess.run(cmd, capture_output=True, text=True, cwd=cwd, env=env)
+def run(*cmd, cwd=None, env=None, input=None):
+    return subprocess.run(cmd, capture_output=True, text=True, cwd=cwd, env=env, input=input)
 
 def emit(**obj):
     print(json.dumps(obj, ensure_ascii=False))
@@ -465,10 +473,79 @@ def lint_reasons(path):
             found.add("no-evidence")
     return kind, [reason for reason in REASONS if reason in found]
 
+def split_headings(lines, prefix):
+    head, parts, fenced = [], [], False
+    for text in lines:
+        fence = bool(FENCE.match(text))
+        if not (fenced or fence) and text.startswith(prefix):
+            parts.append((text[len(prefix):].strip(), []))
+        else:
+            (parts[-1][1] if parts else head).append(text)
+        fenced ^= fence
+    return head, parts
+
+def trimmed(lines):
+    kept = list(lines)
+    while kept and not kept[0].strip():
+        kept = kept[1:]
+    while kept and not kept[-1].strip():
+        kept = kept[:-1]
+    return kept
+
+def overturn_ok(lines):
+    fences = [n for n, text in enumerate(lines) if FENCE.match(text)]
+    return fences == [0, len(lines) - 1] and len(lines) > 2 and bool(OVERTURN.match(lines[1]))
+
+def decision_entry(title, lines):
+    found = set()
+    head, parts = split_headings(lines, "### ")
+    head = trimmed(head)
+    area = head[0][len("Area: "):] if head and head[0].startswith("Area: ") else None
+    if area not in AREAS:
+        found.add("area")
+    texts = {name: trimmed(body) for name, body in parts}
+    if [name for name, _ in parts] != list(PARTS) or len(head) > 1 or not all(
+            texts[name] for name in PARTS[:2] if name in texts):
+        found.add("parts")
+    landed = texts.get("Where it landed")
+    if landed is not None and not (landed and all(LANDED.match(text) for text in landed if text.strip())):
+        found.add("landed")
+    overturn = texts.get("To overturn it")
+    if overturn is not None and not overturn_ok(overturn):
+        found.add("overturn")
+    return found, {"title": title, "area": area, "parts": texts}
+
+def decision_entries(text):
+    lines = text.splitlines()
+    head, entries = split_headings(lines[1:], "## ")
+    titles = [title for title, _ in entries]
+    found = set()
+    body_ok = trimmed(head) == ["None."] if not entries else not trimmed(head)
+    if lines[:1] != ["# Decisions"] or not body_ok or "" in titles or len(set(titles)) != len(titles):
+        found.add("sections")
+    parsed = []
+    for title, body in entries:
+        reasons, entry = decision_entry(title, body)
+        found |= reasons
+        parsed.append(entry)
+    return [reason for reason in REASONS if reason in found], parsed
+
+def decision_body(entry, pr):
+    parts = entry["parts"]
+    sections = [("What was decided", ["Area: " + entry["area"], ""] + parts["What was decided"]),
+                ("Other options and why this one", parts["Other options and why this one"]),
+                ("Where it landed", ["Pull request: #%d" % pr, ""] + parts["Where it landed"]),
+                ("To overturn it", parts["To overturn it"])]
+    return "\n\n".join("## %s\n\n%s" % (name, "\n".join(body)) for name, body in sections) + "\n"
+
 def lint(path):
     if not os.path.isfile(path):
         stop("no-file", "%s is no file" % path)
-    kind, reasons = lint_reasons(path)
+    if os.path.basename(path) == DECISIONS:
+        with open(path, encoding="utf-8") as f:
+            kind, reasons = "decisions", decision_entries(f.read())[0]
+    else:
+        kind, reasons = lint_reasons(path)
     emit(status="ok", ok=not reasons, kind=kind, reasons=reasons)
 
 def command_of(block):
@@ -582,9 +659,47 @@ def record(wt):
         f.write("\n".join(lines).rstrip("\r\n") + "\n\n" + entry + "\n")
     emit(status="ok", line=entry)
 
+def filed_issue(entry, out):
+    url = out.strip().splitlines()[-1]
+    return {"title": entry["title"], "number": int(url.rstrip("/").rsplit("/", 1)[1]), "url": url}
+
+def filed_names(filed):
+    return ", ".join("#%d %s" % (issue["number"], issue["title"]) for issue in filed) or "none"
+
+def decisions(wt, pr):
+    workdir, _ = current_run(wt)
+    path, kept = os.path.join(workdir, DECISIONS), os.path.join(workdir, DECISIONS_RECORD)
+    if not os.path.isfile(path):
+        stop("no-decisions", "no %s in %s" % (DECISIONS, workdir))
+    with open(path, encoding="utf-8") as f:
+        reasons, entries = decision_entries(f.read())
+    if reasons:
+        stop("malformed", "%s fails the lint: %s" % (path, ", ".join(reasons)))
+    filed = []
+    if os.path.isfile(kept):
+        with open(kept, encoding="utf-8") as f:
+            filed = json.load(f)
+    done = {issue["title"] for issue in filed}
+    todo = [entry for entry in entries if entry["title"] not in done]
+    if todo:
+        name, color, description = DECISION_LABEL
+        r = run("gh", "label", "create", name, "--color", color, "--description", description, cwd=wt)
+        if r.returncode != 0 and "already exists" not in r.stderr:
+            stop("gh", "cannot create the label %s: %s; filed before: %s" % (name, r.stderr.strip(), filed_names(filed)))
+    for entry in todo:
+        r = run("gh", "issue", "create", "--title", entry["title"], "--label", DECISION_LABEL[0], "--body-file", "-",
+                cwd=wt, input=decision_body(entry, int(pr)))
+        if r.returncode != 0:
+            stop("gh", "cannot file %s: %s; filed before: %s" % (entry["title"], r.stderr.strip(), filed_names(filed)))
+        filed = filed + [filed_issue(entry, r.stdout)]
+        with open(kept, "w", encoding="utf-8") as f:
+            json.dump(filed, f, ensure_ascii=False)
+            f.write("\n")
+    emit(status="ok", filed=filed)
+
 def main(sub, path, *args):
     table = {"run": lambda *given: emit(**run_probe(*given)), "close": close, "begin": begin, "status": status,
-             "lint": lint, "verify": verify, "record": record}
+             "lint": lint, "verify": verify, "record": record, "decisions": decisions}
     try:
         table[sub](os.path.normpath(path), *args)
     except Stop as s:
