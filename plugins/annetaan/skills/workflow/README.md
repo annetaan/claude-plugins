@@ -98,7 +98,7 @@ adds that decision to the issue, stops, and leaves the box for you to tick.
 The pull request body is `log.md`, which begins with a head of `Implements` and `Part of`. The run pushes and opens
 the pull request as a draft against the project's base branch. pj4-running merges it.
 
-All of it happens in the worktree pj4-running made for the project, so your own working tree is left alone.
+All of it happens in the worktree pj4-running made for the project, so your own working tree is left alone, except for adding your answers to `.worktreeinclude`.
 
 A stop before every commit of the plan has passed review pushes nothing. pj4-running saves everything since the start
 point, commits included, to `stopped.diff` in the run's work report and puts the worktree back on the start point. The
@@ -130,13 +130,17 @@ request from `pj/<n>` goes to `pj4-running`, which brings the source branch into
 ## The worktree and cleaning up
 
 The run creates `.claude/worktrees/wf-<stamp>` on the tip of the base before the design starts, and never touches your
-clone. The worktree has none of your clone's ignored files, such as dependencies and `.env`. The first worker prepares
-them. A run that ends before its first task removes its worktree. Every other run leaves it, whether it opened a pull request
+clone, except for adding your answers to its `.worktreeinclude`. The run copies the ignored files that `.worktreeinclude` in your clone names, such as `.env.local` or
+`mise.local.toml`, into the worktree and into the review seats. It is the same file Claude Code's own `--worktree`
+reads. For an ignored file the list does not name, the run asks once whether to copy it, and writes the answer to the
+list as `/<path>` or `!/<path>`, so it is never asked again. The first worker prepares what remains, such as
+dependencies. A run that ends before its first task removes its worktree. Every other run leaves it, whether it opened a pull request
 or stopped midway.
 
 The review seats are git worktrees of their own, `review-wf-<stamp>-<seat>` beside the run's. No session works
 inside one: a seat writes its probes under `seats/` in the work report, and `panel.sh run` snapshots the run's working
-tree, puts the seat's worktree at it and runs the probe there. A seat lives as long as the run's worktree, so the
+tree, puts the seat's worktree at it and runs the probe there. A seat gets the files `.worktreeinclude` lists when it
+is created. A seat lives as long as the run's worktree, so the
 dependencies a probe installed in it serve every later task and round. The cleanup removes it.
 
 After you merge or close the pull request, `/annetaan:workflow-cleanup` moves the work report into `work-reports/` in

@@ -22,7 +22,7 @@ It prints `status: ok` with `main`, `mainBranch`, `defaultBranch`, `gh` and `att
 
 ## The worktree
 
-The standalone flow works in a git worktree of its own, `.claude/worktrees/wf-<stamp>` inside `<MAIN>`, detached at the tip of the base branch on origin. `<MAIN>` stays as the user left it. Run these steps before phase 1, so that design reads the code in `<WT>`.
+The standalone flow works in a git worktree of its own, `.claude/worktrees/wf-<stamp>` inside `<MAIN>`, detached at the tip of the base branch on origin. `<MAIN>` stays as the user left it, except for the lines the answers of **Files `.worktreeinclude` does not name** add to `<MAIN>/.worktreeinclude`. Run these steps before phase 1, so that design reads the code in `<WT>`.
 
 1. **The base.** The branch the request names, otherwise `defaultBranch`.
 2. **The base question.** Only when the repository's instructions in context (`CLAUDE.md`) ask for the base branch to be confirmed on every run. They are free-form, so you judge whether they do. Ask one `AskUserQuestion` with these options in this order, leaving out any that repeat an earlier one: the branch the request names `(Recommended)`; `defaultBranch` (`(Recommended)` when it comes first); `mainBranch` when it is set and differs from the default branch. The tool adds Other on its own. The answer is the base. **When fewer than two options remain**, ask a two-option confirm question instead: `Use <base> (Recommended)` and `Another branch - type its name under Other`, where `<base>` is the one candidate. An answer under Other is the base.
@@ -32,7 +32,10 @@ The standalone flow works in a git worktree of its own, `.claude/worktrees/wf-<s
    $FLOW/scripts/worktree.sh create <base>
    ```
 
-   - `ready`: keep `worktree` as `<WT>`, `name` as `<name>` and `base` as `<base>`.
+   - `ready`: keep `worktree` as `<WT>`, `name` as `<name>` and `base` as `<base>`. Then act on the three lists it carries.
+     - `copied` not empty: print `copied <paths>` once.
+     - `notIgnored` not empty: say once that `<MAIN>/.worktreeinclude` lists these files but `<WT>` does not ignore them, so they were not copied. A `.gitignore` rule that only `<MAIN>`'s working tree has is the usual cause. **Never edit `.gitignore`.**
+     - `unlisted` not empty: take **Files `.worktreeinclude` does not name**.
    - `stop` with `base-missing`: say that origin has no branch `<base>`, and stop the flow.
    - `stop` with `fetch-failed`: quote `message` and stop the flow.
 
@@ -64,7 +67,30 @@ The standalone flow works in a git worktree of its own, `.claude/worktrees/wf-<s
    the end of the run runs in `<WT>`.** After a context summary, run `git rev-parse --show-toplevel`, and enter
    `<WT>` again when it prints anything else.
 6. **The worktree line.** From here on, every sub-agent prompt ends with **The worktree line** in SKILL.md: the design, the implementation, the review seats, the integration review seats and the report session.
-7. `<WT>` has none of `<MAIN>`'s ignored files, such as installed dependencies or a `.env`. The first worker prepares what the tests need and leaves the steps in the handover notes, so later tasks find them there. The submodules of `<WT>` are not initialized either. When the build or the tests need one, the first worker runs `git submodule update --init` in `<WT>` and leaves that in the handover notes too.
+7. `<WT>` has the ignored files `<MAIN>/.worktreeinclude` names, copied at step 3 and by the Copy answers of **Files `.worktreeinclude` does not name**, and none of the others, such as installed dependencies. The first worker prepares what the tests still need and leaves the steps in the handover notes, so later tasks find them there. The submodules of `<WT>` are not initialized either. When the build or the tests need one, the first worker runs `git submodule update --init` in `<WT>` and leaves that in the handover notes too.
+
+### Files `.worktreeinclude` does not name
+
+`<MAIN>/.worktreeinclude` lists, in `.gitignore` syntax, the ignored files copied into every new worktree. Claude Code reads the same file for its own worktrees. A line `!/<path>` marks a file that is never copied. Ask one question per path in `unlisted`, four questions per call, and more calls when there are more paths.
+
+```
+AskUserQuestion: <path> is in <MAIN> and git ignores it, so <WT> does not have it. Copy it into new worktrees?
+  - Copy it - adds /<path> to <MAIN>/.worktreeinclude and copies it now
+  - Never copy it - adds !/<path> to <MAIN>/.worktreeinclude, so no run asks about it again
+```
+
+Mark Copy `(Recommended)` for a file the build, the tests or a tool of the repository reads, such as an env file or `mise.local.toml`, and Never for a file nothing reads, such as `.DS_Store` or an editor's file. An answer under Other that copies nothing leaves the path out of both lists, and the next run asks again.
+
+Then record every answer with one command, `--copy <path>` or `--never <path>` per path. When every answer was under Other, there is nothing to record: skip the command and go on.
+
+```bash
+$FLOW/scripts/include.sh remember <WT> [--copy <path>]... [--never <path>]...
+```
+
+- `ok`: print `copied <paths>` when `copied` is not empty.
+- `stop`: quote `message` and go on. Nothing was written.
+
+A non-zero exit is quoted and stops the run, as for `worktree.sh`. The file sits in `<MAIN>`'s working tree. Commit it to share the list, or keep it out of git. Either works.
 
 ### Ending with nothing changed
 
