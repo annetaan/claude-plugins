@@ -141,6 +141,19 @@ if any("created-pr" in w for w in {s["session"]: s["why"] for s in m.find_sessio
 sess = {s["session"]: s for s in m.find_sessions(pr, "o/r", "/work/r")}
 if sess["11111111-2222-3333-4444-555555555555"]["cwds"] != ["/work/r"]: fail("cwds are not in sessions.json")
 
+def put(path, text):
+    os.makedirs(os.path.dirname(path), exist_ok=True)
+    with open(path, "w", encoding="utf-8") as f: f.write(text)
+wr = os.path.join(tmp, "wr")
+runs = os.path.join(wr, "work-reports")
+put(os.path.join(runs, "2026-01-01-0001-aaaaaaa", "log.md"), "Implements #7\n")
+put(os.path.join(runs, "2026-01-01-0002-bbbbbbb", "design.md"), "cites #7\n")
+put(os.path.join(runs, "2026-01-01-0002-bbbbbbb", "plan.md"), "cites #7\n")
+put(os.path.join(runs, "2026-01-01-0002-bbbbbbb", "log.md"), "Implements #9\n")
+put(os.path.join(runs, "2026-01-01-0003-ccccccc", "review", "task-1-round-1-a.md"), "as in #7\n")
+listed = [r["file"] for r in m.find_reports(pr, wr)]
+if listed != [os.path.join(runs, "2026-01-01-0001-aaaaaaa", "log.md")]: fail(f"find_reports: {listed}")
+
 def body(d1, d2, extra="", prose="Pick one."):
     return (f"## Decisions\n\n{prose}\n\n### D1. First\n\n- [{d1}] Yes\n- [ ] No\n\n"
             f"### D2. Second\n\n- [{d2}] Yes\n- [ ] No\n{extra}")
@@ -180,7 +193,7 @@ if m.lint("mail me at a@b.c") != []: fail("an address is no mention")
 d = os.path.join(tmp, "known"); os.makedirs(d)
 json.dump([{"session": "plan", "cwd": "/work/r/src", "cwds": ["/work/r/src", "/ab"], "file": "/store/s/plan.jsonl"},
            {"session": "abc", "cwd": "/"}], open(os.path.join(d, "sessions.json"), "w"))
-json.dump([{"file": "/work/r/work-reports/a/b.md", "size": 1}], open(os.path.join(d, "reports.json"), "w"))
+json.dump([{"file": "/work/r/work-reports/a/log.md", "size": 1}], open(os.path.join(d, "reports.json"), "w"))
 os.environ["HOME"] = "/opt/homedir"
 known = m.known_values(d)
 for body_, want in [("in /work/r/src it", "local-path"), ("the plan session", "session-id"),

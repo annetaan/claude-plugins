@@ -167,9 +167,9 @@ which record what the implementation session ran.
 
 ```mermaid
 flowchart TD
-    req(["your request"]) --> wt["worktree on the tip of the base<br/>work-reports/ and .claude/worktrees/ ignored?"] --> design["design session<br/>boundaries, acceptance criteria,<br/>plan of tasks"]
+    req(["your request"]) --> wt["worktree on the tip of the base<br/>work-reports/ and .claude/worktrees/ ignored?"] --> begin["flow.sh begin: START, the work directory and the level"] --> design["design session<br/>boundaries, acceptance criteria,<br/>plan of tasks, as files of the run"]
     design --> ask["open questions, only when there are any<br/>start message, no approval<br/>branch and base named"]
-    ask --> setup["branch in the worktree<br/>flow.sh begin: START, the work directory and the level"]
+    ask --> setup["branch in the worktree"]
     setup --> detail
 
     subgraph task["per task"]
@@ -601,7 +601,7 @@ dropout: the round goes on with the seats that reported.
 
 | Agent | Model | Effort | Role |
 | --- | --- | --- | --- |
-| `annetaan:workflow-design` | opus | medium | design. returns the design and the plan, and tries a doubtful point in a throwaway experiment. In a pj run it also details one sub-issue against the code and may return its body redrawn |
+| `annetaan:workflow-design` | opus | medium | design. writes the design, the plan and each task's detail into the run's work directory, and tries a doubtful point in a throwaway experiment. In a pj run it also details one sub-issue against the code and may return its body redrawn |
 | `annetaan:workflow-worker` | opus | medium | implementation, for every task. shows each acceptance criterion by running it and writes the evidence file |
 | `annetaan:workflow-reviewer-a` | opus | high | review seat a, for every task, and the integration review when the plan has more than one task. tries to break the change and proves each finding by a run of a probe it wrote |
 | `annetaan:workflow-reviewer-b` | fable | medium | review seat b, at `high` only. the same job as seat a on another model |
@@ -613,7 +613,7 @@ dropout: the round goes on with the seats that reported.
 | `annetaan:doc-meta-overview` | opus | high | overview for `doc-meta`. finds what a per-sentence flag misses |
 | `annetaan:level-evaluator` | opus | high | evaluation for `level`. reads the code and the review counts and proposes a level |
 
-`annetaan:workflow-design`, `annetaan:pj-planner` and `annetaan:pj-issue-writer` can write files, and their roles confine that to a scratch directory. The reviewers write only their probes and their seat file, and run code only through `flow.sh`.
+`annetaan:workflow-design`, `annetaan:pj-planner` and `annetaan:pj-issue-writer` can write files, and their roles confine that to a scratch directory, and for `annetaan:workflow-design` also to the run's files in the work directory. The reviewers write only their probes and their seat file, and run code only through `flow.sh`.
 
 `pj4-running` has no agents of its own. It runs workflow's.
 

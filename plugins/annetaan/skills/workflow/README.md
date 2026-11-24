@@ -81,9 +81,9 @@ laid out, and its changes stay uncommitted in the run's worktree. Saying "stop" 
 
 The implementation session and the review seats **start fresh for every task**, each on its own agent,
 whatever the task. A task boundary is a cheap place to
-start over. The code is in git, the plan is with the orchestrator, and every review finding is resolved. What is left
-is how this repository wants to be worked in, and that rides along as **handover notes**: five lines from each
-session, folded together, capped at fifteen.
+start over. The code is in git, the plan is a file of the run, and every review finding is resolved. What is left
+is how this repository wants to be worked in, and that rides along as **handover notes**: five lines
+from each session, folded together into the run's `notes.md`, capped at fifteen.
 
 ## Driven from an issue
 
@@ -158,6 +158,13 @@ work-reports/2026-09-19-1346-a1b2c3d/
                  with the level, its source and the review counts, the head and that line written by flow.sh record
   changes.diff   the diff from the start commit to HEAD
   run.json       the start commit, the level and its source, the issue and the parent, written once by flow.sh begin
+  design.md      the design: the design session's in a standalone run, project.sh --design on a run from an issue
+  plan.md        the plan of tasks, the flows to walk and the forks settled, written by the design session
+  detail/        task-1.md and up, the detail of each task, written by the design session
+  notes.md       the handover notes, folded by the main session after each commit
+  adaptations.md the adaptations of a run from an issue, written by the main session
+  checks.md      the check wanted: lines of the commit reports, written by the main session
+  merge.md       the design, plan and detail of a merge task, written by the main session
   review/        one file per review round, the reply to each, and the evidence files
     task-1-evidence.md
     task-1-round-1-a.md         what seat a proved in round 1, and `-b` for seat b at `high`
@@ -167,15 +174,14 @@ work-reports/2026-09-19-1346-a1b2c3d/
     integration-round-1.md      plans of two or more tasks, with one file per seat
   seats/         the probes of the review seats, `a/<name>/run.sh` and its `tree/`
   drafts/        the draft of each round file, under the round file's name, written by flow.sh verify from the reruns
-  scratch/       throwaway scripts of the implementation session
+  scratch/       throwaway scripts: design/ of the design session, work/ of the implementation session
   before.png     before and after, when the change shows on screen
   after.png
 ```
 
 The directory name is the local time the run started, plus the short SHA of the commit it started from. A second run
 of the same minute and commit gets `-2`, `-3` after the name. `flow.sh status` names the current run, the one whose
-`run.json` was written last. The design session's throwaway
-experiments go in `work-reports/<stamp>-design/`, next to the report directory and not inside it.
+`run.json` was written last.
 
 **These live inside the repository so that you see them.** A cleanup deletes the ones in your clone's
 `work-reports/` beyond the 100 newest, by the time stamp in their name. In a temp directory somewhere else they eat
@@ -231,7 +237,7 @@ screenshots it could not attach.
 | `merge-task.md` | the merge task, which resolves conflicts under review, for the standalone finish, from-pr and from-sync |
 | `worktree.md` | the start check and the run's worktree, for the standalone run and from-pr |
 | `finish.md` | the work report and the pull request, for the standalone run and from-issue |
-| `roles/design.md` | the role for the design session, which returns the design and the plan |
+| `roles/design.md` | the role for the design session, which writes the design and the plan into the work directory |
 | `roles/work.md` | the role for the implementation session |
 | `roles/review.md` | the role for a review seat |
 | `scripts/worktree.sh` | creates the run's worktree and checks its ignore rules. `workflow-cleanup` uses it to clean up |

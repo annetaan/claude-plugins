@@ -19,8 +19,6 @@ These values are already in your context. Nothing arrives as an argument.
 - the run's worktree `<WT>`, and `<MAIN>`, the main working tree. The session is in `<WT>`, and the branch is
   checked out there
 - `attach` from pj4-running's `run.sh start`, which has run its checks: whether `--attach` works
-- the `project.sh <P>` JSON from pj4-running's re-read, and the `project.sh <P> --check <n>` JSON it read after making
-  the branch
 - the `level.sh show` JSON, from **The level** in pj4-running. The design session, the worker and the review seats take
   their `model` and `effort` from it
 
@@ -43,6 +41,16 @@ This entry asks nothing. Its ending is **What it hands back to pj4-running** bel
   A `stop` with `not-ignored` takes the stop procedure with the reason `work-reports`. Never ask about `.gitignore`
   here.
 
+  Right after `begin`, write the design, with the `..` collapsed into `<skills>/pj1-plan/...` as **Paths: `$RUNNING`**
+  in `pj4-running/SKILL.md` says:
+
+  ```bash
+  $FLOW/../pj1-plan/scripts/project.sh <P> --design <n> > <WORKDIR>/design.md
+  ```
+
+  A non-zero exit is quoted and takes **The stop procedure** with the reason `user`. Then write the handover notes
+  pj4-running settled to `<WORKDIR>/notes.md` with Write, and nothing when they are empty.
+
   After a context summary, `flow.sh status <WT>` names this run only when its `issue` is `n`. A `no-run`, or an
   `issue` other than `n`, null included, is an earlier run's work directory in the reused `<WT>`: phase 2 (b) has not
   run, its `start` and `workdir` are not taken, and the level is the JSON pj4-running settled (**The level** in
@@ -62,7 +70,7 @@ Read `$FLOW/roles/design.md` only to name it in the prompt. The design session r
 ```
 Agent(subagent_type: "annetaan:workflow-design", description: "detail issue #<n>",
       model: "<agents.workflow-design.model>", effort: "<agents.workflow-design.effort>",
-      prompt: "Read $FLOW/roles/design.md first and follow the role it describes, and within it **Detailing an issue**.\n\nThe issue: #<n>, \"<issue title>\"\nThe parent: #<P>\nWaits on: <#Q1, #Q2, or none>\nThe format of an issue: $FLOW/../pj1-plan/format.md\nThe script that reads a project: $FLOW/../pj1-plan/scripts/project.sh\n\nproject.sh <P>:\n<the JSON>\n\nproject.sh <P> --check <n>:\n<the JSON>\n\nLeft broken on the base branch:\n<the same lines the implementation prompts carry, or none>\n\nHandover notes from the earlier sessions:\n<the notes, or none>\n\nScratch: <WORKDIR>/scratch/design\n\n<the worktree line>")
+      prompt: "Read $FLOW/roles/design.md first and follow the role it describes, and within it **Detailing an issue**.\n\nThe issue: #<n>, \"<issue title>\"\nThe parent: #<P>\nWaits on: <#Q1, #Q2, or none>\nThe format of an issue: $FLOW/../pj1-plan/format.md\nThe script that reads a project: $FLOW/../pj1-plan/scripts/project.sh\n\nWork directory: <WORKDIR>\nDesign: <WORKDIR>/design.md\nHandover notes: <WORKDIR>/notes.md\n\nScratch: <WORKDIR>/scratch/design\n\n<the worktree line>")
 ```
 
 `annetaan:workflow-design` takes its model and effort from the level, `agents.workflow-design` of the level JSON.
@@ -83,19 +91,10 @@ By what comes back:
 
 ## The design, the plan and the detail
 
-Read the issue again from GitHub after every redraw. Read its parent, and the parent of every project `P` waits on.
-
-```bash
-gh issue view <n> --json body
-gh issue view <P> --json body
-gh issue view <Q> --json body   # each Q
-```
-
-- **The design**, for every prompt in phases 3 to 5: the issue as it now reads on GitHub, with `## Decisions`
-  cut down to the checked option, the lines under its box and the `Decided:` line of each, plus the parent's
-  `## Design` and the `## Design` of each `Q`, which holds the boundaries those projects define (`pj1-plan/format.md`, **The
-  parent issue body**).
-- **The plan and the detail of task 1**: the design session's.
+- **The design**, for every prompt in phases 3 to 5, is `<WORKDIR>/design.md`. Write it again with the same
+  `project.sh <P> --design <n>` command as in phase 2 (b) after every pass of pj4-running's **A redrawn issue** that
+  answers go on, so that it holds the issue as it now reads on GitHub.
+- **The plan and the detail**: the design session's `<WORKDIR>/plan.md` and `<WORKDIR>/detail/task-<k>.md`.
 - **The commit**: in phase 4 (d), ask for a subject that follows the repository's style and names the task. A plan of
   one task names the issue title.
 
@@ -111,9 +110,8 @@ a line each.
 - The phase 3 prompt: "This run comes from issue #<n>. Follow **Work outside the task** in your role instruction."
 - The prompt of each seat: "The design is issue #<n>. Its checked decisions bind."
 - Every prompt, implementation and seats alike, carries **the worktree line** (**The worktree line** in SKILL.md).
-- Every prompt, implementation and seats alike, carries "Left broken on the base branch:" with one line per entry of `parent.breakage` whose `state` is `open` and whose `closedBy` does not hold `#<n>`, as `` `<check>` (left by #<j>) ``, or "none". An entry this issue closes is left out, because its check has to pass here. The declared reason is in `#<j>`'s `### Left broken`, read with `gh issue view <j> --json body` (a body, not a comment). pj4-running has the `project.sh <P>` JSON from its re-read.
-- Every review request, each seat's round 1 prompt and each "attack it again" `SendMessage`, also carries the adaptations
-  the implementation session has listed so far, under "Adaptations", or "none".
+- Every review request, each seat's round 1 prompt and each later-round `SendMessage`, also carries the line
+  `Adaptations: <WORKDIR>/adaptations.md`.
 
 Keep the handover lines from phase 4 (d) for pj4-running.
 
@@ -125,14 +123,15 @@ Keep the handover lines from phase 4 (d) for pj4-running.
 - **`Diverged:`**: send it to the design session with `SendMessage`, and tell the implementation session to wait. The
   answer is a redraw of the plan, a new `Body:` for **A redrawn issue**, or `Stop: ask`. After a redraw, the
   implementation session goes on or a new one starts, as the plan breaking in SKILL.md says.
-- **Adaptations** the implementation session lists: keep them for the review requests and for `log.md`.
+- **Adaptations** the implementation session lists: append each to `<WORKDIR>/adaptations.md`, a Read of it when it
+  exists, then Write with the earlier lines kept. The review requests and `log.md` read them there.
 
 ## Phase 6 from an issue
 
 1. **The work report.** Read `finish.md`. The request in **The work report** in `finish.md` gains this:
 
-   > List the adaptations the implementation session made to the issue's design under what changed, and what the detail
-   > pass redrew in the issue.
+   > List the adaptations the implementation session made to the issue's design, in `<WORKDIR>/adaptations.md`, under
+   > what changed, and what the detail pass redrew in the issue.
 2. **`changes.diff`, then `flow.sh record`**, as written in `finish.md`. It writes the head of
    `pj1-plan/between-skills.md` **Pull requests** from the `--issue` and `--parent` that `begin` got.
 3. **Push, then open the pull request.**
@@ -154,7 +153,7 @@ Keep the handover lines from phase 4 (d) for pj4-running.
 ## The stop procedure
 
 It runs on the round cap, an `Unplanned:` with `blocking`, a `Stop: ask` or a redraw that did not pass
-(**The detail pass**, **Phases 3 and 4**), a human edit that **A redrawn issue** found (the stop `user`), `begin`
+(**The detail pass**, **Phases 3 and 4**), a human edit that **A redrawn issue** found or a non-zero exit of `project.sh --design` (the stop `user`), `begin`
 stopping with `not-ignored`, or the user saying stop. The reasons it hands back are
 `round cap`, `blocking`, `decision`, `detail`, `work-reports`, `user` and `finish`.
 

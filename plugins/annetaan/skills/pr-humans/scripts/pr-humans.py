@@ -27,8 +27,8 @@ Subcommands (each prints one JSON object on stdout; exit 2 is a usage error, 1 a
       Write DIR/github.json (the pull request, its commits, reviews and comments, the issues it closes with their
       parents and the checkbox ticks in their edit history, each tick with the heading it sits under),
       DIR/sessions.json (the Claude Code sessions on this machine that touch it, with their working directories,
-      the pull requests they linked in order, and what the human said and answered in each), DIR/reports.json (work
-      report files that name it) and, only when this account already recorded the pull request, DIR/previous.md
+      the pull requests they linked in order, and what the human said and answered in each), DIR/reports.json (the
+      log.md of each work report that names it) and, only when this account already recorded the pull request, DIR/previous.md
       (that comment without its marker line). Runs of pr-humans itself are left out of the sessions' turns. Prints
       a summary, with "previous": true or false.
 
@@ -500,14 +500,16 @@ def find_reports(pr, root):
     dirs = glob.glob(os.path.join(root, "work-reports", "*")) + \
         glob.glob(os.path.join(root, ".claude", "worktrees", "*", "work-reports", "*"))
     for d in dirs:
-        for f in glob.glob(os.path.join(d, "**", "*.md"), recursive=True):
-            try:
-                text = open(f, encoding="utf-8", errors="replace").read()
-            except OSError:
-                continue
-            if pr["url"] in text or (pr["head"] and pr["head"] in text) or re.search(
-                    r"(?<![\w/])#%d(?!\d)" % pr["number"], text):
-                hits.append({"file": f, "size": len(text)})
+        f = os.path.join(d, "log.md")
+        if not os.path.isfile(f):
+            continue
+        try:
+            text = open(f, encoding="utf-8", errors="replace").read()
+        except OSError:
+            continue
+        if pr["url"] in text or (pr["head"] and pr["head"] in text) or re.search(
+                r"(?<![\w/])#%d(?!\d)" % pr["number"], text):
+            hits.append({"file": f, "size": len(text)})
     return hits
 
 

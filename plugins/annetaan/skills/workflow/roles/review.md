@@ -26,7 +26,7 @@ A diff on its own is not enough. Read the callers and the callees of every symbo
 
 ## The intent
 
-A finding is measured against the intent: the design and its acceptance criteria, the plan's file list for the task, the task's detail design, and the repository's instructions. Whether the change follows the design, and whether it stays inside the task, are part of the review. When the design is an issue, its checked decisions bind, and so do the issue's `### Left broken`, the prompt's "Left broken on the base branch" and the adaptations the prompt lists. A change against a checked option is a break even when it works. A change to a file outside the issue's file list is one too, unless the adaptations list it and it touches nothing another task relies on.
+A finding is measured against the intent: the design and its acceptance criteria, the plan's file list for the task, the task's detail design, read from the files your prompt names (`<WORKDIR>/merge.md` in a merge), and the repository's instructions. Whether the change follows the design, and whether it stays inside the task, are part of the review. When the design is an issue, its checked decisions bind, and so do the issue's `### Left broken`, the `# Left broken on the base branch` part of `<WORKDIR>/design.md` and the adaptations in `<WORKDIR>/adaptations.md`. A change against a checked option is a break even when it works. A change to a file outside the issue's file list is one too, unless the adaptations list it and it touches nothing another task relies on.
 
 ## What a run can show
 
@@ -34,7 +34,7 @@ Each finding is a run against the real code, a probe whose `run.sh` exits non-ze
 
 - **A reader the change breaks** (**Assumptions**): the input and the wrong thing that comes out of a reader that still assumes the old lifetime, key or shape, as a test or a repro script that fails, which exits non-zero.
 - **A name or shape the change left behind** (**As if it was always required**): a search that still finds a type, test, document, example or comment stating the old shape. The search is the probe's `run.sh`, followed by `test $? -eq 1`, so the probe exits 1 while the search finds something. What the search printed shows in the output beside that exit.
-- **An old path beside the new one** (**No transitional code**): a shim, an adapter or a flag that picks between the two, found by a search followed by `test $? -eq 1`, as above. And a check that fails and is neither under the issue's `### Left broken` nor in the prompt's "Left broken on the base branch", or a declared one that fails for another reason than the declared one: the check itself, which exits non-zero.
+- **An old path beside the new one** (**No transitional code**): a shim, an adapter or a flag that picks between the two, found by a search followed by `test $? -eq 1`, as above. And a check that fails and is neither under the issue's `### Left broken` nor in the `# Left broken on the base branch` part of `<WORKDIR>/design.md`, or a declared one that fails for another reason than the declared one: the check itself, which exits non-zero.
 - **The bad state reached past a guard** (**Root cause**): the input that produces the bad state while the guard sits in place, as a test or a repro script that fails, which exits non-zero.
 - **An effect inside the logic** (**Effects at the edges**): I/O, time or randomness read outside the edge files the design names. The probe runs the repository's lint when it has the rule, and otherwise carries the rule's configuration as **How the two rules are held** in `$FLOW/judgement.md` says, exiting non-zero while a diagnostic falls on a line the diff adds. Or a test that fails while the logic reads the effect itself.
 - **A mutated argument** (**Arguments stay as given**): the same lint or probe, the type check, or a test that passes a frozen input and fails while the function changes it.
@@ -51,7 +51,7 @@ A probe is a directory `<WORKDIR>/seats/<seat>/<name>/` with `run.sh` and, when 
 
 `flow.sh run <WT> <seat> <probe dir>` takes a snapshot of `<WT>` as it is at that moment, puts your seat's worktree at it, copies `tree/` over it, runs `run.sh` there as the root and prints the exit and the last 40 lines of the output. Your prompt gives the `flow.sh` path. Write `<WT>` and the probe directory as absolute paths.
 
-- **Dependencies**: your seat's worktree has the tracked files of the snapshot and none of the ignored ones, so no installed dependencies. Prepare them with a probe of your own, once, from the handover notes in your prompt and the evidence file. What it installs is ignored by git, so it stays in your seat's worktree for every later run.
+- **Dependencies**: your seat's worktree has the tracked files of the snapshot and none of the ignored ones, so no installed dependencies. Prepare them with a probe of your own, once, from `<WORKDIR>/notes.md` and the evidence file. What it installs is ignored by git, so it stays in your seat's worktree for every later run.
 - **One run at a time**: `flow.sh` holds a seat for one run and stops with `busy` otherwise. Wait for a run to end before you start the next.
 - **Each run is clean**: it starts from a fresh snapshot, so what an earlier probe left untracked is gone, and a later round needs no setup.
 
@@ -96,7 +96,7 @@ When you ran no probe in the previous round, attack the whole change as in round
 
 ## Report length
 
-**Report the gist.** **Do not paste a diff, or a finding you wrote.** Both are in files already. The main session takes a report from every session in the flow, and it is the only one holding the whole plan.
+**Report the gist.** **Do not paste a diff, or a finding you wrote.** Both are in files already. The main session takes a report from every session in the flow, and its context is the one context that runs the whole flow.
 
 ## Reporting
 

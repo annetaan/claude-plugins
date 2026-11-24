@@ -10,27 +10,38 @@ design session, no approval, no question and no integration review.
   of `<incoming>`, and the conflicted files hold conflict markers
 - `<incoming>`, the ref coming in, such as `origin/main`, and `<into>`, the branch it comes into
 - the conflicted files
-- `<intent>`: what the `<into>` side is for, in words the sessions can check a resolution against
-- `<WORKDIR>`, and the handover notes, or none
+- `<intent>`: what the `<into>` side is for, in words the sessions can check a resolution against, and where the
+  sessions read it
+- `<WORKDIR>`, whose `<WORKDIR>/notes.md` holds the handover notes when there are any
 
 ## The design, the plan and the detail
 
+Run the two commands, then write `<WORKDIR>/merge.md` with Write, before the first prompt.
+
 ```bash
 git log --oneline <M>..MERGE_HEAD
+```
+
+```bash
 git diff --name-only --diff-filter=U
 ```
 
-- **The design**, for every prompt below: "Merge `<incoming>` into `<into>`. Resolve every conflict so that
-  both sides hold: what `<incoming>` brings, as it is, and `<intent>` on top of it. Change nothing beyond the
-  resolution and what the build and the tests need on the merged code." As acceptance criteria: no conflict marker is
-  left, `git diff --name-only --diff-filter=U` prints nothing, and the tests and the type checks pass.
+`<WORKDIR>/merge.md` holds three headings:
+
+- **The design**: "Merge `<incoming>` into `<into>`. Resolve every conflict so that both sides hold: what
+  `<incoming>` brings, as it is, and `<intent>` on top of it. Change nothing beyond the resolution and what the build
+  and the tests need on the merged code." As acceptance criteria: no conflict marker is left,
+  `git diff --name-only --diff-filter=U` prints nothing, and the tests and the type checks pass.
 - **The plan**: one task, "1. Merge `<incoming>` into `<into>`".
-- **The detail design for task 1**: the conflicted files, and the commits the `git log` above lists.
+- **The detail design for task 1**: the conflicted files, and the lines the `git log` above printed.
 
 ## The rounds
 
 Phases 3 and 4 run as written for task 1, with a new implementation session and the review seats, five rounds,
 and the worktree line in every prompt, except for these.
+
+- Every prompt names `Design, plan and detail: <absolute path of WORKDIR>/merge.md` in place of
+  `<WORKDIR>/design.md`, `<WORKDIR>/plan.md` and `<WORKDIR>/detail/task-1.md`.
 
 - The phase 3 prompt: "Start point START: `<M>`. Branch: `<into>`. This is a merge in progress. Resolve the
   conflicts, and `git add` each file you resolve. Write `merge-evidence.md` under the review files. Never run `git merge --abort`, `git reset` or `git commit`: the

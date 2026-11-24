@@ -61,11 +61,11 @@ $FLOW/scripts/worktree.sh sync <name> <base>
 
 - **`current`** or **`clean`**: `<head>` does not conflict with `origin/<base>`, so nothing is resolved. Say so, and
   that GitHub may take a moment to see it. Clean up as below.
-- **`conflict`**: print `<base> conflicts with <head> in <k> file(s)`. Read the pull request,
-  `gh pr view <n> --json title,body`. When its body begins `Implements #<i>`, read that issue's `## Design` too. Read `merge-task.md` and run
+- **`conflict`**: print `<base> conflicts with <head> in <k> file(s)`. Read `merge-task.md` and run
   **The merge task** with `<incoming>` as `origin/<base>`, `<into>` as `<head>`, `<M>` as `start`, and as `<intent>`:
-  "the change pull request #<n> makes, as its title and body describe it", followed by the title, the body and the
-  issue's design when there is one.
+  "the change pull request #<n> makes, as `gh pr view <n> --json title,body` prints it", and, when its body begins
+  `Implements #<i>`, "and the `## Design` of issue #<i>, read with `gh issue view <i> --json body`". The sessions read
+  them.
 - **`stop`**: quote `message`, and leave the worktree as **Ending with nothing changed** in `worktree.md` says.
 
 ## The push
