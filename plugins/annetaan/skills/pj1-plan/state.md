@@ -10,20 +10,22 @@ agree on between them is in `between-skills.md`, both next to this file.
 `project.sh` sits next to this file, in `scripts/project.sh`. It reads the parent and every sub-issue in one GraphQL
 query, the pull requests into the base branch in one `gh pr list`, and where the branches of this project and the
 projects it waits on stand in one more GraphQL query. `--order` also reads one query per
-project it follows through `waitsOn`. It writes nothing to GitHub. **It is the only parser of a sub-issue body, of
+project it follows through `waitsOn`. `--design` reads the parent and its sub-issues in the one GraphQL query, and
+neither the pull requests nor the branches. It writes nothing to GitHub. **It is the only parser of a sub-issue body, of
 a parent body and its `Base:` and `Roadmap:` lines, of a pull request's head and of the roadmap file.** Every skill and the issue writer go through it. Pass `-R <owner/repo>` to read a repository other than the current one.
 
 Every mode that reads a parent fails with `project: #<P> has no Base: line` when the parent body has none, or has
 one that does not name both branches. It also fails with `project: #<P> is blocked by #<X>, which is no project` when
 an issue the parent is blocked by has no `Base:` line, for this parent and for every project a walk of `--order` or
-`--check` follows. `--parent-body` checks the `Base:` line but not the issues the parent is blocked by, because it
-stops right after the parent is read. `--lint`, `--parent-lint`, `--same-words` and `--roadmap` read no parent.
+`--check` follows. `--design` checks both the `Base:` line and the issues the parent is blocked by. `--parent-body`
+checks the `Base:` line but not the issues the parent is blocked by, because it stops right after the parent is read. `--lint`, `--parent-lint`, `--same-words` and `--roadmap` read no parent.
 
 ```bash
 project.sh <P>               # the whole project, as JSON
 project.sh <P> --order       # the run order, and the ## Order list to write
 project.sh <P> --order-body  # the parent body with its ## Order list replaced, as text
 project.sh <P> --parent-body <file>   # the parent body with everything from ## Goal on replaced by the file, as text
+project.sh <P> --design <n>  # the approved design of sub-issue <n>, as Markdown text
 project.sh <P> --next        # what to run next on the project, and a fingerprint (see What comes next)
 project.sh <P> --check <n> [<n>...]   # whether each sub-issue's body still holds against the code and the project (see Is the body still current?)
 project.sh --lint <file>     # the lint of one body, from a file, or from standard input with -
@@ -167,6 +169,25 @@ trailing blank lines dropped and one newline at the end. It writes nothing. It f
 `project: the parent body has no ## Goal heading` when the body has no such heading, and with
 `project: <file> does not start at ## Goal` when the file's first non-blank line is not `## Goal`. It reads only the
 parent, not the pull requests or the branches.
+
+`--design <n>` prints the approved design of sub-issue `#<n>` as Markdown text and exits 0. It prints, with the CR
+removed, one blank line between the parts and one newline at the end:
+
+1. `# Issue #<n>: <title>`, the title without its decision count, then the issue's body from `## Goal` on, with each
+   decision under `## Decisions` cut to its `### D<k>.` line, the one option line whose box is checked, the lines
+   under that option up to the next line that is neither blank nor indented or is itself an option, and its line
+   that starts with `Decided:` when there is one. `None.` and the other lines before the first `### D<k>.` stay as
+   they are. A `### D<k>.` line or an option line inside a code fence is not one.
+2. `# Parent #<P>: <title>`, then the parent's `## Design` section, its heading included, up to the next `## `
+   heading outside a code fence.
+3. For each project in `waitsOn`, by number, `# Waited-on project #<Q>: <title>`, then its `## Design` the same way.
+4. `# Left broken on the base branch`, then one line `` - `<check>` (left by #<j>) `` per entry of `breakage` whose
+   `state` is `open` and whose `closedBy` does not hold `<n>`, or `None.` when there is none.
+
+It fails with `project: #<n> is not a sub-issue of #<P>` when `<n>` is no sub-issue of the parent, and with
+`project: #<n> has decisions not settled: <open> open, <contradictory> contradictory` when a decision of `#<n>` is open
+or contradictory, and prints nothing on standard output then. It writes nothing. Its caller redirects it into a file
+(`between-skills.md`, **Commands**).
 
 `--same-words <before> <after>` reads two files, touches neither GitHub nor git, and exits 0 on two readable files. It
 prints `{"ok", "lint"}`. `ok` is true when the two files hold the same words once every backtick is gone and every
