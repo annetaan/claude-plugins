@@ -158,7 +158,7 @@ fails when the projects wait on each other: `project: the projects have a cycle:
 replaced by `list`: one `1. #<n>` per line, framed by blank lines. A body with no `## Order` heading gets the heading
 and the list before its first `## ` heading outside a code fence, or at the end. The lines above the first heading,
 `Base:` and `Roadmap:`, stay as they are. It fails like `--order` on a cycle.
-Its own read of the body is the re-read that **Writing to GitHub** (`between-skills.md`) asks for.
+`issue.sh order` writes this text, guarded by `--since` (`between-skills.md`, **Writing to GitHub**).
 
 `--parent-body <file>` is the same splice for the sections from `## Goal` on, and the diff of a parent change reads
 it. It prints the parent's body as GitHub has it now, with the CR removed, keeps the lines above its first `## Goal`

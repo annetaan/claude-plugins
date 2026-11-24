@@ -32,6 +32,8 @@ Everything below refers to them.
 This skill uses these files:
 
 - the script `$DOCTOR/../pj1-plan/scripts/project.sh`, written `project.sh` below
+- the script `$DOCTOR/../pj1-plan/scripts/issue.sh`, written `issue.sh` below, the one writer to GitHub
+  (`pj1-plan/between-skills.md`, **Writing to GitHub**)
 - the script `$DOCTOR/../workflow/scripts/level.sh`, written `level.sh` below
 - the reviewer's role file `$DOCTOR/roles/review.md`
 - the issue writer's role file `$DOCTOR/../pj2-issues/roles/issue.md`
@@ -162,15 +164,18 @@ Agent(subagent_type: "annetaan:pj-issue-writer", description: "revise #<n>", run
 **Each writer writes its own issue only.** A finding a writer says belongs to another issue goes to that issue's
 writer with `SendMessage`. Start one when that issue has none yet.
 
-**Lint each body that comes back.** Write it to `$TMP/<n>.md`.
+**Lint each body that comes back.** Write it to `$TMP/<n>.md`. A sub-issue body takes the lint, and a parent body the
+parent lint.
 
 ```bash
 $DOCTOR/../pj1-plan/scripts/project.sh --lint "$TMP/<n>.md"
+$DOCTOR/../pj1-plan/scripts/project.sh --parent-lint "$TMP/<n>.md"
 ```
 
-Accept a clear lint, or `decisions-open` when a decision is still open. Read each parent's body against the parent
-shape in `pj1-plan/format.md` instead: its headings, no line numbers, its `Base:` line, its `Roadmap:` line and its `## Order` unchanged. Send a
-body that fails back to its writer with `SendMessage` and say what to fix.
+Accept a sub-issue body on a clear lint, or `decisions-open` when a decision is still open. Accept a parent body on a
+clear parent lint, and read it for what that lint has no code for: no line numbers, and its `Base:` line, its
+`Roadmap:` line and its `## Order` reading as they do on GitHub. Send a body that fails back to its writer with
+`SendMessage` and say what to fix.
 
 **When a writer could not fix something** that needs the user, ask it as phase 2 says, and send the answer back to
 the writer. An unattended run ends as needs-user instead and writes nothing.
@@ -193,7 +198,7 @@ each time the reviewer returns (k from 2 to 5), so a context summary can find wh
 
 ## Phase 4: approval and writing
 
-**Check each parent edge to add before you show anything**, so that the approval offers only edges that step 4
+**Check each parent edge to add before you show anything**, so that the approval offers only edges that step 3
 writes. When `parent.baseExists` of `<P>` is true, drop every parent edge to add, and say so. Otherwise run
 `project.sh <Q>` for each `add #<P> blocked by #<Q>`. When it fails, for instance with `has no Base: line`, `#<Q>` is
 no project. Drop the edge, and say so. When its `parent.state` is `CLOSED` and it is not `merged`, `#<Q>` was closed
@@ -214,7 +219,8 @@ $DOCTOR/../pj1-plan/scripts/project.sh <Q>
   one more line: `pj4-running` does not start this project until `#<Q>` is merged
 - the blockers to close
 - the titles to change, as `#<n> <title> -> <wantedTitle>`. An issue rewritten or filed in this run has no
-  `wantedTitle` yet, so take its count from the decisions in its new body (`pj1-plan/format.md`, **The title**)
+  `wantedTitle` yet: its title takes ` (<settled>/<total>)` from `decisions` in the output of `project.sh --lint
+  "$TMP/<n>.md"`, while `settled` is below `total` (`pj1-plan/format.md`, **The title**)
 - `ready` to add and `ready` to take off, each with why
 - `doing` to add to #<P>, when `parent.labels` lacks it (`pj1-plan/between-skills.md`, **Labels**)
 - the new `## Order`, one line per issue as it will read
@@ -231,42 +237,45 @@ The approval covers this run only (`pj1-plan/between-skills.md`, **Principle**).
 
 **`ready` goes on an issue** when it is open and all of these hold:
 
-- the step 7 `--check`, run again after a format-only fix when one was made, has a clear lint, no premise failure (`premises.mode` `none` has none) and no entry in `breakage.unclosed`, and an empty `roadmap.several-tasks`
+- the step 6 `--check`, run again after a format-only fix when one was made, has a clear lint, no premise failure (`premises.mode` `none` has none) and no entry in `breakage.unclosed`, and an empty `roadmap.several-tasks`
 - no review finding is left on it: the reviewer's last return lists it as clear
 
 `ready` stays on an issue that still meets this. **`ready` comes off** an issue that had it and no longer meets this.
 
-Write in this order. **When a command fails halfway**, stop and tell the user what was written and what was not, with
-the numbers.
+Write in this order. The bodies come first because every later write to an issue, a comment, an edge or a stub
+filed blocking it, moves its `updatedAt`, and the guard of `issue.sh edit` would then stop on the run's own work. The
+stops of `issue.sh` are in `pj1-plan/between-skills.md` under **Writing to GitHub**. **When a command fails halfway**,
+or `issue.sh` stops on a reason these steps do not name, stop and tell the user what was written and what was not,
+with the numbers.
 
-1. **Re-read `updatedAt`** of every issue about to be written, the parents included, and compare it with the one its
-   writer read.
-
-   ```bash
-   gh issue view <k> --json updatedAt,body
-   ```
-
-   When it moved, someone changed the issue in the meantime. Send the current body to its writer to merge, lint the
-   new body, and go on (`pj1-plan/between-skills.md`, **Writing to GitHub**).
-2. **File what is new.** For a split, file parts 2 to N and keep a map from each part to its number. A stub is filed
-   blocking the issue it was found in. Both go under `<P>`.
+1. **Write the bodies**, the parents included, each with the `updatedAt` its writer returned. Add `--title` when the
+   writer's title differs from the one on GitHub with its count stripped. Step 5 then adds the count.
 
    ```bash
-   gh issue create --parent <P> --title "<title>" --body-file "$TMP/part<k>.md"
-   gh issue create --parent <P> --blocking <n> --title "<title>" --body-file "$TMP/stub.md"
+   $DOCTOR/../pj1-plan/scripts/issue.sh edit <k> --since <updatedAt> --body "$TMP/<k>.md"
+   $DOCTOR/../pj1-plan/scripts/issue.sh edit <k> --since <updatedAt> --body "$TMP/<k>.md" --title "<title>"
    ```
 
-   Each is filed with the title its writer returned. Step 6 gives it its count.
+   - A `moved` stop: someone changed the issue since its writer read it. Send `$TMP/<k>.md.github`, the stop's
+     `github`, to the writer to merge, lint the new body as phase 3 does, and write again with the `updatedAt` the
+     stop printed.
+   - A `lint` stop on a parent: send its `reasons` to the writer of that parent, as the lint of phase 3 does, and
+     write again with the body that comes back.
 
-3. **Write the bodies**, with `--title` when the writer's title differs from the one on GitHub with its count
-   stripped. Step 6 then adds the count.
+2. **File what is new.** For a split, file parts 2 to N and keep a map from each part to the `number` it prints. A
+   stub is filed blocking the issue it was found in. Both go under `<P>`, each with the title its writer returned.
+   Step 5 gives it its count.
 
    ```bash
-   gh issue edit <k> --body-file "$TMP/<k>.md"
-   gh issue edit <k> --title "<title>" --body-file "$TMP/<k>.md"
+   $DOCTOR/../pj1-plan/scripts/issue.sh sub <P> --title "<title>" --body "$TMP/part<k>.md"
+   $DOCTOR/../pj1-plan/scripts/issue.sh sub <P> --title "<title>" --blocking <n> --body "$TMP/stub.md"
    ```
 
-4. **Change the edges**, one at a time, with the part numbers from step 2.
+   A `lint` stop filed nothing: send its `reasons` to the writer of that part or stub, as the lint of phase 3 does,
+   and run the call again with the body that comes back.
+
+3. **Change the edges**, one call each, with the part numbers from step 2. Each `relate` runs the cycle check after
+   an edge it adds, and takes the edge back off when it made a cycle.
 
    **Sub-issue edges** run only between sub-issues of `<P>`. An edge whose other end is not a sub-issue of `<P>` is
    never added. One that already exists is removed, as kind 9 in `roles/review.md` says.
@@ -276,51 +285,45 @@ the numbers.
    report names them with why.
 
    ```bash
-   gh issue edit <a> --add-blocked-by <b>
-   gh issue edit <a> --remove-blocked-by <b>
-   gh issue edit <P> --add-blocked-by <Q>
-   gh issue edit <P> --remove-blocked-by <Q>
+   $DOCTOR/../pj1-plan/scripts/issue.sh relate <a> add <b>
+   $DOCTOR/../pj1-plan/scripts/issue.sh relate <a> remove <b>
+   $DOCTOR/../pj1-plan/scripts/issue.sh relate <P> add <Q>
+   $DOCTOR/../pj1-plan/scripts/issue.sh relate <P> remove <Q>
    ```
 
    **The roadmap task's edges** (`pj1-plan/format.md`, **The roadmap task**). Read the project again, because step 2 filed
    new issues, and add one edge per number in `parent.roadmap.missing`. With `parent.roadmap` null or its `task`
-   null, there are none. These come before the `--order` run below, which then covers them.
+   null, there are none.
 
    ```bash
    $DOCTOR/../pj1-plan/scripts/project.sh <P>
-   gh issue edit <task> --add-blocked-by <k>
+   $DOCTOR/../pj1-plan/scripts/issue.sh relate <task> add <k>
    ```
 
-   **After the edges change, run `--order` on `<P>` once.** When it fails, on a cycle or anything else, remove the
-   last edge added and say so in the report.
+   **A `cycle` stop**, from `relate`, from `sub` in step 2 or from `order` in step 7, is a split error. The edge is off
+   again, and an issue `sub` filed stays, with the `number` the stop carries. The report names the edge and what was
+   written, and the run stops.
+
+4. **Close a blocker that needs no code.** The marked comment points at the rewritten issue, and `issue.sh` posts it
+   and closes the stub in one call.
 
    ```bash
-   $DOCTOR/../pj1-plan/scripts/project.sh <P> --order
+   $DOCTOR/../pj1-plan/scripts/issue.sh close <b> --reason completed --comment "$TMP/<b>-comment.md"
    ```
-5. **Close a blocker that needs no code.** Post a marked comment on the stub that points at the rewritten issue,
-   then close it.
+
+5. **The titles** (`pj1-plan/between-skills.md`, **Titles**), now that the bodies, the new issues and the closed
+   blockers are written. Every issue that gets `ready` in the next step then has a title with no count.
 
    ```bash
-   gh issue comment <b> --body-file "$TMP/<b>-comment.md"
-   gh issue close <b> --reason completed
+   $DOCTOR/../pj1-plan/scripts/issue.sh titles <P>
    ```
 
-6. **The titles.** Run the sync in `pj1-plan/between-skills.md` under **Titles** for `<P>`, now that the bodies, the new
-   issues and the closed blockers are written. Every issue that gets `ready` in the next step then has a title with
-   no count.
-
-   ```bash
-   $DOCTOR/../pj1-plan/scripts/project.sh <P>
-   gh issue edit <k> --title "<wantedTitle>"
-   ```
-
-7. **The labels.** Make sure `ready` exists, and `doing` when the parent lacks it, with the commands in
-   `pj1-plan/between-skills.md` under "Labels".
+6. **The labels.** `issue.sh` makes sure each label it adds exists.
 
    **When the phase 1 `project.sh <P>` shows `parent.labels` without `doing`**, add it to the parent.
 
    ```bash
-   gh issue edit <P> --add-label doing
+   $DOCTOR/../pj1-plan/scripts/issue.sh label <P> --add doing
    ```
 
    Check again, in one call before any label goes on, the same issues as step 2 of phase 1 (every open sub-issue whose
@@ -331,18 +334,19 @@ the numbers.
    $DOCTOR/../pj1-plan/scripts/project.sh <P> --check <k1> <k2> ...
    ```
 
-   Then, for each issue whose check is clear:
+   Then, for each issue whose check is clear, the second form where it carries `blocker`:
 
    ```bash
-   gh issue edit <k> --add-label ready
-   gh issue edit <k> --add-label ready --remove-label blocker
+   $DOCTOR/../pj1-plan/scripts/issue.sh label <k> --add ready
+   $DOCTOR/../pj1-plan/scripts/issue.sh label <k> --add ready --remove blocker
    ```
 
    **When the check fails on `symbol never in the file`, or on a lint reason backticks and whitespace alone clear**,
-   fix the body as `pj1-plan/between-skills.md` says under **Format-only fixes**, once, before `ready` goes on. Read the
-   body now. That read is the re-read **Writing to GitHub** asks for.
+   fix the body as `pj1-plan/between-skills.md` says under **Format-only fixes**, once, before `ready` goes on. Read
+   `updatedAt` first and keep it, then read the body.
 
    ```bash
+   gh issue view <k> --json updatedAt --jq .updatedAt
    gh issue view <k> --json body --jq .body > "$TMP/<k>.form-before.md"
    ```
 
@@ -352,42 +356,45 @@ the numbers.
    $DOCTOR/../pj1-plan/scripts/project.sh --same-words "$TMP/<k>.form-before.md" "$TMP/<k>.form.md"
    ```
 
-   Go on only when `ok` is true and `lint` has no reason. Then write the body and check again.
+   Go on only when `ok` is true and `lint` has no reason. Then write the body with the `updatedAt` kept, and check
+   again.
 
    ```bash
-   gh issue edit <k> --body-file "$TMP/<k>.form.md"
+   $DOCTOR/../pj1-plan/scripts/issue.sh edit <k> --since <updatedAt> --body "$TMP/<k>.form.md"
    ```
 
    ```bash
    $DOCTOR/../pj1-plan/scripts/project.sh <P> --check <k>
    ```
 
-   A clear check prints `#<k> format fixed`, and `ready` goes on as above.
+   A `moved` stop means a human changed the body since the read, and it is theirs now: start the fix again from the
+   read of `updatedAt`. A clear check prints `#<k> format fixed`, and `ready` goes on as above.
 
-   **An issue that carries `blocker` loses it in the same command.** A check whose lint or premises still fail, or
+   **An issue that carries `blocker` loses it in the same call.** A check whose lint or premises still fail, or
    whose `breakage.unclosed` or `roadmap.several-tasks` is not empty, leaves `ready` off, and the report names the failures.
 
    **Whoever takes `ready` off leaves a comment** (`pj1-plan/between-skills.md`, **Labels**). It starts with
    `**[pj3-doctor]**` and says what changed and why.
 
    ```bash
-   gh issue edit <k> --remove-label ready
-   gh issue comment <k> --body-file "$TMP/<k>-comment.md"
+   $DOCTOR/../pj1-plan/scripts/issue.sh label <k> --remove ready
+   $DOCTOR/../pj1-plan/scripts/issue.sh comment <k> --body "$TMP/<k>-comment.md"
    ```
 
-8. **The run order.** Read it again, now that the edges and the issues have changed, and write `list` under the
-   parent's `## Order`, one line per number as `1. #<n>`, with `--order-body`. Its own read of the parent is the
-   re-read **Writing to GitHub** asks for, and `pj1-plan/state.md` says what it keeps.
+7. **The run order.** Read it again, now that the edges and the issues have changed. `issue.sh order` writes `list`
+   under the parent's `## Order`, one line per number as `1. #<n>`, through `--order-body`, and `pj1-plan/state.md`
+   says what it keeps.
 
    ```bash
+   $DOCTOR/../pj1-plan/scripts/project.sh <P>
    $DOCTOR/../pj1-plan/scripts/project.sh <P> --order
-   $DOCTOR/../pj1-plan/scripts/project.sh <P> --order-body > "$TMP/<P>-order.md"
-   gh issue edit <P> --body-file "$TMP/<P>-order.md"
+   $DOCTOR/../pj1-plan/scripts/issue.sh order <P> --since <parent.updatedAt>
    ```
 
-   Skip the edit when the list reads the same: compare `--order`'s `list` with `parent.order`, and skip the last two
-   commands when they match. Then run `project.sh <P>` and confirm that `parent.orderCheck.ok` is
-   true and `missing` is empty.
+   Skip the write when the list reads the same: compare `--order`'s `list` with `parent.order`, and run `order` only
+   when they differ, with `parent.updatedAt` of the read just before. A `moved` stop: read `project.sh <P>` again and
+   run `order` again once, with the new `parent.updatedAt`. A second one is reported. Then run `project.sh <P>` and
+   confirm that `parent.orderCheck.ok` is true and `missing` is empty.
 
 ## Report to the user
 
@@ -429,9 +436,10 @@ is needs-user too.
 - **The roadmap task's edges come from `parent.roadmap.missing` only.** You never judge them, nor does the reviewer.
 - **Sub-issue edges stay inside the project.** A parent edge runs only between two parents, only while
   `parent.baseExists` is false, and only after the phase 4 approval. Never an edge between a parent and a sub-issue.
-- **Always pass a body with `--body-file`.** Never create a label with `--force`.
-- **Re-read `updatedAt` before every edit. Never edit a closed issue.**
-- **A sub-issue body goes out only after its lint passes**, and a parent's only after you read it against its shape.
+- **Every write goes through `issue.sh`, and every body edit carries `--since`.** `issue.sh` refuses to post a comment
+  without a marker (`pj1-plan/between-skills.md`, **Comments**).
+- **A sub-issue body goes out only after its lint passes**, and a parent's only after its parent lint passes and you
+  read it for what that lint does not check.
 - An unattended run never calls `AskUserQuestion` and ends with one `unattended:` line.
 - After a context summary, take `<P>` and whether the run is unattended again from the last `project #<P>` line, `$TMP` from the last `tmp` line, and the level from the last `level` line, running `level.sh show` again with that level when the line says `override` and without one otherwise, and rebuild where the run stood from the
   progress lines (the review count is the largest k of `review <k> done`) and `project.sh <P>`. A writer or a reviewer whose handle is gone is started again.

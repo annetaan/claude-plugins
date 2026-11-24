@@ -30,6 +30,8 @@ labels, the titles and picking the project. Everything below refers to them.
 This skill uses these files:
 
 - the script `$ISSUES/../pj1-plan/scripts/project.sh`, written `project.sh` below
+- the script `$ISSUES/../pj1-plan/scripts/issue.sh`, written `issue.sh` below, the one writer to GitHub
+  (`pj1-plan/between-skills.md`, **Writing to GitHub**)
 - the script `$ISSUES/../workflow/scripts/level.sh`, written `level.sh` below
 - the planner's role file `$ISSUES/roles/split.md`
 - the issue writer's role file `$ISSUES/roles/issue.md`
@@ -88,7 +90,7 @@ git branch --show-current
      numbers removed here for the planner's prompt in phase 1.
 
      ```bash
-     gh issue edit <P> --remove-blocked-by <Q>
+     $ISSUES/../pj1-plan/scripts/issue.sh relate <P> remove <Q>
      $ISSUES/../pj1-plan/scripts/project.sh <P>
      ```
 
@@ -165,14 +167,24 @@ When the split comes back:
 Present the split, then ask for approval. **Nothing has been written to GitHub yet**, and this is the last point where
 changing the split costs nothing.
 
-Write the parent change to files first. Save the body as it reads on GitHub to `$TMP/<P>.before.md`. Write
-`$TMP/<P>.md` as the lines above `## Goal` exactly as they read on GitHub, a blank line, then the planner's body. When the
-planner returned the body unchanged, copy the one from GitHub.
+Read the parent's `updatedAt` first and keep it as `<since>`, whether or not the planner changed the body. A parent
+change drawn later in this run, in phase 3, is written against this value too.
+
+```bash
+gh issue view <P> --json updatedAt --jq .updatedAt
+```
+
+Then write the parent change to files, unless the planner returned the body unchanged. Write the planner's sections,
+from `## Goal` on, to `$TMP/<P>-sections.md`, save the body as it reads on GitHub to `$TMP/<P>.before.md`, and splice
+the sections into it (`pj1-plan/state.md`, `--parent-body`).
 
 ```bash
 gh issue view <P> --json body --jq .body > "$TMP/<P>.before.md"
+$ISSUES/../pj1-plan/scripts/project.sh <P> --parent-body "$TMP/<P>-sections.md" > "$TMP/<P>.md"
 diff -u "$TMP/<P>.before.md" "$TMP/<P>.md"
 ```
+
+A planner that returned the body unchanged leaves no file, and the change reads "unchanged".
 
 Show:
 
@@ -226,16 +238,14 @@ AskUserQuestion:
     - Stop without writing
 ```
 
-On "Add", re-read the parent's `updatedAt`, add the edge, and check it.
+On "Add", add the edge. `issue.sh relate` checks the order itself.
 
 ```bash
-gh issue view <P> --json updatedAt
-gh issue edit <P> --add-blocked-by <Q>
-$ISSUES/../pj1-plan/scripts/project.sh <P> --order
+$ISSUES/../pj1-plan/scripts/issue.sh relate <P> add <Q>
 ```
 
-When `--order` fails, on a cycle or anything else, remove the edge again and say so. Report what was done and stop.
-Nothing else is filed.
+A `cycle` stop, or a failure, has taken the edge back off: say so. Report what was done and stop. Nothing else is
+filed.
 
 ## Phase 3: the issue writers
 
@@ -264,7 +274,10 @@ again, because nothing has been filed yet and a new split is a new plan.
 1. Wait until every writer has returned, so that one redraw covers them all.
 2. Send what each such writer found to the planner with `SendMessage`.
 3. Ask the open questions the redraw carries, as phase 1 does, four to a call, and send the answers back.
-4. Rewrite `$TMP/<P>.md` from the revised parent body.
+4. Write the revised sections to `$TMP/<P>-sections.md`, save the body as it reads on GitHub to
+   `$TMP/<P>.before.md`, and splice, with the commands of phase 2 but no new read of `updatedAt`. `<since>` stays the
+   one phase 2 read, also when phase 2 found the parent unchanged, so that a human's edit since then still stops the
+   write in phase 4.
 5. Rerun the writers of the task ids the planner names.
 6. Show the new split and the `diff -u` of the parent, and ask the phase 2 question again, because nothing has been
    filed yet and a revised parent is a new plan.
@@ -281,6 +294,7 @@ see: no line number in a form the lint does not catch, such as `line 42`, no che
 `### Shared state` list in a body whose task writes shared state
 (**Assumptions** in `workflow/judgement.md`). Send a
 body that fails back to its writer with `SendMessage` and say what to fix. Write the fixed body over the same file.
+Phase 4 sends a `lint` stop of `issue.sh sub` back the same way.
 
 Once every writer has returned, run `git status --porcelain` once more. When it differs from the output kept in **The
 project**, stop and name the paths. Then read the bodies against each other. Two or more bodies that carry the same workaround
@@ -290,67 +304,75 @@ the planner. You only route this, and the planner decides the fix.
 
 ## Phase 4: filing
 
-The sub-issue bodies sit in `$TMP` from phase 3, and the parent body in `$TMP/<P>.md` from phase 2.
+The sub-issue bodies sit in `$TMP` from phase 3, and the parent body in `$TMP/<P>.md` from phase 2. The stops of
+`issue.sh` are in `pj1-plan/between-skills.md` under **Writing to GitHub**.
 
-1. **Read the parent again.** When its `updatedAt` or its body moved since phase 2, send the change to the planner
-   and have it merge the change into its body. Write `$TMP/<P>.md` again.
-
-   ```bash
-   gh issue view <P> --json updatedAt,body
-   ```
-
-2. **The parent body**, only when it changed.
+1. **The parent body**, only when it changed. `--since` is the `<since>` phase 2 read.
 
    ```bash
-   gh issue edit <P> --body-file "$TMP/<P>.md"
+   $ISSUES/../pj1-plan/scripts/issue.sh edit <P> --since <since> --body "$TMP/<P>.md"
    ```
 
-3. **The parent's edges**, one at a time, then check the order. An edge to add names a project that phase 2 read
-   as merged with `project.sh <Q>`. When `--order` fails, on a cycle or anything else, undo the last edge and stop.
-   Run `project.sh <P>` after the edges, and stop when `parent.startable` is no longer true.
+   - A `moved` stop: someone changed the parent since phase 2. Send `$TMP/<P>.md.github`, the stop's `github`, to the
+     planner with `SendMessage` and have it merge the change into its sections. Write `$TMP/<P>-sections.md` again,
+     splice again with `--parent-body`, and run the edit again with the `updatedAt` the stop printed.
+   - A `lint` stop: send its `reasons` to the planner, which returns sections that pass. Splice again and run the edit
+     again with the same `--since`.
+
+2. **The parent's edges**, one call each. An edge to add names a project that phase 2 read as merged with
+   `project.sh <Q>`. Each `relate` checks the order itself. Run `project.sh <P>` after the edges, and stop when
+   `parent.startable` is no longer true.
 
    ```bash
-   gh issue edit <P> --add-blocked-by <Q>
-   gh issue edit <P> --remove-blocked-by <Q>
-   $ISSUES/../pj1-plan/scripts/project.sh <P> --order
+   $ISSUES/../pj1-plan/scripts/issue.sh relate <P> add <Q>
+   $ISSUES/../pj1-plan/scripts/issue.sh relate <P> remove <Q>
+   $ISSUES/../pj1-plan/scripts/project.sh <P>
    ```
 
-4. **The sub-issues, in dependency order**, so that every `--blocked-by` names an issue that already exists. Leave
-   out `--blocked-by` when the task waits on nothing. Keep the mapping from `T<k>` to the issue number as you go,
+3. **The sub-issues, in dependency order**, so that every `--blocked-by` names an issue that already exists. Leave
+   out `--blocked-by` when the task waits on nothing. Keep the mapping from `T<k>` to the `number` it prints as you go,
    because the next `--blocked-by` needs it. The roadmap task is filed last, with `--blocked-by` naming every other
    sub-issue.
 
    ```bash
-   gh issue create --parent <P> --blocked-by <n>,<m> --title "<title>" --body-file "$TMP/T<k>.md"
+   $ISSUES/../pj1-plan/scripts/issue.sh sub <P> --title "<title>" --blocked-by <n>,<m> --body "$TMP/T<k>.md"
    ```
 
-5. **The label.** Make sure `doing` exists with the command in `pj1-plan/between-skills.md` under **Labels**, then put it on
-   the parent.
+   A `lint` stop filed nothing: send its `reasons` to the writer of that task, as phase 3 does with its own lint, and
+   run the call again with the body that comes back.
+
+   **A `cycle` stop**, from `sub` or from `relate` in step 2, means the split's order has a cycle that phase 2 did not
+   see. The edge is off again, and an issue `sub` filed stays, with the `number` the stop carries. Report the edge as a
+   split error, say what was written, and stop.
+
+4. **The label.** `issue.sh` makes sure `doing` exists.
 
    ```bash
-   gh issue edit <P> --add-label doing
+   $ISSUES/../pj1-plan/scripts/issue.sh label <P> --add doing
    ```
 
-6. **The run order.** Write `list` under `## Order`, one line `1. #<n>` per number, with `--order-body`. Its own read of the
-   parent is the re-read **Writing to GitHub** asks for. When there is no `## Order` yet, it puts the list between the
-   `Base:` line and `## Goal` (`pj1-plan/format.md`, **The run order**).
-
-   ```bash
-   $ISSUES/../pj1-plan/scripts/project.sh <P> --order
-   $ISSUES/../pj1-plan/scripts/project.sh <P> --order-body > "$TMP/<P>-order.md"
-   gh issue edit <P> --body-file "$TMP/<P>-order.md"
-   ```
-
-7. **The titles.** Run the sync in `pj1-plan/between-skills.md` under **Titles** for `<P>`.
+5. **The run order.** Read the project, then write `## Order` with the parent's `updatedAt` from that read.
+   `issue.sh order` writes the body `--order-body` prints: `list` under `## Order`, one line `1. #<n>` per number, and
+   when there is no `## Order` yet, the list between the `Base:` line and `## Goal` (`pj1-plan/format.md`, **The run
+   order**).
 
    ```bash
    $ISSUES/../pj1-plan/scripts/project.sh <P>
-   gh issue edit <k> --title "<wantedTitle>"
+   $ISSUES/../pj1-plan/scripts/issue.sh order <P> --since <parent.updatedAt>
+   ```
+
+   A `moved` stop: read `project.sh <P>` again and run `order` again once, with the new `parent.updatedAt`. A second
+   one is reported. A `cycle` stop is reported as a split error and stops the run, as in step 3.
+
+6. **The titles** (`pj1-plan/between-skills.md`, **Titles**).
+
+   ```bash
+   $ISSUES/../pj1-plan/scripts/issue.sh titles <P>
    ```
 
 No issue gets `ready` here. Only `pj3-doctor` adds it, after it has reviewed the whole project.
 
-**When a command fails halfway**, stop and tell the user what was filed and what was not, with the numbers, and
+**When a command fails halfway**, or `issue.sh` stops on a reason these steps do not name, stop and tell the user what was filed and what was not, with the numbers, and
 whether the parent body, its edges, its `doing` label, its `## Order` and the titles were written. Never retry the whole run, or the
 issues double. A missing count, a missing `doing` or a missing `## Order` is fixed by the next `pj3-doctor` run.
 
@@ -394,12 +416,12 @@ Then the next steps, in this order:
   `wantedTitle` only.
 - **Nothing reaches GitHub before the phase 2 approval.**
 - **You create no branch.** `pj4-running` creates the base branch (`pj1-plan/between-skills.md`, **The base branch**).
-- **Only you write to GitHub.** The sub-agents only read it, so the order and the numbers stay in one place.
+- **Only you write to GitHub, and every write goes through `issue.sh`.** The sub-agents only read it, so the order and
+  the numbers stay in one place.
 - **Sub-issue edges stay inside the project.** Never between a parent and a sub-issue, and never between sub-issues
   of different projects.
 - **A parent edge changes only with the user's approval, and only while `parent.baseExists` is false** (`pj1-plan/format.md`,
   **Projects**).
-- **Always pass a body with `--body-file`.**
-- **Re-read `updatedAt` before every edit.**
+- **Every body edit carries `--since`**, the `updatedAt` of the read the body was drawn against.
 - After a context summary, take `<P>` again from the last `project #<P>` line, run `level.sh show <root>` again, and
   rebuild where the run stood from `project.sh <P>`. A planner or a writer whose handle is gone is started again.
