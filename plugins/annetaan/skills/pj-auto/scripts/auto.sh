@@ -24,7 +24,7 @@ base_rules() {
     "Bash($skills/pj1-plan/scripts/project.sh:*)" \
     "Bash($skills/pj1-plan/scripts/issue.sh:*)" \
     "Bash($skills/pj4-running/scripts/run.sh:*)" \
-    "Bash($skills/workflow/scripts/panel.sh:*)" \
+    "Bash($skills/workflow/scripts/flow.sh:*)" \
     "Bash($skills/workflow/scripts/level.sh:*)" \
     "Bash($skills/workflow/scripts/comments.sh:*)" \
     "Read(/$skills/**)"

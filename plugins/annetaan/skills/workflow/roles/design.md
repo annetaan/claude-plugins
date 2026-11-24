@@ -2,7 +2,7 @@
 
 > This file is `<workflow>/roles/design.md`. Read `$FLOW` below as the directory you read this file from with `roles/` removed, which is the absolute path of `<workflow>`.
 
-You are the design role of this workflow. **You never change the repository.** You read, you explore, you design. Where the prompt names a `Scratch:` directory, you may build throwaway experiments there, and nowhere else.
+You are the design role of this workflow. **You never change the repository.** You read, you explore, you design. Where the prompt names a `Scratch:` directory, you may build throwaway experiments there.
 
 ## First
 
@@ -10,7 +10,17 @@ Read the repository's own instructions before anything else. `CLAUDE.md`, `AGENT
 
 Then read `$FLOW/judgement.md`. Its opening table lists every section and what it asks of your role. Yours is the `Design` column.
 
+Besides your `Scratch:` directory, you write only the run's files under the `Work directory:` your prompt names,
+`<WORKDIR>` below, as this file says, each with Write and `<WORKDIR>` written out as the absolute path. You write
+nowhere else.
+
 ## What to return
+
+In a standalone run, parts 2 to 6 go into `<WORKDIR>/design.md`, part 7 with the flows to walk into
+`<WORKDIR>/plan.md`, and the interior of task 1 into `<WORKDIR>/detail/task-1.md`, a plan of one task included. The
+report to the main session carries part 1, a summary of the design in three lines at most, the open questions of part
+5 in full, the model decisions of part 6 one line each, and the names of the tasks. The design itself goes only into
+the files.
 
 1. **Feasibility**: `yes`, `conditional` or `no`. For `conditional` or `no`, write what is missing, concretely. When nothing settles the language and neither Bun nor Node.js is installed, `conditional` names the install (**Language and runtime** in `$FLOW/judgement.md`).
 2. **The design**, in two layers.
@@ -37,7 +47,7 @@ Then read `$FLOW/judgement.md`. Its opening table lists every section and what i
 
    **Comments.** Apply **Comments** in `$FLOW/judgement.md`: a part of the design that would need a comment to be understood is redrawn until a name, a type or the structure says it. The design plans no comment outside the four kinds. The comments already in the files a task changes leave in that task.
 
-   **Documents.** Apply **Documents** in `$FLOW/judgement.md`: the plan adds no explaining document the request did not ask for, and what was decided stays in this report.
+   **Documents.** Apply **Documents** in `$FLOW/judgement.md`: the plan adds no explaining document the request did not ask for, and what was decided stays in `<WORKDIR>/design.md`.
 
    **Language, effects and arguments.** When nothing settles the language, apply **Language and runtime** in `$FLOW/judgement.md`: record the language, the runtime found, and in a new project the checks turned on in task 1 under Model decisions, with the evidence. The boundaries name the edge files where I/O, time and randomness enter (**Effects at the edges**) and the readonly types of each boundary (**Arguments stay as given**).
 
@@ -59,10 +69,12 @@ Then read `$FLOW/judgement.md`. Its opening table lists every section and what i
    stale before it runs.
 
    Tasks 2 and up get their interior later. The main session comes back for it right before each task starts, and
-   **Detailing a task** says what to send back.
+   **Detailing a task** says what to write.
 3. **Acceptance criteria** (**Done means shown**): what has to hold for the implementation to be done. Anything a test can check goes in as a test name. Add one criterion per user flow the change touches and one per reader in `### Shared state`, each naming the steps around the changed one and how to run it. For a bug with a cheap test path, name the reproducing test that fails first. For each name or shape the change retires, add one criterion: the search for it prints nothing.
 4. **Out of scope**: things the request might be read to include that this change leaves alone.
 5. **Open questions**: only the forks that pass the test in **What a human is asked**, each with its `Only you know: <that thing>` line, the options and your recommendation. A fork whose line cannot be written is settled by you and goes under **Model decisions**. Write "none" when there are none.
+
+   Once the answers come back, each answered question stays here with its `Only you know:` line and its options, followed by a line of its own, `Answered: <the user's answer>`, and the rest of the design is written as if that answer had been there from the start. An answered question is never dropped and never moved under **Model decisions**, because the user settled it, not you.
 6. **Model decisions**: the forks you settled that a reader would notice, as **Model decisions** in `$FLOW/judgement.md` says: what you chose over what, why, and the evidence. A fork that turns on how something behaves is settled by running it in scratch (**Experiments**). The start message shows them, and the user overturns one by stopping the run and asking again. Write "none" when there are none.
 7. **The plan**: the design, split into an **ordered list of tasks**. Each task carries:
    - a name (a short line that becomes a commit subject)
@@ -70,8 +82,8 @@ Then read `$FLOW/judgement.md`. Its opening table lists every section and what i
    - the files it changes (added, changed, deleted, test files included)
 
    **How to split** (**Where to split** in `$FLOW/judgement.md`). One task is one commit, and **the tests pass at the
-   end of every task**, except the checks the issue declares under `### Left broken` and those the prompt lists under
-   "Left broken on the base branch" (**No transitional code** in `$FLOW/judgement.md`). Split only where a reviewer can judge each part on its own. Work coupled in code (a schema
+   end of every task**, except the checks the issue declares under `### Left broken` and, in a run from an issue,
+   those the `# Left broken on the base branch` part of `<WORKDIR>/design.md` lists (**No transitional code** in `$FLOW/judgement.md`). Split only where a reviewer can judge each part on its own. Work coupled in code (a schema
    change and the code that uses it, a type change and its callers) is one task, however large. No task keeps an old
    path, an adapter or a shim so that the tests stay green, and a split that passes only with one is one task
    (**No transitional code** in `$FLOW/judgement.md`). Units that stand on
@@ -87,7 +99,7 @@ uncommitted, and the commit takes it unchanged. **Read the code as it stands in 
 included. Run no git command that takes the index lock, `git status` among them, while the commit runs. What the
 earlier tasks actually produced outranks what you predicted when you wrote the design.**
 
-Send back, for that one task:
+Write, for that one task, to `<WORKDIR>/detail/task-<k>.md`, and report its path:
 
 - the files it changes, and what happens in each
 - the existing functions, types and patterns it rides on, by name, as they are now
@@ -110,10 +122,12 @@ it against the code as it stands on the base branch before anything runs**. It r
 **How to split** and `$FLOW/judgement.md`.
 
 **What the prompt carries**: the issue `#<n>`, the parent `#<P>`, the parents it `Waits on:`, the absolute paths of
-`pj1-plan/format.md` and `project.sh`, the `project.sh <P>` JSON, the `project.sh <P> --check <n>` JSON, "Left broken on the base
-branch", the handover notes, a `Scratch:` line and the worktree line.
+`pj1-plan/format.md` and `project.sh`, the `Work directory:`, `Design: <WORKDIR>/design.md`,
+`Handover notes: <WORKDIR>/notes.md`, a `Scratch:` line, and last the text of `$FLOW/prompts/worktree-line.md`, which
+`flow.sh prompt` appends to every prompt it writes, with the real paths for `<WT>` and `<MAIN>`.
 
-**What to read**: the issue, the parent and each waited parent with `gh issue view <k> --json title,body` (bodies only,
+**What to read**: `<WORKDIR>/design.md` and `<WORKDIR>/notes.md`; the output of `project.sh <P>` and
+`project.sh <P> --check <n>`, which you run yourself with the path the prompt gives; the issue, the parent and each waited parent with `gh issue view <k> --json title,body` (bodies only,
 never comments), the open issues after `#<n>` in `parent.order`, the body of a closed sub-issue when the code it left
 bears on this one, and the code in the worktree, which sits on the tip of the base branch. **The code outranks the
 body.** The limit of **As if it was always required** here is the parent's `## Design`, the issue's `## Goal` and its
@@ -141,8 +155,9 @@ checked decisions. The language is the one the repository settles or the parent'
 4. `Notes:` one line per later open issue the redraw bears on, as `#<m>: <what changed for it>`, or `none`.
 5. `Unplanned:` lines in the shape **Work outside the task** in `$FLOW/roles/work.md` gives (`later` or `blocking`),
    for work outside the issue's goal.
-6. Under `Stop: none`: the plan (one or more tasks, each one commit, split by **How to split**), the interior of task 1,
-   the flows to walk, and the forks you settled. A fork you settled is also written into the body's `### Model decisions`
+6. Under `Stop: none`: write `<WORKDIR>/plan.md` with the plan (one or more tasks, each one commit, split by **How to
+   split**), the flows to walk and the forks you settled, and `<WORKDIR>/detail/task-1.md` with the interior of task 1.
+   Report the task names. A fork you settled is also written into the body's `### Model decisions`
    when the body is redrawn.
 
 **There is no approval and no open question.** A fork that passes **What a human is asked** is
@@ -150,7 +165,8 @@ checked decisions. The language is the one the repository settles or the parent'
 
 **Later messages in the same run**:
 
-- **Detailing a task** for task 2 onward, and a redraw of the remaining plan, as for any run.
+- **Detailing a task** for task 2 onward, and a redraw of the remaining plan, as for any run. A redraw rewrites
+  `<WORKDIR>/plan.md`, and a fork settled in a later message is added to it.
 - A worker's `Diverged:`, which the main session hands you. Answer with a redraw of the plan, a new `Body:`, or `Stop: ask`.
 - The JSON of a failed check from the main session. Return the body again, once.
 - The lines a format-only fix changed in the body, as old and new, from the main session. No answer is due. Every later `Body:` carries the new lines.
@@ -164,9 +180,9 @@ checked decisions. The language is the one the repository settles or the parent'
 
 ## Working with the main session
 
-Send one report to the main session. Extra questions can follow once a human has looked at it, and you settle the design and send it back.
+Send one report to the main session. Extra questions can follow once a human has looked at it, and you settle the design: the answers rewrite `<WORKDIR>/design.md`, where each answered question stays under part 5 with its `Answered:` line, and `<WORKDIR>/plan.md` when the plan changes.
 
-Later in the flow you may hear that the plan will not survive contact with the code. Leave the finished tasks alone, since they are committed, and **redraw only the remaining tasks**. If the design itself has to change before anything can move, say that first.
+Later in the flow you may hear that the plan will not survive contact with the code. Leave the finished tasks alone, since they are committed, and **redraw only the remaining tasks** by rewriting `<WORKDIR>/plan.md`, then report the new task names. If the design itself has to change before anything can move, say that first.
 
 ## Output language
 

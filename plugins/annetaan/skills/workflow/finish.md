@@ -6,25 +6,28 @@
 
 **A session that worked on the code writes the work report, in every mode. Do not write it yourself.**
 
+First write the request:
+
+```bash
+$FLOW/scripts/flow.sh prompt <WT> report
+```
+
+It asks for `<WORKDIR>/log.md`: what changed, how it was verified per acceptance criterion and flow from the newest
+evidence files, what neither the implementation nor the review could run, the `check wanted:` lines of
+`<WORKDIR>/checks.md`, the model decisions, what the review changed, the files a merge resolved, the screenshots, and
+which commit answers which task. Send its line to the session that worked on the code:
+
 - When **Bringing the base in** in `standalone.md` ran the merge task, that implementation session is alive. `SendMessage` it. This
   comes before the cases below.
 - When phase 5 was skipped, the last task's implementation session is still alive (the entry keeps it after phase 4 (d)). `SendMessage` it.
 - When the integration review asked for fixes, that implementation session is still alive. `SendMessage` it.
-- When the integration review approved with nothing to fix, no session is left. Start one with the phase 3 call, its `model` and `effort` included, carrying the progress and the handover notes, and ask it for the report and nothing else.
-
-The request:
-
-> Write a work report at `<WORKDIR>/log.md`. If this repository has `.github/PULL_REQUEST_TEMPLATE.md`, use it as the skeleton. Otherwise read a few recent merged pull requests (`gh pr list --state merged --limit 5`) and follow how they are written. With nothing to go on, choose a structure yourself. Whatever structure you choose, a reader has to come away with: what changed, how it was verified, per acceptance criterion and flow, read from the newest evidence file of each task under `./review/`, and also from the newest `integration-round-<r>-evidence.md` and the newest merge evidence file (`merge-evidence.md` or `merge-round-<r>-evidence.md`) when they exist, the newest one of each kind being what holds for the final tree, and also from `## Walk` of the `integration-round-1-<seat>.md` files when they exist, a heading of its own for what neither the implementation nor the review could run and what a person has to run by hand (left out when there is nothing), a heading of its own gathering the `check wanted:` lines of the commit reports (left out when there are none), the model decisions with their reasons and evidence, so that a reader can overturn one, what the review changed, read from the files under `./review/`, the screenshots if the change shows on screen, and which commit answers which task in the plan. Screenshots sit in the same directory, so link them relatively, as `![before](./before.png)`. Write it in the language this repository uses. **Do not create files outside this directory.**
-
-<the worktree line>
+- When the integration review approved with nothing to fix, no session is left. Start `annetaan:workflow-worker`
+  with the line and the `model` and `effort` the JSON prints (**The prompts** in SKILL.md). The prompt names the role,
+  the run's files and the progress, so it serves a session started for the report alone.
 
 **Keep the file name `log.md`.** Claude Code refuses a Write from a sub-agent when the name of the `.md` file
 starts with `report`, `summary`, `findings` or `analysis`, in any case ("Subagents should return findings as text,
 not write report files."). Nothing in settings, the environment, CLAUDE.md or agent frontmatter turns that off.
-
-**Hand it what only you still have.** One line per task on what the review changed, and the test and type check
-results the earlier sessions reported, and, when the merge task ran, the files it resolved, the design's Model decisions (from an issue, they are the issue's `### Model decisions` plus the forks the design session settled in the detail pass and in later messages), and the `## Not run` entries of each review's last round file, and the `check wanted:` lines of the commit reports. Those sessions are gone, and that part of the history now lives in your
-context and nowhere else.
 
 Drop the diff next to it, so the report and the review files can be read against it. The three dots take the diff
 from where the branch meets `origin/<base>`, which is what the pull request shows, with or without a merge of the
@@ -37,10 +40,10 @@ git diff --output=<WORKDIR>/changes.diff origin/<base>...HEAD
 Then write the head and the `Level:` line into `log.md`:
 
 ```bash
-$FLOW/scripts/panel.sh record <WT>
+$FLOW/scripts/flow.sh record <WT>
 ```
 
-It reads the `run.json` that `panel.sh begin` wrote. When the run comes from an issue, it writes the head, `Implements #<issue>` and `Part of #<parent>`, at the top of `log.md`, in place of any head already there. It appends one `Level:` line, with what `begin` stored and the review counts, to the end, so the pull request body carries both. A `stop` (`no-log`, `no-review`, `malformed`) is a failed step of the finish: quote `message` and go to the entry's ending, as for a failed push. `malformed` names each round file under `review/` that fails `panel.sh lint`, with its reasons.
+It reads the `run.json` that `flow.sh begin` wrote. When the run comes from an issue, it writes the head, `Implements #<issue>` and `Part of #<parent>`, at the top of `log.md`, in place of any head already there. It appends one `Level:` line, with what `begin` stored and the review counts, to the end, so the pull request body carries both. A `stop` (`no-log`, `no-review`, `malformed`) is a failed step of the finish: quote `message` and go to the entry's ending, as for a failed push. `malformed` names each round file under `review/` that fails `flow.sh lint`, with its reasons.
 
 Then open the pull request.
 
@@ -86,25 +89,23 @@ When the push fails, quote the error and go to the entry's ending: **Report to t
 
 ## The decisions
 
-It runs once the pull request exists, with `<m>` as its number, the number at the end of its URL. Seat a reads the whole change and names the design decisions in technology, infrastructure, database or delivery that the run made on its own, and `panel.sh decisions` files each one as an issue labelled `decision`. **Nothing here holds the pull request back or counts as a failed step of the finish.** A non-zero exit of `panel.sh decisions` is quoted for the entry's ending like a stop, and does not stop the run, because the pull request already exists.
+It runs once the pull request exists, with `<m>` as its number, the number at the end of its URL. Seat a reads the whole change and names the design decisions in technology, infrastructure, database or delivery that the run made on its own, and `flow.sh decisions` files each one as an issue labelled `decision`. **Nothing here holds the pull request back or counts as a failed step of the finish.** A non-zero exit of `flow.sh decisions` is quoted for the entry's ending like a stop, and does not stop the run, because the pull request already exists.
 
-The seat sessions of the last review have ended. This is a new seat a session, at every level, with `model` and `effort` from `agents.workflow-reviewer-a`, and it ends after step 2.
+The seat sessions of the last review have ended. This is a new seat a session, at every level, and it ends after step 2.
 
-1. **Start seat a.**
+1. **Start seat a.** Write its prompt:
 
-   ```
-   Agent(subagent_type: "annetaan:workflow-reviewer-a", description: "decisions",
-         model: "<agents.workflow-reviewer-a.model>", effort: "<agents.workflow-reviewer-a.effort>",
-         prompt: "Read $FLOW/roles/review.md first and follow the role it describes, and within it **Judging the decisions**.\n\nDesign:\n<the full design>\n\nSettled by the user:\n<each open question with the user's answer, or none>\n\nThe diff: <WORKDIR>/changes.diff\nThe work report: <WORKDIR>/log.md\nWrite: <WORKDIR>/decisions.md\n\n<the worktree line>")
+   ```bash
+   $FLOW/scripts/flow.sh prompt <WT> decisions
    ```
 
-   Write `$FLOW`, `<WORKDIR>` and `<WT>` out as absolute paths. From an issue, the design is the issue's body as the detail pass left it, and what the user settled is its checked decisions. When the seat returns and `<WORKDIR>/decisions.md` does not exist, start the seat once more with the same call.
+   It names `<WORKDIR>/design.md`, `<WORKDIR>/plan.md`, what the user settled, `<WORKDIR>/changes.diff`, `<WORKDIR>/log.md` and `Write: <WORKDIR>/decisions.md`. Start `annetaan:workflow-reviewer-a` with its line and the `model` and `effort` the JSON prints (**The prompts** in SKILL.md). When the seat returns and `<WORKDIR>/decisions.md` does not exist, start the seat once more with the same line.
 2. **File the issues.**
 
    ```bash
-   $FLOW/scripts/panel.sh decisions <WT> <m>
+   $FLOW/scripts/flow.sh decisions <WT> <m>
    ```
 
    - **`ok`**: keep `filed` for the entry's ending. An empty `filed` means no decision fell in the four areas.
-   - **`malformed`**: `SendMessage` the seat with `message`, and run step 2 once more when it reports.
+   - **`malformed`**: `SendMessage` the seat one line that forwards `message` and names `<WORKDIR>/decisions.md`, and run step 2 once more when it reports.
    - **`malformed` a second time, `no-decisions`, `gh` or `no-run`**: keep `message` for the entry's ending, and go on.

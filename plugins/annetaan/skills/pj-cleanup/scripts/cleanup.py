@@ -3,7 +3,7 @@ import json, os, re, subprocess, sys
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "..", "workflow", "scripts"))
 from clone import fetch_branch
 
-PROJECT_SH, WORKTREE_SH, PANEL_SH, SUB = sys.argv[1:5]
+PROJECT_SH, WORKTREE_SH, FLOW_SH, SUB = sys.argv[1:5]
 P = int(sys.argv[5]) if len(sys.argv) > 5 else None
 ARGS = sys.argv[6:]
 
@@ -213,7 +213,7 @@ def cleanup():
     if out["loses"] and "--discard" not in ARGS:
         stop("discard", "%s holds work that nothing else holds: %s" % (tree["path"], ", ".join(out["loses"])), **out)
 
-    r = run(PANEL_SH, "close", tree["path"], cwd=main)
+    r = run(FLOW_SH, "close", tree["path"], cwd=main)
     try:
         tree["seats"] = json.loads(r.stdout)["removed"] if r.returncode == 0 else []
     except (ValueError, KeyError):

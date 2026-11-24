@@ -140,14 +140,14 @@ request is the exception: asking to resolve the conflicts of a pull request, in 
 
 Runs one implementation through sessions with different jobs. A design session writes the plan, then details each
 task as its turn comes. The design is drawn as if the request had always been required and moves existing code,
-contracts included, where that gives the better shape, and the start message shows what moves. An implementation session writes the code for one task. Review seats try to break it and write what they prove, each by a probe they run through `panel.sh`, to a file. A repository at `standard` has one seat, and `high` has two, on different models. The implementation session and the review seats are new for every task. It asks for no approval: you
+contracts included, where that gives the better shape, and the start message shows what moves. An implementation session writes the code for one task. Review seats try to break it and write what they prove, each by a probe they run through `flow.sh`, to a file. A repository at `standard` has one seat, and `high` has two, on different models. The implementation session and the review seats are new for every task. It asks for no approval: you
 answer only the questions it cannot go on without, and a start message names the branch and the base. The run happens in `.claude/worktrees/wf-<stamp>`. Once the pull request is open, review seat a names the design decisions in technology, infrastructure, database or delivery that the run made on its own, and each becomes an issue labelled `decision` with a request that overturns it ([details](skills/workflow/README.md#decisions)).
 
 The sessions follow [the judgement rules](skills/workflow/judgement.md). The design session settles what it can from
 the code, the history or a throwaway experiment, and lists those as model decisions, which the start message shows. You are
 asked only what turns on something only you know. The implementation session shows each acceptance criterion by running
 it and walks the flows the change touches. A review seat reports only what it proved by a run: a command, what it
-printed, and what the design requires. `panel.sh` reruns each command and sorts the findings by the probe's exit,
+printed, and what the design requires. `flow.sh` reruns each command and sorts the findings by the probe's exit,
 and the main session keeps a finding only when the failure breaks the design. A fix that only guards the symptom comes back when a probe reaches the bad state past the guard.
 
 These rules shape the work. A design removes what the request makes unnecessary before it adds anything. A new
@@ -167,16 +167,16 @@ which record what the implementation session ran.
 
 ```mermaid
 flowchart TD
-    req(["your request"]) --> wt["worktree on the tip of the base<br/>work-reports/ and .claude/worktrees/ ignored?<br/>ignored files .worktreeinclude names copied"] --> design["design session<br/>boundaries, acceptance criteria,<br/>plan of tasks"]
+    req(["your request"]) --> wt["worktree on the tip of the base<br/>work-reports/ and .claude/worktrees/ ignored?<br/>ignored files .worktreeinclude names copied"] --> begin["flow.sh begin: START, the work directory and the level"] --> design["design session<br/>boundaries, acceptance criteria,<br/>plan of tasks, as files of the run"]
     design --> ask["open questions, only when there are any<br/>start message, no approval<br/>branch and base named"]
-    ask --> setup["branch in the worktree<br/>panel.sh begin: START, the work directory and the level"]
+    ask --> setup["branch in the worktree"]
     setup --> detail
 
     subgraph task["per task"]
         direction TB
         detail["design session<br/>details this task against the code<br/>the task before left, while it commits"]
         impl["implementation session<br/>new for this task<br/>writes it, evidence file,<br/>commits nothing"]
-        review["review seats<br/>new for this task<br/>read the tree in the run's worktree,<br/>prove each finding by a probe run,<br/>panel.sh reruns, main session writes the round"]
+        review["review seats<br/>new for this task<br/>read the tree in the run's worktree,<br/>prove each finding by a probe run,<br/>flow.sh reruns, main session writes the round"]
         respond["implementation session<br/>fixes, then writes a reply file"]
         commit["one commit<br/>plus 5 lines of handover notes"]
         detail --> impl --> review
@@ -607,7 +607,7 @@ dropout: the round goes on with the seats that reported.
 
 | Agent | Model | Effort | Role |
 | --- | --- | --- | --- |
-| `annetaan:workflow-design` | opus | medium | design. returns the design and the plan, and tries a doubtful point in a throwaway experiment. In a pj run it also details one sub-issue against the code and may return its body redrawn |
+| `annetaan:workflow-design` | opus | medium | design. writes the design, the plan and each task's detail into the run's work directory, and tries a doubtful point in a throwaway experiment. In a pj run it also details one sub-issue against the code and may return its body redrawn |
 | `annetaan:workflow-worker` | opus | medium | implementation, for every task. shows each acceptance criterion by running it and writes the evidence file |
 | `annetaan:workflow-reviewer-a` | opus | high | review seat a, for every task, the integration review when the plan has more than one task, and the decisions at the finish. tries to break the change and proves each finding by a run of a probe it wrote |
 | `annetaan:workflow-reviewer-b` | fable | medium | review seat b, at `high` only. the same job as seat a on another model |
@@ -619,7 +619,7 @@ dropout: the round goes on with the seats that reported.
 | `annetaan:doc-meta-overview` | opus | high | overview for `doc-meta`. finds what a per-sentence flag misses |
 | `annetaan:level-evaluator` | opus | high | evaluation for `level`. reads the code and the review counts and proposes a level |
 
-`annetaan:workflow-design`, `annetaan:pj-planner` and `annetaan:pj-issue-writer` can write files, and their roles confine that to a scratch directory. The reviewers write only their probes and their seat file, and run code only through `panel.sh`.
+`annetaan:workflow-design`, `annetaan:pj-planner` and `annetaan:pj-issue-writer` can write files, and their roles confine that to a scratch directory, and for `annetaan:workflow-design` also to the run's files in the work directory. The reviewers write only their probes and their seat file, and run code only through `flow.sh`.
 
 `pj4-running` has no agents of its own. It runs workflow's.
 

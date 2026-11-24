@@ -124,13 +124,13 @@ Nothing runs in parallel. There is one worktree, `<WT>`. For each issue `<k>` in
        that stopped early did not do, so run `status` first:
 
        ```bash
-       $RUNNING/../workflow/scripts/panel.sh status <WT>
+       $RUNNING/../workflow/scripts/flow.sh status <WT>
        ```
 
        When it prints `ok` with an `issue` equal to `<k>`, run `record`, which leaves a head already there as it is:
 
        ```bash
-       $RUNNING/../workflow/scripts/panel.sh record <WT>
+       $RUNNING/../workflow/scripts/flow.sh record <WT>
        ```
 
        - **`record` prints `ok`**: the user picks the way out. Pushing `<branch>` with
@@ -141,17 +141,9 @@ Nothing runs in parallel. There is one worktree, `<WT>`. For each issue `<k>` in
          printed `stop` or exited non-zero. Quote the `message` (stderr on a non-zero exit). Deleting `<branch>` is
          the only way out, and it makes the next run redo the issue.
      - **`stop`** with `checked-out`: stop the run, and name the worktree in `worktree` that holds `<branch>`.
-3. **Read the check** on the `null` path, after `run.sh branch`, and keep the JSON. Nothing stops on it. The design
-   session reads it in the detail pass.
-
-   ```bash
-   $RUNNING/../pj1-plan/scripts/project.sh <P> --check <k>
-   ```
-
-4. **Run From an issue.** These are what it expects you to have settled, so say them in your context before you
+3. **Run From an issue.** These are what it expects you to have settled, so say them in your context before you
    start it: `n` (= `<k>`), `P`, the issue title, the projects `<P>` waits on (the `parent.waitsOn` numbers, or
-   none), the base branch, the branch you just made, the handover notes, the `project.sh <P>` JSON, the
-   `project.sh <P> --check <k>` JSON, and the paths `<WT>` and `<MAIN>`.
+   none), the base branch, the branch you just made, the handover notes, and the paths `<WT>` and `<MAIN>`.
 
 ### A redrawn issue
 

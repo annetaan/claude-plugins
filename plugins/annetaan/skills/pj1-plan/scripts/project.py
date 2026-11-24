@@ -9,6 +9,7 @@ SECTIONS = ["Goal", "Design", "Acceptance criteria", "Decisions", "Out of scope"
 ENTRY_RE = re.compile(r"^\s*[-*]\s+`([^`]+)`\s+\((added|changed|deleted)\):\s*(.+)$")
 IDENT_RE = re.compile(r"^[A-Za-z_$][\w$]*(\.[A-Za-z_$][\w$]*)*$")
 OPTION_RE = re.compile(r"^\s*[-*]\s+\[([ xX])\]\s")
+DECISION_RE = re.compile(r"^###\s+D\d+\.")
 BASE_RE = re.compile(r"^Base:\s*`?([^`\s]+)`?\s+from\s+`?([^`\s]+)`?\s*$")
 ROADMAP_RE = re.compile(r"^Roadmap:\s*`([^`]+)`\s+(\S.*?)\s*$")
 ORDER_RE = re.compile(r"^\s*\d+\.\s+#(\d+)\b")
@@ -86,7 +87,7 @@ def implements(body):
     return None
 
 def shown(issue):
-    return {k: v for k, v in issue.items() if k not in ("files", "criteria")}
+    return dict({k: v for k, v in issue.items() if k not in ("files", "criteria")}, pr=pr_of.get(issue["number"]))
 
 def headings(lines):
     fence, out = False, []
@@ -245,6 +246,64 @@ def with_sections(body, path):
         die("%s does not start at ## Goal" % path)
     return "\n".join(lines[:goal] + new[filled[0]:filled[-1] + 1]) + "\n"
 
+def design_section(body):
+    lines = (body or "").replace("\r", "").split("\n")
+    heads = headings(lines)
+    start = next((k for k, title in heads if title == "Design"), None)
+    if start is None:
+        return ""
+    end = next((k for k, _ in heads if k > start), len(lines))
+    return "\n".join(lines[start:end]).strip("\n")
+
+def unfenced_indexes(lines):
+    fence = False
+    for k, line in enumerate(lines):
+        if line.lstrip().startswith("```"):
+            fence = not fence
+        elif not fence:
+            yield k
+
+def cut_decision(block):
+    open_lines = list(unfenced_indexes(block))
+    parts = [block[0]]
+    for k in open_lines:
+        m = OPTION_RE.match(block[k])
+        if m and m.group(1) in "xX":
+            end = next((j for j in range(k + 1, len(block))
+                        if block[j].strip() and (not block[j][:1].isspace() or OPTION_RE.match(block[j]))), len(block))
+            parts.append("\n".join(block[k:end]).strip("\n"))
+    parts += [block[k] for k in open_lines if block[k].startswith("Decided:")][:1]
+    return "\n\n".join(parts)
+
+def cut_decisions(text):
+    lines = text.split("\n")
+    starts = [k for k in unfenced_indexes(lines) if DECISION_RE.match(lines[k])]
+    if not starts:
+        return text
+    head = "\n".join(lines[:starts[0]]).strip("\n")
+    cut = [cut_decision(lines[a:b]) for a, b in zip(starts, starts[1:] + [len(lines)])]
+    return "\n\n".join(([head] if head else []) + cut)
+
+def approved_design(issue, parent, waited, broken):
+    n, title, body = issue
+    lines = (body or "").replace("\r", "").split("\n")
+    heads = headings(lines)
+    goal = next((k for k, t in heads if t == "Goal"), 0)
+    dec = next((k for k, t in heads if t == "Decisions"), None)
+    if dec is None:
+        own = lines[goal:]
+    else:
+        end = next((k for k, _ in heads if k > dec), len(lines))
+        cut = cut_decisions("\n".join(lines[dec + 1:end]).strip("\n"))
+        own = lines[goal:dec + 1] + ["", cut, ""] + lines[end:]
+    parts = ["# Issue #%d: %s" % (n, COUNT_RE.sub("", title)), "\n".join(own).strip("\n"),
+             "# Parent #%d: %s" % (parent[0], parent[1]), design_section(parent[2])]
+    for q, t, b in waited:
+        parts += ["# Waited-on project #%d: %s" % (q, t), design_section(b)]
+    parts += ["# Left broken on the base branch",
+              "\n".join("- `%s` (left by #%d)" % c for c in broken) if broken else "None."]
+    return "\n\n".join(p for p in parts if p) + "\n"
+
 def split_sections(body):
     order, raw = raw_sections(body)
     return order, {k: "\n".join(unfenced(v)).strip() for k, v in raw.items()}
@@ -334,7 +393,7 @@ def decisions(text):
             continue
         if fence:
             continue
-        if re.match(r"^###\s+D\d+\.", line):
+        if DECISION_RE.match(line):
             out.append({"checked": 0, "options": 0, "recommended": 0, "onlyYouKnow": False, "optionLines": True})
             continue
         if not out:
@@ -480,20 +539,6 @@ if MODE == "parent-body":
     sys.stdout.write(with_sections(parent["body"], sys.argv[4]))
     sys.exit(0)
 
-listed = run("gh", "pr", "list", "-R", repo, "--base", base, "--state", "all", "--limit", "500",
-            "--json", "number,state,isDraft,url,body")
-if listed.returncode != 0:
-    die("cannot list the pull requests into %s in %s: %s" % (base, repo, listed.stderr.strip()))
-pr_of, rank = {}, {}
-for pr in json.loads(listed.stdout):
-    n = implements(pr.get("body"))
-    if n is None or pr["state"] not in ("OPEN", "MERGED"):
-        continue
-    key = (pr["state"] != "OPEN", pr["number"])
-    if n not in rank or key < rank[n]:
-        rank[n] = key
-        pr_of[n] = {"number": pr["number"], "state": pr["state"], "isDraft": pr["isDraft"], "url": pr["url"]}
-
 issues = []
 body_of = {}
 for node in parent["subIssues"]["nodes"]:
@@ -512,7 +557,6 @@ for node in parent["subIssues"]["nodes"]:
         "blockedBy": [{"number": b["number"], "state": b["state"], "parent": (b.get("parent") or {}).get("number")}
                       for b in node["blockedBy"]["nodes"]],
         "blocking": [b["number"] for b in node["blocking"]["nodes"]],
-        "pr": pr_of.get(node["number"]),
         "stub": p["stub"],
         "files": p["files"],
         "leftBroken": p["broken"],
@@ -648,6 +692,35 @@ deps_of = {parent["number"]: {}}
 for n, par in waits_on_parents(parent["number"], parent["blockedBy"]["nodes"]).items():
     project_bases[n] = base_of(par["body"])[0]
     deps_of[parent["number"]][n] = par
+
+if MODE == "design":
+    n = int(sys.argv[4])
+    if n not in by_number:
+        die("#%d is not a sub-issue of #%d" % (n, parent["number"]))
+    counts = by_number[n]["decisions"]
+    if counts["open"] or counts["contradictory"]:
+        die("#%d has decisions not settled: %d open, %d contradictory" % (n, counts["open"], counts["contradictory"]))
+    deps = deps_of[parent["number"]]
+    sys.stdout.write(approved_design(
+        (n, by_number[n]["title"], body_of[n]),
+        (parent["number"], parent["title"], parent["body"]),
+        [(q, deps[q]["title"], deps[q]["body"]) for q in sorted(deps)],
+        [(b["check"], b["issue"]) for b in breakage_view() if b["state"] == "open" and n not in b["closedBy"]]))
+    sys.exit(0)
+
+listed = run("gh", "pr", "list", "-R", repo, "--base", base, "--state", "all", "--limit", "500",
+            "--json", "number,state,isDraft,url,body")
+if listed.returncode != 0:
+    die("cannot list the pull requests into %s in %s: %s" % (base, repo, listed.stderr.strip()))
+pr_of, rank = {}, {}
+for pr in json.loads(listed.stdout):
+    n = implements(pr.get("body"))
+    if n is None or pr["state"] not in ("OPEN", "MERGED"):
+        continue
+    key = (pr["state"] != "OPEN", pr["number"])
+    if n not in rank or key < rank[n]:
+        rank[n] = key
+        pr_of[n] = {"number": pr["number"], "state": pr["state"], "isDraft": pr["isDraft"], "url": pr["url"]}
 
 def project_deps(n):
     if n not in deps_of:

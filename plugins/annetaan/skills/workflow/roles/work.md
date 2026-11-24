@@ -10,7 +10,7 @@ Read the repository's own instructions before anything else. `CLAUDE.md`, `AGENT
 
 Then read `$FLOW/judgement.md`. Its opening table lists every section and what it asks of your role. Yours is the `Implementation` column.
 
-The main session hands you the design, the **plan**, the **detail design for your task**, and the commit the work started from (`START`). Reviews inside a task look at a snapshot of the working tree against HEAD, so leave the change uncommitted. When the plan has more than one task, the integration review at the end looks at everything from `START` to HEAD.
+Your prompt names the design, the **plan** and the **detail design for your task** as files, `<WORKDIR>/design.md`, `<WORKDIR>/plan.md` and `<WORKDIR>/detail/task-<k>.md`, or `<WORKDIR>/merge.md` in a merge, the handover notes as `<WORKDIR>/notes.md`, and the commit the work started from (`START`). Read them first. Reviews inside a task look at a snapshot of the working tree against HEAD, so leave the change uncommitted. When the plan has more than one task, the integration review at the end looks at everything from `START` to HEAD.
 
 ## How a task runs
 
@@ -21,7 +21,7 @@ The **detail design** in your prompt was written against the code as it stands n
 overall design, follow the detail design, because the overall design was written before the earlier tasks ran. When
 the code matches neither, report to the main session instead of improvising.
 
-Your prompt also carries the **progress** and the **handover notes** from the sessions before you. **Read the code
+Your prompt also carries the **progress**, and names the **handover notes** file of the sessions before you. **Read the code
 those tasks produced before you build on it.** The notes hand over how the work is done in this repository. They are
 not a guarantee that the code is right.
 
@@ -38,8 +38,8 @@ not a guarantee that the code is right.
    - **Write no comment outside the four kinds** (**Comments**): a licence header, a comment in a configuration file that says how to use it, an instruction to a tool, a doc comment on the public API of a library published for others. Say the rest with a name, a type or the structure. A "do not remove" note becomes a check (**A lesson becomes a check**). Remove the comments already in the files you change.
    - **Silence no check** (**Root cause**): no `eslint-disable`, `@ts-ignore`, `# noqa` or `.skip`. Fix the code the check objects to, or report a cause out of reach.
    - **Copy no workaround from the code around you** (**Existing workarounds**). One in the files you change leaves as the detail design says. One outside them is reported to the main session, or as `Unplanned:` with `later` in a run from an issue or a merge.
-2. Run the repository's tests, type checks and linters, and **confirm they pass before you say you are done**. A TypeScript run checks no type, so the type check runs as a command of its own (**Language and runtime**). Then run `$FLOW/scripts/comments.sh` and fix until it exits 0. `existing` lists the silenced checks that were already in the files you changed: handle each as the detail design says. In a repository that publishes a library, pass `--library`. In a merge in progress, do not run it. Report a failure as a failure. One exception, in a run from an issue: the checks the issue's `### Left broken` names, and the ones the prompt lists under "Left broken on the base branch", fail for the declared reason, which the issue's own `### Left broken` gives, and for the listed ones `#<j>`'s `### Left broken` (`gh issue view <j> --json body`). A check the issue's acceptance criteria carry passes. Each goes into the evidence file with `ran:` and `saw:`. Any other failure is a failure.
-   Then write the evidence file (**Done means shown**) the main session names (`task-<k>-evidence.md`, or the integration or merge one), in the shape `$FLOW/review-files.md` gives. It holds every acceptance criterion of the task, every flow the detail design names, and the flow of each reader in `### Shared state` under `## Flows`, each with `ran:` and `saw:`, or `not run:`. Three decisive lines per entry at most. Then run `$FLOW/scripts/panel.sh lint <absolute path of the evidence file>` and fix the file until `ok` is true, before you report. The reasons are in `$FLOW/review-files.md`, **The lint**.
+2. Run the repository's tests, type checks and linters, and **confirm they pass before you say you are done**. A TypeScript run checks no type, so the type check runs as a command of its own (**Language and runtime**). Then run `$FLOW/scripts/comments.sh` and fix until it exits 0. `existing` lists the silenced checks that were already in the files you changed: handle each as the detail design says. In a repository that publishes a library, pass `--library`. In a merge in progress, do not run it. Report a failure as a failure. One exception, in a run from an issue: the checks the issue's `### Left broken` names, and the ones the `# Left broken on the base branch` part of `<WORKDIR>/design.md` lists, fail for the declared reason, which the issue's own `### Left broken` gives, and for the listed ones `#<j>`'s `### Left broken` (`gh issue view <j> --json body`). A check the issue's acceptance criteria carry passes. Each goes into the evidence file with `ran:` and `saw:`. Any other failure is a failure.
+   Then write the evidence file (**Done means shown**) the main session names (`task-<k>-evidence.md`, or the integration or merge one), in the shape `$FLOW/review-files.md` gives. It holds every acceptance criterion of the task, every flow the detail design names, and the flow of each reader in `### Shared state` under `## Flows`, each with `ran:` and `saw:`, or `not run:`. Three decisive lines per entry at most. Then run `$FLOW/scripts/flow.sh lint <absolute path of the evidence file>` and fix the file until `ok` is true, before you report. The reasons are in `$FLOW/review-files.md`, **The lint**.
    - **A bug fix with a cheap test path**: write the test, run it, see it fail for the bug's reason, then fix it, and record both runs under `## Reproduced first`.
    - **A shared-state write the detail design did not cover**: before you write it, list its readers as **Assumptions** says. When a reader's assumption breaks, report to the main session instead of guarding. In a run from an issue or a merge that is `Diverged:`.
    - **A cause out of reach of the task** (**Root cause**) is reported the same way, never guarded.
@@ -83,13 +83,13 @@ The main session names the review file of the round. The format and the file nam
 
 **Answer every open finding** in the reply file next to the round file, one line each, as that file shows.
 
-- **`fixed`** with what you changed, once the fix is in the working tree. Each finding of the round file has a `Command:`, a `panel.sh run` line with the seat's probe. Read the probe's `run.sh` and its `tree/` to see what fails, and after the fix **run that line as it is**: the line also carries `ran:` and `saw:` of that run (**Proven by a run**). The run snapshots your working tree, so the fix has to be in it. After the fix the line exits 0, and that exit is what makes the next `panel.sh verify` mark the finding `resolved`.
+- **`fixed`** with what you changed, once the fix is in the working tree. Each finding of the round file has a `Command:`, a `flow.sh run` line with the seat's probe. Read the probe's `run.sh` and its `tree/` to see what fails, and after the fix **run that line as it is**: the line also carries `ran:` and `saw:` of that run (**Proven by a run**). The run snapshots your working tree, so the fix has to be in it. After the fix the line exits 0, and that exit is what makes the next `flow.sh verify` mark the finding `resolved`.
 - **`disagree`** with your reasoning, when you think the finding is wrong. Change nothing for it. The main session
   decides next round, against the design.
 - A reply that changed code comes with a new evidence file, `task-<k>-round-<r>-evidence.md` (the integration and merge names are in `$FLOW/review-files.md`). It is a full pass, not only the fixed finding. Write it after the fixes and before the reply file.
 - **A finding marked `stands again` in the round file** (**After two failed fixes**) is answered with `fixed` or `disagree`, then `assumed: <what both answers took for granted>; ran: <command>; saw: <output>`, then what changed or the reason. When what was false is the design or the plan, change nothing and report it to the main session. In a run from an issue or a merge, report `Diverged:`.
 - **When you fix a finding of the same kind as one from an earlier round of this task**, also add, inside the task's files, the strongest check that catches that kind, beside the fix for the one place (**A lesson becomes a check**). When it can be added, no prose is added for it. A check that would sit outside the task's files is written as a `check wanted: <the check>` line in the commit report, or as `Unplanned:` with `later` in a run from an issue or a merge.
-- Write the reply file after the fixes and the new evidence file. Run `$FLOW/scripts/panel.sh lint <absolute path>` on the new evidence file, when there is one, and on the reply, one command per Bash call, and fix your own file until `ok` is true, before you report. Never edit a file after you reported it, and never a file another session wrote.
+- Write the reply file after the fixes and the new evidence file. Run `$FLOW/scripts/flow.sh lint <absolute path>` on the new evidence file, when there is one, and on the reply, one command per Bash call, and fix your own file until `ok` is true, before you report. Never edit a file after you reported it, and never a file another session wrote.
 - **A fix is still not a commit.** The main session sends the reply back for review. Commits happen after the review approves,
   on the main session's word.
 
@@ -106,16 +106,16 @@ next session, five lines at most**.
 - anything that bears on the tasks still to come, such as how a function wants to be called, or a setting that has to
   land first
 
-No explanation of the code. That is in git. No design and no plan either. The main session holds those.
+No explanation of the code. That is in git. No design and no plan either. They are files of the run.
 
-**When a trap you would write is already in the handover notes of your prompt**, do not write it into the notes again (**A lesson becomes a check**). Write one line `check wanted: <the check that would catch it>` in the commit report, before the notes. In a run from an issue or a merge, report it as `Unplanned:` with `later` (see **Work outside the task**).
+**When a trap you would write is already in `<WORKDIR>/notes.md`**, do not write it into the notes again (**A lesson becomes a check**). Write one line `check wanted: <the check that would catch it>` in the commit report, before the notes. In a run from an issue or a merge, report it as `Unplanned:` with `later` (see **Work outside the task**).
 
 ## Report length
 
 **Report the gist.** After implementing, that is the files you changed and what the change amounts to, the commands
 you ran and what they printed. After a review round, it is how many findings you fixed, which ones you disagreed with
 and why, and what the tests printed. The decisive lines of a run go in the evidence file, not in the report. **Do not paste a diff or a log.** The main session takes a report from every session
-in the flow, and it is the only one holding the whole plan.
+in the flow, and its context is the one context that runs the whole flow.
 
 ## Rules
 

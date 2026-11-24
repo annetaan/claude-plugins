@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-SCRIPT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)/plugins/annetaan/skills/workflow/scripts/panel.sh"
-SCRIPT="${PANEL_SH:-$SCRIPT}"
+SCRIPT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)/plugins/annetaan/skills/workflow/scripts/flow.sh"
+SCRIPT="${FLOW_SH:-$SCRIPT}"
 
 TMP="$(mktemp -d)"
 trap 'rm -rf "$TMP"' EXIT
@@ -311,7 +311,7 @@ echo "ok: begin records the level and source it is given, unchanged, in run.json
 refused() {
   local rc=0
   "$SCRIPT" "$@" > /dev/null 2>&1 || rc=$?
-  [ "$rc" = 1 ] || fail "panel.sh $* exited $rc, not 1"
+  [ "$rc" = 1 ] || fail "flow.sh $* exited $rc, not 1"
 }
 
 setup
@@ -380,7 +380,7 @@ out="$("$SCRIPT" begin "$TMP" --level high --source default)"
 echo "ok: status stops with no-run when no directory holds a run.json, and begin stops with unknown outside a worktree"
 
 REVIEW_FILES="$(cd "$(dirname "$SCRIPT")/.." && pwd)/review-files.md"
-CMD='`/abs/skills/workflow/scripts/panel.sh run /abs/wt a /abs/wt/work-reports/2026-09-19-1346-a1b2c3d/seats/a/probe`'
+CMD='`/abs/skills/workflow/scripts/flow.sh run /abs/wt a /abs/wt/work-reports/2026-09-19-1346-a1b2c3d/seats/a/probe`'
 
 write() {
   mkdir -p "$(dirname "$1")"
@@ -619,7 +619,7 @@ breaks "$D/task-4-round-2.md" finding "Breaks: the second sign-in shows the old 
 breaks "$D/task-4-round-2.md" finding "Found by: a, b" "Found by: a and b"
 breaks "$D/task-4-round-2.md" finding "Command: $CMD" "Command (seat a): $CMD"
 breaks "$D/task-4-round-2.md" command "Command: $CMD" "Command: ${CMD//\`/}"
-breaks "$D/task-4-round-2.md" command "Command: \`/abs/skills/workflow/scripts/panel.sh run /abs/wt a " "Command: \`/abs/skills/workflow/scripts/panel.sh run /abs/wt c "
+breaks "$D/task-4-round-2.md" command "Command: \`/abs/skills/workflow/scripts/flow.sh run /abs/wt a " "Command: \`/abs/skills/workflow/scripts/flow.sh run /abs/wt c "
 breaks "$D/task-4-round-2.md" seats "Seats: a on opus, b on fable" ""
 breaks "$D/task-4-round-2.md" seats "Seats: a on opus, b on fable" "Seats: a on opus
 Seats: b on fable"
@@ -876,7 +876,7 @@ round_file "$R/task-1-round-3.md" "- R1.2 stands again: ran: $CMD; saw: exit 1; 
 [ "$(scoped task-1 '[d["round"], d["cap"], d["open"]]')" = "[4, False, [{'id': 'R1.2', 'stood': 2, 'reply': None}]]" ] || fail "status after round 3"
 for bad in task-x task-0 review; do
   out="$("$SCRIPT" status "$WT" "$bad" 2>&1)" && fail "status $bad exited 0: $out"
-  [ "$out" = "panel: no such scope: $bad" ] || fail "status $bad: $out"
+  [ "$out" = "flow: no such scope: $bad" ] || fail "status $bad: $out"
 done
 refused status "$WT" task-1 task-2
 refused status relative/wt task-1
@@ -921,7 +921,7 @@ setup
 out="$("$SCRIPT" status "$WT" task-1)"
 [ "$(echo "$out" | json 'd["reason"]')" = no-run ] || fail "status task-1 before begin: $out"
 out="$("$SCRIPT" status "$WT" task-x 2>&1)" && fail "status task-x before begin exited 0: $out"
-[ "$out" = "panel: no such scope: task-x" ] || fail "status task-x before begin: $out"
+[ "$out" = "flow: no such scope: task-x" ] || fail "status task-x before begin: $out"
 echo "ok: status refuses a bad scope before begin, and stops with no-run on a good one"
 
 ran_line() { printf '`%s run %s %s %s`' "$SCRIPT" "$WT" "$1" "$2"; }
@@ -1110,7 +1110,7 @@ rc=0
 "$SCRIPT" verify "$WT" task-1 > "$TMP/verify.out" 2> "$TMP/verify.err" || rc=$?
 [ "$rc" = 1 ] || fail "verify with an earlier probe gone exited $rc: $(cat "$TMP/verify.out")"
 case "$(cat "$TMP/verify.err")" in
-  "panel: R1."*) ;;
+  "flow: R1."*) ;;
   *) fail "verify with an earlier probe gone: $(cat "$TMP/verify.err")" ;;
 esac
 [ ! -e "$W/drafts/task-1-round-2.md" ] || fail "verify wrote a draft after an earlier probe was gone"
@@ -1120,7 +1120,7 @@ setup
 out="$("$SCRIPT" verify "$WT" task-1)"
 [ "$(echo "$out" | json '[d["status"], d["reason"]]')" = "['stop', 'no-run']" ] || fail "verify task-1 before begin: $out"
 out="$("$SCRIPT" verify "$WT" task-x 2>&1)" && fail "verify task-x before begin exited 0: $out"
-[ "$out" = "panel: no such scope: task-x" ] || fail "verify task-x before begin: $out"
+[ "$out" = "flow: no such scope: task-x" ] || fail "verify task-x before begin: $out"
 refused verify "$WT"
 refused verify "$WT" task-1 x
 refused verify relative/wt task-1
@@ -1274,6 +1274,179 @@ refused record relative/wt
 refused record "$WT" extra
 echo "ok: record: no run.json gives stop no-run, and a missing, relative or extra argument exits 1"
 
+THROUGH_DOTS="$(dirname "$SCRIPT")/../scripts/flow.sh"
+SKILLS="$(cd "$(dirname "$SCRIPT")/../.." && pwd)"
+PLACEHOLDER='<(skills|WT|MAIN|branch|WORKDIR|START|head|progress|scope|round|last|k|prev|seat|n|P)>'
+
+prompted() {
+  local out
+  out="$("$THROUGH_DOTS" prompt "$WT" "$@")" || fail "prompt $* exited non-zero: $out"
+  PROMPT_JSON="$out"
+  PROMPT="$(echo "$out" | json 'd["path"]')"
+  [ "$(echo "$out" | json 'd["status"]')" = ok ] || fail "prompt $*: $out"
+  [ -f "$PROMPT" ] || fail "prompt $*: no file at $PROMPT"
+  ! grep -vxF -- "$(git -C "$WT" log --oneline)" "$PROMPT" | grep -Eq "$PLACEHOLDER" || fail "prompt $* left a placeholder: $(grep -E "$PLACEHOLDER" "$PROMPT")"
+  ! grep -Eq '^(<if |<end>)' "$PROMPT" || fail "prompt $* left a block line"
+  local want="Your working directory must be the worktree \`$WT\`. Run \`git rev-parse --show-toplevel\` first. When it prints anything else, call \`EnterWorktree(path: \"$WT\")\` before anything else, or, when that tool is not available, start every command with \`cd $WT\` and keep Edit and Write paths under \`$WT\`. Never touch \`$MAIN\`."
+  [ "$(tail -n 1 "$PROMPT")" = "$want" ] || fail "prompt $* does not end with the worktree line: $(tail -n 1 "$PROMPT")"
+}
+
+holds() { grep -qF -- "$1" "$PROMPT" || fail "$(basename "$PROMPT") lacks: $1"; }
+lacks() { ! grep -qF -- "$1" "$PROMPT" || fail "$(basename "$PROMPT") holds: $1"; }
+
+setup
+git -C "$WT" checkout -q -b feat
+W="$("$SCRIPT" begin "$WT" --level high --source default --issue 12 --parent 88 | json 'd["workdir"]')"
+echo more > "$WT/a"
+git -C "$WT" commit -q -am "the first task"
+LOGLINE="$(git -C "$WT" log --oneline -1)"
+round_file "$W/review/task-1-round-1.md" None. "$(finding R1.1)" changes-requested
+"$LEVEL_SH" show "$WT" high > "$TMP/agents.json" 2> /dev/null
+for call in "work task-1|work-task-1|workflow-worker" "seat task-1 a|seat-task-1-a|workflow-reviewer-a" \
+            "seat task-1 b|seat-task-1-b|workflow-reviewer-b" "again task-1|again-task-1|" "respond task-1|respond-task-1|" \
+            "commit task-1|commit-task-1|" "detail task-2|detail-task-2|" "report|report|workflow-worker" \
+            "design|design|workflow-design" "decisions|decisions|workflow-reviewer-a"; do
+  IFS='|' read -r args name agent <<< "$call"
+  read -r -a words <<< "$args"
+  prompted "${words[@]}"
+  [ "$PROMPT" = "$W/prompts/$name.md" ] || fail "prompt $args wrote $PROMPT"
+  ! grep -qF '../' "$PROMPT" || fail "prompt $args holds a ..: $(grep -F '../' "$PROMPT")"
+  [ "${words[0]}" = commit ] || holds "$SKILLS/workflow/"
+  if [ -n "$agent" ]; then
+    want="$(json "[\"$agent\", d[\"agents\"][\"$agent\"][\"model\"], d[\"agents\"][\"$agent\"][\"effort\"]]" < "$TMP/agents.json")"
+  else
+    want="[None, None, None]"
+  fi
+  [ "$(echo "$PROMPT_JSON" | json '[d["agent"], d["model"], d["effort"]]')" = "$want" ] || fail "prompt $args: $PROMPT_JSON, not $want"
+done
+for name in work-task-1 seat-task-1-a report; do
+  PROMPT="$W/prompts/$name.md"
+  holds "$LOGLINE"
+done
+PROMPT="$W/prompts/work-task-1.md"
+holds "Detail design for this task: $W/detail/task-1.md"
+holds "Branch: feat"
+holds "This run comes from issue #12."
+PROMPT="$W/prompts/seat-task-1-b.md"
+holds "Run a probe with: $SKILLS/workflow/scripts/flow.sh run $WT b <probe dir>"
+holds "The design is issue #12. Its checked decisions bind."
+holds "Adaptations: $W/adaptations.md"
+PROMPT="$W/prompts/again-task-1.md"
+holds "Adaptations: $W/adaptations.md"
+holds "\`task-1-round-2-a.md\`"
+PROMPT="$W/prompts/respond-task-1.md"
+holds "The review is $W/review/task-1-round-1.md."
+PROMPT="$W/prompts/commit-task-1.md"
+holds "\`# Issue #12: \`"
+PROMPT="$W/prompts/detail-task-2.md"
+holds "Task 1 passed review"
+holds "$W/detail/task-2.md"
+PROMPT="$W/prompts/report.md"
+holds "List the adaptations"
+PROMPT="$W/prompts/decisions.md"
+holds "**Judging the decisions**"
+holds "Design: $W/design.md"
+holds "The diff: $W/changes.diff"
+holds "Write: $W/decisions.md"
+PROMPT="$W/prompts/design.md"
+holds "The issue: #12"
+holds "The parent: #88"
+holds "\`project.sh 88 --check 12\`"
+holds "$SKILLS/pj1-plan/scripts/project.sh"
+echo "ok: prompt writes each kind's file with the paths, the worktree line, the progress and the issue lines filled, and agent, model and effort from run.json's level"
+
+setup
+W="$("$SCRIPT" begin "$WT" --level high --source default | json 'd["workdir"]')"
+prompted work merge
+holds "Design, plan and detail: $W/merge.md"
+holds "Start point START: $(git -C "$WT" rev-parse HEAD)"
+holds "\`merge-evidence.md\`"
+lacks "Branch:"
+lacks "Design: "
+lacks "Detail design"
+prompted seat merge a
+holds "MERGE_HEAD"
+holds "The evidence is \`merge-evidence.md\`."
+holds "Write your seat file as \`merge-round-1-a.md\`"
+prompted commit merge
+holds "git commit --no-edit"
+lacks "Turn its changes"
+prompted seat integration b
+holds "This is the integration review."
+holds "under \`## Walk\`"
+holds "Write your seat file as \`integration-round-1-b.md\`"
+lacks "Detail design"
+lacks "MERGE_HEAD"
+round_file "$W/review/integration-round-1.md" None. "$(finding R1.1)" changes-requested
+prompted work integration
+holds "Every task of the plan is committed, and the integration review asked for changes."
+holds "The review is $W/review/integration-round-1.md."
+holds "\`integration-round-1-reply.md\`"
+holds "Branch: none"
+lacks "Detail design"
+prompted commit integration
+holds "integration review fixes"
+for PROMPT in "$W"/prompts/*.md; do
+  lacks "issue #"
+  lacks "Adaptations"
+done
+echo "ok: prompt picks the merge lines for the merge scope, the integration lines for integration, and no issue line without --issue"
+
+setup
+W="$("$SCRIPT" begin "$WT" --level high --source default | json 'd["workdir"]')"
+prompted seat task-1 a
+holds "The evidence is \`task-1-evidence.md\`."
+holds "Write your seat file as \`task-1-round-1-a.md\`"
+lacks "You start in round"
+round_file "$W/review/task-1-round-1.md" None. "$(finding R1.1)" changes-requested
+prompted seat task-1 a
+holds "The reply of the last round is \`task-1-round-1-reply.md\`, and the round file of the last round is \`task-1-round-1.md\`."
+holds "You start in round 2."
+holds "Write your seat file as \`task-1-round-2-a.md\`"
+lacks "\`task-1-evidence.md\`"
+round_file "$W/review/integration-round-1.md" None. "$(finding R1.1)" changes-requested
+prompted seat integration a
+holds "You start in round 2."
+lacks "## Walk"
+echo "ok: prompt gives a seat the round 1 wording in round 1 and the restart wording from round 2 on"
+
+setup
+W="$("$SCRIPT" begin "$WT" --level standard --source default | json 'd["workdir"]')"
+echo more > "$WT/a"
+git -C "$WT" commit -q -am "fix <WT> and <k> in the prompt"
+prompted work task-1
+holds "fix <WT> and <k> in the prompt"
+first="$(cksum < "$PROMPT")"
+echo stale > "$PROMPT"
+prompted work task-1
+[ "$(cksum < "$PROMPT")" = "$first" ] || fail "a second prompt call did not overwrite the file"
+echo "ok: prompt keeps the text of a placeholder inside a commit subject as it is, and a second call overwrites the file"
+
+setup
+out="$("$SCRIPT" prompt "$WT" work task-1)"
+[ "$(echo "$out" | json '[d["status"], d["reason"]]')" = "['stop', 'no-run']" ] || fail "prompt before begin: $out"
+"$SCRIPT" begin "$WT" --level standard --source default > /dev/null
+refused prompt "$WT"
+refused prompt "$WT" bogus task-1
+refused prompt "$WT" work
+refused prompt "$WT" work task-1 a
+refused prompt "$WT" report task-1
+refused prompt "$WT" design task-1
+refused prompt "$WT" decisions task-1
+refused prompt "$WT" seat task-1
+refused prompt "$WT" seat task-1 c
+refused prompt relative/wt work task-1
+refused prompt "$WT" work task-x
+refused prompt "$WT" work review
+refused prompt "$WT" detail task-1
+refused prompt "$WT" detail integration
+refused prompt "$WT" seat task-1 b
+refused prompt "$WT" design
+refused prompt "$WT" again task-1
+refused prompt "$WT" respond task-1
+refused prompt "$WT" work integration
+[ ! -e "$("$SCRIPT" status "$WT" | json 'd["workdir"]')/prompts" ] || fail "a refused prompt wrote prompts/"
+echo "ok: prompt stops with no-run, and exits 1 on a bad kind, scope, seat or argument count, on detail task-1, on seat b at standard, on design without --issue, and on again, respond and work integration before the scope's first round file"
 decisions_file() {
   write "$1" <<'EOF'
 # Decisions

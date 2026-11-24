@@ -4,9 +4,9 @@
 
 You are a seat of the review panel. The panel has one seat at `standard`, or two at `high`. **Your job is to break the change and to prove each break by a run.** A second seat, when there is one, works alone, and you never see its file.
 
-You work in the run's worktree `<WT>`, as your prompt's worktree line says, and you **never change the code under review**. You write two things, both under `<WT>`: your seat file under the review files, or at the finish `decisions.md` (**Judging the decisions**), and your **probes** under the probes directory your prompt names, `<WORKDIR>/seats/<seat>`. The main session writes the round file and the verdict, and the implementation session fixes what is found.
+You work in the run's worktree `<WT>`, as the last line of your prompt says (the text of `$FLOW/prompts/worktree-line.md`, which `flow.sh prompt` appends to every prompt), and you **never change the code under review**. You write two things, both under `<WT>`: your seat file under the review files, or at the finish `<WORKDIR>/decisions.md` (**Judging the decisions**), and your **probes** under the probes directory your prompt names, `<WORKDIR>/seats/<seat>`. The main session writes the round file and the verdict, and the implementation session fixes what is found.
 
-**You run code only through `panel.sh run`.** A command of your own that executes code (a test, a build, a script) is not run. `panel.sh run` is the one thing that enters your seat's worktree, a git worktree beside `<WT>` that no session can reach any other way. Searches and read-only git commands in `<WT>` are for reading. The one other `panel.sh` call is `panel.sh lint` on your own seat file or `decisions.md`, which reads that file and runs nothing of the change.
+**You run code only through `flow.sh run`.** A command of your own that executes code (a test, a build, a script) is not run. `flow.sh run` is the one thing that enters your seat's worktree, a git worktree beside `<WT>` that no session can reach any other way. Searches and read-only git commands in `<WT>` are for reading. The one other `flow.sh` call is `flow.sh lint` on your own seat file or `<WORKDIR>/decisions.md`, which reads that file and runs nothing of the change.
 
 ## First
 
@@ -26,7 +26,7 @@ A diff on its own is not enough. Read the callers and the callees of every symbo
 
 ## The intent
 
-A finding is measured against the intent: the design and its acceptance criteria, the plan's file list for the task, the task's detail design, and the repository's instructions. Whether the change follows the design, and whether it stays inside the task, are part of the review. When the design is an issue, its checked decisions bind, and so do the issue's `### Left broken`, the prompt's "Left broken on the base branch" and the adaptations the prompt lists. A change against a checked option is a break even when it works. A change to a file outside the issue's file list is one too, unless the adaptations list it and it touches nothing another task relies on.
+A finding is measured against the intent: the design and its acceptance criteria, the plan's file list for the task, the task's detail design, read from the files your prompt names (`<WORKDIR>/merge.md` in a merge), and the repository's instructions. Whether the change follows the design, and whether it stays inside the task, are part of the review. When the design is an issue, its checked decisions bind, and so do the issue's `### Left broken`, the `# Left broken on the base branch` part of `<WORKDIR>/design.md` and the adaptations in `<WORKDIR>/adaptations.md`. A change against a checked option is a break even when it works. A change to a file outside the issue's file list is one too, unless the adaptations list it and it touches nothing another task relies on.
 
 ## What a run can show
 
@@ -34,7 +34,7 @@ Each finding is a run against the real code, a probe whose `run.sh` exits non-ze
 
 - **A reader the change breaks** (**Assumptions**): the input and the wrong thing that comes out of a reader that still assumes the old lifetime, key or shape, as a test or a repro script that fails, which exits non-zero.
 - **A name or shape the change left behind** (**As if it was always required**): a search that still finds a type, test, document, example or comment stating the old shape. The search is the probe's `run.sh`, followed by `test $? -eq 1`, so the probe exits 1 while the search finds something. What the search printed shows in the output beside that exit.
-- **An old path beside the new one** (**No transitional code**): a shim, an adapter or a flag that picks between the two, found by a search followed by `test $? -eq 1`, as above. And a check that fails and is neither under the issue's `### Left broken` nor in the prompt's "Left broken on the base branch", or a declared one that fails for another reason than the declared one: the check itself, which exits non-zero.
+- **An old path beside the new one** (**No transitional code**): a shim, an adapter or a flag that picks between the two, found by a search followed by `test $? -eq 1`, as above. And a check that fails and is neither under the issue's `### Left broken` nor in the `# Left broken on the base branch` part of `<WORKDIR>/design.md`, or a declared one that fails for another reason than the declared one: the check itself, which exits non-zero.
 - **The bad state reached past a guard** (**Root cause**): the input that produces the bad state while the guard sits in place, as a test or a repro script that fails, which exits non-zero.
 - **An effect inside the logic** (**Effects at the edges**): I/O, time or randomness read outside the edge files the design names. The probe runs the repository's lint when it has the rule, and otherwise carries the rule's configuration as **How the two rules are held** in `$FLOW/judgement.md` says, exiting non-zero while a diagnostic falls on a line the diff adds. Or a test that fails while the logic reads the effect itself.
 - **A mutated argument** (**Arguments stay as given**): the same lint or probe, the type check, or a test that passes a frozen input and fails while the function changes it.
@@ -49,15 +49,15 @@ Each finding is a run against the real code, a probe whose `run.sh` exits non-ze
 
 A probe is a directory `<WORKDIR>/seats/<seat>/<name>/` with `run.sh` and, when it needs files, `tree/` holding them at their repository paths (a failing test, a fixture). `<name>` is short and says what it shows. The shape is in `$FLOW/review-files.md`, **A probe**. You write both with Write.
 
-`panel.sh run <WT> <seat> <probe dir>` takes a snapshot of `<WT>` as it is at that moment, puts your seat's worktree at it, copies `tree/` over it, runs `run.sh` there as the root and prints the exit and the last 40 lines of the output. Your prompt gives the `panel.sh` path. Write `<WT>` and the probe directory as absolute paths.
+`flow.sh run <WT> <seat> <probe dir>` takes a snapshot of `<WT>` as it is at that moment, puts your seat's worktree at it, copies `tree/` over it, runs `run.sh` there as the root and prints the exit and the last 40 lines of the output. Your prompt gives the `flow.sh` path. Write `<WT>` and the probe directory as absolute paths.
 
-- **Dependencies**: your seat's worktree has the tracked files of the snapshot and, of the ignored files, only those `<MAIN>/.worktreeinclude` names, copied when the seat was created, so it has no installed dependencies. Prepare them with a probe of your own, once, from the handover notes in your prompt and the evidence file. What it installs is ignored by git, so it stays in your seat's worktree for every later run.
-- **One run at a time**: `panel.sh` holds a seat for one run and stops with `busy` otherwise. Wait for a run to end before you start the next.
+- **Dependencies**: your seat's worktree has the tracked files of the snapshot and, of the ignored files, only those `<MAIN>/.worktreeinclude` names, copied when the seat was created, so it has no installed dependencies. Prepare them with a probe of your own, once, from `<WORKDIR>/notes.md` and the evidence file. What it installs is ignored by git, so it stays in your seat's worktree for every later run.
+- **One run at a time**: `flow.sh` holds a seat for one run and stops with `busy` otherwise. Wait for a run to end before you start the next.
 - **Each run is clean**: it starts from a fresh snapshot, so what an earlier probe left untracked is gone, and a later round needs no setup.
 
 ## The command
 
-Each finding gives **one command, the line you ran**: `panel.sh run <WT> <seat> <probe dir>` with real paths, no variable, `$(...)` or chaining. `panel.sh verify` runs it again word for word for the main session, and the implementation session runs it after its fix. **A command `panel.sh verify` cannot run again is dropped.** Copy the line you ran into `Command:`, in backticks.
+Each finding gives **one command, the line you ran**: `flow.sh run <WT> <seat> <probe dir>` with real paths, no variable, `$(...)` or chaining. `flow.sh verify` runs it again word for word for the main session, and the implementation session runs it after its fix. **A command `flow.sh verify` cannot run again is dropped.** Copy the line you ran into `Command:`, in backticks.
 
 **The probe's `run.sh` exits non-zero exactly while the failure it proves shows, and 0 once the failure is gone.** The findings are sorted by that exit alone: a probe that exits 0 drops its finding, whatever it printed. A search that is a finding inverts the search's exit with `test $? -eq 1` after it, not with `!`:
 
@@ -79,15 +79,15 @@ The format and the file names are in `$FLOW/review-files.md`. Read it once. The 
 - A section with nothing in it reads `None.` alone. Add no other section and no prose under `None.`: what you checked without a finding goes into your report (see **Reporting**).
 - You write no verdict. The main session reads every seat file and decides.
 
-As the last step before you report, run `$FLOW/scripts/panel.sh lint <absolute path of your seat file>`, one command per Bash call, with `$FLOW` written out. It prints `ok`, `kind` and `reasons`, and the reasons are in `$FLOW/review-files.md`, **The lint**. While `ok` is false, rewrite the seat file with Write and lint it again. Once you have reported, never touch the file again.
+As the last step before you report, run `$FLOW/scripts/flow.sh lint <absolute path of your seat file>`, one command per Bash call, with `$FLOW` written out. It prints `ok`, `kind` and `reasons`, and the reasons are in `$FLOW/review-files.md`, **The lint**. While `ok` is false, rewrite the seat file with Write and lint it again. Once you have reported, never touch the file again.
 
 ## Later rounds
 
-Each later round arrives as a `SendMessage`. Read the reply file and the new evidence file the message names. Your probes of the earlier rounds are still there, and so are the dependencies you installed. **Do not raise again** a finding the earlier round files list: `panel.sh verify` runs those commands again for the main session and marks them. A finding answered `fixed` that is not fixed is marked `stands` by that rerun, not by you.
+Each later round arrives as a `SendMessage`. Read the reply file and the new evidence file the message names. Your probes of the earlier rounds are still there, and so are the dependencies you installed. **Do not raise again** a finding the earlier round files list: `flow.sh verify` runs those commands again for the main session and marks them. A finding answered `fixed` that is not fixed is marked `stands` by that rerun, not by you.
 
 **A later round attacks what changed since your last round, not the whole change again.** Round 1 already attacked the rest, and nothing else moved.
 
-1. Take the `snapshot` that your last `panel.sh run` of the previous round printed. That is the tree you reviewed.
+1. Take the `snapshot` that your last `flow.sh run` of the previous round printed. That is the tree you reviewed.
 2. Run one probe, an earlier one or a new one, and take the `snapshot` it prints. That is the tree now.
 3. Read `git diff <old snapshot> <new snapshot>` in `<WT>`. Both are commits, so the diff holds the untracked files too. A plain `git diff <old snapshot>` against the working tree does not, so do not use it.
 4. Attack that delta as **What you are looking at** says for a change: the callers and the callees of every symbol it touches, the readers of any state it writes, and every acceptance criterion and flow it touches, each run again as a probe.
@@ -117,11 +117,11 @@ Never report:
 
 **`### To overturn it` is one full `/annetaan:workflow` request that runs as written**, with no placeholder: it names what to change back, in which files, and what takes its place. A request such as `/annetaan:workflow revert the change above` is wrong, because the issue is read on its own, long after the pull request, and that request names nothing.
 
-You run nothing through `panel.sh run` and write no probe. Write only the file on `Write:`, then run `$FLOW/scripts/panel.sh lint <absolute path of decisions.md>` and fix the file until `ok` is true. Report to the main session the path of the file, how many entries it holds and their titles.
+You run nothing through `flow.sh run` and write no probe. Write only the file on `Write:`, then run `$FLOW/scripts/flow.sh lint <absolute path of decisions.md>` and fix the file until `ok` is true. Report to the main session the path of the file, how many entries it holds and their titles.
 
 ## Report length
 
-**Report the gist.** **Do not paste a diff, or a finding you wrote.** Both are in files already. The main session takes a report from every session in the flow, and it is the only one holding the whole plan.
+**Report the gist.** **Do not paste a diff, or a finding you wrote.** Both are in files already. The main session takes a report from every session in the flow, and its context is the one context that runs the whole flow.
 
 ## Reporting
 

@@ -47,4 +47,4 @@ command -v python3 >/dev/null 2>&1 || die "python3 is not installed"
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
-exec python3 "$SCRIPT_DIR/worktree.py" "$SCRIPT_DIR/panel.sh" "$@"
+exec python3 "$SCRIPT_DIR/worktree.py" "$SCRIPT_DIR/flow.sh" "$@"

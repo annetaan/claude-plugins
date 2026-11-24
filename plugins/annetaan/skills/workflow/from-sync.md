@@ -30,7 +30,7 @@ This entry asks nothing. Its ending is **What it hands back to pj4-running** bel
   `--parent`:
 
   ```bash
-  $FLOW/scripts/panel.sh begin <WT> --level <level> --source <source>
+  $FLOW/scripts/flow.sh begin <WT> --level <level> --source <source>
   ```
 
   The `start` it prints is the `<START>` pj4-running settled: `run.sh sync` stopped the merge on the tip of the base
@@ -38,16 +38,19 @@ This entry asks nothing. Its ending is **What it hands back to pj4-running** bel
   `start`. On a `stop` with `not-ignored`, leave the working tree as it is, push nothing, and return `stopped` with the
   reason `work-reports`. Never ask about `.gitignore` here.
 
-  After a context summary, `panel.sh status <WT>` names this run only when its `issue` is null. A `no-run`, or a
+  After a context summary, `flow.sh status <WT>` names this run only when its `issue` is null. A `no-run`, or a
   number in `issue`, is an issue's work directory in the reused `<WT>`: phase 2 (b) has not run, its `start` and
   `workdir` are not taken, and the level is the JSON pj4-running settled (**The level** in SKILL.md).
+
+  Then write the handover notes pj4-running settled to `<WORKDIR>/notes.md` with Write, and nothing when they are
+  empty.
 - **Phases 3 and 4** run as **The merge task** in `merge-task.md` says, below.
 
 ## The merge task
 
-Read the parent, `gh issue view <P> --json body`. Read `merge-task.md` and run **The merge task** with `<incoming>` as `origin/<from>`,
-`<into>` as `<base>`, `<M>` as `<START>`, and as `<intent>`: "project #<P>'s changes, as the parent's `## Design`
-describes them", followed by that design. A `later` report goes to pj4-running's **Unplanned work** as it arrives,
+Read `merge-task.md` and run **The merge task** with `<incoming>` as `origin/<from>`, `<into>` as `<base>`, `<M>` as
+`<START>`, and as `<intent>`: "project #<P>'s changes, as its `## Design` describes them, read with
+`gh issue view <P> --json body`". A `later` report goes to pj4-running's **Unplanned work** as it arrives,
 worded "found while merging `<from>` into `<base>`". The merge task says that a stop leaves the merge in progress in
 `<WT>`. Say plainly that it is local, that the next run never uses it, and that the merge gets redone.
 

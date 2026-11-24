@@ -89,7 +89,7 @@ Agent(subagent_type: "annetaan:level-evaluator", description: "evaluate the leve
       prompt: "Read $LEVEL/roles/evaluate.md first and follow the role it describes.\n\nlevel.sh show:\n<the JSON of step 1>\n\nThe agents at each level:\nstandard: <agents of show standard>\nhigh: <agents of show high>\n\nThe level file now:\n<the output of git show <ref>:.claude/annetaan-level.md, or none>\n\nlevel.sh history:\n<the JSON of step 4>\n\nToday: <YYYY-MM-DD>\n\n<the worktree line>")
 ```
 
-`<the worktree line>` is **The worktree line** in `<skills>/workflow/SKILL.md`, with the real paths for `<WT>` and
+`<the worktree line>` is the text of `<skills>/workflow/prompts/worktree-line.md`, with the real paths for `<WT>` and
 `<MAIN>`. The evaluator runs as its frontmatter says, so the call passes no `model` and no `effort`.
 
 When it cannot start, say why and take **Ending with nothing changed**. There is no fallback, because the evaluation is the

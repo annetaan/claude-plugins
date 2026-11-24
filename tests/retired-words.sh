@@ -23,6 +23,11 @@ level 1 |
 level 2 |
 level 3 |
 levels 1 |
+panel.sh |
+panel.py |
+<the worktree line> | plugins/annetaan/skills/level/SKILL.md
+<the full design> |
+<the full plan> |
 EOF
 )"
 
@@ -111,6 +116,9 @@ broken hyphen "$P" 'Read `design-review.md`.' 'design review'
 broken br "$P" 'seats<br/>Design<br/>review' 'Design review'
 broken quote "$W" '> no design
 > review' 'design review'
+broken prompt "$W" '      prompt: "Design:\n<the full design>\n\nPlan:\n<the full plan>")' '<the full design '
+broken prompt-quote "$W" '> <the worktree
+> line>' '<the worktree line '
 
 cp -R "$GOOD" "$TMP/json"
 printf '{\n  "name": "annetaan",\n  "description": "Runs both seats on every task"\n}\n' > "$TMP/json/plugins/annetaan/.claude-plugin/plugin.json"

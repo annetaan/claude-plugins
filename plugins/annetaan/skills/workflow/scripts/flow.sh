@@ -1,31 +1,36 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-die() { echo "panel: $*" >&2; exit 1; }
+die() { echo "flow: $*" >&2; exit 1; }
 
 usage() {
   cat >&2 <<'USAGE'
-usage: panel.sh run <WT> <seat> <probe dir>   snapshot the working tree of <WT>, put seat a or b at it, copy <probe dir>/tree over it,
+usage: flow.sh run <WT> <seat> <probe dir>   snapshot the working tree of <WT>, put seat a or b at it, copy <probe dir>/tree over it,
                                               run <probe dir>/run.sh there and print its exit and its last 40 lines
-       panel.sh close <WT>                    remove the seats; safe when there is none, and when <WT> is already gone
-       panel.sh begin <WT> --level <level> --source <source> [--issue <n> --parent <P>]
+       flow.sh close <WT>                    remove the seats; safe when there is none, and when <WT> is already gone
+       flow.sh begin <WT> --level <level> --source <source> [--issue <n> --parent <P>]
                                               make the run's work directory under <WT>/work-reports/ with review/ and seats/,
                                               take HEAD as the start, and write the start, the level, its source, the issue
                                               and the parent to run.json
-       panel.sh status <WT> [<scope>]         print the start, the work directory, the level, its source, the issue and the
+       flow.sh status <WT> [<scope>]         print the start, the work directory, the level, its source, the issue and the
                                               parent of the run whose run.json was written last; with a scope (task-<k>,
                                               integration or merge) also its next round, whether the cap is reached, the
                                               last verdict, the open findings and whether approve is allowed
-       panel.sh lint <file>                   check one review file or a decisions.md against review-files.md and print ok,
+       flow.sh lint <file>                   check one review file or a decisions.md against review-files.md and print ok,
                                               kind and reasons; it reads the file, the files beside it and, for a round
                                               file, its draft under drafts/
-       panel.sh verify <WT> <scope>           run again every command of the scope's next round, the open earlier findings
+       flow.sh verify <WT> <scope>           run again every command of the scope's next round, the open earlier findings
                                               and the findings of each seat the run's level runs, sort them by the
                                               probe's exit, and write drafts/<scope>-round-<r>.md in the run's work
                                               directory
-       panel.sh record <WT>                   write the pull request head, when the run comes from an issue, and the Level:
+       flow.sh record <WT>                   write the pull request head, when the run comes from an issue, and the Level:
                                               line into log.md of the newest work directory, from its run.json
-       panel.sh decisions <WT> <pr>           file one issue labelled decision per entry of decisions.md in the newest work
+       flow.sh prompt <WT> <kind> [<scope>] [<seat>]
+                                              write the prompt of one sub-agent call from prompts/<kind>.md to
+                                              prompts/ of the run's work directory, and print its path, agent, model
+                                              and effort; report, design and decisions take no scope, work, seat, again,
+                                              respond, commit and detail take one, and seat also a seat, a or b
+       flow.sh decisions <WT> <pr>           file one issue labelled decision per entry of decisions.md in the newest work
                                               directory, each pointing at pull request #<pr>, skip the entries decisions.json
                                               lists as filed, and print every issue filed for the file
 Every subcommand prints one JSON object with "status" and exits 0. "stop" carries "reason" and "message".
@@ -54,6 +59,17 @@ case "$1" in
   lint) [ $# -eq 2 ] || usage ;;
   verify) [ $# -eq 3 ] || usage ;;
   record) [ $# -eq 2 ] || usage ;;
+  prompt)
+    case "${3:-}" in
+      report|design|decisions) [ $# -eq 3 ] || usage ;;
+      work|again|respond|commit|detail) [ $# -eq 4 ] || usage ;;
+      seat)
+        [ $# -eq 5 ] || usage
+        case "$5" in a|b) ;; *) usage ;; esac
+        ;;
+      *) usage ;;
+    esac
+    ;;
   decisions)
     [ $# -eq 3 ] || usage
     case "$3" in ''|0*|*[!0-9]*) usage ;; esac
@@ -67,4 +83,4 @@ command -v python3 >/dev/null 2>&1 || die "python3 is not installed"
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
-exec python3 "$SCRIPT_DIR/panel.py" "$@"
+exec python3 "$SCRIPT_DIR/flow.py" "$@"
