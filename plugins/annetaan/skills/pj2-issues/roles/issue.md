@@ -33,7 +33,9 @@ the other tasks at the same time. Stay inside yours.
    `Mode: revise` there is no such line. Read where **Revising an issue** says.
 2. **Draw the task.** `## Design` opens with the file list from `pj1-plan/format.md`, one entry per file, tests included. A
    `changed` entry on a code file names the existing symbols it rides on, and only names that exist in that file go in
-   backticks. An entry on a document needs no symbol: say what the document says afterwards.
+   backticks. An entry on a document needs no symbol: say what the document says afterwards. Nor does an entry on a
+   code file that holds no name (`pj1-plan/format.md`, **The file list**), such as one made only of `export * from`
+   lines.
    A file name in backticks, including one at the root such as `package.json`, is a path and not a symbol: name that
    file in its own entry, or leave it out of backticks.
    The file list reaches the documents and examples that state the old shape (**As if it was always required**). The
