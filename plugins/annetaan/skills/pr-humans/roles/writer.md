@@ -21,8 +21,8 @@ The prompt gives you `<DIR>` and the language to write in.
   its first message is a driver's prompt, not a person's. `prLinks` is a list of `{repo, number, at}` in time order.
   `turns` does not include the run of pr-humans itself. `cwds` and `file` are there only so that `post` can check your
   draft. Never write them.
-- `<DIR>/reports.json`: work report files of workflow runs that name the pull request. Read the ones listed. A
-  `log.md` there tells what the run asked the user and what the user answered.
+- `<DIR>/reports.json`: the `log.md` of each workflow run that names the pull request. Read the ones listed. A
+  `log.md` tells what the run asked the user and what the user answered.
 - `<DIR>/previous.md`: there only when this account recorded this pull request before. It is that record without the
   marker line.
 
