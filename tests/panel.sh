@@ -1263,3 +1263,250 @@ refused record
 refused record relative/wt
 refused record "$WT" extra
 echo "ok: record: no run.json gives stop no-run, and a missing, relative or extra argument exits 1"
+
+decisions_file() {
+  write "$1" <<'EOF'
+# Decisions
+
+## Keep sessions in Redis
+
+Area: infrastructure
+
+### What was decided
+
+Sessions move to a shared Redis instance.
+
+### Other options and why this one
+
+Sticky sessions would still sign everyone out on a deploy.
+
+### Where it landed
+
+- `src/session/store.ts`
+- `infra/redis.tf`: the instance
+
+### To overturn it
+
+```text
+/annetaan:workflow Keep sessions in process memory again and remove infra/redis.tf.
+```
+
+## Add the date library
+
+Area: technology
+
+### What was decided
+
+Dates are parsed with one library.
+
+```text
+### not a heading inside a fence
+```
+
+### Other options and why this one
+
+The built-in parser reads time zones differently per runtime.
+
+### Where it landed
+
+- `package.json`
+
+### To overturn it
+
+```
+/annetaan:workflow Parse dates with the built-in parser and drop the library from package.json.
+```
+EOF
+}
+
+D="$TMP/lint/decisions"
+mkdir -p "$D/example"
+python3 -c '
+import re, sys
+text = open(sys.argv[1], encoding="utf-8").read()
+open(sys.argv[2], "w", encoding="utf-8").write(re.search(r"^````markdown\n(.*?)^````$", text, re.S | re.M).group(1))
+' "$REVIEW_FILES" "$D/example/decisions.md"
+passes "$D/example/decisions.md" decisions
+printf '# Decisions\n\nNone.\n' | write "$D/none/decisions.md"
+passes "$D/none/decisions.md" decisions
+decisions_file "$D/full/decisions.md"
+passes "$D/full/decisions.md" decisions
+echo "ok: lint: decisions.md with None. or full entries passes as kind decisions"
+
+F="$D/full/decisions.md"
+breaks "$F" sections "# Decisions" "# Decision"
+breaks "$F" sections "# Decisions
+" "# Decisions
+
+Notes first.
+"
+breaks "$F" sections "# Decisions
+" "# Decisions
+
+None.
+"
+breaks "$F" sections "## Add the date library" "## Keep sessions in Redis"
+printf '# Decisions\n\nNone.\nMore.\n' | write "$D/none/decisions.md"
+gives "$D/none/decisions.md" "['sections']"
+printf '# Decisions\n' | write "$D/none/decisions.md"
+gives "$D/none/decisions.md" "['sections']"
+breaks "$F" area "Area: infrastructure" "Area: infra"
+breaks "$F" area "Area: technology" "Area technology"
+breaks "$F" parts "### Other options and why this one
+
+The built-in" "### Other options
+
+The built-in"
+breaks "$F" parts "Sessions move to a shared Redis instance." ""
+breaks "$F" parts "Area: technology
+" "Area: technology
+
+A stray line.
+"
+breaks "$F" parts "### Where it landed
+
+- \`package.json\`
+
+### To overturn it" "### To overturn it
+
+\`\`\`
+/annetaan:workflow Move it.
+\`\`\`
+
+### Where it landed
+
+- \`package.json\`
+
+### To overturn it"
+breaks "$F" landed "- \`package.json\`" "- package.json"
+breaks "$F" landed "- \`package.json\`" ""
+breaks "$F" landed "- \`src/session/store.ts\`" "the store, \`src/session/store.ts\`"
+breaks "$F" overturn "/annetaan:workflow Parse dates" "/workflow Parse dates"
+breaks "$F" overturn "/annetaan:workflow Keep sessions in process memory again and remove infra/redis.tf.
+\`\`\`" "/annetaan:workflow Keep sessions in process memory again and remove infra/redis.tf.
+\`\`\`
+
+Run it from main."
+breaks "$F" overturn "\`\`\`
+/annetaan:workflow Parse dates with the built-in parser and drop the library from package.json.
+\`\`\`" "/annetaan:workflow Parse dates with the built-in parser and drop the library from package.json."
+breaks "$F" overturn "/annetaan:workflow Parse dates with the built-in parser and drop the library from package.json." "/annetaan:workflow "
+echo "ok: lint: decisions.md gives sections, area, parts, landed and overturn, one per break"
+
+mkdir -p "$TMP/bin"
+cat > "$TMP/bin/gh" <<'EOF'
+#!/usr/bin/env bash
+echo "$PWD $*" >> "$FAKE/gh.log"
+case "$1 $2" in
+  "label create")
+    if grep -qxF -- "$3" "$FAKE/labels"; then
+      echo "label with name \"$3\" already exists; use \`--force\` to update its color and description" >&2
+      exit 1
+    fi
+    echo "$3" >> "$FAKE/labels" ;;
+  "issue create")
+    if [ "$4" = "$(cat "$FAKE/fail-title" 2>/dev/null)" ]; then
+      echo "HTTP 502: the server is down" >&2
+      exit 1
+    fi
+    n=$(( $(cat "$FAKE/next") + 1 ))
+    echo "$n" > "$FAKE/next"
+    cat > "$FAKE/body-$n"
+    echo "Creating issue in o/r"
+    echo "https://github.com/o/r/issues/$n" ;;
+  *) echo "unexpected gh $*" >&2; exit 1 ;;
+esac
+EOF
+chmod +x "$TMP/bin/gh"
+export FAKE="$TMP/fake"
+
+decided() {
+  rm -rf "$FAKE"
+  mkdir -p "$FAKE"
+  : > "$FAKE/gh.log"
+  : > "$FAKE/labels"
+  echo 40 > "$FAKE/next"
+  setup
+  W="$("$SCRIPT" begin "$WT" --level standard --source default | json 'd["workdir"]')"
+}
+
+filing() {
+  PATH="$TMP/bin:$PATH" "$SCRIPT" decisions "$WT" 7 > "$TMP/decisions.out" || fail "decisions exited non-zero: $(cat "$TMP/decisions.out")"
+  json "$1" < "$TMP/decisions.out"
+}
+
+decided
+printf '# Decisions\n\nNone.\n' | write "$W/decisions.md"
+[ "$(filing '[d["status"], d["filed"]]')" = "['ok', []]" ] || fail "decisions on None.: $(cat "$TMP/decisions.out")"
+[ ! -s "$FAKE/gh.log" ] || fail "decisions on None. called gh: $(cat "$FAKE/gh.log")"
+[ ! -s "$FAKE/labels" ] || fail "decisions on None. created a label"
+echo "ok: decisions: None. files nothing and creates no label"
+
+FILED="[('Keep sessions in Redis', 41, 'https://github.com/o/r/issues/41'), ('Add the date library', 42, 'https://github.com/o/r/issues/42')]"
+for existing in no yes; do
+  decided
+  [ "$existing" = no ] || echo decision > "$FAKE/labels"
+  decisions_file "$W/decisions.md"
+  [ "$(filing '[(i["title"], i["number"], i["url"]) for i in d["filed"]]')" = "$FILED" ] || fail "decisions filed: $(cat "$TMP/decisions.out")"
+  python3 - "$FAKE/gh.log" "$WT" <<'EOF' || fail "decisions with the label existing $existing called gh as: $(cat "$FAKE/gh.log")"
+import sys
+lines = open(sys.argv[1]).read().splitlines()
+wt = sys.argv[2]
+assert lines == [
+    wt + " label create decision --color FBCA04 --description A design decision a workflow run made on its own. Read it, then close it.",
+    wt + " issue create --title Keep sessions in Redis --label decision --body-file -",
+    wt + " issue create --title Add the date library --label decision --body-file -",
+], lines
+EOF
+  [ "$(cat "$FAKE/labels")" = decision ] || fail "decisions left the labels as: $(cat "$FAKE/labels")"
+done
+printf '%s\n' '## What was decided' '' 'Area: infrastructure' '' 'Sessions move to a shared Redis instance.' '' \
+  '## Other options and why this one' '' 'Sticky sessions would still sign everyone out on a deploy.' '' \
+  '## Where it landed' '' 'Pull request: #7' '' '- `src/session/store.ts`' '- `infra/redis.tf`: the instance' '' \
+  '## To overturn it' '' '```text' '/annetaan:workflow Keep sessions in process memory again and remove infra/redis.tf.' '```' > "$TMP/body.want"
+cmp "$TMP/body.want" "$FAKE/body-41" || fail "the body of the first issue: $(cat "$FAKE/body-41")"
+[ "$(grep -c '^## ' "$FAKE/body-42")" = 4 ] || fail "the second body does not hold four sections: $(cat "$FAKE/body-42")"
+grep -qxF '### not a heading inside a fence' "$FAKE/body-42" || fail "the second body lost its fenced block: $(cat "$FAKE/body-42")"
+[ "$(json '[(i["title"], i["number"], i["url"]) for i in d]' < "$W/decisions.json")" = "$FILED" ] || fail "decisions.json: $(cat "$W/decisions.json")"
+echo "ok: decisions: one issue per entry labelled decision, Pull request: #<m> under Where it landed, label made sure first, already-exists tolerated"
+
+: > "$FAKE/gh.log"
+[ "$(filing '[(i["title"], i["number"], i["url"]) for i in d["filed"]]')" = "$FILED" ] || fail "decisions rerun: $(cat "$TMP/decisions.out")"
+[ ! -s "$FAKE/gh.log" ] || fail "decisions rerun called gh: $(cat "$FAKE/gh.log")"
+echo "ok: decisions: a second run files nothing twice"
+
+decided
+decisions_file "$W/decisions.md"
+echo "Add the date library" > "$FAKE/fail-title"
+[ "$(filing '[d["status"], d["reason"]]')" = "['stop', 'gh']" ] || fail "decisions on a failed gh: $(cat "$TMP/decisions.out")"
+message="$(json 'd["message"]' < "$TMP/decisions.out")"
+case "$message" in *"HTTP 502: the server is down"*"#41 Keep sessions in Redis"*) ;; *) fail "the gh stop message: $message" ;; esac
+[ "$(json '[i["number"] for i in d]' < "$W/decisions.json")" = "[41]" ] || fail "decisions.json after a failed gh: $(cat "$W/decisions.json")"
+rm "$FAKE/fail-title"
+: > "$FAKE/gh.log"
+[ "$(filing '[i["number"] for i in d["filed"]]')" = "[41, 42]" ] || fail "decisions after a failed gh: $(cat "$TMP/decisions.out")"
+[ "$(grep -c 'issue create' "$FAKE/gh.log")" = 1 ] && grep -q 'issue create --title Add the date library ' "$FAKE/gh.log" \
+  || fail "the rerun after a failed gh called: $(cat "$FAKE/gh.log")"
+echo "ok: decisions: a failed gh call stops gh, and the next run files only the rest"
+
+decided
+[ "$(filing '[d["status"], d["reason"]]')" = "['stop', 'no-decisions']" ] || fail "decisions with no decisions.md: $(cat "$TMP/decisions.out")"
+decisions_file "$W/decisions.md"
+swap "$W/decisions.md" "Area: technology" "Area: frontend" "- \`package.json\`" "- package.json"
+[ "$(filing '[d["status"], d["reason"]]')" = "['stop', 'malformed']" ] || fail "decisions on a malformed file: $(cat "$TMP/decisions.out")"
+case "$(json 'd["message"]' < "$TMP/decisions.out")" in *"area, landed") ;; *) fail "the malformed message: $(cat "$TMP/decisions.out")" ;; esac
+[ ! -s "$FAKE/gh.log" ] || fail "decisions called gh on no or a malformed decisions.md: $(cat "$FAKE/gh.log")"
+[ ! -e "$W/decisions.json" ] || fail "decisions wrote decisions.json on a malformed file"
+echo "ok: decisions: no decisions.md stops no-decisions, a malformed one stops malformed, both with no gh call"
+
+refused decisions "$WT" abc
+refused decisions "$WT" 0
+refused decisions "$WT" 00
+refused decisions "$WT" 07
+refused decisions "$WT" -3
+refused decisions "$WT" ""
+refused decisions "$WT"
+refused decisions "$WT" 7 8
+refused decisions relative/wt 7
+[ ! -s "$FAKE/gh.log" ] || fail "a refused decisions called gh: $(cat "$FAKE/gh.log")"
+echo "ok: decisions: a non-number pr exits 1 with usage"
