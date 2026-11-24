@@ -6,6 +6,10 @@ from clone import fetch_branch
 PROJECT_SH, SUB, P = sys.argv[1], sys.argv[2], int(sys.argv[3])
 ARGS = sys.argv[4:]
 
+sys.path.insert(0, os.path.dirname(PROJECT_SH))
+from issue import check_marker
+ISSUE_SH = os.path.join(os.path.dirname(PROJECT_SH), "issue.sh")
+
 def run(*cmd):
     return subprocess.run(cmd, capture_output=True, text=True)
 
@@ -262,14 +266,20 @@ def due(proj, n):
             return "due" if i["pr"] and i["pr"]["state"] == "MERGED" else "not-due"
     return "unknown"
 
+def issue_write(*args):
+    r = run(ISSUE_SH, *args)
+    if r.returncode != 0:
+        return {"status": "stop", "reason": "issue-failed", "message": r.stderr.strip()}
+    return json.loads(r.stdout)
+
+def require_marker(path):
+    msg = check_marker(path)
+    if msg:
+        stop("no-marker", msg)
+
 def close_issue(n, comment_file):
-    r = run("gh", "issue", "comment", str(n), "--body-file", comment_file)
-    if r.returncode != 0:
-        return {"step": "comment", "message": r.stderr.strip()}
-    r = run("gh", "issue", "close", str(n), "--reason", "completed")
-    if r.returncode != 0:
-        return {"step": "close", "message": r.stderr.strip()}
-    return None
+    out = issue_write("close", str(n), "--reason", "completed", "--comment", comment_file)
+    return out["message"] if out["status"] == "stop" else None
 
 def startable_after(n, proj):
     source = proj if n == P else read_project(n)
@@ -405,6 +415,7 @@ def start():
 
 def close():
     n, comment_file = int(ARGS[0]), ARGS[2]
+    require_marker(comment_file)
     proj = project(P)
     state = due(proj, n)
     is_parent = n == P or any(d["number"] == n for d in proj["parent"]["waitsOn"])
@@ -417,7 +428,7 @@ def close():
         emit(status="closed", number=n, already=True, startable=startable_after(n, proj) if is_parent else [])
     failed = close_issue(n, comment_file)
     if failed:
-        die("cannot %s on #%d: %s" % (failed["step"], n, failed["message"]))
+        die("cannot close #%d: %s" % (n, failed))
     emit(status="closed", number=n, already=False, startable=startable_after(n, proj) if is_parent else [])
 
 def discard(wt):
@@ -623,6 +634,7 @@ def save():
 def merge():
     k, m, comment = int(ARGS[0]), int(ARGS[1]), ARGS[3]
     wait = int(ARGS[5]) if ARGS[4:5] == ["--wait"] else 300
+    require_marker(comment)
     proj = project(P)
     issue = next((i for i in proj["issues"] if i["number"] == k), None)
     if issue is None:
@@ -687,7 +699,7 @@ def merge():
     else:
         failed = close_issue(k, comment)
         if failed:
-            errors.append({"step": "close", "message": "%s: %s" % (failed["step"], failed["message"])})
+            errors.append({"step": "close", "message": failed})
             closed = "open"
         else:
             closed = "closed"
@@ -716,6 +728,30 @@ def merge():
     emit(status="merged", pr=m, branch={"name": b, "local": local, "remote": remote},
          method=None if merged_earlier else found["mergeMethod"], mergedEarlier=merged_earlier, issue=closed,
          errors=errors)
+
+def stop_issue():
+    k, why, comment = int(ARGS[0]), ARGS[1], ARGS[3]
+    require_marker(comment)
+    proj = project(P)
+    if not any(i["number"] == k for i in proj["issues"]):
+        stop("unknown-issue", "#%d is not a sub-issue of #%d" % (k, P), number=k)
+    if why == "blocking":
+        writes = [("sub", str(P), "--title", ARGS[7], "--blocking", str(k), "--label", "blocker", "--body", ARGS[5])]
+    else:
+        writes = {"decision": [("label", str(k), "--remove", "ready"), ("titles", str(P))],
+                  "detail": [("label", str(k), "--add", "blocker", "--remove", "ready")],
+                  "round-cap": []}[why]
+    writes.append(("comment", str(k), "--body", comment))
+    found = {}
+    for write in writes:
+        out = issue_write(*write)
+        if write[0] == "sub" and "number" in out:
+            found["stub"] = {"number": out["number"], "url": out["url"]}
+        if out["status"] == "stop":
+            if "reasons" in out:
+                found["reasons"] = out["reasons"]
+            stop(out["reason"], out["message"], step=write[0], **found)
+    emit(status="stopped", number=k, **found)
 
 def contains(where, ref, other):
     return run("git", "-C", where, "merge-base", "--is-ancestor", other, ref).returncode == 0
@@ -796,4 +832,4 @@ def project_pr():
     emit(status="opened", pr=int(m.group(1)) if m else None, url=url, **out)
 
 {"start": start, "close": close, "worktree": worktree, "ignore": ignore, "branch": branch, "merge": merge,
- "sync": sync, "pr": project_pr, "save": save}[SUB]()
+ "sync": sync, "pr": project_pr, "save": save, "stop": stop_issue}[SUB]()

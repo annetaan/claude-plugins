@@ -12,7 +12,11 @@ usage: project.sh [-R <owner/repo>] <parent>               the whole project, as
                                                            whether each sub-issue can be implemented from its body now,
                                                            one JSON object per line
        project.sh [-R <owner/repo>] <parent> --order-body  the parent body with its ## Order list replaced, as text
+       project.sh [-R <owner/repo>] <parent> --parent-body <file>
+                                                           the parent body with everything from ## Goal on replaced by
+                                                           <file>, as text
        project.sh --lint <file|->                          lint one sub-issue body, read from a file or standard input
+       project.sh --parent-lint <file|->                   lint one parent body, read from a file or standard input
        project.sh --same-words <before> <after>            whether two bodies differ in backticks and whitespace only
        project.sh --roadmap [<ref>]                        check the roadmap file, in the work tree or at <ref>, as JSON
   -R <owner/repo>   read another repository (default: the repository of the current directory)
@@ -24,7 +28,9 @@ usage: project.sh [-R <owner/repo>] <parent>               the whole project, as
         the count, and dies before printing anything when a number is no sub-issue.
 --order-body prints the parent body as GitHub has it now, with the lines under ## Order replaced by the list --order
         writes. It fails like --order when the blocked-by relationships have a cycle.
---lint touches neither GitHub nor git and always exits 0.
+--parent-body reads the parent only. It prints the lines above the parent's first ## Goal outside a code fence, then
+        <file>, which has to start at ## Goal.
+--lint and --parent-lint touch neither GitHub nor git and always exit 0.
 --same-words touches neither GitHub nor git and always exits 0 on two readable files, printing {"ok", "lint"}: ok is
         true when the two bodies have the same words once backticks are gone and whitespace is one space, and lint is
         the lint of <after>.
@@ -34,7 +40,7 @@ USAGE
   exit 1
 }
 
-REPO=""; MODE="project"; PARENT=""; TARGETS=""; LINT_FILE=""
+REPO=""; MODE="project"; PARENT=""; TARGETS=""; LINT_FILE=""; BODY_FILE=""
 SAME_BEFORE=""; SAME_AFTER=""
 ROADMAP_REF=""
 while [ $# -gt 0 ]; do
@@ -42,11 +48,13 @@ while [ $# -gt 0 ]; do
     -R|--repo) [ $# -ge 2 ] || usage; REPO="$2"; shift 2 ;;
     --order)   MODE="order"; shift ;;
     --order-body) MODE="order-body"; shift ;;
+    --parent-body) [ $# -ge 2 ] || usage; MODE="parent-body"; BODY_FILE="$2"; shift 2 ;;
     --next)    MODE="next"; shift ;;
     --check)   MODE="check"; shift
                while [ $# -gt 0 ] && [ -n "$1" ] && [ -z "${1//[0-9]/}" ]; do TARGETS="$TARGETS $1"; shift; done
                [ -n "$TARGETS" ] || die "--check takes issue numbers" ;;
     --lint)    [ $# -ge 2 ] || usage; MODE="lint"; LINT_FILE="$2"; shift 2 ;;
+    --parent-lint) [ $# -ge 2 ] || usage; MODE="parent-lint"; LINT_FILE="$2"; shift 2 ;;
     --same-words) [ $# -ge 3 ] || usage; MODE="same-words"; SAME_BEFORE="$2"; SAME_AFTER="$3"; shift 3 ;;
     --roadmap) MODE="roadmap"; shift
                if [ $# -gt 0 ] && [ "${1#-}" = "$1" ]; then ROADMAP_REF="$1"; shift; fi ;;
@@ -60,10 +68,10 @@ command -v python3 >/dev/null 2>&1 || die "python3 is not installed"
 
 PY_FILE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/project.py"
 
-if [ "$MODE" = "lint" ]; then
-  [ -z "$PARENT" ] || die "--lint takes no parent"
+if [ "$MODE" = "lint" ] || [ "$MODE" = "parent-lint" ]; then
+  [ -z "$PARENT" ] || die "--$MODE takes no parent"
   [ "$LINT_FILE" = "-" ] || [ -f "$LINT_FILE" ] || die "no such file: $LINT_FILE"
-  exec python3 "$PY_FILE" lint "$LINT_FILE"
+  exec python3 "$PY_FILE" "$MODE" "$LINT_FILE"
 fi
 
 if [ "$MODE" = "same-words" ]; then
@@ -80,6 +88,7 @@ fi
 
 [ -n "$PARENT" ] || usage
 case "$PARENT" in *[!0-9]*) die "the parent must be an issue number: $PARENT" ;; esac
+[ "$MODE" != "parent-body" ] || [ -f "$BODY_FILE" ] || die "no such file: $BODY_FILE"
 
 command -v gh >/dev/null 2>&1 || die "gh is not installed"
 
@@ -95,14 +104,14 @@ gh api graphql -F owner="${REPO%%/*}" -F name="${REPO#*/}" -F n="$PARENT" -f que
 query($owner: String!, $name: String!, $n: Int!) {
   repository(owner: $owner, name: $name) {
     issue(number: $n) {
-      number title state stateReason updatedAt body
+      number url title state stateReason updatedAt body
       labels(first: 50) { nodes { name } }
-      blockedBy(first: 50) { nodes { number title state stateReason body } }
+      blockedBy(first: 50) { nodes { number url title state stateReason body } }
       blocking(first: 50) { nodes { number body } }
       subIssues(first: 100) {
         totalCount
         nodes {
-          number title state stateReason updatedAt body
+          number url title state stateReason updatedAt body
           labels(first: 50) { nodes { name } }
           blockedBy(first: 50) { nodes { number state parent { number } } }
           blocking(first: 50) { nodes { number } }
@@ -114,6 +123,11 @@ query($owner: String!, $name: String!, $n: Int!) {
 
 if [ "$MODE" = "check" ]; then
   python3 "$PY_FILE" check "$TMP/issues.json" "$REPO" $TARGETS
+  exit 0
+fi
+
+if [ "$MODE" = "parent-body" ]; then
+  python3 "$PY_FILE" parent-body "$TMP/issues.json" "$REPO" "$BODY_FILE"
   exit 0
 fi
 

@@ -184,30 +184,31 @@ codes. Keep `path` from this output.
 ## Phase 3: filing
 
 `$TMP` is the directory from **Before you start**. Write the planner's parent body of each project there as `$TMP/PJ<j>.md`. Then
-file the parents in the file order from phase 2.
+file the parents in the file order from phase 2, one call each.
 
 ```bash
-# 1. make sure the project label exists (between-skills.md, Labels)
-# 2. each parent, in file order, with the planner's body for it.
-#    --blocked-by names the parents of the projects it waits on. Leave it out when it waits on nothing
-gh issue create --label project --blocked-by <Q>,<R> --title "<project title>" --body-file "$TMP/PJ<j>.md"
-# 3. the Base: line, and on the carrier the Roadmap: line, on top of that parent's body, written to $TMP/PJ<j>-base.md with Write
-gh issue edit <P> --body-file "$TMP/PJ<j>-base.md"
+$PLAN/scripts/issue.sh parent --title "<project title>" --from <from> --blocked-by <Q>,<R> --body "$TMP/PJ<j>.md"
 ```
 
-`$TMP/PJ<j>-base.md` is the line ``Base: `pj/<P>` from `<from>` ``, on the carrier the line
-``Roadmap: `<path>` <heading>`` directly under it, a blank line, then `$TMP/PJ<j>.md` unchanged.
+`--blocked-by` names the parents of the projects it waits on. Leave it out when it waits on nothing. On the carrier,
+add `--roadmap "<path>" "<heading>"`, the heading quoted as one argument. `issue.sh` (`between-skills.md`, **Writing
+to GitHub**) files the parent labelled `project`, writes the line ``Base: `pj/<P>` from `<from>` ``, and on the
+carrier the line ``Roadmap: `<path>` <heading>`` under it, above the planner's body, and prints `number` and `url`.
+Keep the mapping from `PJ<j>` to `number` as you go, because the next `--blocked-by` needs it.
 
-Steps 2 and 3 run as a pair for each parent, because the branch name carries the parent's number (`format.md`, **The
-parent issue body**). **Every parent a project waits on is filed, with its `Base:` line, before that project.**
-`project.sh` reads a blocker of a parent as a project only when its body has the line, and fails with
-`is blocked by #<X>, which is no project` otherwise. No branch is created here. Keep the mapping from `PJ<j>` to the
-parent's number as you go, because the next `--blocked-by` needs it.
+**Every parent a project waits on is filed first.** `--blocked-by` names a parent that is already filed, and
+`project.sh` reads a blocker of a parent as a project only when its body has the `Base:` line. No branch is created
+here.
+
+**A `lint` stop** filed nothing for that parent: the body with its two lines fails `project.sh --parent-lint`. Send
+its `reasons` to the planner with `SendMessage`, write the body that comes back to `$TMP/PJ<j>.md`, and run the call
+again.
 
 No issue gets `ready` here, and no title carries a count. A parent's title never does.
 
-**When a command fails halfway**, stop and tell the user what was filed and what was not, with the numbers, which
-parents have their `Base:` line, which parent has its `Roadmap:` line, and which relationships were added. Never retry the whole run, or the issues double.
+**When a command fails halfway**, or `issue.sh` stops on a reason this phase does not name, stop and tell the user
+what was filed and what was not, with the numbers, which parent was filed without its `Base:` line, which parent has
+its `Roadmap:` line, and which relationships were added. Never retry the whole run, or the issues double.
 A parent without the line cannot be read by `project.sh`.
 
 Then check the result once per parent, against the plan the user approved:
@@ -247,14 +248,13 @@ Then the next steps, in this order:
 ## Rules
 
 - **You do not design and you do not write issue bodies.** The planner does. A body you write yourself never passed
-  through anyone who read the code. The `Base:` line and the `Roadmap:` line in phase 3 step 3 are the lines you add, and you add nothing
-  else.
+  through anyone who read the code. The `Base:` line and the `Roadmap:` line that `issue.sh parent` writes are the lines you add, and you add
+  nothing else.
 - **Nothing reaches GitHub before the phase 2 approval.** Labels included.
 - **You create no branch.** `pj4-running` creates every base branch (`between-skills.md`, **The base branch**).
 - **You file no sub-issue.** `pj2-issues` splits each project.
-- **Only you write to GitHub.** The planner only reads it, so the order and the numbers stay in one place.
+- **Only you write to GitHub, and only through `issue.sh`.** The planner only reads it, so the order and the numbers stay in one
+  place.
 - **Dependencies between projects go into blocked-by between the parents only**, never into a body. See
   `format.md`.
-- **Never create a label with `--force`.**
-- **Always pass a body with `--body-file`.**
 - After a context summary, run `level.sh show <root>` again.

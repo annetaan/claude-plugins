@@ -7,7 +7,7 @@ usage() {
   cat >&2 <<'USAGE'
 usage: auto.sh <P> --log <dir> [--level <level>]   drive project <P> until it needs the user, logging into the existing directory <dir>;
                                                --level passes level=<level>, standard or high, to every run
-usage: auto.sh --rules                         print the rules every drive needs, with real paths, and the allow, deny and ask rules of the user's settings
+usage: auto.sh --rules [<rule>...]             judge the rules every drive needs, and each Bash(<command>:*) rule given, against the user's settings
 In the drive form, every line on standard output is one JSON object with "status": started, begin, step or ended.
 Create <dir>/stop to end the drive after the current step.
 Exit 1 means a usage error. Otherwise it exits 0.
@@ -21,16 +21,22 @@ rules() {
   [ -n "$main" ] || die "not inside a git repository"
   skills="$(cd "$(dirname "$0")/../.." && pwd)"
   python3 -I -c '
-import json, os, sys
-main, skills = sys.argv[1], sys.argv[2]
+import json, os, re, sys
+main, skills, args = sys.argv[1], sys.argv[2], sys.argv[3:]
+for a in args:
+    if not re.fullmatch(r"Bash\((.+):\*\)", a, re.S):
+        print("auto: not a Bash(<command>:*) rule: " + a, file=sys.stderr)
+        sys.exit(1)
 files = [
     os.path.join(os.environ.get("CLAUDE_CONFIG_DIR") or os.path.join(os.path.expanduser("~"), ".claude"), "settings.json"),
     os.path.join(main, ".claude", "settings.json"),
     os.path.join(main, ".claude", "settings.local.json"),
 ]
 settings = []
+lists = []
 for f in files:
-    e = {"file": f, "exists": False, "error": None, "allow": [], "deny": [], "ask": []}
+    e = {"file": f, "exists": False, "error": None}
+    found = {"allow": [], "deny": [], "ask": []}
     if os.path.exists(f):
         e["exists"] = True
         try:
@@ -38,32 +44,84 @@ for f in files:
                 d = json.load(fh)
             perms = d.get("permissions") if isinstance(d, dict) else None
             if isinstance(perms, dict):
-                for k in ("allow", "deny", "ask"):
+                for k in found:
                     v = perms.get(k)
                     if isinstance(v, list):
-                        e[k] = [x for x in v if isinstance(x, str)]
+                        found[k] = [x for x in v if isinstance(x, str)]
         except Exception as ex:
             e["error"] = str(ex)
     settings.append(e)
+    lists.append((f, found))
+
+def parse(rule):
+    m = re.fullmatch(r"(\w+)(?:\((.*)\))?", rule, re.S)
+    return (m.group(1), m.group(2)) if m else (None, None)
+
+def at_boundary(s, prefix):
+    return s == prefix or s.startswith(prefix + " ")
+
+def read_path(arg):
+    if arg.startswith("~/"):
+        return os.path.join(os.path.expanduser("~"), arg[2:])
+    if arg.startswith("//"):
+        return arg[1:]
+    return None
+
+def under(path, d):
+    return path == d or path.startswith(d.rstrip("/") + "/")
+
+def matches(have, need, narrower):
+    if have == need:
+        return True
+    ht, ha = parse(have)
+    nt, na = parse(need)
+    if ht != nt:
+        return False
+    if ha is None or (ht == "Bash" and ha == "*"):
+        return True
+    if nt == "Bash":
+        want = na[:-2]
+        is_prefix = ha.endswith(":*") or ha.endswith(" *")
+        command = ha[:-2] if is_prefix else ha
+        return (is_prefix and at_boundary(want, command)) or (narrower and at_boundary(command, want))
+    if nt == "Read":
+        want = read_path(na)[:-3]
+        path = read_path(ha)
+        if path is None:
+            return False
+        glob = path.endswith("/**")
+        if glob and under(want, path[:-3]):
+            return True
+        return narrower and under(path[:-3] if glob else path, want)
+    return False
+
+def judge(rule):
+    for kind, verdict, narrower in (("deny", "blocked", True), ("ask", "blocked", True), ("allow", "covered", False)):
+        for f, found in lists:
+            for have in found[kind]:
+                if matches(have, rule, narrower):
+                    return {"rule": rule, "verdict": verdict, "file": f, "by": have}
+    return {"rule": rule, "verdict": "missing", "file": None, "by": None}
+
 names = [
     "Bash(gh:*)",
     "Bash(git:*)",
     "Bash(" + skills + "/pj1-plan/scripts/project.sh:*)",
+    "Bash(" + skills + "/pj1-plan/scripts/issue.sh:*)",
     "Bash(" + skills + "/pj4-running/scripts/run.sh:*)",
     "Bash(" + skills + "/workflow/scripts/panel.sh:*)",
     "Bash(" + skills + "/workflow/scripts/level.sh:*)",
     "Bash(" + skills + "/workflow/scripts/comments.sh:*)",
     "Read(/" + skills + "/**)",
 ]
-base = [{"rule": r, "in": [e["file"] for e in settings if r in e["allow"]]} for r in names]
-print(json.dumps({"status": "rules", "main": main, "base": base, "settings": settings}, ensure_ascii=False))
-' "$main" "$skills"
-  exit 0
+print(json.dumps({"status": "rules", "main": main, "base": [judge(r) for r in names], "extra": [judge(r) for r in args], "settings": settings}, ensure_ascii=False))
+' "$main" "$skills" "$@"
+  exit $?
 }
 
 command -v python3 >/dev/null 2>&1 || die "python3 is not installed"
 
-if [ $# -eq 1 ] && [ "$1" = "--rules" ]; then rules; fi
+if [ $# -ge 1 ] && [ "$1" = "--rules" ]; then shift; rules "$@"; fi
 
 [ $# -eq 3 ] || [ $# -eq 5 ] || usage
 [ "$2" = "--log" ] || usage
