@@ -62,8 +62,8 @@ pull request on its own.
 
 **Ask the open questions**, when the design has any. They go to the user with `AskUserQuestion`. **One call holds
 four questions at most**, so ask in as many calls as it takes, in the order the design gives them. Send the answers
-back with `SendMessage` so the design session can settle them: it rewrites `<WORKDIR>/design.md`, and
-`<WORKDIR>/plan.md` when the plan changes. Each question carries its `Only you know:` line. With
+back with `SendMessage` so the design session can settle them: it keeps each question in `<WORKDIR>/design.md` with the user's answer on an `Answered:` line,
+rewrites the design for that answer, and rewrites `<WORKDIR>/plan.md` when the plan changes. Each question carries its `Only you know:` line. With
 no open question, ask nothing.
 
 Then present the design summary, the three lines of it in the design session's report, and the plan in one **start

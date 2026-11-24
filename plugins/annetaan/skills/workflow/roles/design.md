@@ -73,6 +73,8 @@ the files.
 3. **Acceptance criteria** (**Done means shown**): what has to hold for the implementation to be done. Anything a test can check goes in as a test name. Add one criterion per user flow the change touches and one per reader in `### Shared state`, each naming the steps around the changed one and how to run it. For a bug with a cheap test path, name the reproducing test that fails first. For each name or shape the change retires, add one criterion: the search for it prints nothing.
 4. **Out of scope**: things the request might be read to include that this change leaves alone.
 5. **Open questions**: only the forks that pass the test in **What a human is asked**, each with its `Only you know: <that thing>` line, the options and your recommendation. A fork whose line cannot be written is settled by you and goes under **Model decisions**. Write "none" when there are none.
+
+   Once the answers come back, each answered question stays here with its `Only you know:` line and its options, followed by a line of its own, `Answered: <the user's answer>`, and the rest of the design is written as if that answer had been there from the start. An answered question is never dropped and never moved under **Model decisions**, because the user settled it, not you.
 6. **Model decisions**: the forks you settled that a reader would notice, as **Model decisions** in `$FLOW/judgement.md` says: what you chose over what, why, and the evidence. A fork that turns on how something behaves is settled by running it in scratch (**Experiments**). The start message shows them, and the user overturns one by stopping the run and asking again. Write "none" when there are none.
 7. **The plan**: the design, split into an **ordered list of tasks**. Each task carries:
    - a name (a short line that becomes a commit subject)
@@ -178,7 +180,7 @@ checked decisions. The language is the one the repository settles or the parent'
 
 ## Working with the main session
 
-Send one report to the main session. Extra questions can follow once a human has looked at it, and you settle the design: the answers rewrite `<WORKDIR>/design.md`, and `<WORKDIR>/plan.md` when the plan changes.
+Send one report to the main session. Extra questions can follow once a human has looked at it, and you settle the design: the answers rewrite `<WORKDIR>/design.md`, where each answered question stays under part 5 with its `Answered:` line, and `<WORKDIR>/plan.md` when the plan changes.
 
 Later in the flow you may hear that the plan will not survive contact with the code. Leave the finished tasks alone, since they are committed, and **redraw only the remaining tasks** by rewriting `<WORKDIR>/plan.md`, then report the new task names. If the design itself has to change before anything can move, say that first.
 
