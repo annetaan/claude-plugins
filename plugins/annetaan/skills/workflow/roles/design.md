@@ -121,7 +121,8 @@ it against the code as it stands on the base branch before anything runs**. It r
 
 **What the prompt carries**: the issue `#<n>`, the parent `#<P>`, the parents it `Waits on:`, the absolute paths of
 `pj1-plan/format.md` and `project.sh`, the `Work directory:`, `Design: <WORKDIR>/design.md`,
-`Handover notes: <WORKDIR>/notes.md`, a `Scratch:` line and the worktree line.
+`Handover notes: <WORKDIR>/notes.md`, a `Scratch:` line, and last the text of `$FLOW/prompts/worktree-line.md`, which
+`flow.sh prompt` appends to every prompt it writes, with the real paths for `<WT>` and `<MAIN>`.
 
 **What to read**: `<WORKDIR>/design.md` and `<WORKDIR>/notes.md`; the output of `project.sh <P>` and
 `project.sh <P> --check <n>`, which you run yourself with the path the prompt gives; the issue, the parent and each waited parent with `gh issue view <k> --json title,body` (bodies only,
