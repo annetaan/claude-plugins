@@ -669,7 +669,7 @@ const roadmapRead = (ref: string): string => {
     }
     text = shownFile.stdout;
   } else {
-    text = new TextDecoder("utf-8").decode(readFileSync(join(top, files.path)));
+    text = readFileSync(join(top, files.path), "utf8");
   }
   const parsedRoadmap = roadmapParse(text);
   return line({

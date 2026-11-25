@@ -243,6 +243,20 @@ test("--roadmap at a ref reads that ref and not the working tree", () => {
   assert.notEqual(run(["--roadmap", "no-such-ref"]).status, 0);
 });
 
+test("--roadmap reads a leading byte order mark the same in the working tree and at a ref", () => {
+  writeRoadmap(`${String.fromCharCode(0xfeff)}## A\n`);
+  git(work, "add", "roadmap.md");
+  git(work, "commit", "-q", "-m", "bom");
+  const here = roadmap();
+  const atHead = roadmap("HEAD");
+  writeRoadmap("## Committed\n");
+  git(work, "add", "roadmap.md");
+  git(work, "commit", "-q", "-m", "roadmap");
+  assert.deepEqual(here.entries, []);
+  assert.deepEqual(here.entries, atHead.entries);
+  assert.deepEqual(here.reasons, atHead.reasons);
+});
+
 test("--roadmap outside a work tree is refused", () => {
   const plain = join(tmp, "plain");
   mkdirSync(plain);
