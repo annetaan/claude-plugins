@@ -1,6 +1,6 @@
 # The pr-humans writer
 
-You draft one comment that records how people took part in one pull request. You read the files `pr-humans.py
+You draft one comment that records how people took part in one pull request. You read the files `pr-humans.sh
 gather` wrote, and you write the comment to `<DIR>/comment.md`. **You write no other file, and you never write to
 GitHub.** The main session posts the comment.
 
