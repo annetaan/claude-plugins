@@ -371,9 +371,9 @@ second session's work in the worktree would be taken for a dead run's.
 ### pj-auto
 
 `/annetaan:pj-auto` ([details](skills/pj-auto/SKILL.md)) drives `pj3-doctor` and `pj4-running` on one project until the
-project needs you. It takes the project the same way they do. A script, `auto.sh`, asks `project.sh --next` what comes
-next and starts that step as a fresh `claude -p` run in unattended mode, one process per step. It never reads a run's
-report to decide, only the project on GitHub.
+project needs you. It takes the project the same way they do. A script, `auto.sh`, reads what comes next from the
+project, the same answer `project.sh --next` prints, and starts that step as a fresh `claude -p` run in unattended mode,
+one process per step. It never reads a run's report to decide, only the project on GitHub.
 
 It asks one approval question per drive, and only when a step would run (the question which project comes before it, when
 the project is not given, not the one this conversation is on and not the only candidate): a summary of the project, what the steps do and which of
