@@ -10,7 +10,7 @@ import {
   writeFileSync,
 } from "node:fs";
 import { basename, dirname, isAbsolute, join, normalize } from "node:path";
-import { git, run, type RunOptions } from "../../../scripts/command.ts";
+import { environment, git, run, type RunOptions } from "../../../scripts/command.ts";
 import { realPath, worktreeList } from "../../../scripts/clone.ts";
 import { tryLock, unlock } from "../../../scripts/lock.ts";
 import { stampOf } from "../../../scripts/pure/reports.ts";
@@ -124,17 +124,6 @@ const isFile = (path: string): boolean => {
     return false;
   }
 };
-
-const environment = (
-  extra: Readonly<Record<string, string>>,
-): Readonly<Record<string, string>> => ({
-  ...Object.fromEntries(
-    Object.entries(process.env).flatMap(([key, value]) =>
-      value === undefined ? [] : [[key, value]],
-    ),
-  ),
-  ...extra,
-});
 
 const normPath = (path: string): string => {
   const normal = normalize(path);

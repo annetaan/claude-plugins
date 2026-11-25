@@ -1,7 +1,7 @@
 import { cpSync, existsSync, lstatSync, mkdtempSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
-import { git, run, type RunOptions } from "../../../scripts/command.ts";
+import { environment, git, run, type RunOptions } from "../../../scripts/command.ts";
 import { entry, Failure, UsageError, type Output } from "../../../scripts/status.ts";
 import {
   addedLines,
@@ -19,17 +19,6 @@ import { nulSplit } from "./pure/include-rules.ts";
 
 const USAGE = `usage: comments.sh [--library] [<ref>]
        comments.sh [--library] --all`;
-
-const environment = (
-  extra: Readonly<Record<string, string>>,
-): Readonly<Record<string, string>> => ({
-  ...Object.fromEntries(
-    Object.entries(process.env).flatMap(([key, value]) =>
-      value === undefined ? [] : [[key, value]],
-    ),
-  ),
-  ...extra,
-});
 
 const regularFile = (path: string): boolean => {
   try {
