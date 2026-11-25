@@ -3,7 +3,6 @@ set -uo pipefail
 
 TESTS="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ROOT="$(cd "$TESTS/.." && pwd)"
-export PYTHONDONTWRITEBYTECODE=1
 
 for tool in tsc oxlint tsgolint oxfmt; do
   if [ ! -x "$ROOT/node_modules/.bin/$tool" ]; then

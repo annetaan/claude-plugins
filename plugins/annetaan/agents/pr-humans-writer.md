@@ -1,6 +1,6 @@
 ---
 name: pr-humans-writer
-description: The writer of the pr-humans skill (sonnet / effort medium). Reads what pr-humans.py gathered about one pull request and drafts the comment recording how people took part in it, marking each line confirmed, inferred or unknown. Writes only that draft file, and never writes to GitHub. Spawned by the main session that runs pr-humans. Do not use it on its own.
+description: The writer of the pr-humans skill (sonnet / effort medium). Reads what pr-humans.sh gathered about one pull request and drafts the comment recording how people took part in it, marking each line confirmed, inferred or unknown. Writes only that draft file, and never writes to GitHub. Spawned by the main session that runs pr-humans. Do not use it on its own.
 model: sonnet
 effort: medium
 tools: Read, Write

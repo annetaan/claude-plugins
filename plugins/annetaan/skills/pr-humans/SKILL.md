@@ -18,8 +18,9 @@ context.
 **`$PRH` below means `${CLAUDE_SKILL_DIR}`**, the absolute path of this skill's directory. It is not a shell variable.
 Replace it with the real absolute path in every command and in each writer's prompt.
 
-The script is `$PRH/scripts/pr-humans.py`, written `pr-humans.py` below. Run it with `python3`. Every subcommand
-prints one JSON object. Exit 2 is a usage error and exit 1 an unexpected failure: quote the message and stop.
+The script is `$PRH/scripts/pr-humans.sh`, written `pr-humans.sh` below. Run it as it is, with no interpreter in
+front. Every subcommand prints one JSON object. Exit 2 is a usage error and exit 1 an unexpected failure: quote the
+message and stop.
 
 **Language**: talk to the user in the user's language, and have the comments written in it too.
 
@@ -51,7 +52,7 @@ Turn the request into `targets` arguments:
 | only those nobody has recorded yet | add `--unrecorded`; alone it means all of them |
 
 ```bash
-python3 $PRH/scripts/pr-humans.py targets <arguments>
+$PRH/scripts/pr-humans.sh targets <arguments>
 ```
 
 **When the user names nothing**, take the pull request of this session: the one this session opened, or else the one
@@ -87,7 +88,7 @@ Run `mktemp -d` once. `<TMP>` below is the directory it printed. A shell variabl
 write the path in full each time. Each pull request goes into `<TMP>/<n>`:
 
 ```bash
-python3 $PRH/scripts/pr-humans.py gather <n> --out <TMP>/<n>
+$PRH/scripts/pr-humans.sh gather <n> --out <TMP>/<n>
 ```
 
 Run them one after another; each takes a second or two. Keep the summary each prints (`issues`, `parents`,
@@ -114,7 +115,7 @@ leave that pull request out and say so.
 ## 4. Post
 
 ```bash
-python3 $PRH/scripts/pr-humans.py post <n> <TMP>/<n>
+$PRH/scripts/pr-humans.sh post <n> <TMP>/<n>
 ```
 
 `post` reads `<TMP>/<n>/comment.md` and checks it against `sessions.json`, `reports.json`, the directory and `$HOME`.
@@ -143,7 +144,7 @@ one pull request, show the comment's text as well, read from the draft.
 
 - At most one approval question, and only when two or more pull requests are left to record.
 - Never rewrite another account's record.
-- Never write to GitHub except through `pr-humans.py post`, and never edit a pull request's body, an issue or a label.
+- Never write to GitHub except through `pr-humans.sh post`, and never edit a pull request's body, an issue or a label.
 - One comment per pull request, found by its marker `<!-- annetaan:pr-humans -->`. Never post a second one.
 - Never put a person's words in quotes, a local path, a session id or an `@mention` in a comment. The writer
   summarises, and `post` refuses what slips through.
