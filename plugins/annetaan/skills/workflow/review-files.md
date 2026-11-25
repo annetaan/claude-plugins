@@ -38,9 +38,9 @@ Keep these names. Claude Code refuses a Write from a sub-agent when the name of 
 
 ## Acceptance criteria
 
-- `bash tests/project-check.sh` exits 0
-  - ran: `bash tests/project-check.sh`
-  - saw: `ok: 14 checks`
+- `plugins/annetaan/scripts/ts.sh --test tests/project-check.test.ts` exits 0
+  - ran: `plugins/annetaan/scripts/ts.sh --test tests/project-check.test.ts`
+  - saw: `pass 17`, `fail 0`
 - the retry stops at zero attempts
   - not run: no network in this environment
 
