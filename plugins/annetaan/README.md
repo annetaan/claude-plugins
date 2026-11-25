@@ -11,6 +11,11 @@ Install it once. As skills get added, run `claude plugin marketplace update anne
 `claude plugin update annetaan@annetaan` in a shell to keep up, or turn on auto-update for the `annetaan`
 marketplace in `/plugin`.
 
+## What it needs
+
+The plugin needs `git`, `gh`, and Bun or Node.js 22.18 or later. Without either runtime, a script stops with
+`annetaan: needs Bun, or Node.js 22.18 or later`.
+
 ## How the skills fit together
 
 ### workflow is the core
@@ -673,6 +678,11 @@ Users get a change only through a new `version` in `plugin.json`, and without on
 change under `plugins/annetaan/` needs one. `bash tests/plugin-version.sh` fails until the version is above the default
 branch's, and `bash tests/plugin-version.sh --bump`, run from the repository root, writes it. Nobody edits the version
 by hand.
+
+Run `npm ci` once at the repository root, then `bash tests/run.sh`. It runs the type check, oxlint, oxfmt and every
+test, as CI does on each pull request. `npx oxfmt` formats the `.ts` files. The tests run through
+`plugins/annetaan/scripts/ts.sh --test`, which gives each test 600 s under Bun (`bun test --timeout 600000`). A test
+file sets no timeout of its own.
 
 The slash form is `/annetaan:<directory name>`. The plugin name is prefixed for you, so a directory never needs an
 `annetaan-` in front of it.

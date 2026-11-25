@@ -1,0 +1,43 @@
+{
+  "ignorePatterns": ["plugins/annetaan/skills/experience-video/**"],
+  "rules": {
+    "no-param-reassign": ["error", { "props": true }],
+    "typescript/prefer-readonly-parameter-types": [
+      "error",
+      {
+        "treatMethodsAsReadonly": true,
+        "allow": [{ "from": "lib", "name": ["Date", "RegExpExecArray"] }]
+      }
+    ],
+    "no-restricted-imports": ["error", { "paths": ["node:fs", "node:child_process"] }],
+    "no-restricted-globals": ["error", "process"],
+    "no-restricted-properties": [
+      "error",
+      { "object": "Date", "property": "now" },
+      { "object": "Math", "property": "random" }
+    ],
+    "typescript/no-floating-promises": [
+      "error",
+      {
+        "allowForKnownSafeCalls": [
+          { "from": "package", "package": "node:test", "name": ["test", "describe", "it", "suite"] }
+        ]
+      }
+    ]
+  },
+  "overrides": [
+    {
+      "files": [
+        "plugins/annetaan/scripts/*.ts",
+        "plugins/annetaan/skills/*/scripts/*.ts",
+        "tests/**/*.ts"
+      ],
+      "rules": {
+        "no-restricted-imports": "off",
+        "no-restricted-globals": "off",
+        "no-restricted-properties": "off",
+        "typescript/prefer-readonly-parameter-types": "off"
+      }
+    }
+  ]
+}
