@@ -29,8 +29,6 @@ This skill uses these files:
 - the script `$CLEANUP/scripts/cleanup.sh`, written `cleanup.sh` below. Every subcommand prints one JSON object with
   a `status`. A non-zero exit is a usage error or an unexpected failure: quote its message and stop
 - the script `$CLEANUP/../pj4-running/scripts/run.sh`, written `run.sh` below, for its `close` only
-- the script `$CLEANUP/../workflow/scripts/worktree.sh`, which `cleanup.sh` calls for its `old-reports` and `submodules` only. You never
-  run it yourself
 
 **Language**: talk to the user in the user's language. Write the comment on the parent in the repository's language.
 
@@ -55,7 +53,7 @@ $CLEANUP/scripts/cleanup.sh list
 ```
 
 Each entry of `projects` is a worktree `.claude/worktrees/pj-<n>` with its parent's `number`, `title`, `state` and
-`merged`, or an `error` when `project.sh` could not read it. The options are the entries whose `merged` is true.
+`merged`, or an `error` when its project could not be read. The options are the entries whose `merged` is true.
 
 The line of an entry is `#<n> <title> (merged)` or `#<n> <title> (not merged)`. The recommended option is the
 lowest-numbered one.
