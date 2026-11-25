@@ -16,6 +16,17 @@ const decoded = (bytes: Buffer | null): string => (bytes === null ? "" : decoder
 
 const signalCode = (signal: NodeJS.Signals): number => 128 + (constants.signals[signal] ?? 0);
 
+export const environment = (
+  extra: Readonly<Record<string, string>>,
+): Readonly<Record<string, string>> => ({
+  ...Object.fromEntries(
+    Object.entries(process.env).flatMap(([key, value]) =>
+      value === undefined ? [] : [[key, value]],
+    ),
+  ),
+  ...extra,
+});
+
 export const run = (argv: readonly string[], options: RunOptions = {}): RunResult => {
   const [command, ...args] = argv;
   if (command === undefined) {
