@@ -77,7 +77,8 @@ case "$1 $2" in
   "pr view") echo '{"headRefName":"feat/2","isDraft":true,"state":"OPEN"}' ;;
   "pr checks")
     checks="$(cat '${fake}/checks')"
-    if [ "$4" = "--json" ]; then
+    row() { echo '[{"name":"test","bucket":"'"$1"'","link":"https://example.com/test"}]'; }
+    if [ "$5" = name ]; then
       case "$checks" in
         none) none ;;
         later) [ -e '${fake}/polled' ] || { touch '${fake}/polled'; none; } ;;
@@ -86,9 +87,12 @@ case "$1 $2" in
     else
       case "$checks" in
         none) none ;;
-        fail) printf 'test\\tfail\\t1m\\n'; exit 1 ;;
+        fail) row fail; exit 1 ;;
+        cancel) row cancel; exit 1 ;;
+        pending) row pending; exit 8 ;;
+        slow) [ -e '${fake}/settled' ] || { touch '${fake}/settled'; row pending; exit 8; } ;;
       esac
-      printf 'test\\tpass\\t1m\\n'
+      row pass
     fi ;;
   "pr ready"|"pr merge") ;;
   "issue view") echo '{"state":"OPEN","updatedAt":"2000-01-01T00:00:00Z","labels":[],"parent":{"number":1},"body":""}' ;;
@@ -99,8 +103,10 @@ esac
   { mode: 0o755 },
 );
 
+const DRIVER_WAIT = "CLAUDE_CODE_PRINT_BG_WAIT_CEILING_MS";
+
 const env = {
-  ...process.env,
+  ...Object.fromEntries(Object.entries(process.env).filter(([name]) => name !== DRIVER_WAIT)),
   PATH: `${bin}:${process.env["PATH"] ?? ""}`,
   HOME: home,
   GIT_CONFIG_NOSYSTEM: "1",
@@ -152,7 +158,12 @@ const setup = (workflow: string, ruleset: string, checks: string): void => {
   git(clone, "worktree", "add", "-q", "--detach", ".claude/worktrees/pj-1", "origin/pj/1");
 };
 
-type Merged = { readonly status: string; readonly reason?: string; readonly issue?: string };
+type Merged = {
+  readonly status: string;
+  readonly reason?: string;
+  readonly message?: string;
+  readonly issue?: string;
+};
 
 const merge = (...extra: readonly string[]): Merged => {
   const result = spawnSync(
@@ -177,6 +188,9 @@ const logged = (line: string): boolean => calls().includes(line);
 
 const polls = (): number => calls().filter((line) => line === "pr checks 3 --json name").length;
 
+const settles = (): number =>
+  calls().filter((line) => line === "pr checks 3 --json name,bucket,link").length;
+
 const ON_PR = "on:\n  pull_request:\n  push:\n    branches: [main]";
 const ON_MAIN = "on:\n  pull_request:\n    branches: [main]";
 const REQUIRED = '[{"type":"required_status_checks"}]';
@@ -184,7 +198,8 @@ const REQUIRED = '[{"type":"required_status_checks"}]';
 test("merges once every check passes", () => {
   setup(ON_PR, "[]", "pass");
   assert.equal(merge().status, "merged");
-  assert.ok(logged("pr checks 3 --watch --fail-fast"), calls().join("\n"));
+  assert.ok(logged("pr checks 3 --json name,bucket,link"), calls().join("\n"));
+  assert.ok(!calls().some((line) => line.includes("--watch")), calls().join("\n"));
   assert.ok(logged("pr merge 3 --squash"), calls().join("\n"));
   assert.ok(!calls().some((line) => line.includes("--required")), calls().join("\n"));
 });
@@ -193,6 +208,7 @@ test("stops on a failing check the base branch does not require", () => {
   setup(ON_PR, "[]", "fail");
   const out = merge();
   assert.deepEqual([out.status, out.reason], ["stop", "checks-failed"]);
+  assert.ok(out.message?.includes("test"), out.message);
   assert.ok(
     !calls().some((line) => line.startsWith("pr merge") || line.startsWith("pr ready")),
     calls().join("\n"),
@@ -203,12 +219,14 @@ test("does not poll when the pull_request workflow names only other branches", (
   setup(ON_MAIN, "[]", "pass");
   assert.equal(merge().status, "merged");
   assert.equal(polls(), 0, calls().join("\n"));
+  assert.equal(settles(), 1, calls().join("\n"));
 });
 
 test("merges with no workflow and no check, without polling", () => {
   setup("", "[]", "none");
   assert.equal(merge().status, "merged");
   assert.equal(polls(), 0, calls().join("\n"));
+  assert.equal(settles(), 1, calls().join("\n"));
 });
 
 test("waits for the check a pull_request workflow registers", () => {
@@ -216,16 +234,88 @@ test("waits for the check a pull_request workflow registers", () => {
   assert.equal(merge().status, "merged");
   assert.equal(polls(), 2, calls().join("\n"));
   const order = calls().filter((line) =>
-    ["pr checks 3 --json name", "pr checks 3 --watch --fail-fast", "pr merge 3 --squash"].includes(
-      line,
-    ),
+    [
+      "pr checks 3 --json name",
+      "pr checks 3 --json name,bucket,link",
+      "pr merge 3 --squash",
+    ].includes(line),
   );
   assert.deepEqual(order, [
     "pr checks 3 --json name",
     "pr checks 3 --json name",
-    "pr checks 3 --watch --fail-fast",
+    "pr checks 3 --json name,bucket,link",
     "pr merge 3 --squash",
   ]);
+});
+
+test("stops with checks-timeout when a check stays pending past --ceiling", () => {
+  setup(ON_PR, "[]", "pending");
+  const out = merge("--ceiling", "1");
+  assert.deepEqual([out.status, out.reason], ["stop", "checks-timeout"]);
+  assert.ok(out.message?.includes("test https://example.com/test"), out.message);
+  assert.ok(
+    !calls().some(
+      (line) =>
+        line.startsWith("pr ready") ||
+        line.startsWith("pr merge") ||
+        line.startsWith("issue close"),
+    ),
+    calls().join("\n"),
+  );
+});
+
+test("the driver's background wait caps the ceiling", () => {
+  setup(ON_PR, "[]", "pending");
+  const began = performance.now();
+  const result = spawnSync("bash", [script, "merge", "1", "2", "3", "--comment", closedComment], {
+    cwd: clone,
+    env: { ...env, [DRIVER_WAIT]: String(5 * 60 * 1000 + 1000) },
+    encoding: "utf8",
+  });
+  assert.equal(result.status, 0, result.stderr);
+  const out: Merged = JSON.parse(result.stdout);
+  assert.deepEqual([out.status, out.reason], ["stop", "checks-timeout"]);
+  assert.ok(performance.now() - began < 30_000, `took ${performance.now() - began} ms`);
+  assert.ok(!calls().some((line) => line.startsWith("pr merge")), calls().join("\n"));
+});
+
+test("merges once a pending check passes", () => {
+  setup(ON_PR, "[]", "slow");
+  assert.equal(merge("--ceiling", "30").status, "merged");
+  assert.equal(settles(), 2, calls().join("\n"));
+});
+
+test("a cancelled check stops with checks-failed", () => {
+  setup(ON_PR, "[]", "cancel");
+  const out = merge();
+  assert.deepEqual([out.status, out.reason], ["stop", "checks-failed"]);
+  assert.ok(out.message?.includes("test https://example.com/test"), out.message);
+  assert.ok(!calls().some((line) => line.startsWith("pr merge")), calls().join("\n"));
+});
+
+test("merge takes --wait and --ceiling in either order, each once", () => {
+  for (const flags of [
+    ["--ceiling", "1", "--wait", "1"],
+    ["--wait", "1", "--ceiling", "1"],
+  ]) {
+    setup(ON_PR, "[]", "pass");
+    assert.equal(merge(...flags).status, "merged", flags.join(" "));
+  }
+  for (const flags of [
+    ["--wait", "1", "--wait", "1"],
+    ["--ceiling", "x"],
+    ["--ceiling"],
+    ["--other", "1"],
+  ]) {
+    setup(ON_PR, "[]", "pass");
+    const result = spawnSync(
+      "bash",
+      [script, "merge", "1", "2", "3", "--comment", closedComment, ...flags],
+      { cwd: clone, env, encoding: "utf8" },
+    );
+    assert.equal(result.status, 1, `${flags.join(" ")}: ${result.stdout}`);
+    assert.deepEqual(calls(), [], flags.join(" "));
+  }
 });
 
 test("goes on when a pull_request workflow registers nothing within --wait", () => {

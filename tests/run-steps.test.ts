@@ -1,8 +1,12 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import {
+  checkList,
   due,
   mergeRules,
+  settleDeadline,
+  verdict,
+  type Check,
   type DueFacts,
   type RuleFacts,
 } from "../plugins/annetaan/skills/pj4-running/scripts/pure/run-steps.ts";
@@ -138,4 +142,67 @@ test("due tells the parent, a waited-on project and a sub-issue apart", () => {
   assert.equal(due(project, 7), "not-due");
   assert.equal(due(project, 9), "unknown");
   assert.equal(due({ ...project, parent: { ...project.parent, merged: false } }, 1), "not-due");
+});
+
+const check = (name: string, bucket: string): Check => ({
+  name,
+  bucket,
+  link: `https://example.com/${name}`,
+});
+
+test("verdict is fail on a failed or cancelled check, before any pending one", () => {
+  assert.equal(verdict([check("a", "pending"), check("b", "fail")]), "fail");
+  assert.equal(verdict([check("a", "cancel"), check("b", "pending")]), "fail");
+});
+
+test("verdict is pending while a check is pending", () => {
+  assert.equal(verdict([check("a", "pass"), check("b", "pending")]), "pending");
+});
+
+test("verdict is pass on pass, skipping and no checks", () => {
+  assert.equal(verdict([check("a", "pass"), check("b", "skipping")]), "pass");
+  assert.equal(verdict([]), "pass");
+});
+
+test("checkList reads gh's rows and refuses anything else", () => {
+  assert.deepEqual(
+    checkList([
+      { name: "test", bucket: "pass", link: "https://example.com/test" },
+      { name: "external", bucket: "pending" },
+    ]),
+    [
+      { name: "test", bucket: "pass", link: "https://example.com/test" },
+      { name: "external", bucket: "pending", link: "" },
+    ],
+  );
+  assert.deepEqual(checkList([]), []);
+  assert.equal(checkList(null), null);
+  assert.equal(checkList({ name: "test" }), null);
+  assert.equal(checkList([{ name: "test" }]), null);
+  assert.equal(checkList([{ name: 1, bucket: "pass" }]), null);
+  assert.equal(checkList(["test"]), null);
+});
+
+test("settleDeadline is the ceiling when the driver sets no wait", () => {
+  for (const driverMs of [undefined, "", "0", "abc", "-1"]) {
+    assert.equal(
+      settleDeadline({ start: 0, settleStart: 1000, ceilingSeconds: 600, driverMs }),
+      601_000,
+      String(driverMs),
+    );
+  }
+});
+
+test("settleDeadline ends 5 minutes before the driver's wait", () => {
+  assert.equal(
+    settleDeadline({ start: 0, settleStart: 300_000, ceilingSeconds: 3900, driverMs: "3600000" }),
+    3_300_000,
+  );
+});
+
+test("settleDeadline keeps a ceiling shorter than the driver's wait", () => {
+  assert.equal(
+    settleDeadline({ start: 0, settleStart: 1000, ceilingSeconds: 600, driverMs: "3600000" }),
+    601_000,
+  );
 });

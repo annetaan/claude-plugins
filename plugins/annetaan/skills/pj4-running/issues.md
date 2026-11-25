@@ -278,9 +278,12 @@ phase 5. The pull request stays a draft, and the next run merges it and reads it
    ```
 
    - **`stop`** with `review`, `conflict`, `merge-failed` or `not-the-pr`: say so, quote `message`, and go to phase 5.
-   - **`stop`** with `no-checks`, `checks-unreadable` or `checks-failed`: quote `message`. The pull request stays a
-     draft, and the next run merges it. After `checks-failed` the next run stops again until the checks pass, from a
-     push to the branch or a rerun of the failed jobs (`gh run rerun <id> --failed`). Go to phase 5.
+   - **`stop`** with `no-checks`, `checks-unreadable`, `checks-failed` or `checks-timeout`: quote `message`. The pull
+     request stays a draft, and the next run merges it. After `checks-failed` the next run stops again until the checks
+     pass, from a push to the branch or a rerun of the failed jobs (`gh run rerun <id> --failed`). After
+     `checks-timeout`, a check named in `message` was still pending when the ceiling passed, which the job timeouts of
+     the pull request's workflows set; rerun its workflow (`gh run rerun <id>`), and the next run merges once the checks
+     pass. Go to phase 5.
    - **`merged`** with a non-empty `errors`: the merge went through, and a later step failed. Report each `step` with
      its `message`, fold the handover lines as step 3 says, then go to phase 5. When `close` failed, the issue stays
      open with its pull request merged, and the next run closes it.
