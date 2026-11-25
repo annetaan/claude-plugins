@@ -10,7 +10,7 @@ export type RunOptions = {
 
 export type RunResult = { readonly code: number; readonly stdout: string; readonly stderr: string };
 
-const decoder = new TextDecoder("utf-8");
+const decoder = new TextDecoder("utf-8", { ignoreBOM: true });
 
 const decoded = (bytes: Buffer | null): string => (bytes === null ? "" : decoder.decode(bytes));
 

@@ -315,6 +315,19 @@ test("background tasks end a run with no last line as bg-killed", () => {
   assert.equal(lines.at(-1)?.["reason"], "done");
 });
 
+test("a background line behind a byte order mark is a no-line step", () => {
+  const r = ranOne({
+    code: 0,
+    out: out({ is_error: false, result: "working on it" }),
+    err: `${String.fromCharCode(0xfeff)}${BACKGROUND.split("\n")[1]}`,
+  });
+  assert.equal(r.kind, "step");
+  if (r.kind === "step") {
+    assert.equal(r.result, "no-line");
+    assert.deepEqual(r.drive.noLine, [1]);
+  }
+});
+
 const DENIED =
   '{"is_error":false,"result":"stuck\\nunattended: needs-user make test was refused","permission_denials":[{"tool_name":"Bash","tool_use_id":"t1","tool_input":{"command":"make test","description":"d"}},{"tool_name":"Write","tool_use_id":"t2","tool_input":{"file_path":"/etc/x","content":"c"}},{"tool_name":"WebFetch","tool_use_id":"t3","tool_input":{"url":"https://example.com"}}]}';
 const DONE_DENIED =
