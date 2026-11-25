@@ -92,6 +92,52 @@ export const mergeRules = (facts: RuleFacts): MergeRules => {
   };
 };
 
+export type Check = { readonly name: string; readonly bucket: string; readonly link: string };
+
+export type Verdict = "fail" | "pending" | "pass";
+
+export const verdict = (checks: readonly Check[]): Verdict =>
+  checks.some((c) => c.bucket === "fail" || c.bucket === "cancel")
+    ? "fail"
+    : checks.some((c) => c.bucket === "pending")
+      ? "pending"
+      : "pass";
+
+const DRIVER_MARGIN_MS = 5 * 60 * 1000;
+
+export type DeadlineFacts = {
+  readonly start: number;
+  readonly settleStart: number;
+  readonly ceilingSeconds: number;
+  readonly driverMs: string | undefined;
+};
+
+export const settleDeadline = (facts: DeadlineFacts): number => {
+  const ceiling = facts.settleStart + facts.ceilingSeconds * 1000;
+  const driver =
+    facts.driverMs !== undefined && /^\d+$/u.test(facts.driverMs) ? Number(facts.driverMs) : 0;
+  return driver > 0 ? Math.min(ceiling, facts.start + driver - DRIVER_MARGIN_MS) : ceiling;
+};
+
+export const checkList = (rows: unknown): readonly Check[] | null => {
+  if (!Array.isArray(rows)) {
+    return null;
+  }
+  const checks: Check[] = [];
+  for (const row of rows) {
+    if (!isObject(row) || typeof row["name"] !== "string" || typeof row["bucket"] !== "string") {
+      return null;
+    }
+    const link = row["link"];
+    checks.push({
+      name: row["name"],
+      bucket: row["bucket"],
+      link: typeof link === "string" ? link : "",
+    });
+  }
+  return checks;
+};
+
 export type Due = "already" | "due" | "not-due" | "unknown";
 
 const closedOr = (state: string, merged: boolean): Due =>

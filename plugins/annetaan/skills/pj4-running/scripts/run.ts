@@ -33,7 +33,18 @@ import {
 import { readProject } from "../../pj1-plan/scripts/project.ts";
 import { markerProblem } from "../../pj1-plan/scripts/pure/comment-markers.ts";
 import type { Project } from "../../pj1-plan/scripts/pure/project-view.ts";
-import { due, mergeRules, type JsonObject, type MergeRules } from "./pure/run-steps.ts";
+import {
+  checkList,
+  due,
+  mergeRules,
+  settleDeadline,
+  verdict,
+  type Check,
+  type JsonObject,
+  type MergeRules,
+  type Verdict,
+} from "./pure/run-steps.ts";
+import { ceilingSeconds, jobTimeouts, type JobTimeout } from "./pure/workflow-timeouts.ts";
 import { triggers } from "./pure/workflow-triggers.ts";
 
 const USAGE = `usage: run.sh start <P>                       check the clone, gh and the repository, read the project, create its base branch when due, fetch it, read the merge rules
@@ -41,8 +52,8 @@ const USAGE = `usage: run.sh start <P>                       check the clone, gh
        run.sh worktree <P>                    put the run's worktree on the tip of origin/<base>; a dirty one is saved to work-reports/<stamp>-discarded/stopped.diff and discarded; assigns you to the parent, and stops when someone else is assigned
        run.sh ignore <P> [--add]              whether .claude/worktrees/ and work-reports/ are ignored; --add writes them to info/exclude
        run.sh branch <P> <branch>             create <branch> in the run's worktree from the tip of origin/<base>
-       run.sh merge <P> <k> <m> --comment <file> [--wait <seconds>]
-                                              wait for every check on #<m>, merge it into the base branch, close #<k>, delete the head branch; --wait is how long to wait for a first check to register when one is expected
+       run.sh merge <P> <k> <m> --comment <file> [--wait <seconds>] [--ceiling <seconds>]
+                                              wait for every check on #<m>, merge it into the base branch, close #<k>, delete the head branch; --wait is how long to wait for a first check to register when one is expected; --ceiling is how long to wait for every check to finish, by default the job timeouts of the workflows that run on the pull request plus 30 minutes; a check still pending then stops with checks-timeout. When CLAUDE_CODE_PRINT_BG_WAIT_CEILING_MS is set above 0, the whole merge ends 5 minutes before it
        run.sh sync <P> [--push]               merge origin/<from> into the base branch in the run's worktree and push it; --push pushes a merge committed after a conflict
        run.sh pr <P> --body <file>            open the pull request from the base branch into <from>, once every sub-issue is closed and the base contains <from>
        run.sh save <P> --to <file> --since <sha>
@@ -175,7 +186,11 @@ const rules = (repo: string, base: string, view: JsonObject, main: string): Merg
   });
 };
 
-const pullRequestWorkflow = (main: string, ref: string, base: string): boolean | null => {
+const pullRequestWorkflows = (
+  main: string,
+  ref: string,
+  base: string,
+): readonly (readonly JobTimeout[])[] | null => {
   const listing = run([
     "git",
     "-C",
@@ -189,6 +204,7 @@ const pullRequestWorkflow = (main: string, ref: string, base: string): boolean |
   if (listing.code !== 0) {
     return null;
   }
+  const workflows: (readonly JobTimeout[])[] = [];
   for (const path of splitLines(listing.stdout)) {
     if (!path.endsWith(".yml") && !path.endsWith(".yaml")) {
       continue;
@@ -198,10 +214,10 @@ const pullRequestWorkflow = (main: string, ref: string, base: string): boolean |
       return null;
     }
     if (triggers(shown.stdout, base)) {
-      return true;
+      workflows.push(jobTimeouts(shown.stdout));
     }
   }
-  return false;
+  return workflows;
 };
 
 const issueWrite = (write: () => StatusObject): StatusObject => {
@@ -254,22 +270,42 @@ const NO_CHECKS = "no checks reported on the";
 
 type Registered = { readonly n: number | null; readonly error: string | null };
 
-const registered = (m: number): Registered => {
-  const result = run(["gh", "pr", "checks", String(m), "--json", "name"]);
-  if (result.code !== 0) {
-    if ((result.stdout + result.stderr).includes(NO_CHECKS)) {
-      return { n: 0, error: null };
-    }
-    return {
-      n: null,
-      error: result.stderr.trim() || result.stdout.trim() || `gh pr checks exited ${result.code}`,
-    };
-  }
+type CheckRows = { readonly rows: readonly unknown[] | null; readonly error: string | null };
+
+const readChecks = (m: number, fields: string): CheckRows => {
+  const result = run(["gh", "pr", "checks", String(m), "--json", fields]);
   const found = parseJson(result.stdout);
-  if (!Array.isArray(found)) {
-    return { n: null, error: "unreadable output from gh pr checks" };
+  if (Array.isArray(found)) {
+    return { rows: found, error: null };
   }
-  return { n: found.length, error: null };
+  if ((result.stdout + result.stderr).includes(NO_CHECKS)) {
+    return { rows: [], error: null };
+  }
+  if (result.code === 0) {
+    return { rows: null, error: "unreadable output from gh pr checks" };
+  }
+  return {
+    rows: null,
+    error: result.stderr.trim() || result.stdout.trim() || `gh pr checks exited ${result.code}`,
+  };
+};
+
+const registered = (m: number): Registered => {
+  const { rows, error } = readChecks(m, "name");
+  return { n: rows === null ? null : rows.length, error };
+};
+
+type Settled =
+  | { readonly kind: "unreadable"; readonly error: string }
+  | { readonly kind: Verdict; readonly checks: readonly Check[] };
+
+const checksOn = (m: number): Settled => {
+  const { rows, error } = readChecks(m, "name,bucket,link");
+  const checks = checkList(rows);
+  if (checks === null) {
+    return { kind: "unreadable", error: error ?? "unreadable output from gh pr checks" };
+  }
+  return { kind: verdict(checks), checks };
 };
 
 const versionText = (v: readonly number[]): string => v.join(".");
@@ -770,11 +806,46 @@ const waitForChecks = (m: number, wait: number): Registered => {
   }
 };
 
+const settle = (m: number, deadline: number): Settled => {
+  for (;;) {
+    const found = checksOn(m);
+    const left = deadline - performance.now();
+    if (found.kind !== "pending" || left <= 0) {
+      return found;
+    }
+    pause(Math.min(10_000, left));
+  }
+};
+
+const MERGE_FLAGS: readonly string[] = ["--wait", "--ceiling"];
+
+const mergeFlags = (rest: readonly string[]): Readonly<Record<string, string>> => {
+  const flags: Record<string, string> = {};
+  for (let i = 0; i < rest.length; i += 2) {
+    const flag = rest[i] ?? "";
+    const value = rest[i + 1];
+    if (value === undefined || !MERGE_FLAGS.includes(flag) || flag in flags) {
+      throw new UsageError("");
+    }
+    flags[flag] = value;
+  }
+  return flags;
+};
+
+const checkNames = (checks: readonly Check[], buckets: readonly string[]): string =>
+  checks
+    .filter((c) => buckets.includes(c.bucket))
+    .map((c) => `${c.name} ${c.link}`.trim())
+    .join(", ");
+
 const merge = (ctx: Context): string => {
+  const start = performance.now();
   const k = Number(ctx.args[0]);
   const m = Number(ctx.args[1]);
   const comment = ctx.args[3] ?? "";
-  const wait = ctx.args[4] === "--wait" ? Number(ctx.args[5]) : 300;
+  const flags = mergeFlags(ctx.args.slice(4));
+  const wait = Number(flags["--wait"] ?? 300);
+  const given = flags["--ceiling"];
   requireMarker(comment);
   const proj = project(ctx.p);
   const issue = proj.issues.find((i) => i.number === k);
@@ -825,11 +896,11 @@ const merge = (ctx: Context): string => {
     if (fetchBranch(main, b).code !== 0) {
       stop("checks-unreadable", `cannot fetch ${b} from origin to read its workflows`, { pr: m });
     }
-    const workflow = pullRequestWorkflow(main, `origin/${b}`, base);
-    if (workflow === null) {
-      stop("checks-unreadable", `cannot read the workflows on origin/${b}`, { pr: m });
+    const workflows = pullRequestWorkflows(main, `origin/${b}`, base);
+    if (workflows === null) {
+      return stop("checks-unreadable", `cannot read the workflows on origin/${b}`, { pr: m });
     }
-    if (found.requiredChecks !== "no" || workflow === true) {
+    if (found.requiredChecks !== "no" || workflows.length > 0) {
       const checks = waitForChecks(m, wait);
       if (checks.n === null) {
         stop("checks-unreadable", `cannot read the checks on #${m}: ${checks.error ?? ""}`, {
@@ -844,10 +915,30 @@ const merge = (ctx: Context): string => {
         );
       }
     }
-    const watched = run(["gh", "pr", "checks", String(m), "--watch", "--fail-fast"]);
-    const text = watched.stdout + watched.stderr;
-    if (watched.code !== 0 && !text.includes(NO_CHECKS)) {
-      stop("checks-failed", splitLines(text.trim()).slice(-5).join("\n"), { pr: m });
+    const settleStart = performance.now();
+    const settled = settle(
+      m,
+      settleDeadline({
+        start,
+        settleStart,
+        ceilingSeconds: given === undefined ? ceilingSeconds(workflows) : Number(given),
+        driverMs: process.env["CLAUDE_CODE_PRINT_BG_WAIT_CEILING_MS"],
+      }),
+    );
+    if (settled.kind === "unreadable") {
+      stop("checks-unreadable", `cannot read the checks on #${m}: ${settled.error}`, { pr: m });
+    } else if (settled.kind === "fail") {
+      stop(
+        "checks-failed",
+        `checks failed on #${m}: ${checkNames(settled.checks, ["fail", "cancel"])}`,
+        { pr: m },
+      );
+    } else if (settled.kind === "pending") {
+      stop(
+        "checks-timeout",
+        `checks on #${m} still pending after ${Math.round((performance.now() - settleStart) / 60_000)} minutes: ${checkNames(settled.checks, ["pending"])}`,
+        { pr: m },
+      );
     }
     if (field(pv, "isDraft") === true) {
       const ready = run(["gh", "pr", "ready", String(m)]);
@@ -1164,6 +1255,16 @@ const usage = (ok: boolean): void => {
   }
 };
 
+const checkedMergeFlags = (rest: readonly string[]): void => {
+  const flags = mergeFlags(rest);
+  if (flags["--wait"] !== undefined) {
+    number("the wait in seconds", flags["--wait"]);
+  }
+  if (flags["--ceiling"] !== undefined) {
+    number("the ceiling in seconds", flags["--ceiling"]);
+  }
+};
+
 const checked = (argv: readonly string[]): void => {
   const n = argv.length;
   usage(n >= 2);
@@ -1185,14 +1286,11 @@ const checked = (argv: readonly string[]): void => {
       usage(n === 3);
       return;
     case "merge":
-      usage((n === 6 || n === 8) && argv[4] === "--comment");
+      usage((n === 6 || n === 8 || n === 10) && argv[4] === "--comment");
       number("the issue", argv[2]);
       number("the pull request", argv[3]);
       existing(argv[5]);
-      if (n === 8) {
-        usage(argv[6] === "--wait");
-        number("the wait in seconds", argv[7]);
-      }
+      checkedMergeFlags(argv.slice(6));
       return;
     case "sync":
       usage(n === 2 || (n === 3 && argv[2] === "--push"));
