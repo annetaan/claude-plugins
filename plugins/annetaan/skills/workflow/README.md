@@ -265,16 +265,16 @@ screenshots it could not attach.
 | `roles/work.md` | the role for the implementation session |
 | `roles/review.md` | the role for a review seat |
 | `scripts/worktree.sh` | creates the run's worktree and checks its ignore rules. `workflow-cleanup` uses it to clean up |
-| `scripts/worktree.py` | the code `worktree.sh` runs |
+| `scripts/worktree.ts` | the code `worktree.sh` runs. Every fetch from origin goes through the plugin's `scripts/fetch.ts`, under a lock in the clone's common git directory that every worktree shares |
 | `scripts/include.sh` | appends the answers about ignored files to `<MAIN>/.worktreeinclude` and copies the ones to copy into the worktree |
-| `scripts/include.py` | the code `include.sh` runs, and the one place that copies the ignored files `.worktreeinclude` names into a new worktree. `worktree.py`, `flow.py` and pj4-running's `run.py` import it |
-| `scripts/clone.py` | the one place that fetches from origin, under a lock on the clone's common git directory that every worktree shares. `worktree.py`, `level.py` and the pj4-running, pj-cleanup and pj1-plan scripts import it |
+| `scripts/include.ts` | the code `include.sh` runs, and the one place that copies the ignored files `.worktreeinclude` names into a new worktree. `worktree.ts`, `flow.ts` and pj4-running's `run.ts` import it |
 | `scripts/level.sh` | reads the repository's level from origin's default branch and prints the model and effort it gives the design session, the implementation session, the review seats and pj's planner, project reviewer and issue writer |
-| `scripts/level.py` | the code `level.sh` runs |
+| `scripts/level.ts` | the code `level.sh` runs |
 | `scripts/comments.sh` | fails on a comment outside the four kinds, or a silenced check the change adds, in the files a change touches. The implementation and review sessions run it |
-| `scripts/comments.py` | the code `comments.sh` runs |
+| `scripts/comments.ts` | the code `comments.sh` runs. Its scanners and verdicts live in `scripts/pure/comment-check.ts` |
 | `scripts/flow.sh` | makes the run's work directory and reads it back, reports a scope's round, cap, open findings and whether `approve` is allowed, runs a review seat's probe in a git worktree beside the run's, at a snapshot of the working tree, runs every probe of a round again and writes the draft of the round, removes the seats at cleanup, lints a review file, writes the pull request head and the `Level:` line into `log.md`, writes the prompt of each sub-agent call, and files the decision issues of `decisions.md` |
-| `scripts/flow.py` | the code `flow.sh` runs, and the one place the agent table of the levels lives, which `level.py` imports. `worktree.py` imports the stamp rules of the work directory names from it |
+| `scripts/flow.ts` | the code `flow.sh` runs. The agent table of the levels lives in `scripts/pure/agent-table.ts`, which `level.ts` imports. `worktree.ts` and pj-cleanup's `cleanup.ts` import its `closeSeats` |
+| `scripts/pure/` | the logic of these scripts, with no I/O |
 | `review-files.md` | the shape of the review files and the evidence files, read by the seats, the main session and the implementation session |
 
 The design, implementation and review sessions run on agents that ship with the plugin (`../../agents/`). Design is

@@ -109,7 +109,7 @@ itself is the human's job.
 | `doing` | A pj project whose sub-issues are filed. It marks the parent issue. |
 
 **`issue.sh label`, `sub --label` and `parent` make sure a label exists before they first add it**, with the color
-and the description `issue.py` holds. A label the repository already has is reused as it is and never overwritten.
+and the description `issue.ts` holds. A label the repository already has is reused as it is and never overwritten.
 
 Only `pj3-doctor` adds `ready`, after its project review, to an issue that meets the bar
 for it (`state.md`, **When an issue is ready**). Ticking boxes on GitHub settles decisions and leaves the label

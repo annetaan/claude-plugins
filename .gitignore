@@ -1,6 +1,5 @@
 .DS_Store
 work-reports/
 node_modules/
-__pycache__/
 *.doc-meta.md
 plugins/annetaan/skills/experience-video/sample/build/

@@ -14,24 +14,62 @@ jobs:
       fail-fast: false
       matrix:
         os: [ubuntu-latest, macos-latest]
+        runtime: [node, bun]
     runs-on: ${{ matrix.os }}
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v7
         with:
           fetch-depth: 0
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22.18.0
+      - if: matrix.runtime == 'bun'
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+      - if: matrix.runtime == 'node'
+        run: "! command -v bun"
+      - run: npm ci
       - run: bash tests/run.sh
+
+  old-node:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22.17.1
+      - run: |
+          dir="$(dirname "$(command -v node)")"
+          if out="$(env PATH="$dir" /bin/bash plugins/annetaan/scripts/ts.sh tests/ts.test.ts 2>&1)"; then
+            code=0
+          else
+            code=$?
+          fi
+          echo "$out"
+          case "$out" in
+            "annetaan: needs Bun, or Node.js 22.18 or later"*) ;;
+            *) exit 1 ;;
+          esac
+          test "$code" -eq 1
 
   video:
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v7
         with:
           fetch-depth: 0
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22.18.0
       - id: paths
         env:
           BASE: ${{ github.event.pull_request.base.sha || github.event.before }}
         run: |
-          if git diff --quiet "$BASE" HEAD -- plugins/annetaan/skills/experience-video/ tests/slow/ .github/workflows/test.yml; then
+          if git diff --quiet "$BASE" HEAD -- plugins/annetaan/skills/experience-video/ plugins/annetaan/scripts/ts.sh tests/slow/ .github/workflows/test.yml; then
             echo "video=false" >> "$GITHUB_OUTPUT"
           else
             echo "video=true" >> "$GITHUB_OUTPUT"
@@ -41,4 +79,4 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y ffmpeg fonts-noto-cjk
       - if: steps.paths.outputs.video == 'true'
-        run: bash tests/slow/experience-video.sh
+        run: plugins/annetaan/scripts/ts.sh --test tests/slow/experience-video.test.ts
