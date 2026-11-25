@@ -256,6 +256,48 @@ test("background tasks end a run with no last line as bg-killed", () => {
     assert.deepEqual(line.noLine, []);
     assert.equal(line.i, 1);
   }
+  for (const code of [0x0c, 0x0b, 0x85, 0x2028]) {
+    const name = `make${String.fromCodePoint(code)}test`;
+    const split = ran(
+      drive,
+      "pj4-running",
+      view("running", "f"),
+      {
+        code: 0,
+        out: working,
+        err: `Background tasks still running 10m after the last turn (shell "${name}"); stopping them.\n`,
+      },
+      paths,
+    );
+    assert.equal(split.kind === "end" && split.end.reason, "bg-killed", code.toString(16));
+    assert.ok(split.kind === "end" && split.end.message.endsWith(`shell "${name}"`));
+  }
+  const backgroundLine = (group: string): string =>
+    `Background tasks still running 10m after the last turn (${group}); stopping them.`;
+  const lastGroup = (groups: readonly string[]) =>
+    ranOne({ code: 0, out: working, err: groups.map(backgroundLine).join("\n") });
+  const emptyLast = lastGroup(['shell "make test"', ""]);
+  assert.equal(emptyLast.kind === "step" && emptyLast.result, "no-line");
+  const namedLast = lastGroup(["", 'shell "make test"']);
+  assert.equal(
+    namedLast.kind === "end" && namedLast.end.message.endsWith('shell "make test"'),
+    true,
+  );
+  const nulOnly = lastGroup([String.fromCodePoint(0)]);
+  assert.equal(nulOnly.kind === "step" && nulOnly.result, "no-line");
+  const nulInside = lastGroup([`shell "make${String.fromCodePoint(0)}test"`]);
+  assert.equal(
+    nulInside.kind === "end" && nulInside.end.message.endsWith('shell "maketest"'),
+    true,
+  );
+  for (const cut of ["\r", "\r\n"]) {
+    const carriage = ranOne({
+      code: 0,
+      out: working,
+      err: `x${cut}${backgroundLine('shell "a"')}${cut}more${cut}`,
+    });
+    assert.equal(carriage.kind === "end" && carriage.end.message.endsWith('shell "a"'), true);
+  }
   const done = ranOne({ ...doneChild, err: BACKGROUND });
   assert.equal(done.kind === "step" && done.result, "done");
   const noLine = ranOne({ code: 0, out: working, err: "" });

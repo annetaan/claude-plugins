@@ -97,10 +97,17 @@ const denialsOf = (found: unknown): readonly Denial[] =>
     : [];
 
 const BACKGROUND =
-  /^Background tasks still running .+ after the last turn \((.*)\); stopping them\./u;
+  /^Background tasks still running .+ after the last turn \((.*)\); stopping them\./su;
 
-const backgroundTasks = (err: string): string | null =>
-  splitLines(err).reduce<string | null>((found, line) => BACKGROUND.exec(line)?.[1] ?? found, null);
+const FILE_LINE_BREAK = /\r\n|[\r\n]/u;
+
+const backgroundTasks = (err: string): string | null => {
+  const found = err
+    .split(FILE_LINE_BREAK)
+    .reduce((last, line) => BACKGROUND.exec(line)?.[1] ?? last, "")
+    .replaceAll("\0", "");
+  return found === "" ? null : found;
+};
 
 export const ran = (
   drive: Drive,
