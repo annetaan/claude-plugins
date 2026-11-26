@@ -261,7 +261,7 @@ before it touches anything**.
 | `roles/design.md` | the role for the design session, which writes the design and the plan into the work directory |
 | `roles/work.md` | the role for the implementation session |
 | `roles/review.md` | the role for a review seat |
-| `scripts/worktree.sh` | creates the run's worktree and adds its ignore rules, merges the base in on a conflict, and reads pull requests |
+| `scripts/worktree.sh` | creates the run's worktree and adds its ignore rules, merges the base in on a conflict, reads pull requests, and finds an open `level` or `pj-roadmap` proposal or commits, pushes and opens a new one |
 | `scripts/worktree.ts` | the code `worktree.sh` runs. Every fetch from origin goes through the plugin's `scripts/fetch.ts`, under a lock in the clone's common git directory that every worktree shares |
 | `scripts/worktrees.ts` | the one module that makes a worktree, merges a ref into it and removes it, for `worktree.ts` and the `cleanup` skill's `cleanup.ts` |
 | `scripts/include.sh` | appends the answers about ignored files to `<MAIN>/.worktreeinclude` and copies the ones to copy into the worktree |
