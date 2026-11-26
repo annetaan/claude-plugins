@@ -65,7 +65,7 @@ AskUserQuestion: <path> is in <MAIN> and git ignores it, so <WT> does not have i
   - Never copy it - adds !/<path> to <MAIN>/.worktreeinclude, so no run asks about it again
 ```
 
-Mark Copy `(Recommended)` for a file the build, the tests or a tool of the repository reads, such as an env file or `mise.local.toml`, and Never for a file nothing reads, such as `.DS_Store` or an editor's file. An answer under Other that copies nothing leaves the path out of both lists, and the next run asks again.
+Mark Copy `(Recommended)` for a file the build, the tests or a tool of the repository reads, such as an env file or `mise.local.toml`, and Never for a file nothing reads, such as an editor's file. `unlisted` never holds a `.DS_Store`, at any depth, so no question comes up for one, and an existing `!/.DS_Store` line does no harm. An answer under Other that copies nothing leaves the path out of both lists, and the next run asks again.
 
 Then record every answer with one command, `--copy <path>` or `--never <path>` per path. When every answer was under Other, there is nothing to record: skip the command and go on.
 
