@@ -1,5 +1,9 @@
 export const LIST = ".worktreeinclude";
 
+const FINDER = ".DS_Store";
+
+const isFinderFile = (path: string): boolean => path.split("/").at(-1) === FINDER;
+
 const byName = (a: string, b: string): number => (a < b ? -1 : a > b ? 1 : 0);
 
 export const pattern = (path: string, never: boolean): string => {
@@ -36,7 +40,12 @@ export const sortOut = (sets: IncludeSets): IncludeResult => ({
   notIgnored: [...sets.matched].filter((p) => !sets.ignored.has(p)).toSorted(byName),
   unlisted: [...sets.candidates]
     .filter(
-      (p) => sets.ignored.has(p) && !sets.decided.has(p) && !sets.present.has(p) && p !== LIST,
+      (p) =>
+        sets.ignored.has(p) &&
+        !sets.decided.has(p) &&
+        !sets.present.has(p) &&
+        p !== LIST &&
+        !isFinderFile(p),
     )
     .toSorted(byName),
 });

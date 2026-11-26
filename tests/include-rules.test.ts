@@ -32,6 +32,22 @@ test("sortOut copies the matched ignored files not present, and lists the undeci
   assert.deepEqual(found, { copied: ["a"], notIgnored: ["secret"], unlisted: ["c"] });
 });
 
+test("sortOut never lists .DS_Store, at the root or nested, and still copies one the list names", () => {
+  const paths = [".DS_Store", "apps/web/.DS_Store", "a.DS_Store", ".DS_Store.bak", "x/.DS_Store"];
+  const found = sortOut({
+    matched: new Set(["x/.DS_Store"]),
+    candidates: new Set(paths),
+    decided: new Set(),
+    ignored: new Set(paths),
+    present: new Set(),
+  });
+  assert.deepEqual(found, {
+    copied: ["x/.DS_Store"],
+    notIgnored: [],
+    unlisted: [".DS_Store.bak", "a.DS_Store"],
+  });
+});
+
 test("nulSplit drops empty pieces", () => {
   assert.deepEqual(nulSplit("a\0b\0\0"), ["a", "b"]);
 });
