@@ -1,6 +1,6 @@
 ---
 name: pj4-running
-description: Takes the project from a number given, a sub-issue's number naming its parent, the project this conversation is on, or the only project with sub-issues, and otherwise asks which project to work on. Creates the project's base branch on its first start, once every project it waits on is merged, and closes the parent of a merged project and names the projects that can be split now, as /annetaan:pj2-issues <P>. Works down the run order in the parent's Order list one sub-issue at a time, and stops at the first issue that is not workable. Each one is detailed against the code and run through the workflow skill as reviewed commits, then pj4-running merges its pull request into the base branch and closes the issue itself. Once every sub-issue is closed, merges the branch the base branch was made from into it, with the workflow skill resolving any conflict, then opens the pull request from the base branch into that branch, and leaves its merge to the user. Works in a git worktree of its own, so the main working tree stays free for the user. Files unplanned work as stub issues and stops on a blocker. The fourth of four skills, after pj1-plan, pj2-issues and pj3-doctor. Run it again on a project whose pull request is open to resolve that pull request's conflicts: it brings the source branch in again under review. Use it only when the user names this skill or invokes /annetaan:pj4-running, when the user asks to resolve the conflicts of a project's pull request (from `pj/<n>`), or when the workflow skill hands such a request over, because it creates branches, pushes, opens and merges pull requests, and edits issues and labels.
+description: Takes the project from a number given, a sub-issue's number naming its parent, the project this conversation is on, or the only project with sub-issues, and otherwise asks which project to work on. Creates the project's base branch on its first start, once every project it waits on is merged, and closes the parent of a merged project and names the projects that can be split now, as /annetaan:pj2-issues <P>. Works down the run order in the parent's Order list one sub-issue at a time, and stops at the first issue that is not workable. Each one is detailed against the code and run through the workflow skill as reviewed commits, then pj4-running merges its pull request into the base branch and closes the issue itself. Once every sub-issue is closed, merges the branch the base branch was made from into it, with the workflow skill resolving any conflict, then opens the pull request from the base branch into that branch, and leaves its merge to the user. Works on each issue in a git worktree of its own, so the main working tree stays free for the user. Files unplanned work as stub issues and stops on a blocker. The fourth of four skills, after pj1-plan, pj2-issues and pj3-doctor. Run it again on a project whose pull request is open to resolve that pull request's conflicts: it brings the source branch in again under review. Use it only when the user names this skill or invokes /annetaan:pj4-running, when the user asks to resolve the conflicts of a project's pull request (from `pj/<n>`), or when the workflow skill hands such a request over, because it creates branches, pushes, opens and merges pull requests, and edits issues and labels.
 ---
 
 # pj4-running
@@ -12,15 +12,20 @@ pull request, from the base branch into `<from>`, and the user merges it.
 You are the main session. **You do not write code.** workflow's sessions implement and review. You own the branch,
 the merge, the issues, the labels and the notices.
 
-**The run works in a worktree of its own.** Two paths matter.
+**Each entry of the run works in a worktree of its own.** Two paths matter.
 
 - **`<MAIN>`** is the main working tree, the user's. It is the path on the first `worktree` line of
   `git worktree list --porcelain`. `git rev-parse --show-toplevel` would print the worktree you are in, which is
   wrong when the skill starts from another worktree.
-- **`<WT>`** is `<MAIN>/.claude/worktrees/pj-<P>`, the run's worktree. There is one per project, and it stays
-  across runs.
+- **`<WT>`** is the worktree of the entry at hand, under `<MAIN>/.claude/worktrees/`. Each issue `<k>` runs in
+  `pj-<P>-<k>-<stamp>`, which `run.sh worktree` makes (`issues.md`, phase 4 step 2). The merge of `<from>` and the
+  declared checks run in `pj-<P>-sync-<stamp>`, which `run.sh sync` makes (`project-pr.md`). Each is made fresh from
+  the tip of `origin/<base>`.
 
-The user keeps working in `<MAIN>` while the run goes on. The run never switches, stashes, commits or cleans there.
+The main session stands in `<MAIN>` between entries, and runs only `project.sh`, `issue.sh`, `run.sh` and
+`level.sh show` there, which only read it. It enters an entry's worktree for that entry and leaves it before `run.sh
+merge` or `run.sh end`, which remove it. The user keeps working in `<MAIN>` while the run goes on. The run never
+switches, stashes, commits or cleans there.
 
 ## Paths: `$RUNNING`
 
@@ -113,16 +118,25 @@ branch from the tip of `<from>` when the base branch is missing and every projec
     - `merge-queue`: a ruleset sends merges through a merge queue.
     - `classic-approvals`: classic branch protection wants approving reviews.
     - `classic-code-owners`: classic branch protection wants a code owner's review, and a CODEOWNERS file exists.
+  - `assign-failed`: quote `message`, say which `step` failed (`login`, `read` or `add`), and stop. With `step`
+    `read` after the add, `assignee` says the user was assigned: print `#<P> assigned to <assignee.login>`.
+  - `assigned`: `assignees` names the people assigned to `#<P>` besides the user, `login` being the user. The
+    project belongs to someone else, and pj4-running does not take a parent assigned to another person. Name the
+    logins and stop. Once that person no longer works on it, removing them from `#<P>`'s Assignees lets the next run
+    take it. When `self` is true, the user is assigned too, so two people started at once, and a human decides who
+    stays. The user's own assignment stays either way, and removing it is a human's call.
 - **`empty`**: the project has no sub-issue yet. It has not been split. Give the next step,
   `/annetaan:pj2-issues <P>`, and end.
 - **`done`**: every sub-issue is closed. When `project.merged` is true, `close` held `<P>`. Report its close, and
-  end. Otherwise keep the values as for `run`, take **The worktree** and **The level**, and go straight to phase 5, which brings `<from>` in and opens the project's pull request.
+  end. Otherwise keep the values as for `run`, take **The level**, and go straight to phase 5, which brings `<from>` in and opens the project's pull request.
 - `done` and `run` carry `ignored`, the paths `start` added to `.git/info/exclude` because that file had no line for them.
   When it is not empty, print `ignored <paths>` once, adding that `.git/info/exclude` stays in the clone and commits
   nothing.
-- **`run`**: keep `main` as `<MAIN>`, `worktree` as `<WT>`, `project.base` as `<base>`, `project.from` as `<from>`,
-  and keep `created` and `rules`. When `created` is not null, this run created the base branch. Print
-  `<base> created from <from> at <short sha>`, and keep the SHA for phase 2. Go through the rest of this section, then take **The worktree** and **The level**, then read `issues.md` and follow it from phase 1.
+- **`run`**: keep `main` as `<MAIN>`, `project.base` as `<base>`, `project.from` as `<from>`, and keep `created`,
+  `rules` and `assignee`. `start` read the parent's assignees on the way to `run`, and assigned the user when nobody
+  was assigned. Print `#<P> assigned to <assignee.login>` when `assignee.added` is true. When `created` is not null,
+  this run created the base branch. Print `<base> created from <from> at <short sha>`, and keep the SHA for phase 2.
+  Go through the rest of this section, then take **The level**, then read `issues.md` and follow it from phase 1.
 
 When `rules.selfMerge` is `unknown`, the rules on the base branch could not be read. The rules call failed, or the
 branch is protected and reading its classic protection needs admin rights. Ask once.
@@ -140,7 +154,7 @@ the base branch allow.
 
 A dirty `<MAIN>` does not stop the run. The run never works in it.
 
-Every stop here comes before the worktree is entered.
+Every stop here comes before any worktree is made.
 
 `start` fetched the base branch into `origin/<base>`. The fetch moves the remote-tracking ref and nothing else. The run
 builds on `origin/<base>` and never checks out a local `<base>`, so the user may have `<base>` checked out in `<MAIN>`.
@@ -164,83 +178,21 @@ $RUNNING/scripts/run.sh close <P> <Q> --comment "$TMP/<Q>-closed.md"
 `startable` in the output lists the projects that wait on `<Q>`, have no sub-issue, and now wait on nothing unmerged,
 each as `number` and `title`. Keep them for the report. `already` true still carries `startable`.
 
-### The worktree
-
-Put `<WT>` on the tip of the base branch.
-
-```bash
-$RUNNING/scripts/run.sh worktree <P>
-```
-
-It fetches the base branch again. It creates `<WT>`, moves a clean one onto `origin/<base>`, or prunes and recreates
-one whose directory is gone. `action` says which. Before any of that it reads the parent's assignees, assigns the
-user when nobody is assigned, and stops when someone else is. Act by `status`.
-
-- **`ready`**: enter it. On every `worktree` output that carries `assignee` (the assignment is made before any
-  later stop), print `#<P> assigned to <assignee.login>` when `assignee.added` is true. `action` `discarded` means an earlier run left uncommitted work in `<WT>` (a run that ended
-  without saving it, work a save left behind, or a stopped merge of `<from>`). `worktree` saved it to
-  `<WT>/work-reports/<stamp>-discarded/stopped.diff`, reset and cleaned `<WT>`, and moved it onto the base. Nothing
-  was asked, because of **One session per project** in the Rules. `saved` carries `file`, `head`, `changes` and
-  `merge`. Print one line, `saved and discarded the work left in <WT>: <file>`, and keep `saved` for the report.
-  Then act on the three lists `ready` carries. `run.sh worktree` runs on every run, so a `<WT>` that is reused gets
-  the files newly listed since, and a copy already in `<WT>` is never overwritten.
-  - `copied` not empty: print `copied <paths>` once.
-  - `notIgnored` not empty: say once that `<MAIN>/.worktreeinclude` lists these files but `<WT>` does not ignore
-    them, so they were not copied. A `.gitignore` rule that only `<MAIN>`'s working tree has is the usual cause.
-    **Never edit `.gitignore`.**
-  - `unlisted` not empty: take **Files `.worktreeinclude` does not name** in `workflow/worktree.md`, with
-    `$RUNNING/../workflow` in place of `$FLOW`. An unattended run does not ask: it prints
-    `not in .worktreeinclude, not copied: <paths>` and goes on.
-- **`stop`** with `foreign`: `<WT>` exists but is not a worktree of this repository, and nothing here may touch it.
-  Stop. With `fetch-failed`, quote `message` and stop. With `assign-failed`, quote `message`, say which `step` failed
-  (`login`, `read` or `add`), and stop.
-- **`stop`** with `assigned`: `assignees` names the people assigned to `#<P>` besides the user. The project belongs to
-  someone else, and pj4-running does not take a parent assigned to another person. Name the logins and stop. Once
-  that person no longer works on it, removing them from `#<P>`'s Assignees lets the next run take it. When `self` is
-  true, the user is assigned too, so two people started at once, and a human decides who stays. The user's own
-  assignment stays either way, and removing it is a human's call.
-- **`stop`** with `not-ignored`: `<WT>` holds uncommitted work, but `work-reports/` is not ignored in it, so the work
-  cannot be saved without changing it. `start` added `work-reports/` to `.git/info/exclude`, so a `.gitignore` rule on
-  the base branch keeps it visible in `<WT>`, which the exclude file cannot override. Nothing was changed. Say so, and
-  stop. **Never edit `.gitignore`.** The report names the work with `git -C <WT> diff`.
-- **`stop`** with `not-clean`: the work was saved (`saved`), but `<WT>` is not clean afterwards. `left` lists what
-  stays, such as a nested git repository, and `errors` the reset or clean that failed. Quote `message`, name `<WT>`
-  and `saved.file`, and stop the run. The user clears `left`, and the next run goes on.
-
-On a stop, leave `<WT>` as phase 5 step 2 says and end the run. `<WT>` stays in place, and the report says that
-`git -C "<MAIN>" worktree remove <WT>` removes it. In a repository with submodules git refuses that command and it needs `--force`, which also deletes what a submodule in `<WT>` holds on its own; `git -C <WT>/<path> log --branches --not --remotes` shows such commits. When `worktree` stopped on `not-ignored`, `<WT>` holds
-uncommitted work, so the report names that work with `git -C <WT> diff` in place of the `worktree remove` line.
-
-**Then enter it, once.**
-
-```
-EnterWorktree(path: "<WT>")
-```
-
-Where that tool is not available, `cd "<WT>"`. A Bash `cd` moves this session only. workflow tells its sub-sessions
-to enter `<WT>` themselves, because their directory resets on every bash call.
-
-**Every command from here to the end of the run runs in `<WT>`.** After a context summary, run
-`git rev-parse --show-toplevel`, and enter `<WT>` again when it prints anything else. Between tasks `<WT>` holds a
-detached HEAD. A stop from here on, even one before the approval, leaves `<WT>` as phase 5 step 2 says.
-
-`<WT>` has the ignored files `<MAIN>/.worktreeinclude` names, copied by `run.sh worktree` and by the Copy answers, and none of the others,
-such as installed dependencies. The first worker prepares what the tests still need and leaves the steps in the handover notes, so later tasks find them there. The submodules of `<WT>` are not initialized either. When the build or the tests need one, the first worker runs `git submodule update --init` in `<WT>` and leaves that in the handover notes too.
-
 ### The level
 
 The repository's level picks the model and the effort of workflow's design session, its implementation session and
 its review seats.
-Run `level.sh` once, in `<WT>`, as **The level** in `workflow/SKILL.md` says, with `<level>` from `level=<level>`
-in the args, left out when the args carry none.
+Run `level.sh` once, in `<MAIN>`, as **The level** in `workflow/SKILL.md` says, with `<level>` from `level=<level>`
+in the args, left out when the args carry none. Every worktree of the clone reads the same level, because `show`
+reads the file from origin's default branch with `git show`.
 
 ```bash
-$RUNNING/../workflow/scripts/level.sh show <WT> [<level>]
+$RUNNING/../workflow/scripts/level.sh show <MAIN> [<level>]
 ```
 
 Print `level <level> (<source>)` once, and `warning` on a line of its own when it is set. Keep the JSON: From an issue
 and From a sync take it as settled. A non-zero exit, such as `level=<level>` other than `standard` or `high`, stops the run: quote its
-message, and leave `<WT>` as phase 5 step 2 says. An unattended run ends as needs-user.
+message. An unattended run ends as needs-user.
 
 ## Unplanned work
 
@@ -299,20 +251,9 @@ Every way the run ends comes here: the run order is done, the run stopped, or th
 
 1. `project.sh <P>`. **When every sub-issue is closed** and the project is not `merged`, bring `<from>` in and open
    the project's pull request: read `project-pr.md` and run **The project's pull request**, then come back to step 2. Ask nothing, because the approval in phase 2,
-   or for `start`'s `done` the invocation itself, covered it. Skip this step when the run stopped before
-   **The worktree** was entered.
-2. Leave `<WT>`, only when this session entered it in **The worktree**. A stop before that point, such as a base
-   branch gone from origin, a base branch that cannot be created, or `worktree` stopping on `not-ignored` or
-   `not-clean`, skips this step. `<WT>` stays for the next
-   run. The detach frees the branch for `<MAIN>`, and it works on a dirty tree too. Keep the `-C`, so the command
-   cannot reach `<MAIN>` even after a context summary has lost the directory.
-
-   ```bash
-   git -C "<WT>" switch --detach
-   ```
-
-   Skip that command when a stopped **Bringing `<from>` in** in `project-pr.md` left a merge in progress: git refuses to switch then, and
-   the HEAD is detached already.
+   or for `start`'s `done` the invocation itself, covered it. Skip this step when the run stopped in `start`.
+2. Leave the worktree this session stands in, when it stands in one. `run.sh merge` and `run.sh end` already dealt
+   with its branch, so nothing else runs here.
 
    ```
    ExitWorktree(action: "keep")
@@ -330,8 +271,6 @@ Every way the run ends comes here: the run order is done, the run stopped, or th
 - the parents closed in this run
 - the projects that can be split now, collected from the `startable` of each close, one line each as
   `/annetaan:pj2-issues <R>` with its title
-- the worktree `<WT>`. The next run reuses it. The work reports live only under its `work-reports/`.
-  `/annetaan:pj-cleanup <P>` moves them into `<MAIN>` and removes `<WT>` once the project is merged
 - that this run assigned `#<P>` to `<login>`, when `assignee.added` was true, and that the assignment stays
 - each merged issue with the URL of its pull request, and the URLs of the decision issues its run filed, or the
   reason none were
@@ -340,21 +279,21 @@ Every way the run ends comes here: the run order is done, the run stopped, or th
 - a decision the run added to an issue and stopped on, as `<issue URL> D<k>`, with what the design session found
 - the stubs filed, the `later` ones and the `blocker` ones
 - where the run stopped and why, or that the run order is done
-- **the saved work, when `save` printed `saved`.** Give the path of `file` and the number in `commits`. The diff holds
-  those commits and the uncommitted work, and `git -C <WT> apply <file>` brings it back on `<head>`, where `<WT>` now
-  stands. Say plainly that the next run never uses it because the issue gets redone. Add `left` and `errors`
-  when they are not empty
-- **the work `worktree` saved at the start, when `saved` was not null.** Give the path of `saved.file`.
-  `git -C <WT> apply <file>` on `saved.head` brings it back. When `saved.merge` is set, it was a merge of `<from>` in
-  progress at that commit. Say plainly that the next run never uses it because the work gets redone
-- **the uncommitted work still in `<WT>`, when there is some** (a non-empty `left`, a `save` that failed, a stopped
-  merge of `<from>`). `git -C <WT> diff` shows it. Say plainly that the next run saves it to
-  `<stamp>-discarded/stopped.diff` and discards it, and that the next run never uses it because the work gets redone
+- **each worktree `run.sh end` kept**, with its `name`, the number in `commits`, and whether `changes` is empty. Its
+  commits stay on its detached HEAD and its uncommitted work in its tree. Say plainly that the next run redoes the
+  issue in a new worktree and never uses it, and that `/annetaan:cleanup <P>` removes it once the project is merged.
+  Add `errors` when it is not empty
+- **each worktree that stays with its branch checked out**: a `merged` with `worktree` null, a `stop requested: yes`
+  or a `merge` stop. Name it and say why it stays
+- **the worktree of a `finish` stop**: `<branch>` holds the reviewed commits, and the worktree holds them on a
+  detached HEAD. The next run stops on `left` with both ways out
+- the work reports, which `run.sh merge` and `run.sh end` moved into `<MAIN>/work-reports/`
 - the screenshots that could not be attached, with their paths and the URL of the pull request
 - what is workable now and what is waiting
 - the next step: `/annetaan:pj3-doctor` when a `blocker` or a stub exists, otherwise `/annetaan:pj4-running`.
-  When every sub-issue is closed, the user merges the project's pull request, then runs `/annetaan:pj-cleanup <P>`,
-  which closes the parent, removes `<WT>` and the base branch, and brings the local `<from>` up to date. When the list of projects that can be split now is not empty, `/annetaan:pj2-issues <R>` for
+  When every sub-issue is closed, the user merges the project's pull request, then runs `/annetaan:cleanup <P>`,
+  which closes the parent, removes the project's worktrees and its base branch, and brings the local `<from>` up to
+  date. When the list of projects that can be split now is not empty, `/annetaan:pj2-issues <R>` for
   each.
 
 ## Ending an unattended run
@@ -369,9 +308,9 @@ An unattended run prints its last line as `pj1-plan/between-skills.md` says unde
 - Phase 1's run order was empty, including when `orderCheck` is not ok and no issue has a merged pull request.
 - **The declared checks** in `project-pr.md` filed a stub for a check that failed.
 - Phase 4 step 1 stopped because the issue was no longer workable.
-- **When workflow returns** in `issues.md` got `stopped` with the reason `blocking` or `detail`, and either no `<WORKDIR>` was
-  set, or `save` printed `clean`, or it printed `saved` with an empty `left` and an empty `errors`. With any other
-  `save` output, the next step would stop on `not-clean`, so it is needs-user below.
+- **When workflow returns** in `issues.md` got `stopped` with the reason `blocking` or `detail`, whatever `run.sh end`
+  printed, `removed` or `kept`, or a non-zero exit, which the report quotes. A kept worktree does not stop the next
+  run.
 - The run order was worked to the end, and phase 5's project pull request came to `opened` or `exists`, or not every
   sub-issue is closed yet.
 
@@ -383,19 +322,19 @@ section does not name never reads as done.
 - **You never write code.** workflow's sessions do.
 - **One session per project.** A person never runs two sessions on the same project at once: two pj4-running runs, or
   a run beside a pj-auto drive. The parent's assignee keeps a different person off the project, not the same
-  person's second session, because both use one GitHub account. So a dirty `<WT>` at the start was always left by a
-  run that has ended, and `run.sh worktree` saves it to `work-reports/<stamp>-discarded/stopped.diff` and discards it
-  without asking.
-- **Take a project only when nobody else is assigned to its parent.** `run.sh worktree` assigns the user and leaves
+  person's second session, because both use one GitHub account.
+- **Take a project only when nobody else is assigned to its parent.** `run.sh start` assigns the user and leaves
   the assignment in place for the life of the project.
 - **Only this session writes to GitHub, and it writes issues, relationships, labels and comments only through
   `issue.sh` and `run.sh`.** workflow runs in this same session and pushes and opens the draft pull request there. Every comment starts with `**[pj4-running]**`.
 - **One task at a time.**
-- **Everything runs in `<WT>`.** Never switch, stash, commit or clean in `<MAIN>`. The user works there.
+- **Every command of an entry runs in that entry's worktree.** Between entries the main session stands in `<MAIN>`
+  and runs only `project.sh`, `issue.sh`, `run.sh` and `level.sh show` there. Never switch, stash, commit or clean
+  in `<MAIN>`. The user works there.
 - **Never `--admin`.**
 - **Never merge the project's pull request.** It goes into `<from>`, and the user merges it.
 - **Never merge a pull request that `project.sh` does not report as the issue's `pr`.**
-- **The next run never uses the work a stopped run left in `<WT>` or saved to `stopped.diff`, commits included.** The issue is redone.
+- **The next run never uses the work a stopped run left in a worktree `run.sh end` kept, commits included.** The issue is redone in a new worktree.
 - **Never push to `<from>` or to the default branch, push to the base branch only through `run.sh sync`, and never
   rewrite their history.** The one branch this skill creates outside a pull request is the project's base branch,
   through the API, in `run.sh start`. The one commit that reaches it outside a pull request is the merge of `<from>`,
@@ -407,4 +346,4 @@ section does not name never reads as done.
 - **Edit an existing sub-issue's body, the edges between existing sub-issues and the parent's `## Order` only in **A redrawn issue** in `issues.md`, and a
   sub-issue's title only through `run.sh stop` on a `decision` stop.** The one other write is a stub filed by **Unplanned work** or by `run.sh stop` on a `blocking` stop, with its `--blocking` edge.
 - An unattended run never calls `AskUserQuestion` and ends with one `unattended:` line.
-- After a context summary, take whether the run is unattended from the last `project #<P>` line, `$TMP` from the last `tmp` line, and rebuild the run from the progress lines and `project.sh <P>`. Inside a workflow entry the level comes back as **The level** in `workflow/SKILL.md` says, from `flow.sh status <WT>` and `level.sh show <WT> <level>`, and from the last `level` line only between entries, running `level.sh show` again with that level when the line says `override` and without one otherwise. Read `issues.md` again when the run is in phases 1 to 4, and `project-pr.md` when it is in **The project's pull request**. A run inside a workflow entry takes **Before workflow runs** again for that entry.
+- After a context summary, take whether the run is unattended from the last `project #<P>` line, `$TMP` from the last `tmp` line, and rebuild the run from the progress lines and `project.sh <P>`. While an entry is running, enter again the worktree the last `#<k> worktree <path>` or `sync worktree <path>` line names, when `git rev-parse --show-toplevel` prints anything else. Inside a workflow entry the level comes back as **The level** in `workflow/SKILL.md` says, from `flow.sh status <WT>` and `level.sh show <WT> <level>`, and from the last `level` line only between entries, running `level.sh show <MAIN>` again with that level when the line says `override` and without one otherwise. Read `issues.md` again when the run is in phases 1 to 4, and `project-pr.md` when it is in **The project's pull request**. A run inside a workflow entry takes **Before workflow runs** again for that entry.

@@ -3,7 +3,7 @@
 This file holds what `pj1-plan`, `pj2-issues`, `pj3-doctor` and `pj4-running` agree on between them: who creates
 the base branch, the labels, the comments, the pull requests, how they name an issue to the user, the commands
 and how they write to GitHub. The four skills,
-`pj-auto`, `pj-cleanup` and `pj-roadmap` read it first.
+`pj-auto`, `cleanup` and `pj-roadmap` read it first.
 The project reviewer looks up **Blockers**, and the `workflow` skill's **From an issue** (`workflow/from-issue.md`) looks up **Pull requests**.
 The issues and their bodies are in `format.md`, and how `project.sh` judges a project is in `state.md`, both next to
 this file.
@@ -32,8 +32,8 @@ written.
 `pj-auto` is not one of the four. It drives `pj3-doctor` and `pj4-running` on one project as unattended runs, one
 fresh `claude -p` process per step, and lets `project.sh --next` (`state.md`, **What comes next**) pick every step.
 
-`pj-cleanup` is not one of the four either. It runs once the user has merged a project's pull request: it closes the parent,
-removes the project's worktree after moving its work reports into the main working tree, deletes the base branch on
+`cleanup` is not one of the four either. It runs once the user has merged a project's pull request: it closes the parent,
+removes every worktree of the project after moving its work reports into the main working tree, deletes the base branch on
 origin and locally, fast-forwards the local `<from>`, and deletes the work reports in the main working tree beyond the 100 newest, by the time stamp in their name.
 
 `pj-roadmap` is not one of the four either. It brings the repository's roadmap file into the format (`format.md`,
@@ -51,18 +51,18 @@ Two things live outside GitHub, and only these two:
 - **the user's approval within a run.** An approval covers the run it was given in. The next run asks again. A run started
   with `unattended` asks for none, because starting it that way is the approval (see **Unattended runs**). A `pj-auto`
   drive is approved once, at its start, and that approval covers every unattended run it starts.
-- **the uncommitted work a run leaves in its worktree** `<MAIN>/.claude/worktrees/pj-<P>` when it ends without saving
-  it, where `<MAIN>` is the main working tree. That is a process killed mid-run, a save that could not clean everything,
-  or a stopped merge of `<from>`. It is local. The next run saves it to `work-reports/<stamp>-discarded/stopped.diff`
-  in the worktree and discards it, without asking, and never uses it. The work is redone.
+- **the work a stopped run leaves in its own worktree** `<MAIN>/.claude/worktrees/pj-<P>-<k>-<stamp>` (or
+  `pj-<P>-sync-<stamp>`), where `<MAIN>` is the main working tree. That is a run that stopped before every commit passed
+  review, a process killed mid-run, or a stopped merge of `<from>`. It is local. It stays there, with its commits on a
+  detached HEAD, until `/annetaan:cleanup <P>` asks before removing it. No later run uses it, and the work is redone.
+  A process killed before `run.sh end`, or before a `finish` stop's detach, leaves its branch checked out there, and
+  the next `run.sh worktree` of that issue ends the worktree the way `run.sh end` does, whatever it committed, before
+  it makes a new one.
 
 The conversation supplies which project a run goes on with when no number is given, and never anything about that
 project (**Picking the project**).
 
-The work of a stopped issue, commits included, is saved to `stopped.diff` in its work report. Like the work report, it is a record, not
-state.
-
-The worktree itself is a place to work, not state. A run creates it when it is missing. A drive's log directory is the
+The worktree itself is a place to work, not state. Each run makes its own. A drive's log directory is the
 same: the next drive never reads it.
 
 ## Requirements
@@ -96,7 +96,7 @@ under review, before that push. Merging the pull request is a human's job. No sk
 
 **Closing a parent** as completed means its project is merged. When `pj4-running` reads an open parent that is
 `merged`, it closes it with a marked comment and `--reason completed`, both when it starts on that project and when
-it starts on a project that waits on it. `pj-cleanup` closes it the same way. Both close it through `run.sh close`,
+it starts on a project that waits on it. `cleanup` closes it the same way, with `**[cleanup]**`. Both close it through `run.sh close`,
 which refuses a parent `project.sh` does not read as `merged`. A human may also close it after merging. The merge
 itself is the human's job.
 
@@ -166,7 +166,7 @@ The candidates differ by skill.
   project) gets one line saying so, and the question has no recommendation. The line of a
   candidate is `#<P> <title> (<completed> of <total> sub-issues closed)`. The free-text answer accepts any `#<P>` from the
   list.
-- **`pj-auto`** takes the candidates of `pj3-doctor` and `pj4-running`. **`pj-cleanup`** names its candidates and
+- **`pj-auto`** takes the candidates of `pj3-doctor` and `pj4-running`. **`cleanup`** names its candidates and
   options in its own SKILL.md, takes any number given, stops as its SKILL.md says when no entry is merged, and decides by the rules below
   when none was.
 
@@ -209,7 +209,7 @@ A `pj3-doctor` or `pj4-running` run is unattended when its args carry the word `
   the level from origin's default branch.
 - **The mode.** `pj-auto` starts every run with `--permission-mode auto`, grants it the rules every drive needs with
   `--allowedTools`, and adds the run's directory with `--add-dir`. File edits then run without asking inside the main
-  working tree, the project's worktree and that directory, and auto mode's classifier runs or refuses each other call
+  working tree, the run's worktrees under `<MAIN>/.claude/worktrees/` and that directory, and auto mode's classifier runs or refuses each other call
   no rule decides. A refused call is not a question: the run takes another way its skill allows, or ends as
   needs-user, naming the call. A run writes its files to `$TMP` or the worktree, never under `.git/` or a system temp
   directory, because outside them the classifier judges the write and may refuse it.
@@ -305,7 +305,7 @@ Every comment a skill's main session posts starts with a bold marker, then the t
 | --- | --- |
 | `**[pj3-doctor]**` | `pj3-doctor` |
 | `**[pj4-running]**` | `pj4-running` |
-| `**[pj-cleanup]**` | `pj-cleanup` |
+| `**[cleanup]**` | `cleanup` |
 
 **A comment with no marker is from a human.** A skill reads it as one.
 

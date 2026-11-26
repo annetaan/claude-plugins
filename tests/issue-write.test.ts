@@ -280,7 +280,7 @@ const handoverMd = file(
 
 test("comment-markers.ts and issue.ts import MARKERS, markerProblem and LABELS, run no command, keep every label description within 100 characters, and match the Labels table", () => {
   setup();
-  assert.deepEqual(MARKERS, ["**[pj3-doctor]**", "**[pj4-running]**", "**[pj-cleanup]**"]);
+  assert.deepEqual(MARKERS, ["**[pj3-doctor]**", "**[pj4-running]**", "**[cleanup]**"]);
   assert.equal(markerProblem(markedMd, read(markedMd)), null);
   assert.equal(markerProblem(plainMd, read(plainMd)), `${plainMd} does not start with a marker`);
   const long = Object.entries(LABELS).filter(([, [, text]]) => text.length > 100);

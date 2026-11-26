@@ -4,7 +4,7 @@
 
 pj4-running loads this skill once every sub-issue of project `P` is closed, before it opens the project's pull
 request, when merging `origin/<from>` into the project's base branch stopped on conflicts. The merge is in progress in
-`<WT>`. It runs **The merge task** in `merge-task.md`, and pushes nothing. pj4-running pushes the merge.
+`<WT>`, the sync worktree `pj-<P>-sync-<stamp>` that `run.sh sync` made for this merge. It runs **The merge task** in `merge-task.md`, and pushes nothing. pj4-running pushes the merge.
 
 ## What pj4-running has settled
 
@@ -14,7 +14,7 @@ These values are already in your context. Nothing arrives as an argument.
 - the conflicted files
 - `<START>`: the tip of the base branch the merge started from
 - the handover notes, from the parent's handover comment (`pj1-plan/between-skills.md`, **The handover comment**)
-- the run's worktree `<WT>`, and `<MAIN>`, the main working tree. The session is in `<WT>`, on a detached HEAD
+- the sync worktree `<WT>`, and `<MAIN>`, the main working tree. The session is in `<WT>`, on a detached HEAD
 - the `level.sh show` JSON, from **The level** in pj4-running. The worker and the review seats take their `model` and
   `effort` from it
 
@@ -39,9 +39,8 @@ This entry asks nothing. Its ending is **What it hands back to pj4-running** bel
   `start`. On a `stop` with `not-ignored`, leave the working tree as it is, push nothing, and return `stopped` with the
   reason `work-reports`. Never ask about `.gitignore` here.
 
-  After a context summary, `flow.sh status <WT>` names this run only when its `issue` is null. A `no-run`, or a
-  number in `issue`, is an issue's work directory in the reused `<WT>`: phase 2 (b) has not run, its `start` and
-  `workdir` are not taken, and the level is the JSON pj4-running settled (**The level** in SKILL.md).
+  After a context summary, a `no-run` from `flow.sh status <WT>` means phase 2 (b) has not run, and the level is the
+  JSON pj4-running settled (**The level** in SKILL.md).
 
   Then write the handover notes pj4-running settled to `<WORKDIR>/notes.md` with Write, and nothing when they are
   empty.
@@ -53,7 +52,9 @@ Read `merge-task.md` and run **The merge task** with `<incoming>` as `origin/<fr
 `<START>`, and as `<intent>`: "project #<P>'s changes, as its `## Design` describes them, read with
 `gh issue view <P> --json body`". A `later` report goes to pj4-running's **Unplanned work** as it arrives,
 worded "found while merging `<from>` into `<base>`". The merge task says that a stop leaves the merge in progress in
-`<WT>`. Say plainly that it is local, that the next run never uses it, and that the merge gets redone.
+`<WT>`. pj4-running ends `<WT>` with `run.sh end`, which keeps it, with the merge in progress, until
+`/annetaan:cleanup` removes it. Say plainly that it is local, that the next run never uses it, and that the merge gets
+redone in a new sync worktree.
 
 ## What it hands back to pj4-running
 

@@ -1,11 +1,11 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import {
-  listEntry,
   localBaseStep,
   notMerged,
-  projectSummary,
-} from "../plugins/annetaan/skills/pj-cleanup/scripts/pure/project-cleanup.ts";
+  projectPull,
+  projectTarget,
+} from "../plugins/annetaan/skills/cleanup/scripts/pure/project-cleanup.ts";
 
 const parent = {
   number: 7,
@@ -54,13 +54,36 @@ test("the local base is kept when it holds commits origin does not", () => {
   });
 });
 
-test("the list entry and the summary carry the project's fields", () => {
-  assert.deepEqual(listEntry(parent), { number: 7, title: "P", state: "OPEN", merged: false });
-  assert.deepEqual(projectSummary(parent), {
-    number: 7,
-    title: "P",
-    state: "OPEN",
-    base: "pj/7",
-    from: "main",
+test("projectTarget carries the project, its base and its worktrees", () => {
+  const worktrees = ["pj-7-2-2026-01-01-0000", "pj-7-sync-2026-01-01-0000"];
+  assert.deepEqual(projectTarget(parent, worktrees), {
+    kind: "project",
+    name: "#7",
+    worktrees,
+    branch: "pj/7",
+    pr: { number: 9, title: "P", url: "https://github.com/o/r/pull/9" },
+    state: "not-merged",
+    project: { number: 7, title: "P" },
   });
+  assert.deepEqual(projectTarget({ ...parent, merged: true, projectPr: null }, []), {
+    kind: "project",
+    name: "#7",
+    worktrees: [],
+    branch: "pj/7",
+    pr: null,
+    state: "merged",
+    project: { number: 7, title: "P" },
+  });
+});
+
+test("projectPull reads the number from the project pull request's URL, and null without one", () => {
+  assert.deepEqual(projectPull(parent), {
+    number: 9,
+    title: "P",
+    url: "https://github.com/o/r/pull/9",
+  });
+  assert.equal(projectPull({ ...parent, projectPr: null }), null);
+  const { projectPr: _, ...bare } = parent;
+  assert.equal(projectPull(bare), null);
+  assert.equal(projectPull({ ...parent, projectPr: "https://github.com/o/r/issues/9" }), null);
 });

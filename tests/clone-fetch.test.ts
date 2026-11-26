@@ -18,7 +18,6 @@ const plugin = join(import.meta.dirname, "../plugins/annetaan");
 const scripts = join(plugin, "skills/workflow/scripts");
 
 const KEPT: readonly (readonly [string, string])[] = [
-  ["skills/pj4-running/scripts/run.ts", 'step: "fetch"'],
   ["skills/workflow/scripts/level.ts", '"git fetch failed"'],
 ];
 

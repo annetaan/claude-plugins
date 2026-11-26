@@ -686,6 +686,24 @@ const loadIn = (parent: number, where: string): Loaded => load(repoIn(where), pa
 export const readProject = (parent: number, where: string): Project =>
   viewOf(loadIn(parent, where)).view;
 
+export const startableAfter = (
+  proj: Project,
+  where: string,
+): readonly { readonly number: number; readonly title: string }[] =>
+  proj.parent.waitedOnBy
+    .flatMap((m) => {
+      try {
+        const q = readProject(m, where);
+        return q.parent.startable ? [{ number: m, title: q.parent.title }] : [];
+      } catch (error) {
+        if (error instanceof Failure) {
+          return [];
+        }
+        throw error;
+      }
+    })
+    .toSorted((a, b) => a.number - b.number);
+
 export const readOrder = (parent: number, where: string): OrderResult =>
   orderFor(loadIn(parent, where));
 

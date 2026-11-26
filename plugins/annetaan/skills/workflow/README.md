@@ -99,11 +99,10 @@ adds that decision to the issue, stops, and leaves the box for you to tick.
 The pull request body is `log.md`, which begins with a head of `Implements` and `Part of`. The run pushes and opens
 the pull request as a draft against the project's base branch. pj4-running merges it.
 
-All of it happens in the worktree pj4-running made for the project, so your own working tree is left alone, except for adding your answers to `.worktreeinclude`.
+Each issue runs in a worktree pj4-running made for it, so your own working tree is left alone, except for adding your answers to `.worktreeinclude`.
 
-A stop before every commit of the plan has passed review pushes nothing. pj4-running saves everything since the start
-point, commits included, to `stopped.diff` in the run's work report and puts the worktree back on the start point. The
-next run redoes the issue. A stop once the last commit and its integration review are done can only come during the
+A stop before every commit of the plan has passed review pushes nothing. pj4-running keeps that worktree, its commits
+on a detached HEAD, until `/annetaan:cleanup`, and the next run redoes the issue in a new one. A stop once the last commit and its integration review are done can only come during the
 finish step, so the run finishes it: the report, the push and the draft pull request. A pull request exists only for
 commits that passed review. The shape of the issues is in [pj1-plan/format.md](../pj1-plan/format.md), and the shape
 of the pull requests in [pj1-plan/between-skills.md](../pj1-plan/between-skills.md).
@@ -271,7 +270,7 @@ before it touches anything**.
 | `scripts/comments.sh` | fails on a comment outside the four kinds, or a silenced check the change adds, in the files a change touches. The implementation and review sessions run it |
 | `scripts/comments.ts` | the code `comments.sh` runs. Its scanners and verdicts live in `scripts/pure/comment-check.ts` |
 | `scripts/flow.sh` | makes the run's work directory and reads it back, reports a scope's round, cap, open findings and whether `approve` is allowed, runs a review seat's probe in a git worktree beside the run's, at a snapshot of the working tree, runs every probe of a round again and writes the draft of the round, removes the seats at cleanup, lints a review file, writes the pull request head and the `Level:` line into `log.md`, writes the prompt of each sub-agent call, and files the decision issues of `decisions.md` |
-| `scripts/flow.ts` | the code `flow.sh` runs. The agent table of the levels lives in `scripts/pure/agent-table.ts`, which `level.ts` imports. `worktrees.ts` and pj-cleanup's `cleanup.ts` import its `closeSeats` |
+| `scripts/flow.ts` | the code `flow.sh` runs. The agent table of the levels lives in `scripts/pure/agent-table.ts`, which `level.ts` imports. `worktrees.ts` imports its `closeSeats` |
 | `scripts/pure/` | the logic of these scripts, with no I/O |
 | `review-files.md` | the shape of the review files and the evidence files, read by the seats, the main session and the implementation session |
 

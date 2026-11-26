@@ -85,11 +85,8 @@ with the `level` `status` printed, and read only its `seats`, and `agents.workfl
 ahead. Every other call takes its model and effort from `flow.sh prompt` (**The prompts**). The run's `level` and
 `source` stay the ones `status` printed.
 
-Phase 2 (b) has not run yet when `status` stops with `no-run`, and also, in From an issue, when the `issue` it prints
-is not this run's `n`, and, in From a sync, when `issue` is not null. pj4-running reuses one `<WT>` for every issue,
-and the work directories of its earlier runs stay under `<WT>/work-reports/` until pj-cleanup, so before this run's
-`begin`, `status` answers `ok` with an earlier run. Then its `start` and `workdir` are not taken, phase 2 (b) is still
-ahead, and the level comes as at the start: standalone and From a pull request run `show` as the bullets above say,
+Phase 2 (b) has not run yet when `status` stops with `no-run`. Then phase 2 (b) is still ahead, and the level comes as
+at the start: standalone and From a pull request run `show` as the bullets above say,
 and From an issue and From a sync take the JSON pj4-running settled, which pj4-running brings back from its last
 `level` line, as between entries.
 
