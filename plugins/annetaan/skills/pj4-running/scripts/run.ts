@@ -11,7 +11,7 @@ import {
   realPath,
 } from "../../../scripts/clone.ts";
 import { fetchBranch } from "../../../scripts/fetch.ts";
-import { atLeast, ghVersion } from "../../../scripts/pure/gh-version.ts";
+import { requiredGh } from "../../../scripts/pure/gh-version.ts";
 import { stampOf } from "../../../scripts/pure/reports.ts";
 import { DIGIT, splitLines } from "../../../scripts/pure/text.ts";
 import {
@@ -308,8 +308,6 @@ const checksOn = (m: number): Settled => {
   return { kind: verdict(checks), checks };
 };
 
-const versionText = (v: readonly number[]): string => v.join(".");
-
 const start = (ctx: Context): string => {
   const main = mainWorktree();
   if (main === null) {
@@ -324,16 +322,11 @@ const start = (ctx: Context): string => {
   if (ghRun.code === 127) {
     stop("gh", "gh is not installed", out);
   }
-  const v = ghVersion(ghRun.stdout);
-  if (v === null || !atLeast(v, [2, 94, 0])) {
-    stop(
-      "gh",
-      `gh 2.94.0 or later is required, found ${v === null ? "an unknown version" : versionText(v)}`,
-      out,
-    );
+  const gh = requiredGh(ghRun.stdout);
+  if (gh.kind === "old") {
+    return stop("gh", gh.message, out);
   }
-  const version = v ?? [0, 0, 0];
-  out = { ...out, gh: versionText(version), attach: atLeast(version, [2, 99, 0]) };
+  out = { ...out, gh: gh.version };
   const auth = run(["gh", "auth", "status"]);
   if (auth.code !== 0) {
     stop("gh-auth", `gh is not logged in: ${splitLines(auth.stderr.trim()).at(-1) ?? ""}`, out);

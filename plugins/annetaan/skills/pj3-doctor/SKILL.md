@@ -51,12 +51,12 @@ invokes `/annetaan:pj3-doctor`.**
 
 ```bash
 git rev-parse --show-toplevel
-gh --version          # 2.94.0 or later
+gh --version          # 2.99.0 or later
 gh auth status
 gh repo view --json nameWithOwner,hasIssuesEnabled,defaultBranchRef
 ```
 
-- **Any of these failing stops the skill**: not a git repository, `gh` older than 2.94.0, `gh` not logged in, or
+- **Any of these failing stops the skill**: not a git repository, `gh` older than 2.99.0, `gh` not logged in, or
   issues turned off. Say which one and stop. The clone is needed because `project.sh --check` runs inside one.
 - A dirty working tree does not matter. This skill reads the code and changes nothing in it.
 

@@ -91,7 +91,7 @@ branch from the tip of `<from>` when the base branch is missing and every projec
 `status`.
 
 - **`stop`**: act by `reason`.
-  - `not-a-repo`, `no-origin`, `gh` (not installed, or older than 2.94.0), `gh-auth`, `issues-off`, `permission`
+  - `not-a-repo`, `no-origin`, `gh` (not installed, or older than 2.99.0), `gh-auth`, `issues-off`, `permission`
     (`viewerPermission` other than `WRITE`, `MAINTAIN` or `ADMIN`), `project` (`project.sh` failed, for example with
     `has no Base: line`), `create-failed`, `fetch-failed` and `no-merge-method`: say which check failed, quote
     `message`, and stop.
@@ -133,8 +133,6 @@ On Stop, stop the run. An unattended run does not ask: it treats this as Stop an
 the base branch allow.
 
 A dirty `<MAIN>` does not stop the run. The run never works in it.
-
-A `gh` older than 2.99.0 does not stop the run. `attach` is false then, and workflow falls back for the screenshots.
 
 Every stop here comes before the worktree is entered.
 

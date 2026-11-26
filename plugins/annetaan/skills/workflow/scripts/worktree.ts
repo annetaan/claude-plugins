@@ -18,7 +18,7 @@ import {
 import { git, run } from "../../../scripts/command.ts";
 import { fetchBranch, fetchFromOrigin, withCloneLock } from "../../../scripts/fetch.ts";
 import { losses, updateStep, type UpdateStep } from "../../../scripts/pure/cleanup-steps.ts";
-import { atLeast, ghVersion } from "../../../scripts/pure/gh-version.ts";
+import { requiredGh } from "../../../scripts/pure/gh-version.ts";
 import { oldReports, REPORTS_KEPT, stampOf } from "../../../scripts/pure/reports.ts";
 import { splitLines } from "../../../scripts/pure/text.ts";
 import { entry, Failure, statusLine, stop, UsageError } from "../../../scripts/status.ts";
@@ -173,12 +173,11 @@ const start = (): string => {
   if (ghRun.code === 127) {
     stop("gh", "gh is not installed", { main });
   }
-  const v = ghVersion(ghRun.stdout);
-  const out = {
-    main,
-    gh: v === null ? null : v.join("."),
-    attach: v !== null && atLeast(v, [2, 99, 0]),
-  };
+  const gh = requiredGh(ghRun.stdout);
+  if (gh.kind === "old") {
+    return stop("gh", gh.message, { main });
+  }
+  const out = { main, gh: gh.version };
   const auth = run(["gh", "auth", "status"]);
   if (auth.code !== 0) {
     stop("gh-auth", `gh is not logged in: ${splitLines(auth.stderr.trim()).at(-1) ?? ""}`, out);
@@ -198,7 +197,6 @@ const start = (): string => {
     mainBranch: worktreeList(main)[0]?.branch ?? null,
     defaultBranch: repo.defaultBranchRef?.name ?? null,
     gh: out.gh,
-    attach: out.attach,
   });
 };
 
