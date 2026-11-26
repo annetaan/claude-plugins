@@ -679,8 +679,8 @@ change under `plugins/annetaan/` needs one. `bash tests/plugin-version.sh` fails
 branch's, and `bash tests/plugin-version.sh --bump`, run from the repository root, writes it. Nobody edits the version
 by hand.
 
-Run `npm ci` once at the repository root, then `bash tests/run.sh`. It runs the type check, oxlint, oxfmt and every
-test, as CI does on each pull request. `npx oxfmt` formats the `.ts` files. The tests run through
+Run `pnpm install` once at the repository root, then `bash tests/run.sh`. It runs the type check, oxlint, oxfmt and
+every test, as CI does on each pull request. `pnpm exec oxfmt` formats the `.ts` files. The tests run through
 `plugins/annetaan/scripts/ts.sh --test`, which gives each test 600 s under Bun (`bun test --timeout 600000`). A test
 file sets no timeout of its own.
 
