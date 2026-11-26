@@ -6,7 +6,7 @@ ROOT="$(cd "$TESTS/.." && pwd)"
 
 for tool in tsc oxlint tsgolint oxfmt; do
   if [ ! -x "$ROOT/node_modules/.bin/$tool" ]; then
-    echo "tests/run.sh: $tool is missing; run npm ci in $ROOT" >&2
+    echo "tests/run.sh: $tool is missing; run pnpm install in $ROOT" >&2
     exit 1
   fi
 done
