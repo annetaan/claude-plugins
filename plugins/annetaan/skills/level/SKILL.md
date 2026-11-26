@@ -22,7 +22,8 @@ user. Collapse the `..` in a path to a sibling skill, so that the command text n
 This skill uses these files:
 
 - the script `<skills>/workflow/scripts/level.sh`, written `level.sh` below, for `show` and `history`
-- the script `<skills>/workflow/scripts/worktree.sh`, written `worktree.sh` below, for `start` and `create`
+- the script `<skills>/workflow/scripts/worktree.sh`, written `worktree.sh` below, for `start`, `create`, `proposal` and
+  `propose`
 - the script `<skills>/cleanup/scripts/cleanup.sh`, for `run` in **Ending with nothing changed**
 - `<skills>/workflow/worktree.md`, which you read for **The start check**, steps 3 and 4 of **The worktree** and
   **Ending with nothing changed**. `$FLOW` in that file means `<skills>/workflow`
@@ -54,12 +55,14 @@ The level is read from origin's default branch and from nowhere else, so this sk
 
 ## 2. An open pull request
 
+In `<MAIN>`, before any worktree exists, run:
+
 ```bash
-gh pr list --state open --base <base> --limit 100 --json number,url,headRefName
+<skills>/workflow/scripts/worktree.sh proposal level <base>
 ```
 
-When one has a head that starts with `level-`, give its URL, say that merging or closing it is the user's job and that
-either lets this skill run again, and stop.
+A non-null `pr`: give its `url`, say that merging or closing it is the user's job and that either lets this skill run
+again, and stop. Exit 1: quote the error and stop.
 
 ## 3. The worktree
 
@@ -105,9 +108,9 @@ Show, before you ask:
 - the `unread` entries of `history`, one line each as `#<pr>: <line>`, saying that no level reads them. Nothing when the list is empty
 - the file `.claude/annetaan-level.md` as it will be written: the front matter with `level`, `evaluated: <today>` and
   `review-by: <today + 90 days>`, and the body
-- the branch `level-<stamp>`, where `<stamp>` is `<name>` without `propose-`, and `base: <base>`
+- the branch `level/<stamp>`, where `<stamp>` is `<name>` without `propose-`, and `base: <base>`
 - when `git -C <WT> check-ignore -q .claude/annetaan-level.md` exits 0, that the path is ignored in this repository and
-  the commit adds it with `git add -f`
+  that the commit adds it all the same
 
 ```
 AskUserQuestion: Which level should this repository run at?
@@ -137,33 +140,29 @@ review-by: <today + 90 days>
 Claude Code asks before it writes under `.claude/`. That is expected. Then show `git -C <WT> diff --stat`, or
 `git -C <WT> status --short` when the file is new.
 
-## 8. Commit and push
-
-```bash
-git checkout -b level-<stamp>
-git add -- .claude/annetaan-level.md
-git commit -m "<subject>"
-git push -u origin level-<stamp>
-```
-
-Use `git add -f -- .claude/annetaan-level.md` when step 6 found the path ignored. Write the subject in the repository's
-commit style, as `git log` shows it. Commit the level file only.
-
-## 9. The pull request
+## 8. The pull request
 
 Write the body to `$TMP/pr.md`, in the repository's language: the chosen level and the proposed one, the three
 reasons, the groups of `history` as a table, and `since`. No line of it starts with `Level: `, because that prefix
-marks a workflow run's record.
+marks a workflow run's record. Write the subject in the repository's commit style, as `git log` shows it.
 
 ```bash
-gh pr create --base <base> --title "<subject>" --body-file "$TMP/pr.md"
+<skills>/workflow/scripts/worktree.sh propose <name> <base> --prefix level --path .claude/annetaan-level.md --subject "<subject>" --title "<subject>" --body "$TMP/pr.md"
 ```
 
-It is not a draft.
+It commits the level file alone on `level/<stamp>`, pushes it and opens a pull request that is never a draft. Act on
+what it prints:
 
-When the push or `gh pr create` fails, quote the error. When `gh pr create` exits non-zero, run
-`gh pr view level-<stamp> --json url` first and carry on with the URL when one exists, as `workflow/finish.md` does.
-Otherwise report that the commit is on the branch in `<WT>`, and that `/annetaan:cleanup` removes both.
+- `opened`: go on to **Report to the user** with `url`.
+- `unchanged`: say that the file is the same as on `<base>`, and take **Ending with nothing changed** in
+  `<skills>/workflow/worktree.md`.
+- `exists`: give `url`, say that merging or closing it is the user's job, that the commit is on `branch` in `<WT>` and
+  was not pushed, and that `/annetaan:cleanup` removes both.
+- `push-failed`: quote `message`, and say that the commit is on `branch` in `<WT>` and that `/annetaan:cleanup` removes
+  both.
+- `create-failed`: quote `message`, and say that `branch` is pushed with no pull request, and that `/annetaan:cleanup`
+  removes the worktree and the branch on both sides.
+- Exit 1: quote the error and stop, saying where `<WT>` is.
 
 ## Report to the user
 

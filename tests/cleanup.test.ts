@@ -221,7 +221,7 @@ test("list gives run and propose targets with their pull requests", () => {
   const run = create(main, "run");
   pullRequest("feat/l", 4, "MERGED", commitOn(run.worktree, "feat/l", "l.txt"));
   const proposal = create(main, "propose");
-  const level = `level-${proposal.name.slice("propose-".length)}`;
+  const level = `level/${proposal.name.slice("propose-".length)}`;
   pullRequest(level, 5, "OPEN", commitOn(proposal.worktree, level, "level.md"));
   const fresh = create(main, "run");
   const out = printed(main, "list");

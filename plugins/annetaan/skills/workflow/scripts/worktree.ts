@@ -12,6 +12,7 @@ import { requiredGh } from "../../../scripts/pure/gh-version.ts";
 import { splitLines } from "../../../scripts/pure/text.ts";
 import { entry, Failure, statusLine, stop, UsageError } from "../../../scripts/status.ts";
 import { includeIgnored } from "./include.ts";
+import { newestProposal, type OpenPull, proposalBranch } from "./pure/proposal.ts";
 import {
   addWorktree,
   listedNames,
@@ -29,6 +30,10 @@ const USAGE = `usage: worktree.sh start                          check the clone
                                                   ignored, copied, notIgnored and the unlisted ignored files
        worktree.sh sync <name> <base>             whether HEAD of the run-* worktree <name> conflicts with origin/<base>; on a conflict, start the merge
        worktree.sh pr [<number>]                  the open pull request <number>, or the open pull requests of the user that conflict
+       worktree.sh proposal <prefix> <base>       the newest open pull request into <base> from a branch <prefix>/*, or null
+       worktree.sh propose <name> <base> --prefix <prefix> --path <path> --subject <subject> --title <title> --body <file>
+                                                  in the propose-* worktree <name>, commit <path> alone on <prefix>/<stamp>,
+                                                  push it and open a pull request into <base>
 Every subcommand prints one JSON object with "status" and exits 0. "stop" carries "reason" and "message".
 Exit 1 means a usage error or an unexpected failure.
 `;
@@ -263,6 +268,160 @@ const pr = (number: string | undefined): string => {
   return statusLine({ status: "pick", candidates });
 };
 
+const openPulls = (main: string, base: string): readonly OpenPull[] => {
+  const r = run(
+    [
+      "gh",
+      "pr",
+      "list",
+      "--state",
+      "open",
+      "--base",
+      base,
+      "--limit",
+      "100",
+      "--json",
+      "number,url,headRefName",
+    ],
+    { cwd: main },
+  );
+  if (r.code !== 0) {
+    throw new Failure(`cannot list the open pull requests into ${base}: ${r.stderr.trim()}`);
+  }
+  try {
+    return JSON.parse(r.stdout) as readonly OpenPull[];
+  } catch {
+    throw new Failure(`gh pr list printed what is not JSON: ${r.stdout.trim()}`);
+  }
+};
+
+const proposal = (prefix: string, base: string): string =>
+  statusLine({ status: "ok", pr: newestProposal(prefix, openPulls(located(), base)) });
+
+const PROPOSE_FLAGS = ["--prefix", "--path", "--subject", "--title", "--body"] as const;
+
+type ProposeFlags = { readonly [K in (typeof PROPOSE_FLAGS)[number]]: string };
+
+const proposeFlags = (rest: readonly string[]): ProposeFlags => {
+  const flags = new Map<string, string>();
+  for (let i = 0; i < rest.length; i += 2) {
+    const flag = rest[i] ?? "";
+    const value = rest[i + 1];
+    if (
+      value === undefined ||
+      !(PROPOSE_FLAGS as readonly string[]).includes(flag) ||
+      flags.has(flag)
+    ) {
+      throw new UsageError("");
+    }
+    flags.set(flag, value);
+  }
+  const value = (flag: (typeof PROPOSE_FLAGS)[number]): string => {
+    const v = flags.get(flag);
+    if (v === undefined) {
+      throw new UsageError(`missing ${flag}`);
+    }
+    return v;
+  };
+  return {
+    "--prefix": value("--prefix"),
+    "--path": value("--path"),
+    "--subject": value("--subject"),
+    "--title": value("--title"),
+    "--body": value("--body"),
+  };
+};
+
+const opened = (branch: string, number: number, url: string): string =>
+  statusLine({ status: "opened", branch, number, url });
+
+const viewedPull = (
+  wt: string,
+  branch: string,
+): { readonly number: number; readonly url: string } | null => {
+  const view = run(["gh", "pr", "view", branch, "--json", "number,url"], { cwd: wt });
+  if (view.code !== 0) {
+    return null;
+  }
+  try {
+    return JSON.parse(view.stdout) as { readonly number: number; readonly url: string };
+  } catch {
+    return null;
+  }
+};
+
+const propose = (name: string, base: string, flags: ProposeFlags): string => {
+  const main = located();
+  const prefix = flags["--prefix"];
+  const path = flags["--path"];
+  const branch = proposalBranch(prefix, name);
+  if (branch === null || !listedNames(main, "propose-").includes(name)) {
+    throw new Failure(`${name} is no propose-* worktree of this clone`);
+  }
+  const wt = join(main, WORKTREES, name);
+  git(wt, ["add", "-f", "--", path]);
+  const same = run([
+    "git",
+    "-C",
+    wt,
+    "diff",
+    "--cached",
+    "--quiet",
+    `refs/remotes/origin/${base}`,
+    "--",
+    path,
+  ]);
+  if (same.code === 0) {
+    git(wt, ["reset", "--quiet", "--", path]);
+    return stop("unchanged", `${path} is the same as on origin/${base}`);
+  }
+  if (same.code !== 1) {
+    throw new Failure(`git diff --cached failed: ${same.stderr.trim()}`);
+  }
+  git(wt, ["checkout", "--quiet", "-b", branch]);
+  git(wt, ["commit", "--quiet", "-m", flags["--subject"], "--", path]);
+  const open = newestProposal(prefix, openPulls(main, base));
+  if (open !== null) {
+    return stop("exists", `pull request #${open.number} from a ${prefix}/* branch is open`, {
+      number: open.number,
+      url: open.url,
+      branch,
+    });
+  }
+  const push = run(["git", "-C", wt, "push", "--quiet", "-u", "origin", branch]);
+  if (push.code !== 0) {
+    return stop("push-failed", push.stderr.trim(), { branch });
+  }
+  const create = run(
+    [
+      "gh",
+      "pr",
+      "create",
+      "--base",
+      base,
+      "--head",
+      branch,
+      "--title",
+      flags["--title"],
+      "--body-file",
+      flags["--body"],
+    ],
+    { cwd: wt },
+  );
+  if (create.code === 0) {
+    const url = splitLines(create.stdout.trim()).at(-1) ?? "";
+    const number = /\/pull\/(\d+)/.exec(url)?.[1];
+    if (number === undefined) {
+      throw new Failure(`gh pr create printed no pull request URL: ${create.stdout.trim()}`);
+    }
+    return opened(branch, Number(number), url);
+  }
+  const found = viewedPull(wt, branch);
+  return found === null
+    ? stop("create-failed", create.stderr.trim(), { branch })
+    : opened(branch, found.number, found.url);
+};
+
 const main = (args: readonly string[]): string => {
   const [sub, first, second, third] = args;
   const count = args.length;
@@ -283,6 +442,12 @@ const main = (args: readonly string[]): string => {
   }
   if (sub === "pr" && count <= 2) {
     return pr(first);
+  }
+  if (sub === "proposal" && count === 3 && first !== undefined && second !== undefined) {
+    return proposal(first, second);
+  }
+  if (sub === "propose" && first !== undefined && second !== undefined) {
+    return propose(first, second, proposeFlags(args.slice(3)));
   }
   throw new UsageError("");
 };
