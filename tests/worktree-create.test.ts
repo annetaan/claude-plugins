@@ -13,6 +13,7 @@ import {
 import { tmpdir } from "node:os";
 import { basename, join } from "node:path";
 import { spawn, spawnSync } from "node:child_process";
+import { stampOf } from "../plugins/annetaan/scripts/pure/reports.ts";
 
 const script = join(import.meta.dirname, "../plugins/annetaan/skills/workflow/scripts/worktree.sh");
 
@@ -80,7 +81,7 @@ const tip = git(other, "rev-parse", "HEAD").trim();
 
 const runAsync = () =>
   new Promise<Ran>((resolve, reject) => {
-    const child = spawn("bash", [script, "create", "main"], { cwd: main, env });
+    const child = spawn("bash", [script, "create", "main", "--kind", "run"], { cwd: main, env });
     let stdout = "";
     let stderr = "";
     child.stdout.setEncoding("utf8");
@@ -122,6 +123,9 @@ test("6 parallel creates add work-reports/ to the exclude file once", () => {
 
 test("the names are distinct", () => {
   assert.equal(new Set(created.map((d) => d.name)).size, 6);
+  for (const d of created) {
+    assert.match(d.name, /^run-\d{4}-\d{2}-\d{2}-\d{4}(-\d+)?$/);
+  }
 });
 
 test("every worktree is listed, owns its git dir and is clean, and MAIN is clean", () => {
@@ -153,7 +157,7 @@ test("create stops with still-not-ignored and removes the worktree it made", () 
   git(negatedMain, "commit", "-q", "-m", "init");
   git(negatedMain, "remote", "add", "origin", negatedOrigin);
   git(negatedMain, "push", "-q", "origin", "main");
-  const result = spawnSync("bash", [script, "create", "main"], {
+  const result = spawnSync("bash", [script, "create", "main", "--kind", "run"], {
     cwd: negatedMain,
     env,
     encoding: "utf8",
@@ -178,4 +182,106 @@ test("create stops with still-not-ignored and removes the worktree it made", () 
     [`worktree ${negatedMain}`],
   );
   assert.deepEqual(readdirSync(join(negatedMain, ".claude/worktrees")), []);
+});
+
+const createIn = (cwd: string, ...args: readonly string[]) => {
+  const result = spawnSync("bash", [script, "create", ...args], { cwd, env, encoding: "utf8" });
+  return { code: result.status, stdout: result.stdout, stderr: result.stderr };
+};
+
+test("create on still-not-ignored leaves no worktree and moves nothing when the repository tracks a work report", () => {
+  const trackedOrigin = join(tmp, "tracked.git");
+  const tracked = join(tmp, "tracked");
+  git(tmp, "init", "-q", "--bare", "-b", "main", trackedOrigin);
+  git(tmp, "init", "-q", "-b", "main", tracked);
+  const trackedMain = realpathSync(tracked);
+  writeFileSync(join(trackedMain, ".gitignore"), "!work-reports/\n");
+  mkdirSync(join(trackedMain, "work-reports/2026-01-01-0000-abc"), { recursive: true });
+  writeFileSync(join(trackedMain, "work-reports/2026-01-01-0000-abc/log.md"), "# log\n");
+  git(trackedMain, "add", ".gitignore", "work-reports");
+  git(trackedMain, "commit", "-q", "-m", "init");
+  git(trackedMain, "remote", "add", "origin", trackedOrigin);
+  git(trackedMain, "push", "-q", "origin", "main");
+  const result = createIn(trackedMain, "main", "--kind", "run");
+  assert.equal(result.code, 0, result.stderr);
+  const d = JSON.parse(result.stdout) as { readonly status: string; readonly reason: string };
+  assert.equal(d.reason, "still-not-ignored", result.stdout);
+  assert.deepEqual(
+    lines(git(trackedMain, "worktree", "list", "--porcelain")).filter((line) =>
+      line.startsWith("worktree "),
+    ),
+    [`worktree ${trackedMain}`],
+  );
+  assert.deepEqual(readdirSync(join(trackedMain, "work-reports")), ["2026-01-01-0000-abc"]);
+});
+
+test("create --kind propose names the worktree propose-<stamp>", () => {
+  const result = createIn(main, "main", "--kind", "propose");
+  assert.equal(result.code, 0, result.stderr);
+  const d = JSON.parse(result.stdout) as Created;
+  assert.equal(d.status, "ready", result.stdout);
+  assert.match(d.name, /^propose-\d{4}-\d{2}-\d{2}-\d{4}(-\d+)?$/);
+  assert.equal(d.worktree, join(main, ".claude/worktrees", d.name));
+});
+
+test("create without --kind or with another kind exits 1", () => {
+  for (const args of [["main"], ["main", "--kind", "wf"], ["main", "--kind"]]) {
+    const result = createIn(main, ...args);
+    assert.equal(result.code, 1, `${args.join(" ")}: ${result.stdout}`);
+    assert.match(result.stderr, /usage: worktree\.sh/);
+  }
+});
+
+test("create takes the next free suffix when .claude/worktrees/<name> exists", () => {
+  const freeOrigin = join(tmp, "free.git");
+  const free = join(tmp, "free");
+  git(tmp, "init", "-q", "--bare", "-b", "main", freeOrigin);
+  git(tmp, "init", "-q", "-b", "main", free);
+  const freeMain = realpathSync(free);
+  writeFileSync(join(freeMain, "README.md"), "readme\n");
+  git(freeMain, "add", "README.md");
+  git(freeMain, "commit", "-q", "-m", "init");
+  git(freeMain, "remote", "add", "origin", freeOrigin);
+  git(freeMain, "push", "-q", "origin", "main");
+  const now = Date.now();
+  const taken = [stampOf(new Date(now)), stampOf(new Date(now + 60_000))].map(
+    (stamp) => `run-${stamp}`,
+  );
+  for (const name of taken) {
+    mkdirSync(join(freeMain, ".claude/worktrees", name), { recursive: true });
+  }
+  const result = createIn(freeMain, "main", "--kind", "run");
+  assert.equal(result.code, 0, result.stderr);
+  const d = JSON.parse(result.stdout) as Created;
+  assert.equal(d.status, "ready", result.stdout);
+  assert.ok(
+    taken.map((name) => `${name}-2`).includes(d.name),
+    `${d.name} is none of ${taken.join(", ")} with -2`,
+  );
+});
+
+test("sync on a run worktree that conflicts with origin/main prints conflict and leaves the merge in progress", () => {
+  const result = createIn(main, "main", "--kind", "run");
+  assert.equal(result.code, 0, result.stderr);
+  const d = JSON.parse(result.stdout) as Created;
+  writeFileSync(join(d.worktree, "README.md"), "mine\n");
+  git(d.worktree, "commit", "-q", "-am", "mine");
+  writeFileSync(join(other, "README.md"), "theirs\n");
+  git(other, "commit", "-q", "-am", "theirs");
+  git(other, "push", "-q", "origin", "main");
+  const synced = spawnSync("bash", [script, "sync", d.name, "main"], {
+    cwd: main,
+    env,
+    encoding: "utf8",
+  });
+  assert.equal(synced.status, 0, synced.stderr);
+  const s = JSON.parse(synced.stdout) as {
+    readonly status: string;
+    readonly files: readonly string[];
+    readonly base: string;
+  };
+  assert.equal(s.status, "conflict", synced.stdout);
+  assert.deepEqual(s.files, ["README.md"]);
+  assert.equal(s.base, "main");
+  assert.equal(gitResult(d.worktree, "rev-parse", "-q", "--verify", "MERGE_HEAD").status, 0);
 });

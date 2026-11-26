@@ -79,21 +79,21 @@ const common = join(main, ".git");
 
 test("a clone lock directory holding a dead pid does not stop worktree.sh create", () => {
   lockDir(join(common, "annetaan-clone.lockdir"), deadPid());
-  assert.equal(json(worktreeSh, main, "create", "main").status, "ready");
+  assert.equal(json(worktreeSh, main, "create", "main", "--kind", "run").status, "ready");
   assert.ok(!existsSync(join(common, "annetaan-clone.lockdir")), "the clone lock was left behind");
 });
 
 test("a left-over regular file annetaan-clone.lock does not stop worktree.sh create", () => {
   writeFileSync(join(common, "annetaan-clone.lock"), "");
-  assert.equal(json(worktreeSh, main, "create", "main").status, "ready");
+  assert.equal(json(worktreeSh, main, "create", "main", "--kind", "run").status, "ready");
   assert.equal(readFileSync(join(common, "annetaan-clone.lock"), "utf8"), "");
 });
 
-const wt = join(main, ".claude/worktrees/wf-test");
+const wt = join(main, ".claude/worktrees/run-test");
 git(main, "worktree", "add", "-q", "--detach", wt, "HEAD");
 const probe = join(wt, "work-reports/2026-01-01-0000-aaaaaaa/seats/a/ok");
 write(join(probe, "run.sh"), "true\n");
-const seatLock = (seat: string): string => join(common, `panel-wf-test-${seat}.lockdir`);
+const seatLock = (seat: string): string => join(common, `panel-run-test-${seat}.lockdir`);
 
 test("a seat lock directory holding a dead pid does not stop flow.sh run", () => {
   lockDir(seatLock("a"), deadPid());
@@ -113,14 +113,14 @@ test("a seat lock directory holding a live pid gives busy", () => {
 test("flow.sh close removes the seat lock directories with the seats", () => {
   assert.equal(json(flowSh, main, "run", wt, "b", probe).status, "ran");
   lockDir(seatLock("b"), sleeper.pid ?? 0);
-  appendFileSync(join(common, "panel-wf-test-a.lock"), "");
+  appendFileSync(join(common, "panel-run-test-a.lock"), "");
   const out = json(flowSh, main, "close", wt);
   assert.equal(out.status, "closed");
   assert.deepEqual(out.removed, [
-    join(main, ".claude/worktrees/review-wf-test-a"),
-    join(main, ".claude/worktrees/review-wf-test-b"),
+    join(main, ".claude/worktrees/review-run-test-a"),
+    join(main, ".claude/worktrees/review-run-test-b"),
   ]);
   assert.ok(!existsSync(seatLock("a")), "close left the lock of seat a");
   assert.ok(!existsSync(seatLock("b")), "close left the lock of seat b");
-  assert.ok(existsSync(join(common, "panel-wf-test-a.lock")), "close removed an old lock file");
+  assert.ok(existsSync(join(common, "panel-run-test-a.lock")), "close removed an old lock file");
 });

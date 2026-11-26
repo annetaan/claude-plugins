@@ -1,5 +1,5 @@
 import { lstatSync, mkdirSync, readdirSync, renameSync, rmSync, statSync } from "node:fs";
-import { basename, dirname, join } from "node:path";
+import { dirname, join } from "node:path";
 import { isStamped, landings, type Landing } from "./pure/reports.ts";
 import { Failure } from "./status.ts";
 
@@ -44,7 +44,7 @@ export const stampedIn = (root: string): readonly string[] =>
   );
 
 const landingsOf = (main: string, wt: string): readonly Landing[] =>
-  landings(entries(join(main, "work-reports")), reportsIn(wt), basename(wt));
+  landings(entries(join(main, "work-reports")), reportsIn(wt));
 
 export const incomingReports = (main: string, wt: string): readonly string[] => {
   const sources = new Set(stampedIn(join(wt, "work-reports")));

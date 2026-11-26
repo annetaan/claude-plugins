@@ -48,9 +48,9 @@ const fakePath = `${bin}:${process.env["PATH"] ?? ""}`;
 
 const work = join(tmp, "work");
 const main = join(realpathSync(tmp), "work");
-const wt = join(main, ".claude/worktrees/wf-test");
-const a = join(main, ".claude/worktrees/review-wf-test-a");
-const b = join(main, ".claude/worktrees/review-wf-test-b");
+const wt = join(main, ".claude/worktrees/run-test");
+const a = join(main, ".claude/worktrees/review-run-test-a");
+const b = join(main, ".claude/worktrees/review-run-test-b");
 const report = join(wt, "work-reports/2026-01-01-0000-aaaaaaa");
 
 const gitResult = (cwd: string, ...args: readonly string[]) =>
@@ -144,7 +144,7 @@ const setup = (): void => {
     join(main, ".git/info/exclude"),
     "work-reports/\n.claude/worktrees/\nnode_modules/\n",
   );
-  git(main, "worktree", "add", "-q", "--detach", ".claude/worktrees/wf-test", "HEAD");
+  git(main, "worktree", "add", "-q", "--detach", ".claude/worktrees/run-test", "HEAD");
 };
 
 const dirty = (): void => {
@@ -172,7 +172,7 @@ const mergeInProgress = (): string => {
   write(join(main, "a"), "other\n");
   git(main, "commit", "-q", "-am", "other");
   assert.notEqual(gitResult(wt, "merge", "-q", "other").status, 0, "the merge did not conflict");
-  assert.ok(existsSync(join(main, ".git/worktrees/wf-test/MERGE_HEAD")), "no merge in progress");
+  assert.ok(existsSync(join(main, ".git/worktrees/run-test/MERGE_HEAD")), "no merge in progress");
   return beforeMerge;
 };
 
@@ -288,7 +288,7 @@ test("run during a merge in progress leaves MERGE_HEAD in place", () => {
     probe("a", "merge", "git diff --name-only --diff-filter=U; head -1 a"),
   );
   assert.equal(out.status, "ran");
-  assert.ok(existsSync(join(main, ".git/worktrees/wf-test/MERGE_HEAD")), "run removed MERGE_HEAD");
+  assert.ok(existsSync(join(main, ".git/worktrees/run-test/MERGE_HEAD")), "run removed MERGE_HEAD");
   assert.notEqual(git(wt, "diff", "--name-only", "--diff-filter=U"), "");
 });
 
@@ -301,7 +301,7 @@ test("run stops with outside, no-script, busy and unknown, a lock file nobody ho
   assert.equal(flowJson("run", wt, "a", join(wt, "work-reports-x")).reason, "outside");
   mkdirSync(join(report, "seats/a/empty"), { recursive: true });
   assert.equal(flowJson("run", wt, "a", join(report, "seats/a/empty")).reason, "no-script");
-  write(join(main, ".git/panel-wf-test-a.lock"), "stale\n");
+  write(join(main, ".git/panel-run-test-a.lock"), "stale\n");
   assert.equal(flowJson("run", wt, "a", p).status, "ran");
   const marker = join(tmp, "held");
   const slow = runAsync("run", wt, "a", probe("a", "slow", `touch '${marker}'; sleep 3`));
@@ -502,7 +502,7 @@ test("begin during a merge in progress takes the commit the merge started on", (
   const beforeMerge = mergeInProgress();
   assert.equal(flowJson("begin", wt, "--level", "high", "--source", "default").start, beforeMerge);
   assert.ok(
-    existsSync(join(main, ".git/worktrees/wf-test/MERGE_HEAD")),
+    existsSync(join(main, ".git/worktrees/run-test/MERGE_HEAD")),
     "begin removed MERGE_HEAD",
   );
 });

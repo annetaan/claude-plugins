@@ -21,15 +21,17 @@ It prints `status: ok` with `main`, `mainBranch`, `defaultBranch` and `gh`, the 
 
 ## The worktree
 
-The standalone flow works in a git worktree of its own, `.claude/worktrees/wf-<stamp>` inside `<MAIN>`, detached at the tip of the base branch on origin. `<MAIN>` stays as the user left it, except for the lines the answers of **Files `.worktreeinclude` does not name** add to `<MAIN>/.worktreeinclude`. Run these steps before phase 1, so that design reads the code in `<WT>`.
+The standalone flow works in a git worktree of its own, `.claude/worktrees/run-<stamp>` inside `<MAIN>`, detached at the tip of the base branch on origin. `<MAIN>` stays as the user left it, except for the lines the answers of **Files `.worktreeinclude` does not name** add to `<MAIN>/.worktreeinclude`. Run these steps before phase 1, so that design reads the code in `<WT>`.
 
 1. **The base.** The branch the request names, otherwise `defaultBranch`.
 2. **The base question.** Only when the repository's instructions in context (`CLAUDE.md`) ask for the base branch to be confirmed on every run. They are free-form, so you judge whether they do. Ask one `AskUserQuestion` with these options in this order, leaving out any that repeat an earlier one: the branch the request names `(Recommended)`; `defaultBranch` (`(Recommended)` when it comes first); `mainBranch` when it is set and differs from the default branch. The tool adds Other on its own. The answer is the base. **When fewer than two options remain**, ask a two-option confirm question instead: `Use <base> (Recommended)` and `Another branch - type its name under Other`, where `<base>` is the one candidate. An answer under Other is the base.
 3. **Create it.**
 
    ```bash
-   $FLOW/scripts/worktree.sh create <base>
+   $FLOW/scripts/worktree.sh create <base> --kind run
    ```
+
+   `level` and `pj-roadmap` pass `--kind propose` in place of `--kind run`, which names the worktree `propose-<stamp>`.
 
    - `ready`: keep `worktree` as `<WT>`, `name` as `<name>` and `base` as `<base>`. Then act on the four lists it carries.
      - `ignored` not empty: `create` added these paths to `.git/info/exclude`, because that file had no line for them. Print `ignored <paths>` once, adding that `.git/info/exclude` stays in the clone and commits nothing.
@@ -81,14 +83,13 @@ A non-zero exit is quoted and stops the run, as for `worktree.sh`. The file sits
 When the run ends before phase 2 creates its branch, leave the worktree and remove it.
 
 1. When you have entered `<WT>` (**The worktree** step 4), `ExitWorktree(action: "keep")`, or `cd <MAIN>` where that tool is not available.
-2. `git -C <MAIN> worktree remove <WT>`
-3. Only when git refused step 2:
+2. Remove it:
 
    ```bash
-   $FLOW/scripts/worktree.sh check <name>
+   $FLOW/../cleanup/scripts/cleanup.sh run <name>
    ```
 
-   - `ok` with an empty `loses`: the repository has submodules, which git refuses whatever the state of the worktree, and nothing in `<WT>` is lost. Run `git -C <MAIN> worktree remove --force <WT>`.
-   - `ok` with `loses` not empty, or any `stop`: quote git's refusal (and `message` on a `stop`), name `<WT>`, and point to `/annetaan:workflow-cleanup`.
+   - `done`: go on.
+   - `stop`, `discard` among them: quote `message`, name `<WT>`, and point to `/annetaan:cleanup`.
 
-The reasons: a feasibility of "no" or "conditional" the user does not pursue, an open question whose answer ends the flow, and the user saying stop. Design sessions never change code, so step 2 has no `--force`. The session never decides on `--force` from git's message text or from `git status`: `check` decides.
+The reasons: a feasibility of "no" or "conditional" the user does not pursue, an open question whose answer ends the flow, and the user saying stop. Design sessions never change code, so the session never passes `--discard` here. The session never decides on `--force` from git's message text or from `git status`: `run` decides, from the submodules of `<WT>`.

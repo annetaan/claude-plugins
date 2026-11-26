@@ -37,7 +37,7 @@ removes the project's worktree after moving its work reports into the main worki
 origin and locally, fast-forwards the local `<from>`, and deletes the work reports in the main working tree beyond the 100 newest, by the time stamp in their name.
 
 `pj-roadmap` is not one of the four either. It brings the repository's roadmap file into the format (`format.md`,
-**The roadmap file**) on a branch of its own and opens a pull request that the user merges. `workflow-cleanup` tidies up
+**The roadmap file**) on a branch of its own and opens a pull request that the user merges. `cleanup` tidies up
 after it.
 
 ## Principle

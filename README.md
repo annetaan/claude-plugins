@@ -33,7 +33,7 @@ Or let Claude Code do it. Open `/plugin`, go to Marketplaces, pick `annetaan` an
 | [annetaan](plugins/annetaan) | `/plugin install annetaan@annetaan` | [16 skills](plugins/annetaan/README.md#skills) |
 
 - [workflow](plugins/annetaan/skills/workflow) runs one implementation, from design to pull request, in a worktree of its own, and
-  [workflow-cleanup](plugins/annetaan/README.md#workflow-cleanup) tidies up after it.
+  [cleanup](plugins/annetaan/README.md#cleanup) tidies up after it.
 - [pj1-plan, pj2-issues, pj3-doctor and pj4-running](plugins/annetaan/README.md#pj1-plan-pj2-issues-pj3-doctor-pj4-running)
   run larger work as projects on GitHub, each task implemented through workflow.
   [pj-auto](plugins/annetaan/README.md#pj-auto) drives a project until it needs you, and

@@ -42,7 +42,7 @@ $FLOW/scripts/worktree.sh pr <number>
 
 ## The worktree
 
-Run steps 3 to 5 of **The worktree** in `worktree.md` with `<head>` in place of the base: `worktree.sh create <head>` puts the new
+Run steps 3 to 5 of **The worktree** in `worktree.md` with `<head>` in place of the base: `worktree.sh create <head> --kind run` puts the new
 worktree on the tip of `origin/<head>`, detached, so a worktree that already has `<head>` checked out, such as the
 one the run that opened the pull request left, is not in the way. A stop there ends this entry, as it would a
 standalone run. Then run **The level** in SKILL.md, and when `level.sh show` exits non-zero, quote the message and leave
@@ -78,7 +78,8 @@ git -C <WT> push origin HEAD:refs/heads/<head>
 
 A plain push goes through only as a fast-forward, so it never rewrites the branch. When git refuses it because
 `<head>` moved on origin, say so: someone pushed to it during the run. Leave `<WT>` with its merge commit, say that
-`/annetaan:workflow-cleanup`, picking `<name>`, removes it, and stop. Ask the user whether to run the merge again on the new tip.
+`/annetaan:cleanup`, picking `<name>`, removes it, and stop. The merge commit on the detached HEAD is on no ref of
+origin, so the cleanup counts it as `commits` in `loses` and asks before it removes it. Ask the user whether to run the merge again on the new tip.
 
 ## Cleaning up and the report
 
@@ -86,13 +87,13 @@ After a push, or when nothing needed resolving, leave the worktree (`ExitWorktre
 and remove it.
 
 ```bash
-$FLOW/scripts/worktree.sh cleanup <name>
+$FLOW/../cleanup/scripts/cleanup.sh run <name>
 ```
 
 The worktree holds a detached HEAD whose commit is on origin, so nothing is lost: the work reports move into
 `<MAIN>/work-reports/`, the worktree is removed, and the reports in `<MAIN>/work-reports/` beyond the 100 newest, by
 the time stamp in their name, are deleted. On `stopped` from the merge task, leave `<WT>` as it is instead,
-and say that `/annetaan:workflow-cleanup`, picking `<name>`, removes it.
+and say that `/annetaan:cleanup`, picking `<name>`, removes it.
 
 Tell the user: the pull request URL, the files resolved and how each was settled, in a line each, the merge commit,
 what the review rounds changed, the `later` reports, the work reports the cleanup deleted from `<MAIN>/work-reports/` (`oldReports.deleted`) when there are any, and where the review files now are. For a pull request
