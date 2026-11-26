@@ -33,8 +33,8 @@ splits one project into sub-issues once every project it waits on is merged. You
 `pj3-doctor` makes the issues ready. `pj4-running` runs `workflow` once per sub-issue, merges each pull request into
 the project's branch and closes the issue, and at the end opens the pull request that takes the project's branch
 back. The pj skills pass one thing through the conversation, which project it is on, so a run started without a number goes on with that project. Everything else each one reads from GitHub afresh.
-`pj-auto` drives the doctor and the runner and stops where you are needed. `pj-cleanup` tidies up once you have merged
-a project. `cleanup` does the same for a workflow run or a `level` or `pj-roadmap` proposal. `pj-roadmap` brings an existing roadmap file into the
+`pj-auto` drives the doctor and the runner and stops where you are needed. `cleanup` tidies up after a merged project,
+a workflow run, or a `level` or `pj-roadmap` proposal. `pj-roadmap` brings an existing roadmap file into the
 format the pj skills read, through a pull request.
 
 Which skill to start with:
@@ -97,12 +97,12 @@ In short, from [format.md](skills/pj1-plan/format.md)'s The parts:
 
 Only two pieces of a project's state live outside GitHub: your approval within one run, which the next run asks for
 again unless it starts `unattended` (every run of a `pj-auto` drive does, under the drive's one approval), and the
-uncommitted work a run leaves in its worktree under `.claude/worktrees/` when it ends without saving it, which the
-next run saves to `stopped.diff` and discards, and never uses.
+work a stopped run leaves in its own worktree under `.claude/worktrees/`, which stays there until
+`/annetaan:cleanup <P>`, while the next run redoes the issue in a new worktree.
 Because of this, a project can stop anywhere and resume in another session or on another machine.
 
-The work report of each task is a record, not state. It stays local and no later run reads it. A stopped task's work is saved there too, as `stopped.diff`, and so is the work a dead run left in the worktree, in a
-`<stamp>-discarded` directory. Only its `log.md` reaches GitHub, as the pull request's body.
+The work report of each task is a record, not state. It stays local and no later run reads it. Only its `log.md`
+reaches GitHub, as the pull request's body.
 
 ```mermaid
 flowchart TB
@@ -248,7 +248,7 @@ A project that waits on another is split into tasks, and gets its branch, only a
 that branch. Every
 sub-issue's pull request merges into its project's branch. Once every sub-issue is closed, `pj4-running` merges the
 branch it came from into it, with `workflow` resolving any conflict under review, then opens the pull request that
-takes that branch back into the branch it came from, and merging it is left to you. A sub-issue may leave a named check failing on the project's branch when a later one closes it, and `pj4-running` runs every such check before it opens the project's pull request. After that the parent is closed, by `pj-cleanup`, the next `pj4-running` run or you, and
+takes that branch back into the branch it came from, and merging it is left to you. A sub-issue may leave a named check failing on the project's branch when a later one closes it, and `pj4-running` runs every such check before it opens the project's pull request. After that the parent is closed, by `cleanup`, the next `pj4-running` run or you, and
 a closed parent means its project is merged. [How the skills fit together](#how-the-skills-fit-together) says where
 the state lives. [format.md](skills/pj1-plan/format.md) describes the issues and their bodies,
 [state.md](skills/pj1-plan/state.md) how the state of a project is read, and
@@ -333,7 +333,7 @@ flowchart TD
     doctor --> run["pj4-running, per project<br/>makes its branch on the first run,<br/>then down the run order: branch,<br/>detail against the code, workflow,<br/>draft pull request, merge<br/>into the project's branch"]
     run -->|"stub, blocker or detail failed"| doctor
     run -->|"all merged"| pr["pj4-running merges the branch it came from<br/>into the project's branch, then opens<br/>the pull request back into it"]
-    pr --> done(["you merge it"]) --> cleanup["pj-cleanup<br/>closes the parent,<br/>removes the worktree and the project's branch,<br/>brings your branch up to date"]
+    pr --> done(["you merge it"]) --> cleanup["cleanup<br/>closes the parent,<br/>removes the project's worktrees and branch,<br/>brings your branch up to date"]
     cleanup -.->|"a project that waits on it"| split
 
     you(["you, on GitHub"]) -.->|"tick a box,<br/>reorder the run order"| split
@@ -344,7 +344,7 @@ flowchart TD
     class req,approve,you,done human
 ```
 
-After you merge a project's pull request, `/annetaan:pj-cleanup` tidies up.
+After you merge a project's pull request, `/annetaan:cleanup <P>` tidies up.
 
 What they need:
 
@@ -363,10 +363,10 @@ it is.
 `pj4-running` adds `.claude/worktrees/` and `work-reports/` to `.git/info/exclude` without asking, when that
 file has no line for them. That file stays in your clone, so nothing is committed, and `.gitignore` is never edited. It asks before
 its first task about the ignored files `.worktreeinclude` does not name,
-as workflow does, except that an unattended run only lists them and goes on. When an earlier run ended without saving its work in the worktree, for
-example a process that was killed, it does not ask: it saves that work to `work-reports/<stamp>-discarded/stopped.diff`
-in the worktree and discards it. The run then redoes that work. Run one session per project, because a
-second session's work in the worktree would be taken for a dead run's.
+as workflow does, except that an unattended run only lists them and goes on. Each issue runs in a worktree of its
+own, and the merge of the branch the project came from runs in another. A stopped run's worktree is kept, with its
+work, for the cleanup, and the next run redoes the issue in a new one. Run one session per project, because two runs
+would merge into the same branch.
 
 ### pj-auto
 
@@ -378,7 +378,7 @@ one process per step. It never reads a run's report to decide, only the project 
 It asks one approval question per drive, and only when a step would run (the question which project comes before it, when
 the project is not given, not the one this conversation is on and not the only candidate): a summary of the project, what the steps do and which of
 your rules block the ones the runs are granted, then start or not. That approval covers the whole drive, and the runs ask nothing. Each run starts in Claude Code's auto mode,
-with the rules every drive needs granted on the command line. It edits files inside your clone, the project's worktree and a
+with the rules every drive needs granted on the command line. It edits files inside your clone, the run's worktrees and a
 directory of its own without asking, and auto mode's classifier runs or refuses each other command. The merges
 into the project's branch happen. The project's own pull request is never merged. The drive keeps the Mac from idle sleep
 until it ends (closing the lid still sleeps it), and a run may wait up to 60 minutes after its last turn for its background work.
@@ -406,24 +406,6 @@ What it needs:
 - no sub-issue that changes files under `.claude/` can run unattended, because Claude Code asks before writing there
   whatever your rules say. pj-auto names such issues. The drive stops at one, and `/annetaan:pj4-running` run by hand
   does it.
-
-### pj-cleanup
-
-`/annetaan:pj-cleanup` ([details](skills/pj-cleanup/SKILL.md)) cleans up after you merge a project's pull request.
-Without a number, it takes the project this conversation is on when that one is merged and has its worktree in your clone, otherwise the only merged project with a worktree there, and asks when there are several. It
-shows what it will do and goes on without asking. Then it closes the parent when it is still open, moves the work reports out of
-the project's worktree into `work-reports/` in your clone, removes the worktree and the review seats beside it, deletes the project's branch on
-origin and locally, fast-forwards your local copy of the branch the project merged into, usually `main`, and deletes the work reports in `work-reports/` beyond the 100 newest, by the time stamp in their name.
-
-It never switches your branch, stashes or resets. When the branch is checked out in your clone, it moves with
-`git merge --ff-only`, which refuses rather than overwrite a local change. A local branch with commits origin does not
-have is left alone and named in the report, and so is a local project branch with commits nowhere on origin. A
-worktree with uncommitted work, or with a submodule that holds work of its own, is removed only when you choose to discard that work. It names the projects that can
-be split now that this one is merged.
-
-```
-/annetaan:pj-cleanup 12
-```
 
 ### pj-roadmap
 
@@ -457,12 +439,20 @@ commits it on a new branch, pushes it and opens a pull request into the default 
 
 ### cleanup
 
-`/annetaan:cleanup` ([details](skills/cleanup/SKILL.md)) cleans up after a workflow run, or after a `level` or `pj-roadmap` proposal. Without a
-number, it lists the `run-*` and `propose-*` worktrees whose pull request is merged or closed, and those that have none, which is a run that
-stopped or one still going in another session. When the only candidate has a merged or closed pull request, it takes that one. Otherwise, with several candidates or one with no pull request, it asks which, because a run with no pull request may still be going and is cleaned up only when you pick it. It shows what it will do and goes on without asking. Then it moves the work
+`/annetaan:cleanup` ([details](skills/cleanup/SKILL.md)) cleans up after a merged project, a workflow run, or a `level` or `pj-roadmap` proposal.
+It takes a pull request number or a project's parent number. Without a number, it lists the `run-*` and `propose-*`
+worktrees whose pull request is merged or closed, and those that have none, which is a run that stopped or one still
+going in another session, and one `#<P>` entry per project with `pj-<P>-*` worktrees in your clone, of which only the
+merged ones are offered. A merged project of this conversation is taken without asking. When the only candidate has a merged or closed pull request, it takes that one. Otherwise, with several candidates or one with no pull request, it asks which, because a run with no pull request may still be going and is cleaned up only when you pick it. It shows what it will do and goes on without asking. Then it moves the work
 reports into `work-reports/` in your clone, removes the worktree and the review seats beside it, deletes the branch locally and on origin,
 fast-forwards your local base after a merge, and deletes the work reports in `work-reports/` beyond the 100 newest, by
 the time stamp in their name.
+
+For a project, it closes the parent when it is still open, removes every `pj-<P>-*` worktree of the project, deletes
+the project's branch locally and on origin, and fast-forwards your local copy of the branch the project merged into,
+usually `main`. A local project branch with commits nowhere on origin, or one checked out elsewhere, is kept and named
+in the report, and so is a run's branch with commits origin does not have. It names the projects that can be split now
+that this one is merged.
 
 It never switches your branch, stashes or resets. Work that nothing else holds is removed only when you choose to
 discard it. That means uncommitted changes, what a submodule in the worktree holds on its own (its uncommitted changes and the commits no remote of the submodule has), commits that are on no other branch on origin, the commits on a detached HEAD that no ref on origin holds, and the branch of a closed
@@ -470,6 +460,7 @@ pull request. An open pull request is never touched.
 
 ```
 /annetaan:cleanup 57
+/annetaan:cleanup 12
 ```
 
 ### doc-write
@@ -628,7 +619,7 @@ dropout: the round goes on with the seats that reported.
 
 `pj4-running` has no agents of its own. It runs workflow's.
 
-`pj-auto` has no agents of its own. The runs it starts use theirs. `pj-cleanup`, `pj-roadmap` and `cleanup` have none either.
+`pj-auto` has no agents of its own. The runs it starts use theirs. `pj-roadmap` and `cleanup` have none either.
 
 The agent definitions are thin. The substance of each role lives in the skill's `roles/*.md`, and an agent reads
 that path out of the prompt the main session hands it.

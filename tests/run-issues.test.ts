@@ -218,7 +218,7 @@ test("close and stop refuse an unmarked comment before any write", () => {
 
 test("close takes the marker of every skill", () => {
   const marked = join(tmp, "marked.md");
-  for (const marker of ["**[pj3-doctor]**", "**[pj4-running]**", "**[pj-cleanup]**"]) {
+  for (const marker of ["**[pj3-doctor]**", "**[pj4-running]**", "**[cleanup]**"]) {
     setup();
     writeFileSync(marked, `${marker} closed\n`);
     const out = printed(runSh("close", "1", "2", "--comment", marked));
@@ -227,12 +227,10 @@ test("close takes the marker of every skill", () => {
   }
   setup([{ ...openTask, state: "CLOSED", stateReason: "COMPLETED" }]);
   const cleanup = join(tmp, "cleanup.md");
-  writeFileSync(cleanup, "**[pj-cleanup]** merged\n");
+  writeFileSync(cleanup, "**[cleanup]** merged\n");
   const out = printed(runSh("close", "1", "1", "--comment", cleanup));
   assert.equal(out.status, "closed");
-  assert.deepEqual(writes(), [
-    "issue close 1 --reason completed --comment **[pj-cleanup]** merged ",
-  ]);
+  assert.deepEqual(writes(), ["issue close 1 --reason completed --comment **[cleanup]** merged "]);
 });
 
 test("stop passes on a refusal of issue.sh and names the step", () => {

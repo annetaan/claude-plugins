@@ -42,7 +42,7 @@ import {
   postComment,
   syncTitles,
 } from "../../pj1-plan/scripts/issue.ts";
-import { readProject } from "../../pj1-plan/scripts/project.ts";
+import { readProject, startableAfter } from "../../pj1-plan/scripts/project.ts";
 import { markerProblem } from "../../pj1-plan/scripts/pure/comment-markers.ts";
 import type { Project } from "../../pj1-plan/scripts/pure/project-view.ts";
 import {
@@ -238,23 +238,6 @@ const requireMarker = (path: string): void => {
 const closeFailure = (n: number, commentFile: string): string | null => {
   const out = issueWrite(() => closeIssue(n, "completed", commentFile));
   return out.status === "stop" ? String(out["message"]) : null;
-};
-
-const startableAfter = (
-  ctx: Context,
-  n: number,
-  proj: Project,
-): readonly { readonly number: number; readonly title: string }[] => {
-  const source = n === ctx.p ? proj : projectOrNull(n);
-  if (source === null) {
-    return [];
-  }
-  return source.parent.waitedOnBy
-    .flatMap((m) => {
-      const q = projectOrNull(m);
-      return q !== null && q.parent.startable ? [{ number: m, title: q.parent.title }] : [];
-    })
-    .toSorted((a, b) => a.number - b.number);
 };
 
 const NO_CHECKS = "no checks reported on the";
@@ -504,6 +487,10 @@ const close = (ctx: Context): string => {
   const proj = project(ctx.p);
   const state = due(proj, n);
   const isParent = n === ctx.p || proj.parent.waitsOn.some((d) => d.number === n);
+  const startable = (): ReturnType<typeof startableAfter> => {
+    const source = !isParent ? null : n === ctx.p ? proj : projectOrNull(n);
+    return source === null ? [] : startableAfter(source, process.cwd());
+  };
   if (state === "unknown") {
     stop(
       "unknown-issue",
@@ -519,7 +506,7 @@ const close = (ctx: Context): string => {
       status: "closed",
       number: n,
       already: true,
-      startable: isParent ? startableAfter(ctx, n, proj) : [],
+      startable: startable(),
     });
   }
   const failed = closeFailure(n, commentFile);
@@ -530,7 +517,7 @@ const close = (ctx: Context): string => {
     status: "closed",
     number: n,
     already: false,
-    startable: isParent ? startableAfter(ctx, n, proj) : [],
+    startable: startable(),
   });
 };
 

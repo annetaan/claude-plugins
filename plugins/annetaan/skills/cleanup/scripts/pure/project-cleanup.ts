@@ -20,27 +20,41 @@ export const notMerged = (p: number, parent: CleanupParent): StatusObject | null
         projectPr: parent.projectPr ?? null,
       };
 
-export type ProjectSummary = {
+export type ProjectPull = {
   readonly number: number;
   readonly title: string;
-  readonly state: string;
-  readonly base: string;
-  readonly from: string;
+  readonly url: string;
 };
 
-export const projectSummary = (parent: CleanupParent): ProjectSummary => ({
-  number: parent.number,
-  title: parent.title,
-  state: parent.state,
-  base: parent.base,
-  from: parent.from,
-});
+export const projectPull = (parent: CleanupParent): ProjectPull | null => {
+  const url = parent.projectPr ?? null;
+  const found = url === null ? null : /\/pull\/([0-9]+)$/u.exec(url);
+  return url === null || found === null
+    ? null
+    : { number: Number(found[1]), title: parent.title, url };
+};
 
-export const listEntry = (parent: CleanupParent): Readonly<Record<string, unknown>> => ({
-  number: parent.number,
-  title: parent.title,
-  state: parent.state,
-  merged: parent.merged,
+export type ProjectTarget = {
+  readonly kind: "project";
+  readonly name: string;
+  readonly worktrees: readonly string[];
+  readonly branch: string;
+  readonly pr: ProjectPull | null;
+  readonly state: "merged" | "not-merged";
+  readonly project: { readonly number: number; readonly title: string };
+};
+
+export const projectTarget = (
+  parent: CleanupParent,
+  worktrees: readonly string[],
+): ProjectTarget => ({
+  kind: "project",
+  name: `#${parent.number}`,
+  worktrees,
+  branch: parent.base,
+  pr: projectPull(parent),
+  state: parent.merged ? "merged" : "not-merged",
+  project: { number: parent.number, title: parent.title },
 });
 
 export type LocalBase =

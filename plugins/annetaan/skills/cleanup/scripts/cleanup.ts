@@ -11,7 +11,7 @@ import {
   worktreeList,
   type SubmoduleWork,
 } from "../../../scripts/clone.ts";
-import type { WorktreeEntry } from "../../../scripts/pure/worktree-list.ts";
+import { projectWorktree, type WorktreeEntry } from "../../../scripts/pure/worktree-list.ts";
 import { git, run } from "../../../scripts/command.ts";
 import { fetchBranch, fetchFromOrigin } from "../../../scripts/fetch.ts";
 import {
@@ -23,7 +23,7 @@ import {
 } from "../../../scripts/pure/cleanup-steps.ts";
 import { oldReports, REPORTS_KEPT } from "../../../scripts/pure/reports.ts";
 import { splitLines } from "../../../scripts/pure/text.ts";
-import { entry, statusLine, stop, UsageError } from "../../../scripts/status.ts";
+import { entry, Failure, statusLine, stop, Stopped, UsageError } from "../../../scripts/status.ts";
 import {
   deleteReports,
   incomingReports,
@@ -37,10 +37,22 @@ import {
   WORKTREES,
   type StepError,
 } from "../../workflow/scripts/worktrees.ts";
+import { readProject, startableAfter } from "../../pj1-plan/scripts/project.ts";
+import {
+  localBaseStep,
+  notMerged,
+  projectPull,
+  projectTarget,
+  type CleanupParent,
+  type ProjectPull,
+} from "./pure/project-cleanup.ts";
 
-const USAGE = `usage: cleanup.sh list                     the run-* and propose-* worktrees of this clone with the state of their pull request
-       cleanup.sh check <name>             what run would do for the worktree <name>
-       cleanup.sh run <name> [--discard]   move the work reports out, remove the worktree, delete the branch, fast-forward the base.
+const USAGE = `usage: cleanup.sh list                     the run-* and propose-* worktrees of this clone with the state of their pull request,
+                                           and one #<P> target per project with pj-<P>-* worktrees, with the state of the project
+       cleanup.sh check <name>|#<P>        what run would do for the worktree <name>, or for project <P>, which must be merged
+       cleanup.sh run <name>|#<P> [--discard]
+                                           move the work reports out, remove the worktree, delete the branch, fast-forward the base.
+                                           For #<P>: every pj-<P>-* worktree, the base branch locally and on origin, and <from>.
                                            --discard removes work that nothing else holds. It also deletes the work reports
                                            in <MAIN>/work-reports/ beyond the 100 newest by their stamp
 Every subcommand prints one JSON object with "status" and exits 0. "stop" carries "reason" and "message".
@@ -56,7 +68,7 @@ type Pr = {
   readonly headSha: string;
 };
 
-type Kind = "run" | "propose";
+type Kind = "run" | "propose" | "project";
 
 type Tree = {
   readonly name: string;
@@ -81,16 +93,12 @@ type Update =
 type Plan = {
   readonly main: string;
   readonly kind: Kind;
-  readonly pr: {
-    readonly number: number;
-    readonly title: string;
-    readonly url: string;
-    readonly state: string;
-  } | null;
-  readonly worktrees: readonly [Tree];
+  readonly pr: (ProjectPull & { readonly state?: string }) | null;
+  readonly worktrees: readonly Tree[];
   readonly branches: readonly Branch[];
   readonly loses: readonly string[];
   readonly update: Update;
+  readonly parent?: { readonly number: number; readonly state: string };
   readonly oldReports: {
     readonly path: string;
     readonly keep: number;
@@ -171,10 +179,41 @@ const targetOf = (
 ): { readonly kind: Kind; readonly path: string; readonly branch: string | null } => {
   const kind = targetKind(name);
   if (kind === null || !listedNames(main, `${kind}-`).includes(name)) {
-    return stop("unknown", `${name} is no run-* or propose-* worktree of this clone`);
+    return stop("unknown", `${name} is no run-* or propose-* worktree of this clone, or #<P>`);
   }
   const path = join(main, WORKTREES, name);
   return { kind, path, branch: branchAt(worktreeList(main), path) };
+};
+
+const projectTargets = (main: string): readonly Readonly<Record<string, unknown>>[] => {
+  const byProject = Map.groupBy(
+    listedNames(main, "pj-").flatMap((name) => {
+      const found = projectWorktree(name);
+      return found === null ? [] : [{ p: found.p, name }];
+    }),
+    (e) => e.p,
+  );
+  return [...byProject.entries()]
+    .toSorted(([a], [b]) => a - b)
+    .map(([p, entries]) => {
+      const names = entries.map((e) => e.name);
+      try {
+        return projectTarget(readProject(p, main).parent, names);
+      } catch (error) {
+        if (error instanceof Failure) {
+          return {
+            kind: "project",
+            name: `#${p}`,
+            worktrees: names,
+            branch: null,
+            pr: null,
+            state: "error",
+            message: `project: ${error.message}`,
+          };
+        }
+        throw error;
+      }
+    });
 };
 
 const list = (): string => {
@@ -198,7 +237,7 @@ const list = (): string => {
       ? { ...base, pr: null, state: "no-pr" }
       : { ...base, pr: { number: pr.number, title: pr.title, url: pr.url }, state: pr.state };
   });
-  return statusLine({ status: "ok", main, targets });
+  return statusLine({ status: "ok", main, targets: [...targets, ...projectTargets(main)] });
 };
 
 const treeOf = (main: string, name: string, path: string): Tree => {
@@ -272,17 +311,19 @@ const branchOf = (
   };
 };
 
-const updateOf = (main: string, path: string, pr: Pr | null): Update => {
-  if (pr === null || pr.state !== "merged") {
+const isOneOf = (path: string, paths: readonly string[]): boolean =>
+  paths.some((p) => realPath(p) === realPath(path));
+
+const updateOf = (main: string, base: string | null, paths: readonly string[]): Update => {
+  if (base === null) {
     return { branch: null, action: "none" };
   }
-  const base = pr.base;
   if (fetchBranch(main, base).code !== 0) {
     return stop("fetch-failed", `cannot fetch ${base} from origin`);
   }
   const target = revParse(main, `refs/remotes/origin/${base}`);
   const holderPath = checkedOutIn(main, base);
-  const holder = holderPath !== null && realPath(holderPath) === realPath(path) ? null : holderPath;
+  const holder = holderPath !== null && isOneOf(holderPath, paths) ? null : holderPath;
   const tip = hasBranch(main, base) ? revParse(main, `refs/heads/${base}`) : null;
   return {
     branch: base,
@@ -295,7 +336,7 @@ const updateOf = (main: string, path: string, pr: Pr | null): Update => {
   };
 };
 
-const plan = (name: string): Plan => {
+const runPlan = (name: string): Plan => {
   const main = located();
   const { kind, path, branch } = targetOf(main, name);
   const trees = worktreeList(main);
@@ -331,7 +372,7 @@ const plan = (name: string): Plan => {
       branch: br === null ? null : br.facts,
       detached: detachedOnNoOriginRef(tree),
     }),
-    update: updateOf(main, path, pr),
+    update: updateOf(main, pr?.state === "merged" ? pr.base : null, [path]),
     oldReports: {
       path: reportsRoot,
       keep: REPORTS_KEPT,
@@ -341,6 +382,122 @@ const plan = (name: string): Plan => {
       ),
     },
   };
+};
+
+const parentOf = (p: number, main: string): CleanupParent => {
+  try {
+    return readProject(p, main).parent;
+  } catch (error) {
+    if (error instanceof Failure) {
+      return stop("unknown", `project: ${error.message}`);
+    }
+    throw error;
+  }
+};
+
+const baseBranch = (main: string, parent: CleanupParent, paths: readonly string[]): Branch => {
+  const { base, from } = parent;
+  const remote = onOrigin(main, base);
+  if (remote === null) {
+    return stop("fetch-failed", "cannot read the branches on origin");
+  }
+  const onRemote = remote ? "present" : "absent";
+  if (!hasBranch(main, base)) {
+    return { name: base, local: "delete", why: null, remote: onRemote };
+  }
+  const holder = checkedOutIn(main, base);
+  const otherHolder = holder !== null && !isOneOf(holder, paths) ? holder : null;
+  const held = [
+    `origin/${from}`,
+    ...(remote && fetchBranch(main, base).code === 0 ? [`origin/${base}`] : []),
+  ];
+  const step = localBaseStep({
+    otherHolder,
+    contained: otherHolder === null && held.some((ref) => isAncestor(main, base, ref)),
+  });
+  return step.action === "delete"
+    ? { name: base, local: "delete", why: null, remote: onRemote }
+    : { name: base, local: "keep", why: step.why, remote: onRemote };
+};
+
+const heldOnOrigin = (main: string, tip: string): boolean =>
+  run([
+    "git",
+    "-C",
+    main,
+    "for-each-ref",
+    "--format=%(refname)",
+    "--contains",
+    tip,
+    "refs/remotes/origin",
+  ]).stdout.trim() !== "";
+
+const runBranch = (main: string, branch: string): Branch => {
+  const remote = onOrigin(main, branch);
+  if (remote === null) {
+    return stop("fetch-failed", "cannot read the branches on origin");
+  }
+  const unpushed = !heldOnOrigin(main, revParse(main, `refs/heads/${branch}`));
+  return {
+    name: branch,
+    local: unpushed ? "keep" : "delete",
+    why: unpushed ? "unpushed" : null,
+    remote: remote ? "present" : "absent",
+  };
+};
+
+const projectPlan = (p: number): Plan => {
+  const main = located();
+  const parent = parentOf(p, main);
+  const refused = notMerged(p, parent);
+  if (refused !== null) {
+    throw new Stopped(refused);
+  }
+  if (fetchBranch(main, parent.from).code !== 0) {
+    stop("fetch-failed", `cannot fetch ${parent.from} from origin`);
+  }
+  const trees = listedNames(main, "pj-")
+    .filter((name) => projectWorktree(name)?.p === p)
+    .map((name) => treeOf(main, name, join(main, WORKTREES, name)));
+  const paths = trees.map((t) => t.path);
+  const listing = worktreeList(main);
+  const checkedOut = [...new Set(paths.flatMap((path) => branchAt(listing, path) ?? []))].filter(
+    (b) => b !== parent.base,
+  );
+  const reportsRoot = join(main, "work-reports");
+  return {
+    main,
+    kind: "project",
+    pr: projectPull(parent),
+    worktrees: trees,
+    branches: [baseBranch(main, parent, paths), ...checkedOut.map((b) => runBranch(main, b))],
+    loses: losses({
+      dirty: trees.some((t) => t.state === "dirty"),
+      submodules: trees.some((t) => t.submodules.length > 0),
+      branch: null,
+      detached: trees.some((t) => detachedOnNoOriginRef(t)),
+    }),
+    update: updateOf(main, parent.from, paths),
+    parent: { number: p, state: parent.state },
+    oldReports: {
+      path: reportsRoot,
+      keep: REPORTS_KEPT,
+      names: oldReports(
+        stampedIn(reportsRoot),
+        trees.filter((t) => t.state !== "prunable").flatMap((t) => incomingReports(main, t.path)),
+      ),
+    },
+  };
+};
+
+const projectOf = (name: string): number | null => {
+  const found = /^#([0-9]+)$/u.exec(name);
+  return found === null ? null : Number(found[1]);
+};
+
+const plan = (name: string): Plan => {
+  const p = projectOf(name);
+  return p === null ? runPlan(name) : projectPlan(p);
 };
 
 const check = (name: string): string => statusLine({ status: "ok", ...plan(name) });
@@ -357,7 +514,10 @@ const removeBranch = (
   };
   readonly errors: readonly StepError[];
 } => {
-  const local = br.local === "delete" ? run(["git", "-C", main, "branch", "-D", br.name]) : null;
+  const local =
+    br.local === "delete" && hasBranch(main, br.name)
+      ? run(["git", "-C", main, "branch", "-D", br.name])
+      : null;
   const pushed =
     br.remote === "present"
       ? run(["git", "-C", main, "push", "--quiet", "origin", "--delete", br.name])
@@ -374,7 +534,7 @@ const removeBranch = (
   return {
     branch: {
       name: br.name,
-      local: local !== null && local.code === 0 ? "deleted" : "kept",
+      local: br.local === "delete" && (local === null || local.code === 0) ? "deleted" : "kept",
       why: br.why,
       remote,
     },
@@ -440,28 +600,71 @@ const applyUpdate = (
   }
 };
 
+type Removed = {
+  readonly worktree: readonly {
+    readonly name: string;
+    readonly action: string;
+    readonly moved: readonly string[];
+  }[];
+  readonly errors: readonly StepError[];
+};
+
+const removed = (main: string, tree: Tree, discard: boolean): Removed => {
+  try {
+    const removal = removeWorktree(main, tree.path, discard);
+    return {
+      worktree: [{ name: tree.name, action: removal.action, moved: removal.moved }],
+      errors: removal.errors,
+    };
+  } catch (error) {
+    if (error instanceof Failure) {
+      return { worktree: [], errors: [{ step: "worktree", message: error.message }] };
+    }
+    throw error;
+  }
+};
+
+const startableOf = (
+  main: string,
+  p: number,
+): {
+  readonly startable: ReturnType<typeof startableAfter>;
+  readonly errors: readonly StepError[];
+} => {
+  try {
+    return { startable: startableAfter(readProject(p, main), main), errors: [] };
+  } catch (error) {
+    if (error instanceof Failure) {
+      return { startable: [], errors: [{ step: "startable", message: error.message }] };
+    }
+    throw error;
+  }
+};
+
 const cleanup = (name: string, discard: boolean): string => {
   const out = plan(name);
   if (out.loses.length > 0 && !discard) {
     stop("discard", `${name} holds work that nothing else holds: ${out.loses.join(", ")}`, out);
   }
   const { main } = out;
-  const [tree] = out.worktrees;
-  const removal = removeWorktree(main, tree.path, discard);
+  const removals = out.worktrees.map((tree) => removed(main, tree, discard));
   const branches = out.branches.map((br) => removeBranch(main, br));
   const update = applyUpdate(main, out.update);
   const deleted = deleteReports(main, oldReports(stampedIn(join(main, "work-reports"))));
+  const after = out.parent === undefined ? null : startableOf(main, out.parent.number);
   return statusLine({
     status: "done",
-    worktrees: [{ name: tree.name, action: removal.action, moved: removal.moved }],
+    worktrees: removals.flatMap((r) => r.worktree),
     branches: branches.map((b) => b.branch),
     update: update.update,
     oldReports: { deleted: deleted.deleted },
+    ...(after === null ? {} : { startable: after.startable }),
     errors: [
-      ...removal.errors,
+      ...removals.flatMap((r) => r.errors),
       ...branches.flatMap((b) => b.errors),
       ...update.errors,
       ...deleted.errors,
+      ...(after === null ? [] : after.errors),
     ],
   });
 };

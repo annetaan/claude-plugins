@@ -15,7 +15,6 @@ import { spawnSync } from "node:child_process";
 
 const scripts = join(import.meta.dirname, "../plugins/annetaan/skills");
 const cleanupSh = join(scripts, "cleanup/scripts/cleanup.sh");
-const pjCleanupSh = join(scripts, "pj-cleanup/scripts/cleanup.sh");
 const flowSh = join(scripts, "workflow/scripts/flow.sh");
 
 const tmp = mkdtempSync(join(tmpdir(), "worktree-submodules-"));
@@ -109,13 +108,9 @@ type Out = {
   readonly reason?: string;
   readonly errors: readonly unknown[];
   readonly loses: readonly string[];
-  readonly worktree: {
-    readonly state: string;
-    readonly action?: string;
-    readonly submodules: readonly SubmoduleEntry[];
-  };
   readonly worktrees: readonly {
     readonly state: string;
+    readonly action?: string;
     readonly submodules: readonly SubmoduleEntry[];
   }[];
 };
@@ -172,7 +167,7 @@ const clone = (dir: string, name: string, withOrigin: boolean, init: boolean): C
 };
 
 const setup = (init: boolean): Clone => clone("run", "run-test", true, init);
-const setupPj = (init: boolean): Clone => clone("pj", "pj-1", true, init);
+const setupPj = (init: boolean): Clone => clone("pj", "pj-1-2-2026-01-01-0000", true, init);
 
 const commitInSub = (wt: string): void => {
   git(join(wt, "sub"), "commit", "-q", "--allow-empty", "-m", "local");
@@ -288,44 +283,44 @@ test("cleanup.sh check on a run worktree prints the submodules that hold work", 
   );
 });
 
-test("cleanup.sh run removes a worktree with an initialized clean submodule", () => {
+test("cleanup.sh run #1 removes a worktree with an initialized clean submodule", () => {
   const c = setupPj(true);
-  const out = printed(c.main, pjCleanupSh, "run", "1");
+  const out = printed(c.main, cleanupSh, "run", "#1");
   assert.equal(out.status, "done");
-  assert.equal(out.worktree.action, "removed");
+  assert.equal(out.worktrees[0]?.action, "removed");
   assert.ok(gone(c));
   assert.ok(exists(join(c.main, "work-reports", REPORT)));
   assert.deepEqual(out.errors, []);
 });
 
-test("cleanup.sh run refuses with discard when a submodule has a commit on no remote, and removes nothing", () => {
+test("cleanup.sh run #1 refuses with discard when a submodule has a commit on no remote, and removes nothing", () => {
   const c = setupPj(true);
   commitInSub(c.wt);
-  const out = printed(c.main, pjCleanupSh, "run", "1");
+  const out = printed(c.main, cleanupSh, "run", "#1");
   assert.equal(out.status, "stop");
   assert.equal(out.reason, "discard");
-  assert.deepEqual(out.loses, ["submodules"]);
-  assert.equal(out.worktree.state, "clean");
-  assert.equal(out.worktree.submodules[0]?.commits, 1);
+  assert.deepEqual(out.loses, ["submodules", "commits"]);
+  assert.equal(out.worktrees[0]?.state, "clean");
+  assert.equal(out.worktrees[0]?.submodules[0]?.commits, 1);
   assert.ok(exists(c.wt));
   assert.ok(statSync(join(c.wt, "work-reports", REPORT)).isDirectory());
   assert.equal(exists(join(c.main, "work-reports")), false);
 });
 
-test("cleanup.sh run --discard removes a worktree whose submodule holds work", () => {
+test("cleanup.sh run #1 --discard removes a worktree whose submodule holds work", () => {
   const c = setupPj(true);
   commitInSub(c.wt);
-  assert.equal(printed(c.main, pjCleanupSh, "run", "1", "--discard").status, "done");
+  assert.equal(printed(c.main, cleanupSh, "run", "#1", "--discard").status, "done");
   assert.ok(gone(c));
 });
 
-test("cleanup.sh run removes the seats beside a worktree with a submodule", () => {
+test("cleanup.sh run #1 removes the seats beside a worktree with a submodule", () => {
   const c = setupPj(true);
   seatRun(c, "b");
-  const before = printed(c.main, pjCleanupSh, "check", "1");
+  const before = printed(c.main, cleanupSh, "check", "#1");
   assert.equal(before.status, "ok");
   assert.deepEqual(before.loses, []);
-  const out = printed(c.main, pjCleanupSh, "run", "1");
+  const out = printed(c.main, cleanupSh, "run", "#1");
   assert.equal(out.status, "done");
   assert.deepEqual(out.errors, []);
   assert.ok(gone(c));

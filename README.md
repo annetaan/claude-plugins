@@ -30,14 +30,14 @@ Or let Claude Code do it. Open `/plugin`, go to Marketplaces, pick `annetaan` an
 
 | Plugin | Install | Skills |
 | --- | --- | --- |
-| [annetaan](plugins/annetaan) | `/plugin install annetaan@annetaan` | [16 skills](plugins/annetaan/README.md#skills) |
+| [annetaan](plugins/annetaan) | `/plugin install annetaan@annetaan` | [15 skills](plugins/annetaan/README.md#skills) |
 
 - [workflow](plugins/annetaan/skills/workflow) runs one implementation, from design to pull request, in a worktree of its own, and
   [cleanup](plugins/annetaan/README.md#cleanup) tidies up after it.
 - [pj1-plan, pj2-issues, pj3-doctor and pj4-running](plugins/annetaan/README.md#pj1-plan-pj2-issues-pj3-doctor-pj4-running)
   run larger work as projects on GitHub, each task implemented through workflow.
   [pj-auto](plugins/annetaan/README.md#pj-auto) drives a project until it needs you, and
-  [pj-cleanup](plugins/annetaan/README.md#pj-cleanup) tidies up once you have merged it.
+  [cleanup](plugins/annetaan/README.md#cleanup) tidies up once you have merged it.
   [pj-roadmap](plugins/annetaan/README.md#pj-roadmap) brings your roadmap file into the format they read, through a pull request.
 - [level](plugins/annetaan/README.md#level) proposes the repository's level, which sets how much model the
   design, the implementation and the review get, through a pull request.
