@@ -238,13 +238,10 @@ before it touches anything**.
 ## What you need
 
 - to be inside a `git` repository with an `origin` remote on GitHub
-- `gh`, logged in, because every run ends in a pull request, and it also creates the `decision` issues and their label
+- `gh` 2.99.0 or later, logged in, because every run ends in a pull request, and it also creates the `decision` issues and their label
 - your working tree may be dirty
 
-`gh pr create --attach` uploads the screenshots into the pull request body. That flag landed in **gh 2.99.0**, on
-2026-09-01. An older `gh` still opens the pull request, and the run then hands you the file paths and the pull
-request URL and asks you to drag the images in. It also suggests `brew upgrade gh`, once, and only when there were
-screenshots it could not attach.
+**gh 2.99.0** added `gh pr create --attach`, which uploads the screenshots into the pull request body.
 
 ## What is in here
 

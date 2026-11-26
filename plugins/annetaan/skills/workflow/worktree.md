@@ -10,13 +10,12 @@ Run one command and keep every answer. Phase 1 needs them.
 $FLOW/scripts/worktree.sh start
 ```
 
-It prints `status: ok` with `main`, `mainBranch`, `defaultBranch`, `gh` and `attach`.
+It prints `status: ok` with `main`, `mainBranch`, `defaultBranch` and `gh`, the version of `gh`.
 
 - `main` is `<MAIN>`, the main working tree. The flow never works in it.
 - `mainBranch` is the branch `<MAIN>` has checked out, or null on a detached HEAD.
 - `defaultBranch` is the branch origin's HEAD names, or null.
-- `attach` says whether `gh` is new enough for `gh pr create --attach` (2.99.0 or later). Phase 6 reads it, and `gh` holds the version.
-- **A `stop` ends the flow before design.** Its `reason` is `not-a-repo`, `no-origin`, `gh`, `gh-auth` or `repo`. Name the check and quote `message`. For `no-origin`, `gh` and `gh-auth`, add that this flow ends in a pull request and one cannot be opened here.
+- **A `stop` ends the flow before design.** Its `reason` is `not-a-repo`, `no-origin`, `gh` (not installed, or older than 2.99.0, which `gh pr create --attach` needs), `gh-auth` or `repo`. Name the check and quote `message`. For `no-origin`, `gh` and `gh-auth`, add that this flow ends in a pull request and one cannot be opened here.
 - **A null `defaultBranch` stops the flow too**, unless the request names the branch to start from. Say that the default branch cannot be read.
 - **A dirty `<MAIN>` does not stop the flow**, because the flow never works in it.
 

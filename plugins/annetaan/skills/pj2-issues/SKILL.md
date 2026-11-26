@@ -49,13 +49,13 @@ This skill creates and edits issues, relationships and labels on GitHub. **Start
 
 ```bash
 git rev-parse --show-toplevel
-gh --version          # 2.94.0 or later
+gh --version          # 2.99.0 or later
 gh auth status
 gh repo view --json nameWithOwner,hasIssuesEnabled,defaultBranchRef
 git branch --show-current
 ```
 
-- **Any of these failing stops the skill**: not a git repository, `gh` older than 2.94.0, `gh` not logged in, or
+- **Any of these failing stops the skill**: not a git repository, `gh` older than 2.99.0, `gh` not logged in, or
   issues turned off. Say which one and stop.
 - Keep the current branch's name for phase 1. A detached HEAD prints no current branch.
 - A dirty working tree does not matter. This skill reads the code and changes nothing in it. It creates no branch

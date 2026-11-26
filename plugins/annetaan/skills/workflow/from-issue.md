@@ -18,7 +18,6 @@ These values are already in your context. Nothing arrives as an argument.
 - the handover notes, from the parent's handover comment (`pj1-plan/between-skills.md`, **The handover comment**)
 - the run's worktree `<WT>`, and `<MAIN>`, the main working tree. The session is in `<WT>`, and the branch is
   checked out there
-- `attach` from pj4-running's `run.sh start`, which has run its checks: whether `--attach` works
 - the `level.sh show` JSON, from **The level** in pj4-running. `begin` takes `level` and `source` from it, and each
   session's `model` and `effort` come from `flow.sh prompt` (**The prompts** in SKILL.md)
 
@@ -137,9 +136,9 @@ Keep the handover lines from phase 4 (d) for pj4-running.
    gh pr create --draft --base <base branch> --title "<issue title>" --body-file log.md
    ```
 
-   The `--attach` rules apply as in **The pull request** in `finish.md`. When `attach` is false and there are screenshots, open the pull
-   request with the `gh pr create` line above, without `--attach`, so it keeps `--draft --base <base branch>`. The
-   file paths go into what you hand back. Nothing waits on the user.
+   The `--attach` rules apply as in **The pull request** in `finish.md`. With screenshots, the `gh pr create` line
+   above takes the `--attach` flags and keeps `--draft --base <base branch>`. A screenshot still missing after the
+   reattach goes into what you hand back, with its path. Nothing waits on the user.
 4. **The decisions.** Run **The decisions** in `finish.md` with `<m>`.
 5. Return `finished`.
 

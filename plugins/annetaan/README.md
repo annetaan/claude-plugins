@@ -13,8 +13,8 @@ marketplace in `/plugin`.
 
 ## What it needs
 
-The plugin needs `git`, `gh`, and Bun or Node.js 22.18 or later. Without either runtime, a script stops with
-`annetaan: needs Bun, or Node.js 22.18 or later`.
+The plugin needs `git`, `gh` 2.99.0 or later, and Bun or Node.js 22.18 or later. Without either runtime, a script
+stops with `annetaan: needs Bun, or Node.js 22.18 or later`.
 
 ## How the skills fit together
 
@@ -348,7 +348,7 @@ After you merge a project's pull request, `/annetaan:pj-cleanup` tidies up.
 
 What they need:
 
-- `gh` 2.94.0 or later, logged in.
+- `gh` 2.99.0 or later, logged in.
 - Issues turned on in the repository.
 - The commands run from a clone of the repository.
 - For `pj4-running`: write access and a project branch that accepts a merge with no approving review. Your own

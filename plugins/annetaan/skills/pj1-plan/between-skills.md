@@ -67,8 +67,9 @@ same: the next drive never reads it.
 
 ## Requirements
 
-- `gh` 2.94.0 or later. That release added `--parent`, `--blocked-by`, `--blocking` and the `parent`, `subIssues`,
-  `blockedBy` and `blocking` fields to `gh issue`.
+- `gh` 2.99.0 or later, the version the whole plugin needs for `gh pr create --attach`. It carries `--parent`,
+  `--blocked-by`, `--blocking` and the `parent`, `subIssues`, `blockedBy` and `blocking` fields of `gh issue` that
+  these skills use.
 - `gh` logged in.
 - Issues turned on in the repository.
 
