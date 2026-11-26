@@ -62,7 +62,7 @@ review seats. The script `$FLOW/scripts/level.sh` is written `level.sh` in this 
 $FLOW/scripts/level.sh show <WT> [<level>]
 ```
 
-- **Standalone and From a pull request** run it right after entering `<WT>` (**The worktree** step 5 in
+- **Standalone and From a pull request** run it right after entering `<WT>` (**The worktree** step 4 in
   `worktree.md`). `<level>` comes from `level=<level>` in the args, and is left out when the args carry none. The token sets
   the level of this run only, and it is not part of the request.
 - **From an issue and From a sync** do not run it. They take the JSON pj4-running settled.
@@ -366,7 +366,7 @@ When `cap` of `$FLOW/scripts/flow.sh status <WT> <scope>` is true after a round 
 - **No branches, no history rewriting from the sub-sessions.** The main session owns `git checkout -b`, run in `<WT>`. `git rebase`, `git reset --hard` and `--amend` break the `START` comparison. The role instructions say the same.
 - **Each Bash call runs one command with its values written out.** No shell variables, no `$(...)`, no chaining. A command's own redirect into a file, `> <path>`, is part of that one command, as **Commands** in `pj1-plan/between-skills.md` allows. Read the output whole. pj4-running drives this flow in runs that cannot answer a permission question, and auto mode's classifier may refuse a command no rule matches.
 - **A URL in a message to the user stands between spaces.** Only a plain ASCII space or a line break touches either end: no bracket, punctuation or quote, and no particle or full-width punctuation in a language written without spaces. Write it bare, outside backticks and Markdown links. A terminal such as Ghostty ends a link at the first space, so anything touching the URL becomes part of the link and opens the wrong page (`$FLOW/../pj1-plan/between-skills.md`, **Issues in a report**).
-- **Never write into `work-reports/` without checking it is ignored.** Unchecked, the report and the screenshots ride into the next commit. `worktree.sh ignore` (standalone, From a pull request) and pj4-running (From an issue, From a sync) check it before anything is written there, and `flow.sh begin` checks it again. Never edit `.gitignore`.
+- **Never write into `work-reports/` without checking it is ignored.** Unchecked, the report and the screenshots ride into the next commit. `worktree.sh create` (standalone, From a pull request) and `run.sh start` of pj4-running (From an issue, From a sync) add it to `.git/info/exclude` before anything is written there, and `flow.sh begin` checks it again. Never edit `.gitignore`.
 - **The standalone flow never touches `<MAIN>`, except for the lines `include.sh` adds to `<MAIN>/.worktreeinclude`.** Never switch, stash, commit or clean there. Everything runs in `<WT>`.
 - **`worktree.sh` is for the standalone flow and From a pull request.** From an issue and From a sync never call it. **`flow.sh` is called by every entry**, with the absolute `<WT>`, and `lint` with the absolute path of a review file.
 - **Do not move anything under `<WORKDIR>` into version control.** The report, the screenshots and the diff are worth more untracked. Move them only when the user asks.

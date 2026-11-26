@@ -18,7 +18,8 @@ These values are already in your context. Nothing arrives as an argument.
 - the `level.sh show` JSON, from **The level** in pj4-running. The worker and the review seats take their `model` and
   `effort` from it
 
-pj4-running has already confirmed that `work-reports/` is ignored in `<WT>`. Every command below runs in `<WT>`.
+pj4-running's `run.sh start` has already added `work-reports/` to the clone's `.git/info/exclude`. Every command below
+runs in `<WT>`.
 Never touch `<MAIN>`.
 
 ## What it runs of phases 2 to 4

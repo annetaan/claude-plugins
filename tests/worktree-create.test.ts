@@ -5,6 +5,7 @@ import {
   mkdirSync,
   mkdtempSync,
   readFileSync,
+  readdirSync,
   realpathSync,
   rmSync,
   writeFileSync,
@@ -55,6 +56,7 @@ type Created = {
   readonly head: string;
   readonly name: string;
   readonly worktree: string;
+  readonly ignored: readonly string[];
 };
 
 const origin = join(tmp, "origin.git");
@@ -108,6 +110,16 @@ test("6 parallel creates against a moved origin all print ready on origin's tip"
   });
 });
 
+test("6 parallel creates add work-reports/ to the exclude file once", () => {
+  assert.equal(created.length, 6);
+  const exclude = lines(readFileSync(join(main, ".git/info/exclude"), "utf8"));
+  assert.equal(exclude.filter((line) => line === "work-reports/").length, 1);
+  assert.equal(exclude.filter((line) => line === ".claude/worktrees/").length, 1);
+  const adders = created.filter((d) => d.ignored.includes("work-reports/"));
+  assert.equal(adders.length, 1, JSON.stringify(created.map((d) => d.ignored)));
+  assert.deepEqual(adders[0]?.ignored, [".claude/worktrees/", "work-reports/"]);
+});
+
 test("the names are distinct", () => {
   assert.equal(new Set(created.map((d) => d.name)).size, 6);
 });
@@ -128,4 +140,42 @@ test("every worktree is listed, owns its git dir and is clean, and MAIN is clean
     );
   }
   assert.equal(git(main, "status", "--porcelain"), "", "status of MAIN is not empty");
+});
+
+test("create stops with still-not-ignored and removes the worktree it made", () => {
+  const negatedOrigin = join(tmp, "negated.git");
+  const negated = join(tmp, "negated");
+  git(tmp, "init", "-q", "--bare", "-b", "main", negatedOrigin);
+  git(tmp, "init", "-q", "-b", "main", negated);
+  const negatedMain = realpathSync(negated);
+  writeFileSync(join(negatedMain, ".gitignore"), "!work-reports/\n");
+  git(negatedMain, "add", ".gitignore");
+  git(negatedMain, "commit", "-q", "-m", "init");
+  git(negatedMain, "remote", "add", "origin", negatedOrigin);
+  git(negatedMain, "push", "-q", "origin", "main");
+  const result = spawnSync("bash", [script, "create", "main"], {
+    cwd: negatedMain,
+    env,
+    encoding: "utf8",
+  });
+  assert.equal(result.status, 0, result.stderr);
+  const d = JSON.parse(result.stdout) as {
+    readonly status: string;
+    readonly reason: string;
+    readonly notIgnored: readonly string[];
+    readonly ignored: readonly string[];
+    readonly base: string;
+  };
+  assert.equal(d.status, "stop", result.stdout);
+  assert.equal(d.reason, "still-not-ignored");
+  assert.deepEqual(d.notIgnored, ["work-reports/"]);
+  assert.deepEqual(d.ignored, [".claude/worktrees/", "work-reports/"]);
+  assert.equal(d.base, "main");
+  assert.deepEqual(
+    lines(git(negatedMain, "worktree", "list", "--porcelain")).filter((line) =>
+      line.startsWith("worktree "),
+    ),
+    [`worktree ${negatedMain}`],
+  );
+  assert.deepEqual(readdirSync(join(negatedMain, ".claude/worktrees")), []);
 });

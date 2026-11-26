@@ -95,6 +95,10 @@ branch from the tip of `<from>` when the base branch is missing and every projec
     (`viewerPermission` other than `WRITE`, `MAINTAIN` or `ADMIN`), `project` (`project.sh` failed, for example with
     `has no Base: line`), `create-failed`, `fetch-failed` and `no-merge-method`: say which check failed, quote
     `message`, and stop.
+  - `still-not-ignored`: `start` adds `.claude/worktrees/` and `work-reports/` to the clone's `.git/info/exclude` when
+    that file lacks them, and a `.gitignore` rule, such as `!work-reports/`, still keeps the paths in `notIgnored`
+    visible. Say so, name them, and stop. **Never edit `.gitignore`**, because that commit would land on the base
+    branch with no pull request.
   - `base-gone`: the base branch is gone from origin, and a sub-issue's pull request into it has merged. It may
     already have been merged into `<from>` and deleted. Stop.
   - `waits`: the base branch is missing, and a project `<P>` waits on is not merged. Stop and list each entry of
@@ -112,11 +116,13 @@ branch from the tip of `<from>` when the base branch is missing and every projec
 - **`empty`**: the project has no sub-issue yet. It has not been split. Give the next step,
   `/annetaan:pj2-issues <P>`, and end.
 - **`done`**: every sub-issue is closed. When `project.merged` is true, `close` held `<P>`. Report its close, and
-  end. Otherwise keep the values as for `run`, take **The worktree**, **Paths this clone must ignore** and **The
-  level**, and go straight to phase 5, which brings `<from>` in and opens the project's pull request.
+  end. Otherwise keep the values as for `run`, take **The worktree** and **The level**, and go straight to phase 5, which brings `<from>` in and opens the project's pull request.
+- `done` and `run` carry `ignored`, the paths `start` added to `.git/info/exclude` because that file had no line for them.
+  When it is not empty, print `ignored <paths>` once, adding that `.git/info/exclude` stays in the clone and commits
+  nothing.
 - **`run`**: keep `main` as `<MAIN>`, `worktree` as `<WT>`, `project.base` as `<base>`, `project.from` as `<from>`,
   and keep `created` and `rules`. When `created` is not null, this run created the base branch. Print
-  `<base> created from <from> at <short sha>`, and keep the SHA for phase 2. Go through the rest of this section, then take **The worktree**, **Paths this clone must ignore** and **The level**, then read `issues.md` and follow it from phase 1.
+  `<base> created from <from> at <short sha>`, and keep the SHA for phase 2. Go through the rest of this section, then take **The worktree** and **The level**, then read `issues.md` and follow it from phase 1.
 
 When `rules.selfMerge` is `unknown`, the rules on the base branch could not be read. The rules call failed, or the
 branch is protected and reading its classic protection needs admin rights. Ask once.
@@ -171,8 +177,7 @@ one whose directory is gone. `action` says which. Before any of that it reads th
 user when nobody is assigned, and stops when someone else is. Act by `status`.
 
 - **`ready`**: enter it. On every `worktree` output that carries `assignee` (the assignment is made before any
-  later stop), print `#<P> assigned to <assignee.login>` when `assignee.added` is true. The second call after a
-  `not-ignored` stop has `added` false, so it is printed once. `action` `discarded` means an earlier run left uncommitted work in `<WT>` (a run that ended
+  later stop), print `#<P> assigned to <assignee.login>` when `assignee.added` is true. `action` `discarded` means an earlier run left uncommitted work in `<WT>` (a run that ended
   without saving it, work a save left behind, or a stopped merge of `<from>`). `worktree` saved it to
   `<WT>/work-reports/<stamp>-discarded/stopped.diff`, reset and cleaned `<WT>`, and moved it onto the base. Nothing
   was asked, because of **One session per project** in the Rules. `saved` carries `file`, `head`, `changes` and
@@ -195,12 +200,16 @@ user when nobody is assigned, and stops when someone else is. Act by `status`.
   true, the user is assigned too, so two people started at once, and a human decides who stays. The user's own
   assignment stays either way, and removing it is a human's call.
 - **`stop`** with `not-ignored`: `<WT>` holds uncommitted work, but `work-reports/` is not ignored in it, so the work
-  cannot be saved without changing it. Nothing was changed. Take **Paths this clone must ignore** now, which asks the
-  ignore question as usual, then run `worktree` again. When the user stops there, the run stops, and the report says
-  that `git -C <WT> diff` shows the work.
+  cannot be saved without changing it. `start` added `work-reports/` to `.git/info/exclude`, so a `.gitignore` rule on
+  the base branch keeps it visible in `<WT>`, which the exclude file cannot override. Nothing was changed. Say so, and
+  stop. **Never edit `.gitignore`.** The report names the work with `git -C <WT> diff`.
 - **`stop`** with `not-clean`: the work was saved (`saved`), but `<WT>` is not clean afterwards. `left` lists what
   stays, such as a nested git repository, and `errors` the reset or clean that failed. Quote `message`, name `<WT>`
   and `saved.file`, and stop the run. The user clears `left`, and the next run goes on.
+
+On a stop, leave `<WT>` as phase 5 step 2 says and end the run. `<WT>` stays in place, and the report says that
+`git -C "<MAIN>" worktree remove <WT>` removes it. In a repository with submodules git refuses that command and it needs `--force`, which also deletes what a submodule in `<WT>` holds on its own; `git -C <WT>/<path> log --branches --not --remotes` shows such commits. When `worktree` stopped on `not-ignored`, `<WT>` holds
+uncommitted work, so the report names that work with `git -C <WT> diff` in place of the `worktree remove` line.
 
 **Then enter it, once.**
 
@@ -217,40 +226,6 @@ detached HEAD. A stop from here on, even one before the approval, leaves `<WT>` 
 
 `<WT>` has the ignored files `<MAIN>/.worktreeinclude` names, copied by `run.sh worktree` and by the Copy answers, and none of the others,
 such as installed dependencies. The first worker prepares what the tests still need and leaves the steps in the handover notes, so later tasks find them there. The submodules of `<WT>` are not initialized either. When the build or the tests need one, the first worker runs `git submodule update --init` in `<WT>` and leaves that in the handover notes too.
-
-### Paths this clone must ignore
-
-Two paths must stay out of git, and pj4-running checks both here, once, because a run from an issue never asks.
-
-- `.claude/worktrees/` in `<MAIN>`, or the user sees `<WT>` as an untracked directory
-- `work-reports/` in `<WT>`, where workflow writes its reports
-
-```bash
-$RUNNING/scripts/run.sh ignore <P>
-```
-
-Act by `status`.
-
-- **`ok`**: go on.
-- **`ask`**: ask once, naming the paths in `notIgnored`.
-
-  ```
-  AskUserQuestion: These paths are not ignored in this repository: <paths>. pj4-running works in .claude/worktrees/ and workflow writes its reports to work-reports/.
-    - Ignore them in this clone (Recommended) - adds them to .git/info/exclude and commits nothing
-    - Stop
-  ```
-
-  On the first answer, run `$RUNNING/scripts/run.sh ignore <P> --add`. It appends each path to the exclude file git
-  resolves, which every worktree of the clone shares, and checks again. Act on what it prints as here. An unattended
-  run does not ask: it treats this as Stop and ends as needs-user.
-- **`stop`** with `still-not-ignored`: a `.gitignore` rule, such as `!work-reports/`, overrides the exclude file for
-  the paths in `notIgnored`. Say so, and stop.
-
-**Never edit `.gitignore` here.** That commit would land on the base branch with no pull request.
-
-On a stop, leave `<WT>` as phase 5 step 2 says and end the run. `<WT>` stays in place, and the report says that
-`git -C "<MAIN>" worktree remove <WT>` removes it. In a repository with submodules git refuses that command and it needs `--force`, which also deletes what a submodule in `<WT>` holds on its own; `git -C <WT>/<path> log --branches --not --remotes` shows such commits. When `worktree` stopped on `not-ignored`, `<WT>` holds
-uncommitted work, so the report names that work with `git -C <WT> diff` in place of the `worktree remove` line.
 
 ### The level
 

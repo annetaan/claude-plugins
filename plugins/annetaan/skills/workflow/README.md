@@ -208,9 +208,9 @@ of the same minute and commit gets `-2`, `-3` after the name. `flow.sh status` n
 
 **These live inside the repository so that you see them.** A cleanup deletes the ones in your clone's
 `work-reports/` beyond the 100 newest, by the time stamp in their name. In a temp directory somewhere else they eat
-disk where nobody looks. In exchange, the skill checks that `.claude/worktrees/` and `work-reports/` are
-ignored by git before it writes anything, and asks before adding them to `.git/info/exclude`. That file stays in your
-clone, so nothing is committed and `.gitignore` is never edited.
+disk where nobody looks. In exchange, the run adds `.claude/worktrees/` and `work-reports/` to `.git/info/exclude`
+when that file has no line for them, without asking, and stops only when a `.gitignore` rule negates one of them. That file
+stays in your clone, so nothing is committed and `.gitignore` is never edited.
 
 `log.md` has no fixed headings. If the repository has `.github/PULL_REQUEST_TEMPLATE.md`, the report follows it.
 Otherwise it follows how recent merged pull requests are written. With nothing to go on, the implementation session
@@ -261,7 +261,7 @@ before it touches anything**.
 | `roles/design.md` | the role for the design session, which writes the design and the plan into the work directory |
 | `roles/work.md` | the role for the implementation session |
 | `roles/review.md` | the role for a review seat |
-| `scripts/worktree.sh` | creates the run's worktree and checks its ignore rules. `workflow-cleanup` uses it to clean up |
+| `scripts/worktree.sh` | creates the run's worktree and adds its ignore rules. `workflow-cleanup` uses it to clean up |
 | `scripts/worktree.ts` | the code `worktree.sh` runs. Every fetch from origin goes through the plugin's `scripts/fetch.ts`, under a lock in the clone's common git directory that every worktree shares |
 | `scripts/include.sh` | appends the answers about ignored files to `<MAIN>/.worktreeinclude` and copies the ones to copy into the worktree |
 | `scripts/include.ts` | the code `include.sh` runs, and the one place that copies the ignored files `.worktreeinclude` names into a new worktree. `worktree.ts`, `flow.ts` and pj4-running's `run.ts` import it |

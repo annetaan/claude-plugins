@@ -21,7 +21,8 @@ These values are already in your context. Nothing arrives as an argument.
 - the `level.sh show` JSON, from **The level** in pj4-running. `begin` takes `level` and `source` from it, and each
   session's `model` and `effort` come from `flow.sh prompt` (**The prompts** in SKILL.md)
 
-pj4-running has already run its checks (`gh`) on `<WT>` and confirmed that `work-reports/` is ignored there.
+pj4-running has already run its checks (`gh`) on `<WT>`, and its `run.sh start` has added `work-reports/` to the clone's
+`.git/info/exclude`.
 Every command below runs in `<WT>`. Never touch `<MAIN>`. The user works in it during the run.
 
 ## What it runs of phases 2 to 5

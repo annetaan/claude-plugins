@@ -8,9 +8,11 @@ import {
 } from "node:fs";
 import { basename, dirname, join, resolve } from "node:path";
 import { git, run } from "./command.ts";
+import { withCloneLock } from "./fetch.ts";
+import { exclusions } from "./pure/exclude.ts";
 import { parseWorktreeList, type WorktreeEntry } from "./pure/worktree-list.ts";
 import { splitLines } from "./pure/text.ts";
-import { Failure, type StatusObject } from "./status.ts";
+import { Failure } from "./status.ts";
 
 export const worktreeList = (where: string): readonly WorktreeEntry[] =>
   parseWorktreeList(git(where, ["worktree", "list", "--porcelain"]));
@@ -132,42 +134,48 @@ export const hasSubmodules = (wt: string): boolean => {
   return isDirectory(join(gitdir, "modules"));
 };
 
-export const ignoreCheck = (main: string, wt: string, add: boolean): StatusObject => {
-  const missing = (): readonly string[] =>
-    (
-      [
-        [main, ".claude/worktrees/"],
-        [wt, "work-reports/"],
-      ] as const
-    )
-      .filter(([where, path]) => run(["git", "-C", where, "check-ignore", "-q", path]).code !== 0)
-      .map(([, path]) => path);
-  const notIgnored = missing();
-  if (notIgnored.length === 0) {
-    return { status: "ok", notIgnored: [], added: [] };
-  }
-  if (!add) {
-    return { status: "ask", notIgnored };
-  }
-  const exclude = git(wt, [
-    "rev-parse",
-    "--path-format=absolute",
-    "--git-path",
-    "info/exclude",
-  ]).trim();
-  mkdirSync(dirname(exclude), { recursive: true });
-  const text = existsSync(exclude) ? readFileSync(exclude, "utf8") : "";
-  const lead = text !== "" && !text.endsWith("\n") ? "\n" : "";
-  appendFileSync(exclude, lead + notIgnored.map((path) => `${path}\n`).join(""));
-  const left = missing();
-  if (left.length > 0) {
+const IGNORE_PATHS = [".claude/worktrees/", "work-reports/"] as const;
+
+export type IgnoreResult =
+  | { readonly status: "ok"; readonly ignored: readonly string[] }
+  | {
+      readonly status: "stop";
+      readonly reason: "still-not-ignored";
+      readonly message: string;
+      readonly notIgnored: readonly string[];
+      readonly ignored: readonly string[];
+    };
+
+const notIgnoredIn = (where: string, path: string): boolean =>
+  run(["git", "-C", where, "check-ignore", "-q", path]).code !== 0;
+
+export const ensureIgnored = (main: string, wt: string | null): IgnoreResult =>
+  withCloneLock(main, (): IgnoreResult => {
+    const exclude = git(main, [
+      "rev-parse",
+      "--path-format=absolute",
+      "--git-path",
+      "info/exclude",
+    ]).trim();
+    mkdirSync(dirname(exclude), { recursive: true });
+    const text = existsSync(exclude) ? readFileSync(exclude, "utf8") : "";
+    const { append, added } = exclusions(text, IGNORE_PATHS);
+    if (append !== "") {
+      appendFileSync(exclude, append);
+    }
+    const notIgnored = IGNORE_PATHS.filter(
+      (path) =>
+        notIgnoredIn(main, path) ||
+        (path === "work-reports/" && wt !== null && notIgnoredIn(wt, path)),
+    );
+    if (notIgnored.length === 0) {
+      return { status: "ok", ignored: added };
+    }
     return {
       status: "stop",
       reason: "still-not-ignored",
-      message: `a .gitignore rule overrides info/exclude for ${left.join(", ")}`,
-      notIgnored: left,
-      added: notIgnored,
+      message: `a .gitignore rule overrides info/exclude for ${notIgnored.join(", ")}`,
+      notIgnored,
+      ignored: added,
     };
-  }
-  return { status: "ok", notIgnored: [], added: notIgnored };
-};
+  });
