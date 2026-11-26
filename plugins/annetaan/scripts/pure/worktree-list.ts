@@ -24,3 +24,17 @@ export const parseWorktreeList = (text: string): readonly WorktreeEntry[] =>
       },
     ];
   });
+
+const PROJECT_WORKTREE =
+  /^pj-([0-9]+)-([0-9]+|sync)-[0-9]{4}-[0-9]{2}-[0-9]{2}-[0-9]{4}(?:-[0-9]+)?$/u;
+
+export const projectWorktree = (
+  name: string,
+): { readonly p: number; readonly k: number | null } | null => {
+  const found = PROJECT_WORKTREE.exec(name);
+  if (found === null) {
+    return null;
+  }
+  const [, p, k] = found;
+  return { p: Number(p), k: k === "sync" ? null : Number(k) };
+};

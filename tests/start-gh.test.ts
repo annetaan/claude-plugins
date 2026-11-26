@@ -64,12 +64,7 @@ const startLine = (script: string, args: readonly string[], fake: string): unkno
 
 const starts = [
   { name: "worktree.sh start", script: worktreeSh, args: ["start"], base: { main: clone } },
-  {
-    name: "run.sh start",
-    script: runSh,
-    args: ["start", "1"],
-    base: { main: clone, worktree: join(clone, ".claude/worktrees/pj-1") },
-  },
+  { name: "run.sh start", script: runSh, args: ["start", "1"], base: { main: clone } },
 ] as const;
 
 for (const { name, script, args, base } of starts) {

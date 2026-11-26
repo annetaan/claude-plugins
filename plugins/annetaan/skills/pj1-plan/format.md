@@ -307,8 +307,9 @@ declares it as the last subsection of `## Design`:
 - **A check that runs on the sub-issue's pull request cannot be declared**, required or not, such as a test that CI
   runs on every pull request. `run.sh merge` stops on any failing check and never uses `--admin`, so the
   tasks are one task.
-- **`pj4-running` runs every declared check** in the project's worktree before it opens the project's pull request
-  (`pj4-running/project-pr.md`, **The declared checks**).
+- **`pj4-running` runs every declared check** in the sync worktree before it opens the project's pull request, after
+  `<from>` is brought in and the preparation steps of the handover notes ran (`pj4-running/project-pr.md`, **The
+  declared checks**).
 
 ### The title
 

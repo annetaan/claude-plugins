@@ -99,11 +99,10 @@ adds that decision to the issue, stops, and leaves the box for you to tick.
 The pull request body is `log.md`, which begins with a head of `Implements` and `Part of`. The run pushes and opens
 the pull request as a draft against the project's base branch. pj4-running merges it.
 
-All of it happens in the worktree pj4-running made for the project, so your own working tree is left alone, except for adding your answers to `.worktreeinclude`.
+Each issue runs in a worktree pj4-running made for it, so your own working tree is left alone, except for adding your answers to `.worktreeinclude`.
 
-A stop before every commit of the plan has passed review pushes nothing. pj4-running saves everything since the start
-point, commits included, to `stopped.diff` in the run's work report and puts the worktree back on the start point. The
-next run redoes the issue. A stop once the last commit and its integration review are done can only come during the
+A stop before every commit of the plan has passed review pushes nothing. pj4-running keeps that worktree, its commits
+on a detached HEAD, until `/annetaan:cleanup`, and the next run redoes the issue in a new one. A stop once the last commit and its integration review are done can only come during the
 finish step, so the run finishes it: the report, the push and the draft pull request. A pull request exists only for
 commits that passed review. The shape of the issues is in [pj1-plan/format.md](../pj1-plan/format.md), and the shape
 of the pull requests in [pj1-plan/between-skills.md](../pj1-plan/between-skills.md).

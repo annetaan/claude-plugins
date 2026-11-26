@@ -16,8 +16,8 @@ These values are already in your context. Nothing arrives as an argument.
 - the projects `P` waits on, `Q1, Q2, …` (`parent.waitsOn` in `project.sh`), or none
 - the base branch (the parent's `Base:` line), and the branch pj4-running just made from the tip of the base branch
 - the handover notes, from the parent's handover comment (`pj1-plan/between-skills.md`, **The handover comment**)
-- the run's worktree `<WT>`, and `<MAIN>`, the main working tree. The session is in `<WT>`, and the branch is
-  checked out there
+- the issue's worktree `<WT>`, `pj-<P>-<n>-<stamp>`, which `run.sh worktree` made for this run, and `<MAIN>`, the
+  main working tree. The session is in `<WT>`, and the branch is checked out there
 - the `level.sh show` JSON, from **The level** in pj4-running. `begin` takes `level` and `source` from it, and each
   session's `model` and `effort` come from `flow.sh prompt` (**The prompts** in SKILL.md)
 
@@ -51,10 +51,9 @@ This entry asks nothing. Its ending is **What it hands back to pj4-running** bel
   A non-zero exit is quoted and takes **The stop procedure** with the reason `user`. Then write the handover notes
   pj4-running settled to `<WORKDIR>/notes.md` with Write, and nothing when they are empty.
 
-  After a context summary, `flow.sh status <WT>` names this run only when its `issue` is `n`. A `no-run`, or an
-  `issue` other than `n`, null included, is an earlier run's work directory in the reused `<WT>`: phase 2 (b) has not
-  run, its `start` and `workdir` are not taken, and the level is the JSON pj4-running settled (**The level** in
-  SKILL.md).
+  After a context summary, a `no-run` from `flow.sh status <WT>` means phase 2 (b) has not run, and the level is the
+  JSON pj4-running settled (**The level** in SKILL.md). `<WT>` was made for this run, so a work directory in it is
+  this run's.
 - **The detail pass** and **phases 3 and 4** run as **The detail pass** and **Phases 3 and 4** below say.
 - **Phase 5** runs after the last task when the plan has two or more tasks, as **Phase 5: integration review** in
   `standalone.md` says, with its round cap ending in **The stop procedure** below. With one task it does not run, and
@@ -157,9 +156,9 @@ approved. Look for the commits in `git log --oneline <START>..HEAD`.
   working tree is clean. Run steps 1 to 4 of **Phase 6 from an issue** to the end: the report, the push, the draft
   pull request and the decisions. Then return `finished`, with `stop requested: yes` when the user said stop.
 - **Anything less.** Leave the working tree as it is. Push nothing. Send nothing more to the sessions in flight. Return
-  `stopped`. pj4-running saves everything since `<START>`, commits included, to `<WORKDIR>/stopped.diff` with
-  `run.sh save` when it gets the hand-back, and puts `<WT>` back on `<START>`. The next run redoes the issue. The seats'
-  worktrees stay beside `<WT>`, and the next run's `flow.sh run` re-points them.
+  `stopped`. pj4-running leaves the worktree and ends it with `run.sh end`, which removes it when nothing changed
+  since `<START>` and otherwise keeps it, its commits on a detached HEAD, for `/annetaan:cleanup`. The next run
+  redoes the issue in a new worktree. The seats' worktrees stay beside `<WT>` until it is removed.
 - **A step of phase 6 fails before the pull request exists.** Return `stopped` with the reason `finish`, the step
   that failed, its error message, and the path of `log.md` when step 1 wrote it. A `stop` from `flow.sh record` in
   step 2 is such a failure, with step 2 named and its `message` as the error.
@@ -173,6 +172,8 @@ approved. Look for the commits in `git log --oneline <START>..HEAD`.
   `<WORKDIR>` (the absolute path, when phase 2 (b) made it, otherwise none), `<START>`, and the text of the `Unplanned:`
   report, the decision `#<n> D<k>` the design session asked, or the failing lint or `--check` JSON, or for `finish` the
   step that failed, its message and the path of `log.md` when there is one. A run that returns `stopped` has opened no
-  pull request, and pj4-running saves everything since `<START>`, commits included. The next run redoes the issue.
+  pull request. pj4-running leaves the worktree and ends it with `run.sh end`, which removes it when nothing changed
+  since `<START>` and otherwise keeps it, its commits on a detached HEAD, for `/annetaan:cleanup`. The next run
+  redoes the issue in a new worktree.
 - **`nothing-left`**: `<WORKDIR>`, `<START>` and the evidence, a `ran:` and a `saw:` for each acceptance criterion.
 - **`reordered`**: `<WORKDIR>` and `<START>`. A redraw gave `#<n>` an open blocker.
