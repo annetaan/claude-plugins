@@ -8,11 +8,11 @@ test("parseWorktreeList reads a branch, a detached entry and a prunable one", ()
     "HEAD 1111111111111111111111111111111111111111",
     "branch refs/heads/main",
     "",
-    "worktree /repo/.claude/worktrees/wf-a",
+    "worktree /repo/.claude/worktrees/run-a",
     "HEAD 2222222222222222222222222222222222222222",
     "detached",
     "",
-    "worktree /repo/.claude/worktrees/wf-b",
+    "worktree /repo/.claude/worktrees/run-b",
     "HEAD 3333333333333333333333333333333333333333",
     "branch refs/heads/feat/x",
     "prunable gitdir file points to non-existent location",
@@ -20,8 +20,8 @@ test("parseWorktreeList reads a branch, a detached entry and a prunable one", ()
   ].join("\n");
   assert.deepEqual(parseWorktreeList(text), [
     { path: "/repo", prunable: false, branch: "main" },
-    { path: "/repo/.claude/worktrees/wf-a", prunable: false, branch: null },
-    { path: "/repo/.claude/worktrees/wf-b", prunable: true, branch: "feat/x" },
+    { path: "/repo/.claude/worktrees/run-a", prunable: false, branch: null },
+    { path: "/repo/.claude/worktrees/run-b", prunable: true, branch: "feat/x" },
   ]);
 });
 

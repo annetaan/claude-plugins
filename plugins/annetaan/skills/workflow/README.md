@@ -145,7 +145,7 @@ run that could not file says why in its final message.
 
 ## The worktree and cleaning up
 
-The run creates `.claude/worktrees/wf-<stamp>` on the tip of the base before the design starts, and never touches your
+The run creates `.claude/worktrees/run-<stamp>` on the tip of the base before the design starts, and never touches your
 clone, except for adding your answers to its `.worktreeinclude`. The run copies the ignored files that `.worktreeinclude` in your clone names, such as `.env.local` or
 `mise.local.toml`, into the worktree and into the review seats. It is the same file Claude Code's own `--worktree`
 reads. For an ignored file the list does not name, the run asks once whether to copy it, and writes the answer to the
@@ -153,18 +153,18 @@ list as `/<path>` or `!/<path>`, so it is never asked again. The first worker pr
 dependencies. A run that ends before its first task removes its worktree. Every other run leaves it, whether it opened a pull request
 or stopped midway.
 
-The review seats are git worktrees of their own, `review-wf-<stamp>-<seat>` beside the run's. No session works
+The review seats are git worktrees of their own, `review-run-<stamp>-<seat>` beside the run's. No session works
 inside one: a seat writes its probes under `seats/` in the work report, and `flow.sh run` snapshots the run's working
 tree, puts the seat's worktree at it and runs the probe there. A seat gets the files `.worktreeinclude` lists when it
 is created. A seat lives as long as the run's worktree, so the
 dependencies a probe installed in it serve every later task and round. The cleanup removes it.
 
-After you merge or close the pull request, `/annetaan:workflow-cleanup` moves the work report into `work-reports/` in
+After you merge or close the pull request, `/annetaan:cleanup` moves the work report into `work-reports/` in
 your clone, removes the worktree, the review seats and the branch, fast-forwards your local base after a merge, and deletes the reports there beyond the 100 newest, by the time stamp in their name. Details are in
-[workflow-cleanup](../workflow-cleanup/SKILL.md).
+[cleanup](../cleanup/SKILL.md).
 
 ```
-/annetaan:workflow-cleanup 57
+/annetaan:cleanup 57
 ```
 
 ## What it leaves behind
@@ -261,8 +261,9 @@ before it touches anything**.
 | `roles/design.md` | the role for the design session, which writes the design and the plan into the work directory |
 | `roles/work.md` | the role for the implementation session |
 | `roles/review.md` | the role for a review seat |
-| `scripts/worktree.sh` | creates the run's worktree and adds its ignore rules. `workflow-cleanup` uses it to clean up |
+| `scripts/worktree.sh` | creates the run's worktree and adds its ignore rules, merges the base in on a conflict, and reads pull requests |
 | `scripts/worktree.ts` | the code `worktree.sh` runs. Every fetch from origin goes through the plugin's `scripts/fetch.ts`, under a lock in the clone's common git directory that every worktree shares |
+| `scripts/worktrees.ts` | the one module that makes a worktree, merges a ref into it and removes it, for `worktree.ts` and the `cleanup` skill's `cleanup.ts` |
 | `scripts/include.sh` | appends the answers about ignored files to `<MAIN>/.worktreeinclude` and copies the ones to copy into the worktree |
 | `scripts/include.ts` | the code `include.sh` runs, and the one place that copies the ignored files `.worktreeinclude` names into a new worktree. `worktree.ts`, `flow.ts` and pj4-running's `run.ts` import it |
 | `scripts/level.sh` | reads the repository's level from origin's default branch and prints the model and effort it gives the design session, the implementation session, the review seats and pj's planner, project reviewer and issue writer |
@@ -270,7 +271,7 @@ before it touches anything**.
 | `scripts/comments.sh` | fails on a comment outside the four kinds, or a silenced check the change adds, in the files a change touches. The implementation and review sessions run it |
 | `scripts/comments.ts` | the code `comments.sh` runs. Its scanners and verdicts live in `scripts/pure/comment-check.ts` |
 | `scripts/flow.sh` | makes the run's work directory and reads it back, reports a scope's round, cap, open findings and whether `approve` is allowed, runs a review seat's probe in a git worktree beside the run's, at a snapshot of the working tree, runs every probe of a round again and writes the draft of the round, removes the seats at cleanup, lints a review file, writes the pull request head and the `Level:` line into `log.md`, writes the prompt of each sub-agent call, and files the decision issues of `decisions.md` |
-| `scripts/flow.ts` | the code `flow.sh` runs. The agent table of the levels lives in `scripts/pure/agent-table.ts`, which `level.ts` imports. `worktree.ts` and pj-cleanup's `cleanup.ts` import its `closeSeats` |
+| `scripts/flow.ts` | the code `flow.sh` runs. The agent table of the levels lives in `scripts/pure/agent-table.ts`, which `level.ts` imports. `worktrees.ts` and pj-cleanup's `cleanup.ts` import its `closeSeats` |
 | `scripts/pure/` | the logic of these scripts, with no I/O |
 | `review-files.md` | the shape of the review files and the evidence files, read by the seats, the main session and the implementation session |
 

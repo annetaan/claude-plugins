@@ -46,3 +46,6 @@ export const landings = (
     return { report, dest };
   });
 };
+
+export const freeName = (prefix: string, stamp: string, taken: readonly string[]): string =>
+  firstFree(`${prefix}-${stamp}`, new Set(taken));

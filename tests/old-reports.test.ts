@@ -18,8 +18,8 @@ import { join } from "node:path";
 import { spawnSync } from "node:child_process";
 
 const scripts = join(import.meta.dirname, "../plugins/annetaan/skills");
-const worktreeSh = join(scripts, "workflow/scripts/worktree.sh");
-const cleanupSh = join(scripts, "pj-cleanup/scripts/cleanup.sh");
+const cleanupSh = join(scripts, "cleanup/scripts/cleanup.sh");
+const pjCleanupSh = join(scripts, "pj-cleanup/scripts/cleanup.sh");
 
 const tmp = mkdtempSync(join(tmpdir(), "old-reports-"));
 after(() => {
@@ -180,14 +180,14 @@ const clone = (dir: string, name: string, withOrigin: boolean): Clone => {
   return { main, wt: join(main, ".claude/worktrees", name), reports };
 };
 
-const setup = (): Clone => clone("work-wf", "wf-test", false);
+const setup = (): Clone => clone("work-run", "run-test", true);
 const setupPj = (): Clone => clone("pj", "pj-1", true);
 
 const count = (reports: string): number => readdirSync(reports).length;
 
 test("check lists the reports beyond the 100 newest by stamp and deletes nothing", () => {
   const { main, reports } = setup();
-  const out = printed(main, worktreeSh, "check", "wf-test");
+  const out = printed(main, cleanupSh, "check", "run-test");
   assert.deepEqual(out.oldReports.names, [OLDEST]);
   assert.equal(out.oldReports.keep, 100);
   assert.equal(out.oldReports.path, reports);
@@ -198,9 +198,9 @@ test("check lists the reports beyond the 100 newest by stamp and deletes nothing
 test("cleanup deletes what check listed, an incoming report past the cut included, under the name a collision gives it", () => {
   const { main, wt, reports } = setup();
   incoming(wt);
-  const listed = printed(main, worktreeSh, "check", "wf-test").oldReports.names;
+  const listed = printed(main, cleanupSh, "check", "run-test").oldReports.names;
   assert.deepEqual(listed, [OLD_IN, OLDEST, `${OLDEST}-2`, SECOND]);
-  const out = printed(main, worktreeSh, "cleanup", "wf-test");
+  const out = printed(main, cleanupSh, "run", "run-test");
   assert.equal(out.status, "done");
   assert.deepEqual(out.oldReports.deleted, listed);
   assert.deepEqual(out.errors, []);
@@ -220,28 +220,28 @@ test("cleanup deletes what check listed, an incoming report past the cut include
 
 test("mtime does not decide", () => {
   const { main, reports } = setup();
-  assert.deepEqual(printed(main, worktreeSh, "check", "wf-test").oldReports.names, [OLDEST]);
-  printed(main, worktreeSh, "cleanup", "wf-test");
+  assert.deepEqual(printed(main, cleanupSh, "check", "run-test").oldReports.names, [OLDEST]);
+  printed(main, cleanupSh, "run", "run-test");
   assert.equal(exists(join(reports, NEWEST)), true);
   assert.equal(exists(join(reports, OLDEST)), false);
 });
 
-test("worktree.sh cleanup refused for discard deletes nothing", () => {
+test("cleanup.sh run on a run worktree refused for discard deletes nothing", () => {
   const { main, wt, reports } = setup();
   writeFileSync(join(wt, "untracked.txt"), "dirty\n");
-  const out = printed(main, worktreeSh, "cleanup", "wf-test");
+  const out = printed(main, cleanupSh, "run", "run-test");
   assert.equal(out.status, "stop");
   assert.equal(out.reason, "discard");
   assert.equal(count(reports), 105);
 });
 
-test("worktree.sh cleanup records a report it cannot delete in errors and deletes the others", () => {
+test("cleanup.sh run records a report it cannot delete in errors and deletes the others", () => {
   const { main, reports } = setup();
   const locked = join(reports, "2000-01-02-0000-locked");
   mkdirSync(locked);
   writeFileSync(join(locked, "f"), "x\n");
   chmodSync(locked, 0o555);
-  const out = printed(main, worktreeSh, "cleanup", "wf-test");
+  const out = printed(main, cleanupSh, "run", "run-test");
   assert.equal(out.status, "done");
   assert.deepEqual(
     out.errors.map((error) => error.step),
@@ -256,7 +256,7 @@ test("worktree.sh cleanup records a report it cannot delete in errors and delete
 test("pj-cleanup check lists what run deletes", () => {
   const { main, wt, reports } = setupPj();
   incoming(wt);
-  const checked = printed(main, cleanupSh, "check", "1");
+  const checked = printed(main, pjCleanupSh, "check", "1");
   assert.equal(checked.status, "ok");
   const listed = checked.oldReports.names;
   assert.deepEqual(listed, [OLD_IN, OLDEST, `${OLDEST}-2`, SECOND]);
@@ -264,7 +264,7 @@ test("pj-cleanup check lists what run deletes", () => {
   assert.equal(checked.oldReports.path, reports);
   assert.equal("deleted" in checked.oldReports, false);
   assert.equal(count(reports), 105);
-  const out = printed(main, cleanupSh, "run", "1");
+  const out = printed(main, pjCleanupSh, "run", "1");
   assert.equal(out.status, "done");
   assert.equal(out.worktree.action, "removed");
   assert.deepEqual(out.oldReports.deleted, listed);
@@ -284,7 +284,7 @@ test("pj-cleanup check lists what run deletes", () => {
 test("cleanup.sh run refused for discard deletes nothing", () => {
   const { main, wt, reports } = setupPj();
   writeFileSync(join(wt, "untracked.txt"), "dirty\n");
-  const out = printed(main, cleanupSh, "run", "1");
+  const out = printed(main, pjCleanupSh, "run", "1");
   assert.equal(out.status, "stop");
   assert.equal(out.reason, "discard");
   assert.equal(count(reports), 105);

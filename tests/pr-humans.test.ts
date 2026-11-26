@@ -437,7 +437,7 @@ const worktreeLog = join(
   root,
   ".claude",
   "worktrees",
-  "wf-x",
+  "run-x",
   "work-reports",
   "2026-01-02-0001-eeeeeee",
   "log.md",

@@ -1,6 +1,6 @@
 ---
 name: level
-description: Proposes the repository's level, which sets the model and effort that workflow's design, implementation and review and the pj planner, project reviewer and issue writer get. Reads the `Level:` lines of the pull requests merged since the last evaluation and has an evaluator read the code, asks one question with the two levels, `standard` and `high`, then writes `.claude/annetaan-level.md` in a git worktree of its own, commits it on a new branch, pushes it and opens a pull request into the default branch, and leaves its merge to the user. /annetaan:workflow-cleanup removes the worktree and the branch afterwards. Use it only when the user names this skill or invokes /annetaan:level, because it pushes a branch and opens a pull request on GitHub.
+description: Proposes the repository's level, which sets the model and effort that workflow's design, implementation and review and the pj planner, project reviewer and issue writer get. Reads the `Level:` lines of the pull requests merged since the last evaluation and has an evaluator read the code, asks one question with the two levels, `standard` and `high`, then writes `.claude/annetaan-level.md` in a git worktree of its own, commits it on a new branch, pushes it and opens a pull request into the default branch, and leaves its merge to the user. /annetaan:cleanup removes the worktree and the branch afterwards. Use it only when the user names this skill or invokes /annetaan:level, because it pushes a branch and opens a pull request on GitHub.
 ---
 
 # level
@@ -22,8 +22,8 @@ user. Collapse the `..` in a path to a sibling skill, so that the command text n
 This skill uses these files:
 
 - the script `<skills>/workflow/scripts/level.sh`, written `level.sh` below, for `show` and `history`
-- the script `<skills>/workflow/scripts/worktree.sh`, written `worktree.sh` below, for `start`, `create` and,
-  in **Ending with nothing changed**, `check`
+- the script `<skills>/workflow/scripts/worktree.sh`, written `worktree.sh` below, for `start` and `create`
+- the script `<skills>/cleanup/scripts/cleanup.sh`, for `run` in **Ending with nothing changed**
 - `<skills>/workflow/worktree.md`, which you read for **The start check**, steps 3 and 4 of **The worktree** and
   **Ending with nothing changed**. `$FLOW` in that file means `<skills>/workflow`
 - `<skills>/pj1-plan/between-skills.md`: **Issues in a report**, for how a URL stands in a report
@@ -63,7 +63,7 @@ either lets this skill run again, and stop.
 
 ## 3. The worktree
 
-Run steps 3 and 4 of **The worktree** in `<skills>/workflow/worktree.md` with `<base>`: `worktree.sh create <base>`
+Run steps 3 and 4 of **The worktree** in `<skills>/workflow/worktree.md` with `<base>`: `worktree.sh create <base> --kind propose`
 with the question of **Files `.worktreeinclude` does not name** when it reports `unlisted`, then enter `<WT>`. Print `worktree <WT> base <base>` once.
 
 ## 4. The history
@@ -105,7 +105,7 @@ Show, before you ask:
 - the `unread` entries of `history`, one line each as `#<pr>: <line>`, saying that no level reads them. Nothing when the list is empty
 - the file `.claude/annetaan-level.md` as it will be written: the front matter with `level`, `evaluated: <today>` and
   `review-by: <today + 90 days>`, and the body
-- the branch `level-<stamp>`, where `<stamp>` is `<name>` without `wf-`, and `base: <base>`
+- the branch `level-<stamp>`, where `<stamp>` is `<name>` without `propose-`, and `base: <base>`
 - when `git -C <WT> check-ignore -q .claude/annetaan-level.md` exits 0, that the path is ignored in this repository and
   the commit adds it with `git add -f`
 
@@ -163,7 +163,7 @@ It is not a draft.
 
 When the push or `gh pr create` fails, quote the error. When `gh pr create` exits non-zero, run
 `gh pr view level-<stamp> --json url` first and carry on with the URL when one exists, as `workflow/finish.md` does.
-Otherwise report that the commit is on the branch in `<WT>`, and that `/annetaan:workflow-cleanup` removes both.
+Otherwise report that the commit is on the branch in `<WT>`, and that `/annetaan:cleanup` removes both.
 
 ## Report to the user
 
@@ -173,7 +173,7 @@ Leave the worktree first: `ExitWorktree(action: "keep")`, or `cd <MAIN>` where t
 - the chosen level, and the proposed one when they differ
 - the next steps, in order: merge the pull request, after which the next run of `workflow`, `pj1-plan`,
   `pj2-issues`, `pj3-doctor`, `pj4-running` or `pj-auto` reads the new level from the default branch; then
-  `/annetaan:workflow-cleanup <PR number>`, which removes the worktree and the branch
+  `/annetaan:cleanup <PR number>`, which removes the worktree and the branch
 
 ## Rules
 

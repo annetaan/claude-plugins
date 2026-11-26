@@ -21,6 +21,7 @@ const scripts = join(import.meta.dirname, "../plugins/annetaan/skills/workflow/s
 const worktreeSh = join(scripts, "worktree.sh");
 const includeSh = join(scripts, "include.sh");
 const skills = join(import.meta.dirname, "../plugins/annetaan/skills");
+const cleanupSh = join(skills, "cleanup/scripts/cleanup.sh");
 
 const tmp = mkdtempSync(join(tmpdir(), "include-"));
 after(() => {
@@ -106,7 +107,7 @@ const setup = (): void => {
 };
 
 const create = (): Out => {
-  const out = printed(bash(main, worktreeSh, "create", "main"));
+  const out = printed(bash(main, worktreeSh, "create", "main", "--kind", "run"));
   assert.equal(out.status, "ready", JSON.stringify(out));
   return out;
 };
@@ -213,7 +214,7 @@ test("a second create after remember prints no unlisted file and copies the reme
 });
 
 test("cleanup removes a worktree holding copied files without --discard", () => {
-  const c = printed(bash(main, worktreeSh, "cleanup", second.name));
+  const c = printed(bash(main, cleanupSh, "run", second.name));
   assert.equal(c.status, "done", JSON.stringify(c));
   assert.ok(!existsSync(second.worktree), `${second.worktree} still there`);
 });

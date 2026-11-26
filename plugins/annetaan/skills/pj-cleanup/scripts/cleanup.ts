@@ -182,6 +182,7 @@ const plan = (p: number): Plan => {
     dirty: tree.state === "dirty",
     submodules: (tree.submodules ?? []).length > 0,
     branch: null,
+    detached: false,
   });
   if (fetchBranch(main, from).code !== 0) {
     stop("fetch-failed", `cannot fetch ${from} from origin`);

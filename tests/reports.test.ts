@@ -4,6 +4,7 @@ import { mkdirSync, mkdtempSync, rmSync, symlinkSync, writeFileSync } from "node
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import {
+  freeName,
   isStamped,
   landings,
   oldReports,
@@ -91,4 +92,10 @@ test("isStamped takes a stamp alone or followed by a dash, and nothing else", ()
 test("stampOf writes the local time as YYYY-MM-DD-HHMM", () => {
   assert.equal(stampOf(new Date(2026, 0, 2, 3, 4)), "2026-01-02-0304");
   assert.equal(stampOf(new Date(2026, 10, 25, 12, 44)), "2026-11-25-1244");
+});
+
+test("freeName returns the name, or the first free -<n>", () => {
+  assert.equal(freeName("run", "s", []), "run-s");
+  assert.equal(freeName("run", "s", ["run-s"]), "run-s-2");
+  assert.equal(freeName("run", "s", ["run-s", "run-s-2"]), "run-s-3");
 });

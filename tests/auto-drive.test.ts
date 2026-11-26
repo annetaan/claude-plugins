@@ -471,7 +471,8 @@ test("every script the pj skills call has a base rule", () => {
         if (
           !ruled.has(needed) &&
           needed !== "workflow/scripts/worktree.sh" &&
-          needed !== "workflow/scripts/include.sh"
+          needed !== "workflow/scripts/include.sh" &&
+          needed !== "cleanup/scripts/cleanup.sh"
         ) {
           unruled.add(needed);
         }
