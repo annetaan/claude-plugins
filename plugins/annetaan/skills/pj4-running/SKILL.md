@@ -283,8 +283,10 @@ Every way the run ends comes here: the run order is done, the run stopped, or th
   commits stay on its detached HEAD and its uncommitted work in its tree. Say plainly that the next run redoes the
   issue in a new worktree and never uses it, and that `/annetaan:cleanup <P>` removes it once the project is merged.
   Add `errors` when it is not empty
-- **each worktree that stays with its branch checked out**: a `merged` with `worktree` null, a `stop requested: yes`,
-  a `merge` stop or a `finish` stop. Name it and say why it stays
+- **each worktree that stays with its branch checked out**: a `merged` with `worktree` null, a `stop requested: yes`
+  or a `merge` stop. Name it and say why it stays
+- **the worktree of a `finish` stop**: `<branch>` holds the reviewed commits, and the worktree holds them on a
+  detached HEAD. The next run stops on `left` with both ways out
 - the work reports, which `run.sh merge` and `run.sh end` moved into `<MAIN>/work-reports/`
 - the screenshots that could not be attached, with their paths and the URL of the pull request
 - what is workable now and what is waiting

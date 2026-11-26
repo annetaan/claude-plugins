@@ -29,6 +29,7 @@ import { moveReports } from "../../../scripts/work-reports.ts";
 import { includeIgnored } from "../../workflow/scripts/include.ts";
 import {
   addWorktree,
+  listedNames,
   located,
   mergeIn,
   removeWorktree,
@@ -61,7 +62,7 @@ import { triggers } from "./pure/workflow-triggers.ts";
 
 const USAGE = `usage: run.sh start <P>                       check the clone, gh and the repository, read the project, create its base branch when due, fetch it, read the merge rules, add the ignore paths; on the way to run, assign you to the parent, and stop when someone else is assigned
        run.sh close <P> <n> --comment <file>  comment on and close #<n> as completed, when it is due. For a parent it also lists the projects that can be split now (startable)
-       run.sh worktree <P> <k> <branch>       make the worktree pj-<P>-<k>-<stamp> on the tip of origin/<base> and create <branch> there; a local <branch> holding commits origin/<base> lacks stops with left, one checked out stops with checked-out, any other is deleted and made again
+       run.sh worktree <P> <k> <branch>       make the worktree pj-<P>-<k>-<stamp> on the tip of origin/<base> and create <branch> there; a <branch> checked out in a pj-<P>-<k>-* worktree, which a killed run left, has that worktree ended as run.sh end ends it, whatever it holds (ended); one checked out anywhere else stops with checked-out; one checked out nowhere and holding commits origin/<base> lacks stops with left, naming the pj-<P>-<k>-* worktree whose HEAD is its tip; any other is deleted and made again
        run.sh end <P> <name> --since <sha>    move the work reports of the worktree <name> into <MAIN>/work-reports/; remove it and delete its branch when nothing changed since <sha>, otherwise detach its HEAD, delete its branch and keep it for the cleanup
        run.sh merge <P> <k> <m> --comment <file> [--wait <seconds>] [--ceiling <seconds>]
                                               wait for every check on #<m>, merge it into the base branch, close #<k>, remove the run's worktree when it holds no work, delete the head branch; --wait is how long to wait for a first check to register when one is expected; --ceiling is how long to wait for every check to finish, by default the job timeouts of the workflows that run on the pull request plus 30 minutes; a check still pending then stops with checks-timeout. When CLAUDE_CODE_PRINT_BG_WAIT_CEILING_MS is set above 0, the whole merge ends 5 minutes before it
@@ -526,6 +527,77 @@ const STATUS = ["status", "--porcelain", "--untracked-files=normal"] as const;
 const count = (where: string, range: string): number =>
   Number.parseInt(git(where, ["rev-list", "--count", range]).trim(), 10);
 
+const worktreeAtTip = (main: string, p: number, k: number, tip: string): string | null =>
+  listedNames(main, `pj-${p}-${k}-`)
+    .map((name) => join(main, WORKTREES, name))
+    .findLast(
+      (path) =>
+        projectWorktree(basename(path))?.k === k &&
+        listed(main, path) === false &&
+        revParse(path, "HEAD") === tip,
+    ) ?? null;
+
+const issueWorktree = (
+  main: string,
+  p: number,
+  k: number,
+  b: string,
+): { readonly found: string | null; readonly errors: readonly StepError[] } => {
+  try {
+    const holder = checkedOutIn(main, b);
+    if (holder !== null) {
+      return { found: isRunWorktree(main, holder, p, k) ? holder : null, errors: [] };
+    }
+    return {
+      found: hasBranch(main, b) ? worktreeAtTip(main, p, k, revParse(main, b)) : null,
+      errors: [],
+    };
+  } catch (error) {
+    if (error instanceof Failure) {
+      return { found: null, errors: [{ step: "worktree", message: error.message }] };
+    }
+    throw error;
+  }
+};
+
+const freeBranch = (
+  main: string,
+  p: number,
+  k: number,
+  base: string,
+  b: string,
+): StatusObject | null => {
+  if (!hasBranch(main, b)) {
+    return null;
+  }
+  const holder = checkedOutIn(main, b);
+  const ended =
+    holder !== null && isRunWorktree(main, holder, p, k)
+      ? endRun(main, holder, revParse(main, `origin/${base}`))
+      : null;
+  const still = checkedOutIn(main, b);
+  if (still !== null) {
+    return stop("checked-out", `${b} is checked out in ${still}`, {
+      worktree: still,
+      branch: b,
+      ended,
+    });
+  }
+  if (!hasBranch(main, b)) {
+    return ended;
+  }
+  const ahead = count(main, `origin/${base}..${b}`);
+  if (ahead > 0) {
+    return stop("left", `${b} holds ${ahead} commit(s) that origin/${base} does not have`, {
+      worktree: worktreeAtTip(main, p, k, revParse(main, b)),
+      commits: ahead,
+      branch: b,
+    });
+  }
+  git(main, ["branch", "-D", b]);
+  return ended;
+};
+
 const worktree = (ctx: Context): string => {
   const k = Number(ctx.args[0]);
   const b = ctx.args[1] ?? "";
@@ -537,21 +609,7 @@ const worktree = (ctx: Context): string => {
   if (fetchBranch(main, base).code !== 0) {
     stop("fetch-failed", `cannot fetch ${base} from origin`, { branch: b });
   }
-  if (hasBranch(main, b)) {
-    const holder = checkedOutIn(main, b);
-    const ahead = count(main, `origin/${base}..${b}`);
-    if (ahead > 0) {
-      stop("left", `${b} holds ${ahead} commit(s) that origin/${base} does not have`, {
-        worktree: holder,
-        commits: ahead,
-        branch: b,
-      });
-    }
-    if (holder !== null) {
-      stop("checked-out", `${b} is checked out in ${holder}`, { worktree: holder, branch: b });
-    }
-    git(main, ["branch", "-D", b]);
-  }
+  const ended = freeBranch(main, ctx.p, k, base, b);
   const { name, path } = addWorktree(main, `pj-${ctx.p}-${k}`, `refs/remotes/origin/${base}`);
   git(path, ["switch", "--quiet", "--no-track", "-c", b, `origin/${base}`]);
   return statusLine({
@@ -560,6 +618,7 @@ const worktree = (ctx: Context): string => {
     name,
     branch: b,
     start: revParse(path, "HEAD"),
+    ended,
     ...includeIgnored(path),
   });
 };
@@ -604,7 +663,11 @@ const end = (ctx: Context): string => {
   ) {
     throw new Failure(`${given} is no commit, or no ancestor of HEAD in ${path}`);
   }
-  const since = revParse(path, `${given}^{commit}`);
+  return statusLine(endRun(main, path, revParse(path, `${given}^{commit}`)));
+};
+
+const endRun = (main: string, path: string, since: string): StatusObject => {
+  const name = basename(path);
   const moved = moveReports(main, path);
   const commits = count(path, `${since}..HEAD`);
   const changes = splitLines(git(path, STATUS));
@@ -612,15 +675,15 @@ const end = (ctx: Context): string => {
   const held = symbolic.code === 0 ? symbolic.stdout.trim() : null;
   if (commits === 0 && changes.length === 0) {
     const removed = removal(main, path);
-    return statusLine({
+    return {
       status: "removed",
       name,
       moved: [...moved, ...removed.moved],
       errors: [...removed.errors, ...deleteBranch(main, held)],
-    });
+    };
   }
   const detached = run(["git", "-C", path, "update-ref", "--no-deref", "HEAD", "HEAD"]);
-  return statusLine({
+  return {
     status: "kept",
     name,
     worktree: path,
@@ -632,7 +695,7 @@ const end = (ctx: Context): string => {
       ...(detached.code === 0 ? [] : [{ step: "detach", message: detached.stderr.trim() }]),
       ...deleteBranch(main, held),
     ],
-  });
+  };
 };
 
 const isRunWorktree = (main: string, holder: string, p: number, k: number): boolean => {
@@ -850,9 +913,10 @@ const merge = (ctx: Context): string => {
     }
   }
 
-  const holder = checkedOutIn(main, b);
-  const left =
-    holder !== null && isRunWorktree(main, holder, ctx.p, k) ? leaveRun(main, holder) : null;
+  const searched = issueWorktree(main, ctx.p, k, b);
+  errors.push(...searched.errors);
+  const holder = searched.found;
+  const left = holder !== null ? leaveRun(main, holder) : null;
   errors.push(...(left?.errors ?? []));
   let local = "absent";
   if (left !== null && left.worktree === null) {

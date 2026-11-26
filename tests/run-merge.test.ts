@@ -434,6 +434,42 @@ test("merge removes the worktree that has the head branch checked out", () => {
   assert.ok(!branchListed("feat/2"));
 });
 
+test("merge removes a finish stop's worktree whose detached HEAD is the head branch's tip", () => {
+  setup(ON_PR, "[]", "pass");
+  git(runWorktree, "update-ref", "--no-deref", "HEAD", "HEAD");
+  const out = merge();
+  assert.equal(out.status, "merged", JSON.stringify(out));
+  assert.deepEqual(out.worktree, { name: runName, moved: [] });
+  assert.deepEqual(out.branch, { name: "feat/2", local: "deleted", remote: "deleted" });
+  assert.deepEqual(out.errors, []);
+  assert.ok(!existsSync(runWorktree), runWorktree);
+});
+
+test("merge skips a finish stop's worktree whose directory is gone, and deletes the head branch", () => {
+  setup(ON_PR, "[]", "pass");
+  git(runWorktree, "update-ref", "--no-deref", "HEAD", "HEAD");
+  rmSync(runWorktree, { recursive: true, force: true });
+  const out = merge();
+  assert.equal(out.status, "merged", JSON.stringify(out));
+  assert.equal(out.worktree, null);
+  assert.deepEqual(out.branch, { name: "feat/2", local: "deleted", remote: "deleted" });
+  assert.deepEqual(out.errors, []);
+});
+
+test("merge names a failed search for the worktree in errors and still deletes the head branch", () => {
+  setup(ON_PR, "[]", "pass");
+  git(runWorktree, "update-ref", "--no-deref", "HEAD", "HEAD");
+  writeFileSync(join(clone, ".git/worktrees", runName, "HEAD"), "garbage\n");
+  const out = merge();
+  assert.equal(out.status, "merged", JSON.stringify(out));
+  assert.equal(out.worktree, null);
+  assert.deepEqual(out.branch, { name: "feat/2", local: "deleted", remote: "deleted" });
+  assert.deepEqual(
+    (out.errors ?? []).map((e) => e.step),
+    ["worktree"],
+  );
+});
+
 test("merge leaves a worktree that holds uncommitted work, keeps its local branch and names it in errors", () => {
   setup(ON_PR, "[]", "pass");
   writeFileSync(join(runWorktree, "a"), "unsaved\n");

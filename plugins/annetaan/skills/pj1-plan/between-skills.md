@@ -55,6 +55,9 @@ Two things live outside GitHub, and only these two:
   `pj-<P>-sync-<stamp>`), where `<MAIN>` is the main working tree. That is a run that stopped before every commit passed
   review, a process killed mid-run, or a stopped merge of `<from>`. It is local. It stays there, with its commits on a
   detached HEAD, until `/annetaan:cleanup <P>` asks before removing it. No later run uses it, and the work is redone.
+  A process killed before `run.sh end`, or before a `finish` stop's detach, leaves its branch checked out there, and
+  the next `run.sh worktree` of that issue ends the worktree the way `run.sh end` does, whatever it committed, before
+  it makes a new one.
 
 The conversation supplies which project a run goes on with when no number is given, and never anything about that
 project (**Picking the project**).

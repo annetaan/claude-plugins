@@ -121,7 +121,12 @@ Nothing runs in parallel. For each issue `<k>` in the run order:
 
      - **`ready`**: `worktree` is the new worktree `pj-<P>-<k>-<stamp>` under `<MAIN>/.claude/worktrees/`, `name` its
        name, and `branch` is checked out there. A leftover `<branch>` with no commits of its own was deleted and
-       made again. Print `#<k> worktree <worktree>` once, so that a context summary finds it again. Keep `name`,
+       made again. `ended` is not null when a run of `#<k>` killed before `run.sh end`, or before a `finish` stop's
+       detach, left `<branch>` checked out in its own `pj-<P>-<k>-*` worktree: `run.sh worktree` ended that worktree
+       as `run.sh end` does, whatever it committed, and `ended` is what `end` prints. With `status` `kept`, print
+       `#<k> kept <ended.worktree>: <ended.commits> commit(s)` once: it keeps the killed run's commits and changes on
+       a detached HEAD until `/annetaan:cleanup <P>`, none of them is pushed, and the issue is redone here. Print `#<k> worktree <worktree>`
+       once, so that a context summary finds it again. Keep `name`,
        and keep `start` as `<START>`. Then act on the three lists `ready` carries.
        - `copied` not empty: print `copied <paths>` once.
        - `notIgnored` not empty: say once that `<MAIN>/.worktreeinclude` lists these files but the worktree does not
@@ -147,8 +152,9 @@ Nothing runs in parallel. For each issue `<k>` in the run order:
        sub-sessions to enter the worktree themselves, because their directory resets on every bash call. Go to
        step 3.
      - **`stop`** with `left`: stop the run. `<branch>` holds `commits` commits that `origin/<base>` lacks, and
-       `worktree` is the worktree that has it checked out, or null. A `finish` stop in an earlier run leaves exactly
-       this. Name `<branch>`, the number in `commits` and `worktree`, and say that
+       no worktree has it checked out. A `finish` stop in an earlier run leaves exactly this: its reviewed commits
+       on `<branch>`, and its worktree on a detached HEAD at the same commit, which `worktree` names, or null when
+       no `pj-<P>-<k>-*` worktree has that HEAD. Name `<branch>`, the number in `commits` and `worktree`, and say that
        `git -C <MAIN> log origin/<base>..<branch>` shows them. When `worktree` is not null, the `log.md` of its work
        report has its `Implements #<k>` head only once `record` has run, which a finish that stopped early did not
        do, so run `status` first:
@@ -164,19 +170,18 @@ Nothing runs in parallel. For each issue `<k>` in the run order:
        ```
 
        The user picks one of two ways out.
-       - **Push it**: `git -C <worktree> push -u origin <branch>`, and open a draft pull request from it into
+       - **Push it**: `git -C <MAIN> push -u origin <branch>`, and open a draft pull request from it into
          `<base>` with `<workdir>/log.md` as its body (`workdir` from `status`). The next run merges it. When
          `status` or `record` printed `stop` or exited non-zero, quote the `message` (stderr on a non-zero exit):
          the work report has no `log.md` to use, and this way out is closed.
-       - **Free the branch**: `git -C <worktree> switch --detach`, then `git -C <MAIN> branch -D <branch>`. The
-         commits stay on the worktree's detached HEAD until `/annetaan:cleanup <P>`, and the next run redoes the
+       - **Free the branch**: `git -C <MAIN> branch -D <branch>`. The commits stay on the worktree's detached HEAD until `/annetaan:cleanup <P>`, and the next run redoes the
          issue in a new worktree.
 
-       With `worktree` null, no worktree has the branch, and there is no work report: both ways out run in
-       `<MAIN>`, the push with a pull request body that says it implements `#<k>`, and the delete loses the
-       commits.
+       With `worktree` null there is no work report: the push opens its pull request with a body that says it
+       implements `#<k>`, and the delete loses the commits.
      - **`stop`** with `checked-out`: stop the run, and name the worktree in `worktree` that has `<branch>` checked
-       out.
+       out. It is a worktree outside the issue's own, such as `<MAIN>`, or ending one of the issue's own failed, and
+       `ended.errors` says why.
      - **`stop`** with `fetch-failed`: quote `message` and stop the run.
 3. **Run From an issue.** These are what it expects you to have settled, so say them in your context before you
    start it: `n` (= `<k>`), `P`, the issue title, the projects `<P>` waits on (the `parent.waitsOn` numbers, or
@@ -364,10 +369,18 @@ comment, with `<name>` from `run.sh worktree` and `<START>`.
 $RUNNING/scripts/run.sh end <P> <name> --since <START>
 ```
 
-`end` moves the worktree's work reports into `<MAIN>/work-reports/` first. `finish` calls nothing: its worktree keeps
-the branch checked out with its commits, which the next run finds as `left` in phase 4 step 2.
+`end` moves the worktree's work reports into `<MAIN>/work-reports/` first. On `finish`, detach the worktree instead,
+with `<worktree>` from `run.sh worktree`:
 
-Act by what it prints.
+```bash
+git -C <worktree> update-ref --no-deref HEAD HEAD
+```
+
+The branch keeps the reviewed commits, the worktree keeps them on a detached HEAD, and the next run finds the branch
+as `left` in phase 4 step 2. A run killed before this detach leaves the branch checked out, and the next run ends that
+worktree and redoes the issue.
+
+Act by what `end` prints.
 
 - **`removed`**: nothing changed since `<START>`. The worktree, its review seats and its branch are gone.
 - **`kept`**: keep `name`, `commits` and `changes`. The worktree holds `commits` commits since `<START>` on a detached
@@ -425,8 +438,8 @@ their comment file, `$TMP/<k>-stopped.md`, as `--comment`, and `run.sh` refuses 
 - **`user`**: nothing goes to GitHub.
 - **`work-reports`**: report it. It should not happen after `run.sh start` added the paths.
 - **`finish`**: report the failed step of workflow's finish, its message, and the path of `log.md` when there is one.
-  The worktree stays with the branch checked out, and the next run stops on the commits as `left` in phase 4
-  step 2, which names both ways out.
+  Say that `<branch>` keeps the reviewed commits, that the worktree keeps them on a detached HEAD, and that the next
+  run stops on `left` in phase 4 step 2 with both ways out.
 
 Act by what `run.sh stop` prints.
 

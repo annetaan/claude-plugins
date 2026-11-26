@@ -172,8 +172,9 @@ approved. Look for the commits in `git log --oneline <START>..HEAD`.
   `<WORKDIR>` (the absolute path, when phase 2 (b) made it, otherwise none), `<START>`, and the text of the `Unplanned:`
   report, the decision `#<n> D<k>` the design session asked, or the failing lint or `--check` JSON, or for `finish` the
   step that failed, its message and the path of `log.md` when there is one. A run that returns `stopped` has opened no
-  pull request. pj4-running leaves the worktree and ends it with `run.sh end`, which removes it when nothing changed
-  since `<START>` and otherwise keeps it, its commits on a detached HEAD, for `/annetaan:cleanup`. The next run
-  redoes the issue in a new worktree.
+  pull request. pj4-running leaves the worktree. On `finish` it detaches the worktree and keeps the branch, with its
+  reviewed commits, for the next run's `left`. On the other reasons it ends the worktree with `run.sh end`, which
+  removes it when nothing changed since `<START>` and otherwise keeps it, its commits on a detached HEAD, for
+  `/annetaan:cleanup`, and the next run redoes the issue in a new worktree.
 - **`nothing-left`**: `<WORKDIR>`, `<START>` and the evidence, a `ran:` and a `saw:` for each acceptance criterion.
 - **`reordered`**: `<WORKDIR>` and `<START>`. A redraw gave `#<n>` an open blocker.

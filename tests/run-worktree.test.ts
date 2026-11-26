@@ -110,6 +110,13 @@ type Out = {
   readonly branch?: string;
   readonly start?: string;
   readonly commits?: number;
+  readonly ended?: {
+    readonly status: string;
+    readonly name: string;
+    readonly worktree?: string;
+    readonly commits?: number;
+    readonly errors: readonly unknown[];
+  } | null;
   readonly copied?: readonly string[];
   readonly notIgnored?: readonly string[];
   readonly unlisted?: readonly string[];
@@ -173,21 +180,108 @@ test("run.sh worktree stops with left when the branch holds commits origin/pj/1 
   writeFileSync(join(holder, "b"), "work\n");
   git(holder, "add", "b");
   git(holder, "commit", "-q", "-m", "work");
+  git(holder, "switch", "--quiet", "--detach", "HEAD~1");
   const left = worktree("2", "feat/2-x");
   assert.deepEqual(
     [left.status, left.reason, left.worktree, left.commits, left.branch],
-    ["stop", "left", holder, 1, "feat/2-x"],
+    ["stop", "left", null, 1, "feat/2-x"],
   );
 });
 
-test("run.sh worktree stops with checked-out when the branch is checked out in a worktree", () => {
-  const made = worktree("3", "feat/3-x");
-  assert.equal(made.status, "ready", JSON.stringify(made));
-  const again = worktree("3", "feat/3-x");
+test("left names the issue's worktree whose detached HEAD is the branch's tip", () => {
+  const stopped = worktree("7", "feat/7-x");
+  assert.equal(stopped.status, "ready", JSON.stringify(stopped));
+  writeFileSync(join(stopped.worktree ?? "", "b"), "reviewed\n");
+  git(stopped.worktree ?? "", "add", "b");
+  git(stopped.worktree ?? "", "commit", "-q", "-m", "reviewed");
+  git(stopped.worktree ?? "", "update-ref", "--no-deref", "HEAD", "HEAD");
+  const left = worktree("7", "feat/7-x");
+  assert.deepEqual(
+    [left.status, left.reason, left.worktree, left.commits, left.branch],
+    ["stop", "left", stopped.worktree, 1, "feat/7-x"],
+  );
+});
+
+test("left skips the issue's worktree whose directory is gone and names none", () => {
+  const stopped = worktree("9", "feat/9-x");
+  assert.equal(stopped.status, "ready", JSON.stringify(stopped));
+  writeFileSync(join(stopped.worktree ?? "", "b"), "reviewed\n");
+  git(stopped.worktree ?? "", "add", "b");
+  git(stopped.worktree ?? "", "commit", "-q", "-m", "reviewed");
+  git(stopped.worktree ?? "", "update-ref", "--no-deref", "HEAD", "HEAD");
+  rmSync(stopped.worktree ?? "", { recursive: true, force: true });
+  const left = worktree("9", "feat/9-x");
+  assert.deepEqual(
+    [left.status, left.reason, left.worktree, left.commits, left.branch],
+    ["stop", "left", null, 1, "feat/9-x"],
+  );
+});
+
+test("the run after a killed one that committed keeps its worktree with the commits on a detached HEAD and makes a new one", () => {
+  const killed = worktree("8", "feat/8-x");
+  assert.equal(killed.status, "ready", JSON.stringify(killed));
+  writeFileSync(join(killed.worktree ?? "", "b"), "task 1\n");
+  git(killed.worktree ?? "", "add", "b");
+  git(killed.worktree ?? "", "commit", "-q", "-m", "task 1");
+  const committed = git(killed.worktree ?? "", "rev-parse", "HEAD").trim();
+  const next = worktree("8", "feat/8-x");
+  assert.equal(next.status, "ready", JSON.stringify(next));
+  assert.deepEqual(
+    [next.ended?.status, next.ended?.name, next.ended?.commits, next.ended?.errors],
+    ["kept", killed.name, 1, []],
+  );
+  assert.equal(git(killed.worktree ?? "", "rev-parse", "HEAD").trim(), committed);
+  const detached = spawnSync("git", ["symbolic-ref", "--quiet", "HEAD"], {
+    cwd: killed.worktree ?? "",
+    env,
+  });
+  assert.equal(detached.status, 1, "the killed run's worktree has a detached HEAD");
+  assert.equal(headBranch(next.worktree ?? ""), "feat/8-x");
+  assert.equal(git(clone, "rev-parse", "feat/8-x").trim(), tip);
+});
+
+test("the run after a killed one keeps the killed run's dirty worktree detached and makes a new one", () => {
+  const killed = worktree("3", "feat/3-x");
+  assert.equal(killed.status, "ready", JSON.stringify(killed));
+  writeFileSync(join(killed.worktree ?? "", "a"), "half done\n");
+  const next = worktree("3", "feat/3-x");
+  assert.equal(next.status, "ready", JSON.stringify(next));
+  assert.notEqual(next.worktree, killed.worktree);
+  assert.equal(headBranch(next.worktree ?? ""), "feat/3-x");
+  assert.deepEqual(
+    [next.ended?.status, next.ended?.name, next.ended?.worktree, next.ended?.errors],
+    ["kept", killed.name, killed.worktree, []],
+  );
+  assert.equal(readFileSync(join(killed.worktree ?? "", "a"), "utf8"), "half done\n");
+  const detached = spawnSync("git", ["symbolic-ref", "--quiet", "HEAD"], {
+    cwd: killed.worktree ?? "",
+    env,
+  });
+  assert.equal(detached.status, 1, "the killed run's worktree has a detached HEAD");
+});
+
+test("the run after a killed one that changed nothing removes the killed run's worktree", () => {
+  const killed = worktree("5", "feat/5-x");
+  assert.equal(killed.status, "ready", JSON.stringify(killed));
+  const next = worktree("5", "feat/5-x");
+  assert.equal(next.status, "ready", JSON.stringify(next));
+  assert.deepEqual([next.ended?.status, next.ended?.name], ["removed", killed.name]);
+  const listed = git(clone, "worktree", "list", "--porcelain")
+    .split("\n")
+    .filter((line) => line.startsWith(`worktree ${join(worktrees, "pj-1-5-")}`));
+  assert.deepEqual(listed, [`worktree ${next.worktree}`]);
+  assert.equal(headBranch(next.worktree ?? ""), "feat/5-x");
+});
+
+test("run.sh worktree stops with checked-out when the branch is checked out outside the issue's worktrees", () => {
+  const other = join(tmp, "other");
+  git(clone, "worktree", "add", "--quiet", "-b", "feat/6-x", other, "origin/pj/1");
+  const again = worktree("6", "feat/6-x");
   assert.deepEqual(
     [again.status, again.reason, again.worktree, again.branch],
-    ["stop", "checked-out", made.worktree, "feat/3-x"],
+    ["stop", "checked-out", realpathSync(other), "feat/6-x"],
   );
+  assert.equal(headBranch(other), "feat/6-x");
 });
 
 test("run.sh worktree deletes and makes again a branch with no commits of its own", () => {

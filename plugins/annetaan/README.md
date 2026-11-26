@@ -294,7 +294,7 @@ project's first run it creates the project's branch. When a project it waits on 
 projects and stops instead. It closes the parent of any project it finds merged, its own or one it waits on. Then it
 checks that you can merge your own pull request into the project's branch without an approving review. It walks the
 run order from the top and takes issues until the first one that is not workable. After you approve the
-order, each sub-issue goes through the same steps in turn, in a git worktree of the project's own under
+order, each sub-issue goes through the same steps in turn, each in a git worktree of its own under
 `.claude/worktrees/`, so you can keep working in your clone while the run goes on. Before it starts work it assigns
 you to the parent, and it stops when someone else is assigned. The assignment stays for the life of the project, and a
 person removes it to hand the project over. Each sub-issue gets a branch.
