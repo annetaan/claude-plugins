@@ -58,10 +58,10 @@ test("the reports beyond the 100 newest by stamp are old", () => {
 
 test("incoming reports count in under the names they move in as, a collision renamed", () => {
   const taken = [...seeded, "notes", ".DS_Store", "2099-01-01-0000-file", "2000-01-01-0000-link"];
-  const found = landings(taken, [OLD_IN, OLDEST, NEW_IN].toSorted(), "wf-test");
+  const found = landings(taken, [OLD_IN, OLDEST, NEW_IN].toSorted());
   assert.deepEqual(found, [
     { report: OLD_IN, dest: OLD_IN },
-    { report: OLDEST, dest: `${OLDEST}-wf-test` },
+    { report: OLDEST, dest: `${OLDEST}-2` },
     { report: NEW_IN, dest: NEW_IN },
   ]);
   assert.deepEqual(
@@ -69,15 +69,16 @@ test("incoming reports count in under the names they move in as, a collision ren
       seeded,
       found.map((l) => l.dest),
     ),
-    [OLD_IN, OLDEST, `${OLDEST}-wf-test`, SECOND],
+    [OLD_IN, OLDEST, `${OLDEST}-2`, SECOND],
   );
 });
 
 test("two incoming reports that collide on one name both get a free name", () => {
-  assert.deepEqual(landings(["a"], ["a", "a-wt"], "wt"), [
-    { report: "a", dest: "a-wt" },
-    { report: "a-wt", dest: "a-wt-wt" },
+  assert.deepEqual(landings(["a"], ["a", "a-2"]), [
+    { report: "a", dest: "a-2" },
+    { report: "a-2", dest: "a-2-2" },
   ]);
+  assert.deepEqual(landings(["a", "a-2"], ["a"]), [{ report: "a", dest: "a-3" }]);
 });
 
 test("isStamped takes a stamp alone or followed by a dash, and nothing else", () => {

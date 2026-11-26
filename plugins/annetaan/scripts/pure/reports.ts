@@ -24,14 +24,24 @@ export const oldReports = (
 
 export type Landing = { readonly report: string; readonly dest: string };
 
+const firstFree = (name: string, taken: ReadonlySet<string>): string => {
+  if (!taken.has(name)) {
+    return name;
+  }
+  let n = 2;
+  while (taken.has(`${name}-${n}`)) {
+    n += 1;
+  }
+  return `${name}-${n}`;
+};
+
 export const landings = (
   taken: readonly string[],
   reports: readonly string[],
-  worktreeName: string,
 ): readonly Landing[] => {
   const used = new Set(taken);
   return reports.map((report) => {
-    const dest = used.has(report) ? `${report}-${worktreeName}` : report;
+    const dest = firstFree(report, used);
     used.add(dest);
     return { report, dest };
   });

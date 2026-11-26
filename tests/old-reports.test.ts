@@ -199,12 +199,12 @@ test("cleanup deletes what check listed, an incoming report past the cut include
   const { main, wt, reports } = setup();
   incoming(wt);
   const listed = printed(main, worktreeSh, "check", "wf-test").oldReports.names;
-  assert.deepEqual(listed, [OLD_IN, OLDEST, `${OLDEST}-wf-test`, SECOND]);
+  assert.deepEqual(listed, [OLD_IN, OLDEST, `${OLDEST}-2`, SECOND]);
   const out = printed(main, worktreeSh, "cleanup", "wf-test");
   assert.equal(out.status, "done");
   assert.deepEqual(out.oldReports.deleted, listed);
   assert.deepEqual(out.errors, []);
-  for (const gone of [OLD_IN, OLDEST, `${OLDEST}-wf-test`, SECOND]) {
+  for (const gone of [OLD_IN, OLDEST, `${OLDEST}-2`, SECOND]) {
     assert.equal(exists(join(reports, gone)), false, gone);
   }
   for (const kept of [NEW_IN, NEWEST, "notes", ".DS_Store", "2099-01-01-0000-file"]) {
@@ -259,7 +259,7 @@ test("pj-cleanup check lists what run deletes", () => {
   const checked = printed(main, cleanupSh, "check", "1");
   assert.equal(checked.status, "ok");
   const listed = checked.oldReports.names;
-  assert.deepEqual(listed, [OLD_IN, OLDEST, `${OLDEST}-pj-1`, SECOND]);
+  assert.deepEqual(listed, [OLD_IN, OLDEST, `${OLDEST}-2`, SECOND]);
   assert.equal(checked.oldReports.keep, 100);
   assert.equal(checked.oldReports.path, reports);
   assert.equal("deleted" in checked.oldReports, false);
@@ -270,10 +270,10 @@ test("pj-cleanup check lists what run deletes", () => {
   assert.deepEqual(out.oldReports.deleted, listed);
   assert.deepEqual(out.errors, []);
   assert.equal(exists(join(reports, OLD_IN)), false);
-  assert.equal(exists(join(reports, `${OLDEST}-pj-1`)), false);
+  assert.equal(exists(join(reports, `${OLDEST}-2`)), false);
   assert.deepEqual(out.worktree.moved, [
     join(reports, OLD_IN),
-    join(reports, `${OLDEST}-pj-1`),
+    join(reports, `${OLDEST}-2`),
     join(reports, NEW_IN),
   ]);
   for (const kept of [NEW_IN, "notes", ".DS_Store", "2000-01-01-0000-link"]) {
