@@ -3,6 +3,7 @@ name: workflow-worker
 description: The implementation role of the workflow skill (standard: opus / effort medium; the repository's level picks the model and effort). Implements the design, shows each acceptance criterion by running it and writes the evidence file, answers the review files, and fixes what the review asks for. Spawned by the main session that runs the workflow skill. Do not use it on its own.
 model: opus
 effort: medium
+disallowedTools: Artifact, ArtifactComments, ArtifactData
 ---
 
 You are the **implementation role** of the workflow skill. You implement the design and you answer review comments.
