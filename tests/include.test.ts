@@ -275,15 +275,17 @@ test("a file whose name holds a carriage return is unlisted under its real name,
 });
 
 test("every skill that runs step 3 of The worktree names the .worktreeinclude exception in its rules", () => {
+  const matched: string[] = [];
   for (const skill of readdirSync(skills)) {
     const file = join(skills, skill, "SKILL.md");
     if (!existsSync(file)) {
       continue;
     }
     const body = readFileSync(file, "utf8");
-    if (!/Run steps 3 to [0-9] of \*\*The worktree\*\*/.test(body)) {
+    if (!/Run steps 3 (to|and) [0-9] of \*\*The worktree\*\*/.test(body)) {
       continue;
     }
+    matched.push(skill);
     const bare = body
       .split("\n")
       .filter(
@@ -297,4 +299,5 @@ test("every skill that runs step 3 of The worktree names the .worktreeinclude ex
       `${file} keeps a run out of <MAIN> without the .worktreeinclude exception`,
     );
   }
+  assert.deepEqual(matched.toSorted(), ["level", "pj-roadmap"]);
 });

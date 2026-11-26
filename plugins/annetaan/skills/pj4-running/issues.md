@@ -366,7 +366,7 @@ their comment file, `$TMP/<k>-stopped.md`, as `--comment`, and `run.sh` refuses 
   $RUNNING/scripts/run.sh stop <P> <k> round-cap --comment "$TMP/<k>-stopped.md"
   ```
 - **`user`**: nothing goes to GitHub.
-- **`work-reports`**: report it. It should not happen after the check in **Paths this clone must ignore** in SKILL.md.
+- **`work-reports`**: report it. It should not happen after `run.sh start` added the paths.
 - **`finish`**: report the failed step of workflow's finish, its message, and the path of `log.md` when there is one.
   The next run stops on the commits as `unpushed` in phase 4 step 2, which names the way out.
 

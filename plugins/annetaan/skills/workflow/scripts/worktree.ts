@@ -2,9 +2,9 @@ import { lstatSync } from "node:fs";
 import { basename, dirname, join } from "node:path";
 import {
   checkedOutIn,
+  ensureIgnored,
   hasBranch,
   hasSubmodules,
-  ignoreCheck,
   isAncestor,
   listed,
   mainWorktree,
@@ -35,9 +35,9 @@ import { includeIgnored } from "./include.ts";
 
 const USAGE = `usage: worktree.sh start                          check the clone, gh and the repository
        worktree.sh create <base>                  fetch origin/<base> and add a detached worktree wf-<stamp> on its tip,
+                                                  add .claude/worktrees/ and work-reports/ to info/exclude when it lacks them,
                                                   copy into it the ignored files <MAIN>/.worktreeinclude lists, and print
-                                                  copied, notIgnored and the unlisted ignored files
-       worktree.sh ignore <name> [--add]          whether .claude/worktrees/ and work-reports/ are ignored; --add writes them to info/exclude
+                                                  ignored, copied, notIgnored and the unlisted ignored files
        worktree.sh sync <name> <base>             whether HEAD of the worktree <name> conflicts with origin/<base>; on a conflict, start the merge
        worktree.sh pr [<number>]                  the open pull request <number>, or the open pull requests of the user that conflict
        worktree.sh list                           the wf-* worktrees of this clone with the state of their pull request
@@ -221,6 +221,15 @@ const create = (base: string): string => {
     git(main, ["worktree", "add", "--quiet", "--detach", path, `refs/remotes/origin/${base}`]);
     return { name: found, wt: path };
   });
+  const kept = ensureIgnored(main, wt);
+  if (kept.status === "stop") {
+    git(main, ["worktree", "remove", "--force", wt]);
+    return stop(kept.reason, kept.message, {
+      notIgnored: kept.notIgnored,
+      ignored: kept.ignored,
+      base,
+    });
+  }
   return statusLine({
     status: "ready",
     main,
@@ -228,13 +237,9 @@ const create = (base: string): string => {
     name,
     base,
     head: revParse(wt, "HEAD"),
+    ignored: kept.ignored,
     ...includeIgnored(wt),
   });
-};
-
-const ignore = (name: string, add: boolean): string => {
-  const main = located();
-  return statusLine(ignoreCheck(main, resolveName(main, name), add));
 };
 
 const listRuns = (): string => {
@@ -666,13 +671,6 @@ const main = (args: readonly string[]): string => {
   }
   if (sub === "check" && count === 2 && first !== undefined) {
     return check(first);
-  }
-  if (
-    sub === "ignore" &&
-    first !== undefined &&
-    (count === 2 || (count === 3 && second === "--add"))
-  ) {
-    return ignore(first, count === 3);
   }
   if (sub === "sync" && count === 3 && first !== undefined && second !== undefined) {
     return sync(first, second);

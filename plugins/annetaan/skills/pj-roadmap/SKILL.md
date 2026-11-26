@@ -25,8 +25,8 @@ the user. Collapse the `..` in a path to a sibling skill, so that the command te
 This skill uses these files:
 
 - the script `<skills>/pj1-plan/scripts/project.sh`, written `project.sh` below, for `--roadmap`, and with `<P>` to read an open parent's `Roadmap:` line
-- the script `<skills>/workflow/scripts/worktree.sh`, written `worktree.sh` below, for `start`, `create`, `ignore` and, in **Ending with nothing changed**, `check`
-- `<skills>/workflow/worktree.md`, which you read for **The start check**, steps 3 to 5 of **The worktree** and
+- the script `<skills>/workflow/scripts/worktree.sh`, written `worktree.sh` below, for `start`, `create` and, in **Ending with nothing changed**, `check`
+- `<skills>/workflow/worktree.md`, which you read for **The start check**, steps 3 and 4 of **The worktree** and
   **Ending with nothing changed**. `$FLOW` in that file means `<skills>/workflow`
 - `<skills>/pj1-plan/format.md`: **The roadmap file** and **Writing bodies**
 - `<skills>/pj1-plan/between-skills.md`: **Issues in a report**, for how a URL stands in a report
@@ -93,9 +93,8 @@ closing it lets this skill run again, and stop.
 
 ## 4. The worktree
 
-Run steps 3 to 5 of **The worktree** in `<skills>/workflow/worktree.md` with `<base>`: `worktree.sh create <base>`
-with the question of **Files `.worktreeinclude` does not name** when it reports `unlisted`, `worktree.sh ignore <name>`
-with its question, then enter `<WT>`. Print `worktree <WT> base <base>` once.
+Run steps 3 and 4 of **The worktree** in `<skills>/workflow/worktree.md` with `<base>`: `worktree.sh create <base>`
+with the question of **Files `.worktreeinclude` does not name** when it reports `unlisted`, then enter `<WT>`. Print `worktree <WT> base <base>` once.
 
 ## 5. The rewrite
 
@@ -174,8 +173,8 @@ Leave the worktree first: `ExitWorktree(action: "keep")`, or `cd <MAIN>` where t
 
 ## Rules
 
-- Change the roadmap file only, and never in `<MAIN>`, except the `<MAIN>/.worktreeinclude` lines below.
-- Write nothing before the approval of step 6, except the `<MAIN>/.worktreeinclude` lines the answers of step 4 add, as
+- Change the roadmap file only, and never in `<MAIN>`, except the `.git/info/exclude` lines `create` adds and the `<MAIN>/.worktreeinclude` lines below.
+- Write nothing before the approval of step 6, except the `.git/info/exclude` lines `create` adds and the `<MAIN>/.worktreeinclude` lines the answers of step 4 add, as
   **Files `.worktreeinclude` does not name** in `<skills>/workflow/worktree.md` says.
 - A stop from step 5 to the approval of step 6 takes **Ending with nothing changed** in `<skills>/workflow/worktree.md`,
   because `<WT>` exists by then. Steps 1 to 3 stop before any worktree exists, and need nothing removed.

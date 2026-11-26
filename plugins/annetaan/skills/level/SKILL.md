@@ -22,9 +22,9 @@ user. Collapse the `..` in a path to a sibling skill, so that the command text n
 This skill uses these files:
 
 - the script `<skills>/workflow/scripts/level.sh`, written `level.sh` below, for `show` and `history`
-- the script `<skills>/workflow/scripts/worktree.sh`, written `worktree.sh` below, for `start`, `create`, `ignore` and,
+- the script `<skills>/workflow/scripts/worktree.sh`, written `worktree.sh` below, for `start`, `create` and,
   in **Ending with nothing changed**, `check`
-- `<skills>/workflow/worktree.md`, which you read for **The start check**, steps 3 to 5 of **The worktree** and
+- `<skills>/workflow/worktree.md`, which you read for **The start check**, steps 3 and 4 of **The worktree** and
   **Ending with nothing changed**. `$FLOW` in that file means `<skills>/workflow`
 - `<skills>/pj1-plan/between-skills.md`: **Issues in a report**, for how a URL stands in a report
 - `$LEVEL/roles/evaluate.md`, the role of the evaluator
@@ -63,9 +63,8 @@ either lets this skill run again, and stop.
 
 ## 3. The worktree
 
-Run steps 3 to 5 of **The worktree** in `<skills>/workflow/worktree.md` with `<base>`: `worktree.sh create <base>`
-with the question of **Files `.worktreeinclude` does not name** when it reports `unlisted`, `worktree.sh ignore <name>`
-with its question, then enter `<WT>`. Print `worktree <WT> base <base>` once.
+Run steps 3 and 4 of **The worktree** in `<skills>/workflow/worktree.md` with `<base>`: `worktree.sh create <base>`
+with the question of **Files `.worktreeinclude` does not name** when it reports `unlisted`, then enter `<WT>`. Print `worktree <WT> base <base>` once.
 
 ## 4. The history
 
@@ -178,8 +177,8 @@ Leave the worktree first: `ExitWorktree(action: "keep")`, or `cd <MAIN>` where t
 
 ## Rules
 
-- Write the level file only, and never in `<MAIN>`, except the `<MAIN>/.worktreeinclude` lines below.
-- Write nothing before the answer of step 6, except the `<MAIN>/.worktreeinclude` lines the answers of step 3 add, as
+- Write the level file only, and never in `<MAIN>`, except the `.git/info/exclude` lines `create` adds and the `<MAIN>/.worktreeinclude` lines below.
+- Write nothing before the answer of step 6, except the `.git/info/exclude` lines `create` adds and the `<MAIN>/.worktreeinclude` lines the answers of step 3 add, as
   **Files `.worktreeinclude` does not name** in `<skills>/workflow/worktree.md` says. A stop from step 3 up to the
   answer of step 6 takes **Ending with nothing changed** in `<skills>/workflow/worktree.md`, because `<WT>` exists by
   then. Steps 1 and 2 stop before any worktree exists, and need nothing removed.

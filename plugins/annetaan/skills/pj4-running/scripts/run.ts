@@ -4,8 +4,8 @@ import { git, run } from "../../../scripts/command.ts";
 import { pause } from "../../../scripts/clock.ts";
 import {
   checkedOutIn,
+  ensureIgnored,
   hasBranch,
-  ignoreCheck,
   listed,
   mainWorktree,
   realPath,
@@ -50,7 +50,6 @@ import { triggers } from "./pure/workflow-triggers.ts";
 const USAGE = `usage: run.sh start <P>                       check the clone, gh and the repository, read the project, create its base branch when due, fetch it, read the merge rules
        run.sh close <P> <n> --comment <file>  comment on and close #<n> as completed, when it is due. For a parent it also lists the projects that can be split now (startable)
        run.sh worktree <P>                    put the run's worktree on the tip of origin/<base>; a dirty one is saved to work-reports/<stamp>-discarded/stopped.diff and discarded; assigns you to the parent, and stops when someone else is assigned
-       run.sh ignore <P> [--add]              whether .claude/worktrees/ and work-reports/ are ignored; --add writes them to info/exclude
        run.sh branch <P> <branch>             create <branch> in the run's worktree from the tip of origin/<base>
        run.sh merge <P> <k> <m> --comment <file> [--wait <seconds>] [--ceiling <seconds>]
                                               wait for every check on #<m>, merge it into the base branch, close #<k>, delete the head branch; --wait is how long to wait for a first check to register when one is expected; --ceiling is how long to wait for every check to finish, by default the job timeouts of the workflows that run on the pull request plus 30 minutes; a check still pending then stops with checks-timeout. When CLAUDE_CODE_PRINT_BG_WAIT_CEILING_MS is set above 0, the whole merge ends 5 minutes before it
@@ -372,7 +371,16 @@ const start = (ctx: Context): string => {
       parent.merged && parent.state === "OPEN"
         ? [{ number: ctx.p, title: parent.title, base, self: true }]
         : [];
-    return emit({ status: "done", close, ...out });
+    const keptDone = ensureIgnored(main, null);
+    if (keptDone.status === "stop") {
+      return stop(keptDone.reason, keptDone.message, {
+        notIgnored: keptDone.notIgnored,
+        ignored: keptDone.ignored,
+        close,
+        ...out,
+      });
+    }
+    return emit({ status: "done", close, ignored: keptDone.ignored, ...out });
   }
   out = {
     ...out,
@@ -432,9 +440,18 @@ const start = (ctx: Context): string => {
   if (found.mergeMethod === null) {
     stop("no-merge-method", `the rules on ${base} leave no merge method that ${repo} allows`, out);
   }
+  const keptRun = ensureIgnored(main, null);
+  if (keptRun.status === "stop") {
+    return stop(keptRun.reason, keptRun.message, {
+      notIgnored: keptRun.notIgnored,
+      ignored: keptRun.ignored,
+      ...out,
+    });
+  }
   return emit({
     status: "run",
     rules: { selfMerge: found.selfMerge, mergeMethod: found.mergeMethod },
+    ignored: keptRun.ignored,
     ...out,
   });
 };
@@ -712,12 +729,6 @@ const worktree = (ctx: Context): string => {
     saved,
     ...includeIgnored(wt),
   });
-};
-
-const ignore = (ctx: Context): string => {
-  const { main, wt } = located(ctx.p);
-  notAWorktree(ctx, main, wt);
-  return emit(ignoreCheck(main, wt, ctx.args.includes("--add")));
 };
 
 const branch = (ctx: Context): string => {
@@ -1272,9 +1283,6 @@ const checked = (argv: readonly string[]): void => {
       number("the issue", argv[2]);
       existing(argv[4]);
       return;
-    case "ignore":
-      usage(n === 2 || (n === 3 && argv[2] === "--add"));
-      return;
     case "branch":
       usage(n === 3);
       return;
@@ -1317,7 +1325,6 @@ const SUBCOMMANDS: Readonly<Record<string, (ctx: Context) => string>> = {
   start,
   close,
   worktree,
-  ignore,
   branch,
   merge,
   sync,

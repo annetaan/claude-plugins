@@ -13,7 +13,7 @@ The run goes in this order:
    $FLOW/scripts/flow.sh begin <WT> --level <level> --source <source>
    ```
 
-   On a `stop` with `not-ignored`, stop and report, because **The worktree** step 4 in `worktree.md` should have
+   On a `stop` with `not-ignored`, stop and report, because **The worktree** step 3 in `worktree.md` should have
    settled it, and take **Ending with nothing changed** in `worktree.md`, since no branch exists yet.
 4. Phase 1 below.
 5. Phase 2 (a) of SKILL.md, right after the start message.

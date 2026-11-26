@@ -31,32 +31,17 @@ The standalone flow works in a git worktree of its own, `.claude/worktrees/wf-<s
    $FLOW/scripts/worktree.sh create <base>
    ```
 
-   - `ready`: keep `worktree` as `<WT>`, `name` as `<name>` and `base` as `<base>`. Then act on the three lists it carries.
+   - `ready`: keep `worktree` as `<WT>`, `name` as `<name>` and `base` as `<base>`. Then act on the four lists it carries.
+     - `ignored` not empty: `create` added these paths to `.git/info/exclude`, because that file had no line for them. Print `ignored <paths>` once, adding that `.git/info/exclude` stays in the clone and commits nothing.
      - `copied` not empty: print `copied <paths>` once.
      - `notIgnored` not empty: say once that `<MAIN>/.worktreeinclude` lists these files but `<WT>` does not ignore them, so they were not copied. A `.gitignore` rule that only `<MAIN>`'s working tree has is the usual cause. **Never edit `.gitignore`.**
      - `unlisted` not empty: take **Files `.worktreeinclude` does not name**.
    - `stop` with `base-missing`: say that origin has no branch `<base>`, and stop the flow.
    - `stop` with `fetch-failed`: quote `message` and stop the flow.
+   - `stop` with `still-not-ignored`: a `.gitignore` rule, such as `!work-reports/`, keeps the paths in `notIgnored` visible, and `.git/info/exclude` cannot override it. Say so, name them, and stop the flow. **Never edit `.gitignore`.**
 
-   Both stops come before a worktree exists, so there is nothing to remove.
-4. **Ignore rules.** Two paths must stay out of git: `.claude/worktrees/` in `<MAIN>` and `work-reports/` in `<WT>`.
-
-   ```bash
-   $FLOW/scripts/worktree.sh ignore <name>
-   ```
-
-   `ok`: go on. `ask`: ask once, naming `notIgnored`.
-
-   ```
-   AskUserQuestion: These paths are not ignored in this repository: <paths>. workflow works in .claude/worktrees/ and writes its reports to work-reports/.
-     - Ignore them in this clone (Recommended) - adds them to .git/info/exclude and commits nothing
-     - Stop
-   ```
-
-   On the first answer, run `$FLOW/scripts/worktree.sh ignore <name> --add` and act on what it prints as here. On
-   `stop` with `still-not-ignored`, a `.gitignore` rule overrides the exclude file: say so and take **Ending with
-   nothing changed**. On Stop, take **Ending with nothing changed**. **Never edit `.gitignore`.**
-5. **Enter it, once.**
+   No stop leaves a worktree behind: the first two come before one exists, and on `still-not-ignored` `create` has removed it again. So there is nothing to remove.
+4. **Enter it, once.**
 
    ```
    EnterWorktree(path: "<WT>")
@@ -65,8 +50,8 @@ The standalone flow works in a git worktree of its own, `.claude/worktrees/wf-<s
    Where that tool is not available, `cd <WT>`. Print `worktree <WT> base <base>` once. **Every command from here to
    the end of the run runs in `<WT>`.** After a context summary, run `git rev-parse --show-toplevel`, and enter
    `<WT>` again when it prints anything else.
-6. **Every sub-agent stays in `<WT>`.** A sub-session does not start there by itself. From here on, `flow.sh prompt` ends every prompt it writes with `$FLOW/prompts/worktree-line.md`, which sends the session into `<WT>` and keeps it out of `<MAIN>`, and the one prompt written by hand, phase 1 in `standalone.md`, ends with that text too.
-7. `<WT>` has the ignored files `<MAIN>/.worktreeinclude` names, copied at step 3 and by the Copy answers of **Files `.worktreeinclude` does not name**, and none of the others, such as installed dependencies. The first worker prepares what the tests still need and leaves the steps in the handover notes, so later tasks find them there. The submodules of `<WT>` are not initialized either. When the build or the tests need one, the first worker runs `git submodule update --init` in `<WT>` and leaves that in the handover notes too.
+5. **Every sub-agent stays in `<WT>`.** A sub-session does not start there by itself. From here on, `flow.sh prompt` ends every prompt it writes with `$FLOW/prompts/worktree-line.md`, which sends the session into `<WT>` and keeps it out of `<MAIN>`, and the one prompt written by hand, phase 1 in `standalone.md`, ends with that text too.
+6. `<WT>` has the ignored files `<MAIN>/.worktreeinclude` names, copied at step 3 and by the Copy answers of **Files `.worktreeinclude` does not name**, and none of the others, such as installed dependencies. The first worker prepares what the tests still need and leaves the steps in the handover notes, so later tasks find them there. The submodules of `<WT>` are not initialized either. When the build or the tests need one, the first worker runs `git submodule update --init` in `<WT>` and leaves that in the handover notes too.
 
 ### Files `.worktreeinclude` does not name
 
@@ -95,7 +80,7 @@ A non-zero exit is quoted and stops the run, as for `worktree.sh`. The file sits
 
 When the run ends before phase 2 creates its branch, leave the worktree and remove it.
 
-1. When you have entered `<WT>` (**The worktree** step 5), `ExitWorktree(action: "keep")`, or `cd <MAIN>` where that tool is not available. A stop at step 4 comes before that: skip this step.
+1. When you have entered `<WT>` (**The worktree** step 4), `ExitWorktree(action: "keep")`, or `cd <MAIN>` where that tool is not available.
 2. `git -C <MAIN> worktree remove <WT>`
 3. Only when git refused step 2:
 
@@ -106,4 +91,4 @@ When the run ends before phase 2 creates its branch, leave the worktree and remo
    - `ok` with an empty `loses`: the repository has submodules, which git refuses whatever the state of the worktree, and nothing in `<WT>` is lost. Run `git -C <MAIN> worktree remove --force <WT>`.
    - `ok` with `loses` not empty, or any `stop`: quote git's refusal (and `message` on a `stop`), name `<WT>`, and point to `/annetaan:workflow-cleanup`.
 
-The reasons: the Stop answer at the ignore question, a feasibility of "no" or "conditional" the user does not pursue, an open question whose answer ends the flow, and the user saying stop. Design sessions never change code, so step 2 has no `--force`. The session never decides on `--force` from git's message text or from `git status`: `check` decides.
+The reasons: a feasibility of "no" or "conditional" the user does not pursue, an open question whose answer ends the flow, and the user saying stop. Design sessions never change code, so step 2 has no `--force`. The session never decides on `--force` from git's message text or from `git status`: `check` decides.
