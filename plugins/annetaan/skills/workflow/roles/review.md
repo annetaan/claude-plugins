@@ -79,7 +79,7 @@ The format and the file names are in `$FLOW/review-files.md`. Read it once. The 
 - A section with nothing in it reads `None.` alone. Add no other section and no prose under `None.`: what you checked without a finding goes into your report (see **Reporting**).
 - You write no verdict. The main session reads every seat file and decides.
 
-As the last step before you report, run `$FLOW/scripts/flow.sh lint <absolute path of your seat file>`, one command per Bash call, with `$FLOW` written out. It prints `ok`, `kind` and `reasons`, and the reasons are in `$FLOW/review-files.md`, **The lint**. While `ok` is false, rewrite the seat file with Write and lint it again. Once you have reported, never touch the file again.
+As the last step before you report, run `$FLOW/scripts/flow.sh lint <absolute path of your seat file>`, one command per Bash call, with `$FLOW` written out. It prints `ok`, `kind` and `reasons`, and the reasons are in `$FLOW/review-files.md`, **The lint**. While `ok` is false, rewrite the seat file with Write or Edit and lint it again. Once you have reported, never touch the file again.
 
 ## Later rounds
 

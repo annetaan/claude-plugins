@@ -219,3 +219,26 @@ test("no skill states a pin", () => {
   );
   assert.deepEqual(hits, [], hits.join("\n"));
 });
+
+test("every agent blocks the Artifact tools", () => {
+  const artifact = ["Artifact", "ArtifactComments", "ArtifactData"];
+  const misses: string[] = [];
+  for (const name of agentNames) {
+    const file = agentFile(name);
+    const allowed = front(file, "tools");
+    if (allowed !== "") {
+      const names = allowed.split(", ");
+      misses.push(
+        ...artifact.filter((tool) => names.includes(tool)).map((tool) => `${name} allows ${tool}`),
+      );
+    } else {
+      const blocked = front(file, "disallowedTools").split(", ");
+      misses.push(
+        ...artifact
+          .filter((tool) => !blocked.includes(tool))
+          .map((tool) => `${name} does not block ${tool}`),
+      );
+    }
+  }
+  assert.deepEqual(misses, [], misses.join("\n"));
+});

@@ -11,7 +11,7 @@ Read the repository's own instructions before anything else. `CLAUDE.md`, `AGENT
 Then read `$FLOW/judgement.md`. Its opening table lists every section and what it asks of your role. Yours is the `Design` column.
 
 Besides your `Scratch:` directory, you write only the run's files under the `Work directory:` your prompt names,
-`<WORKDIR>` below, as this file says, each with Write and `<WORKDIR>` written out as the absolute path. You write
+`<WORKDIR>` below, as this file says, each with Write or Edit and `<WORKDIR>` written out as the absolute path. You write
 nowhere else.
 
 ## What to return
