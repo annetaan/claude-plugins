@@ -646,25 +646,43 @@ const replyFile = (path: string, ...answers: readonly string[]): void => {
 
 const FIXED = `fixed: the cache is cleared on sign-out. ran: ${CMD}; saw: exit 0`;
 
-test("lint passes the examples in review-files.md", () => {
-  const D = join(tmp, "lint/examples/review");
-  mkdirSync(D, { recursive: true });
+test("the examples in review-files.md pass lint, and round writes the round example from the draft and judgement examples", () => {
+  setup();
+  const W = begun("--level", "high", "--source", "default");
+  const R = join(W, "review");
+  roundFile(
+    join(R, "task-2-round-1.md"),
+    "None.",
+    twoFindings("R1.1", "R1.2"),
+    "changes-requested",
+  );
+  const judgement = join(W, "drafts/task-2-round-2-judgement.md");
   const names = new Map([
-    ["# Task 2, evidence", "task-2-evidence.md"],
-    ["# Task 2, round 1, seat a", "task-2-round-1-a.md"],
-    ["# Task 2, round 2", "task-2-round-2.md"],
-    ["# Task 2, round 2, reply", "task-2-round-2-reply.md"],
+    ["# Task 2, evidence", join(R, "task-2-evidence.md")],
+    ["# Task 2, round 1, seat a", join(R, "task-2-round-1-a.md")],
+    ["# task-2, round 2, draft", join(W, "drafts/task-2-round-2.md")],
+    ["Seats: a on opus, b on fable", judgement],
   ]);
-  for (const [, block = ""] of read(reviewFiles).matchAll(/^```markdown\n([\s\S]*?)^```$/gm)) {
-    const name = names.get(block.split("\n", 1)[0] ?? "");
-    if (name !== undefined) {
-      write(join(D, name), block);
-    }
+  const blocks = new Map(
+    [...read(reviewFiles).matchAll(/^```markdown\n([\s\S]*?)^```$/gm)].map(
+      ([, block = ""]) => [block.split("\n", 1)[0] ?? "", block] as const,
+    ),
+  );
+  for (const [first, path] of names) {
+    write(path, blocks.get(first) ?? "");
   }
-  passes(join(D, "task-2-evidence.md"), "evidence");
-  passes(join(D, "task-2-round-1-a.md"), "seat");
-  copyFileSync(join(D, "task-2-evidence.md"), join(D, "task-2-round-2-evidence.md"));
-  passes(join(D, "task-2-round-2-reply.md"), "reply");
+  const d = flowJson("round", wt, "task-2", judgement);
+  assert.deepEqual(
+    [d.status, d.verdict, d.open],
+    ["ok", "changes-requested", ["R1.2", "R2.1"]],
+    JSON.stringify(d),
+  );
+  assert.equal(read(d.round), blocks.get("# task-2, round 2"));
+  write(join(R, "task-2-round-2-reply.md"), blocks.get("# Task 2, round 2, reply") ?? "");
+  passes(join(R, "task-2-evidence.md"), "evidence");
+  passes(join(R, "task-2-round-1-a.md"), "seat");
+  copyFileSync(join(R, "task-2-evidence.md"), join(R, "task-2-round-2-evidence.md"));
+  passes(join(R, "task-2-round-2-reply.md"), "reply");
 });
 
 test("lint names each reason of a seat file", () => {

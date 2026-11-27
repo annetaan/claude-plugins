@@ -49,7 +49,7 @@ every prompt written by `flow.sh prompt` with the scope `merge`: `flow.sh prompt
   conflicted files take part in.
 - The `seat` prompt has each seat review the resolution, each conflicted file against both sides with
   `git diff HEAD -- <file>` and `git diff MERGE_HEAD -- <file>`, and any change outside those files.
-- `<scope>` of phase 4 (b) is `merge`. The round files are `merge-round-<r>.md`, each written from the draft `drafts/merge-round-<r>.md` that `flow.sh verify` writes, the replies `merge-round-<r>-reply.md`, and the evidence of a reply that changed code `merge-round-<r>-evidence.md`.
+- `<scope>` of phase 4 (b) is `merge`. The round files are `merge-round-<r>.md`, each written by `flow.sh round` from the draft `drafts/merge-round-<r>.md` that `flow.sh verify` writes and the judgement, the replies `merge-round-<r>-reply.md`, and the evidence of a reply that changed code `merge-round-<r>-evidence.md`.
 - **The commit**, in phase 4 (d), is the `commit merge` prompt: `git add -A`, then `git commit --no-edit`, which
   records the merge with both parents and the message git prepared, then the checks that `git status --porcelain`
   prints nothing and that `MERGE_HEAD` is gone, with the notes for the next session.
