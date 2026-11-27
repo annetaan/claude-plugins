@@ -178,6 +178,40 @@ test("run after a merged pull request deletes the branch and fast-forwards the b
   assert.notEqual(gitResult(main, "rev-parse", "--verify", "-q", "refs/heads/feat/m").status, 0);
 });
 
+test("run after a merged pull request keeps a branch on origin whose local tip the pull request lacks", () => {
+  const { main, other } = setup("merged-late");
+  const wt = create(main, "run");
+  const tip = commitOn(wt.worktree, "feat/m", "m.txt");
+  git(wt.worktree, "push", "-q", "origin", "feat/m");
+  git(other, "fetch", "-q", "origin");
+  git(other, "merge", "-q", "--no-ff", "-m", "Merge feat/m", "origin/feat/m");
+  git(other, "push", "-q", "origin", "main");
+  pullRequest("feat/m", 1, "MERGED", tip);
+  const late = commitOn(wt.worktree, null, "late.txt");
+  git(wt.worktree, "push", "-q", "origin", "feat/m");
+  const checked = printed(main, "check", wt.name);
+  assert.deepEqual(checked.branches, [
+    { name: "feat/m", local: "keep", why: "unpushed", remote: "present" },
+  ]);
+  const out = printed(main, "run", wt.name);
+  assert.equal(out.status, "done", JSON.stringify(out));
+  assert.deepEqual(out.branches, [
+    { name: "feat/m", local: "kept", why: "unpushed", remote: "kept" },
+  ]);
+  assert.deepEqual(out.errors, []);
+  assert.equal(
+    git(main, "ls-remote", "origin", "refs/heads/feat/m"),
+    `${late}\trefs/heads/feat/m\n`,
+  );
+  assert.equal(
+    gitResult(main, "rev-parse", "--verify", "-q", "refs/remotes/origin/feat/m").status,
+    0,
+  );
+  assert.equal(out.update.action, "updated");
+  assert.equal(git(main, "log", "--format=%s", "origin/main..feat/m"), "late.txt\n");
+  assert.deepEqual(printed(main, "list").targets, []);
+});
+
 test("a closed pull request's branch is a loss", () => {
   const { main } = setup("closed");
   const wt = create(main, "run");

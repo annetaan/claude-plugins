@@ -51,8 +51,9 @@ const USAGE = `usage: cleanup.sh list                     the run-* and propose-
                                            and one #<P> target per project with pj-<P>-* worktrees, with the state of the project
        cleanup.sh check <name>|#<P>        what run would do for the worktree <name>, or for project <P>, which must be merged
        cleanup.sh run <name>|#<P> [--discard]
-                                           move the work reports out, remove the worktree, delete the branch, fast-forward the base.
-                                           For #<P>: every pj-<P>-* worktree, the base branch locally and on origin, and <from>.
+                                           move the work reports out, remove the worktree, delete the branch locally and on origin,
+                                           fast-forward the base. For #<P>: every pj-<P>-* worktree, the base branch, and <from>.
+                                           A branch kept as unpushed keeps its copy on origin.
                                            --discard removes work that nothing else holds. It also deletes the work reports
                                            in <MAIN>/work-reports/ beyond the 100 newest by their stamp
 Every subcommand prints one JSON object with "status" and exits 0. "stop" carries "reason" and "message".
@@ -510,21 +511,27 @@ const removeBranch = (
     readonly name: string;
     readonly local: "deleted" | "kept";
     readonly why: Branch["why"];
-    readonly remote: "deleted" | "absent" | "present";
+    readonly remote: "deleted" | "kept" | "absent" | "present";
   };
   readonly errors: readonly StepError[];
 } => {
+  const keepsOrigin = br.local === "keep" && br.why === "unpushed";
   const local =
     br.local === "delete" && hasBranch(main, br.name)
       ? run(["git", "-C", main, "branch", "-D", br.name])
       : null;
   const pushed =
-    br.remote === "present"
+    !keepsOrigin && br.remote === "present"
       ? run(["git", "-C", main, "push", "--quiet", "origin", "--delete", br.name])
       : null;
-  run(["git", "-C", main, "update-ref", "-d", `refs/remotes/origin/${br.name}`]);
-  const remote =
-    pushed === null
+  if (!keepsOrigin) {
+    run(["git", "-C", main, "update-ref", "-d", `refs/remotes/origin/${br.name}`]);
+  }
+  const remote = keepsOrigin
+    ? br.remote === "present"
+      ? "kept"
+      : "absent"
+    : pushed === null
       ? "absent"
       : pushed.code === 0
         ? "deleted"

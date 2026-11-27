@@ -451,8 +451,8 @@ the time stamp in their name.
 For a project, it closes the parent when it is still open, removes every `pj-<P>-*` worktree of the project, deletes
 the project's branch locally and on origin, and fast-forwards your local copy of the branch the project merged into,
 usually `main`. A local project branch with commits nowhere on origin, or one checked out elsewhere, is kept and named
-in the report, and so is a run's branch with commits origin does not have. It names the projects that can be split now
-that this one is merged.
+in the report, and so is a run's branch with commits origin does not have. A branch kept for its commits also keeps
+its copy on origin, for a run as for a project. It names the projects that can be split now that this one is merged.
 
 It never switches your branch, stashes or resets. Work that nothing else holds is removed only when you choose to
 discard it. That means uncommitted changes, what a submodule in the worktree holds on its own (its uncommitted changes and the commits no remote of the submodule has), commits that are on no other branch on origin, the commits on a detached HEAD that no ref on origin holds, and the branch of a closed

@@ -308,6 +308,39 @@ test("run #1 removes the worktree of a finish stop and keeps its branch with the
   assert.equal(git(c.main, "rev-parse", "refs/heads/feat/3-x"), tip);
 });
 
+test("run #1 keeps the origin copy of a run branch it keeps as unpushed", () => {
+  const c = setup(true);
+  const path = wt(c, RUN_3);
+  git(path, "push", "-q", "origin", "feat/3-x");
+  const pushed = git(path, "rev-parse", "HEAD");
+  writeFileSync(join(path, "finish.txt"), "finish\n");
+  git(path, "add", "finish.txt");
+  git(path, "commit", "-q", "-m", "finish");
+  const checked = printed(c.main, "check", "#1");
+  assert.deepEqual(checked.branches[1], {
+    name: "feat/3-x",
+    local: "keep",
+    why: "unpushed",
+    remote: "present",
+  });
+  const out = printed(c.main, "run", "#1");
+  assert.equal(out.status, "done");
+  assert.deepEqual(out.branches[0], {
+    name: "pj/1",
+    local: "deleted",
+    why: null,
+    remote: "deleted",
+  });
+  assert.deepEqual(out.branches[1], {
+    name: "feat/3-x",
+    local: "kept",
+    why: "unpushed",
+    remote: "kept",
+  });
+  assert.equal(git(c.origin, "rev-parse", "refs/heads/feat/3-x"), pushed);
+  assert.equal(git(c.origin, "for-each-ref", "refs/heads/pj/1"), "");
+});
+
 test("run #1 --discard removes a kept worktree", () => {
   const c = setup(true);
   commitOnDetachedHead(c);

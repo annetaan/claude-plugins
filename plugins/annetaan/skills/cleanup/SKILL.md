@@ -149,8 +149,9 @@ Show what the cleanup does, one line per item, from the `check` output.
     should be: for a run, commits the pull request's head does not have; for a project's base branch, commits neither
     `origin/<base>` nor `origin/<from>` has; for the branch a project's worktree has checked out (a run that stopped
     in its finish), commits no ref on origin has, which `git log <branch> --not --remotes` shows. The worktree is
-    removed and the kept branch keeps its commits
-  - `remote`: `present` means it is deleted on origin, `absent` that origin has none
+    removed, and the kept branch keeps its commits and its copy on origin
+  - `remote`: `present` means it is deleted on origin, except for a branch kept as `unpushed`, whose copy on origin
+    stays; `absent` that origin has none
 - for a run, when `pr` is null, `branches` is not empty and `loses` holds `commits`: "the commits on `<branch>` are on
   no other branch on origin and are lost."
 - when a worktree is detached and `loses` holds `commits`: its detached HEAD holds commits that no ref on origin has,
@@ -220,8 +221,12 @@ It acts as `check` said, from a fresh read. Act by `status`.
 - for a project, the parent's URL, and whether it closed now or was closed already
 - each entry of `worktrees`: `removed`, with each path in its `moved`, or `pruned`
 - each entry of `branches`:
-  - `local`: `deleted`, or `kept` with why. For `unpushed`, `git log <branch> --not --remotes` shows the commits
-  - `remote`: `deleted`, or `absent` when origin had no branch left
+  - `local`: `deleted`, or `kept` with why. For `unpushed`, `git log <branch> --not --remotes` shows the commits no
+    ref on origin has, and for a run, `git log origin/<base>..<branch>` shows the commits the merged base lacks,
+    which holds them even when the copy on origin has them too
+  - `remote`: `deleted`; `kept`, a branch kept as `unpushed` whose copy on origin stays, so the commits it pushed can
+    still be seen there; `absent` when origin had no branch left; or `present` when the delete on origin failed, with
+    its `errors` entry
 - `update.action`, for `<base>` of a run or `<from>` of a project:
   - `updated`: `from` and `to`, as short SHAs, and where it moved
   - `current`: up to date
@@ -245,5 +250,6 @@ It acts as `check` said, from a fresh read. Act by `status`.
 - In `<MAIN>/work-reports/`, only real directories whose names start with a time stamp, and only those beyond the 100
   newest by that stamp, are deleted.
 - **Close a project's parent only through `run.sh close`**, which refuses one that is not merged. Write nothing else
-  to GitHub yourself. `cleanup.sh run` deletes the branches on origin.
+  to GitHub yourself. `cleanup.sh run` deletes the branches on origin, except the copy of a branch it keeps as
+  `unpushed`.
 - Every comment starts with `**[cleanup]**`.
