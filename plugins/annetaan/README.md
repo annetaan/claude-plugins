@@ -684,6 +684,12 @@ every test, as CI does on each pull request. `pnpm exec oxfmt` formats the `.ts`
 `plugins/annetaan/scripts/ts.sh --test`, which gives each test 600 s under Bun (`bun test --timeout 600000`). A test
 file sets no timeout of its own.
 
+mise is optional, and neither the plugin nor `tests/run.sh` calls it. With mise, `mise install` at the repository root
+installs the Node.js that `mise.toml` pins, the version CI's `test` job runs, and `node` runs that version in the
+repository and in every worktree under it. pnpm takes its version from `packageManager` in `package.json`. For mise to
+provide it as well, set `idiomatic_version_file_enable_tools = ["pnpm"]` under `[settings]` in your global mise
+config.
+
 The slash form is `/annetaan:<directory name>`. The plugin name is prefixed for you, so a directory never needs an
 `annetaan-` in front of it.
 
