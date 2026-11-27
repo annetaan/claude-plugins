@@ -6,7 +6,7 @@ import { delimiter, join } from "node:path";
 import { spawnSync } from "node:child_process";
 
 const launcher = join(import.meta.dirname, "../plugins/annetaan/scripts/ts.sh");
-const stop = "annetaan: needs Bun, or Node.js 22.18 or later";
+const stop = "annetaan: needs Bun, or Node.js 24 or later";
 
 const isExecutable = (path: string): boolean => {
   try {
@@ -58,7 +58,7 @@ test("runs a file with its arguments and exits with its code", () => {
 });
 
 test("prefers bun when both are on the PATH", () => {
-  const env = { PATH: fakeBin("both", { bun: echo, node: fakeNode("strip") }) };
+  const env = { PATH: fakeBin("both", { bun: echo, node: fakeNode("24 strip") }) };
   const file = launch(["a.ts", "x"], env);
   assert.equal(file.stdout, "bun a.ts x\n");
   assert.equal(file.status, 0);
@@ -68,7 +68,7 @@ test("prefers bun when both are on the PATH", () => {
 });
 
 test("uses node when it strips types", () => {
-  const env = { PATH: fakeBin("node", { node: fakeNode("strip") }) };
+  const env = { PATH: fakeBin("node", { node: fakeNode("24 strip") }) };
   const file = launch(["a.ts", "x"], env);
   assert.equal(file.stdout, "node a.ts x\n");
   assert.equal(file.status, 0);
@@ -85,7 +85,11 @@ const assertStops = (env: NodeJS.ProcessEnv): void => {
 };
 
 test("stops on a node that cannot run TypeScript", () => {
-  assertStops({ PATH: fakeBin("old-node", { node: fakeNode("undefined") }) });
+  assertStops({ PATH: fakeBin("old-node", { node: fakeNode("24 undefined") }) });
+});
+
+test("stops on a node below 24 that strips types", () => {
+  assertStops({ PATH: fakeBin("node-23", { node: fakeNode("23 strip") }) });
 });
 
 test("stops when neither runtime is on the PATH", () => {
