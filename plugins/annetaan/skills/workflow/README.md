@@ -206,7 +206,10 @@ of the same minute and commit gets `-2`, `-3` after the name. `flow.sh status` n
 `run.json` was written last.
 
 **These live inside the repository so that you see them.** A cleanup deletes the ones in your clone's
-`work-reports/` beyond the 100 newest, by the time stamp in their name. In a temp directory somewhere else they eat
+`work-reports/` beyond the 100 newest, by the time stamp in their name. When a report moves into your clone's
+`work-reports/`, it leaves out every `node_modules` and every nested git repository under `scratch/` and `seats/`, so a
+kept report holds the review, the prompts and the experiments' own files, not the dependencies or the clones a session
+made there. In a temp directory somewhere else they eat
 disk where nobody looks. In exchange, the run adds `.claude/worktrees/` and `work-reports/` to `.git/info/exclude`
 when that file has no line for them, without asking, and stops only when a `.gitignore` rule negates one of them. That file
 stays in your clone, so nothing is committed and `.gitignore` is never edited.

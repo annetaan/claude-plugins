@@ -49,3 +49,8 @@ export const landings = (
 
 export const freeName = (prefix: string, stamp: string, taken: readonly string[]): string =>
   firstFree(`${prefix}-${stamp}`, new Set(taken));
+
+export const EXPERIMENT_DIRS: readonly string[] = ["scratch", "seats"];
+
+export const dropsOnMove = (name: string, children: readonly string[]): boolean =>
+  name === "node_modules" || children.includes(".git");
