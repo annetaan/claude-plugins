@@ -64,26 +64,10 @@ test("lintReasons passes a seat file whose finding title is written in Japanese"
   assert.deepEqual(lintReasons(dir, "review/task-1-round-1-a.md"), { kind: "seat", reasons: [] });
 });
 
-test("lintReasons takes - R2.1修正 for no earlier finding, and - R2.1 resolved for one", () => {
-  const two = roundFile(2, [], "日本語のタイトル");
-  const glued: ReviewDir = {
-    "review/task-1-round-2.md": two,
-    "review/task-1-round-3.md": roundFile(3, ["- R2.1修正 resolved"], "次の指摘"),
-  };
-  const gluedReasons = lintReasons(glued, "review/task-1-round-3.md").reasons;
-  assert.ok(gluedReasons.includes("mark"), gluedReasons.join(", "));
-  assert.ok(gluedReasons.includes("earlier-missing"), gluedReasons.join(", "));
-  const spaced: ReviewDir = {
-    "review/task-1-round-2.md": two,
-    "review/task-1-round-3.md": roundFile(3, ["- R2.1 resolved: 直った"], "次の指摘"),
-  };
-  const spacedReasons = lintReasons(spaced, "review/task-1-round-3.md").reasons;
-  assert.ok(!spacedReasons.includes("mark"), spacedReasons.join(", "));
-  assert.ok(!spacedReasons.includes("earlier-missing"), spacedReasons.join(", "));
-});
-
-test("lintReasons names a file that is no review file", () => {
+test("lintReasons names a file that is no review file, and a round file", () => {
   assert.deepEqual(lintReasons({}, "review/notes.md"), { kind: null, reasons: ["name"] });
+  const dir: ReviewDir = { "review/task-1-round-1.md": roundFile(1, [], "日本語のタイトル") };
+  assert.deepEqual(lintReasons(dir, "review/task-1-round-1.md"), { kind: null, reasons: ["name"] });
 });
 
 test("scopeState reads a finding titled in Japanese, its stands mark and the reply", () => {
@@ -97,7 +81,6 @@ test("scopeState reads a finding titled in Japanese, its stands mark and the rep
       "- R2.1 disagree: 設計どおり",
       "",
     ].join("\n"),
-    "review/task-1-evidence.md": "# evidence\n",
   };
   const state = scopeState(dir, "task-1");
   assert.equal(state.round, 3);
@@ -107,10 +90,6 @@ test("scopeState reads a finding titled in Japanese, its stands mark and the rep
     { id: "R1.1", stood: 1, reply: "fixed" },
     { id: "R2.1", stood: 0, reply: "disagree" },
   ]);
-  assert.deepEqual(state.approve, {
-    allowed: false,
-    why: ["approve-open", "approve-no-evidence"],
-  });
 });
 
 test("scopeState sorts rounds as numbers", () => {

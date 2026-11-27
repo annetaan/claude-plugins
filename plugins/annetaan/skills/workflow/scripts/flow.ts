@@ -55,6 +55,13 @@ import {
   type ReviewDir,
   type RunArgs,
 } from "./pure/review-file.ts";
+import {
+  evidenceWanted,
+  judgementFault,
+  parseJudgement,
+  roundText,
+  type JudgementFault,
+} from "./pure/round-file.ts";
 
 const USAGE = `usage: flow.sh run <WT> <seat> <probe dir>   snapshot the working tree of <WT>, put seat a or b at it, copy <probe dir>/tree over it,
                                               run <probe dir>/run.sh there and print its exit and its last 40 lines
@@ -66,14 +73,18 @@ const USAGE = `usage: flow.sh run <WT> <seat> <probe dir>   snapshot the working
        flow.sh status <WT> [<scope>]         print the start, the work directory, the level, its source, the issue and the
                                               parent of the run whose run.json was written last; with a scope (task-<k>,
                                               integration or merge) also its next round, whether the cap is reached, the
-                                              last verdict, the open findings and whether approve is allowed
-       flow.sh lint <file>                   check one review file or a decisions.md against review-files.md and print ok,
-                                              kind and reasons; it reads the file, the files beside it and, for a round
-                                              file, its draft under drafts/
+                                              last verdict and the open findings
+       flow.sh lint <file>                   check a seat file, a reply, an evidence file or a decisions.md against
+                                              review-files.md and print ok, kind and reasons; it reads the file and the
+                                              files beside it
        flow.sh verify <WT> <scope>           run again every command of the scope's next round, the open earlier findings
                                               and the findings of each seat the run's level runs, sort them by the
                                               probe's exit, and write drafts/<scope>-round-<r>.md in the run's work
                                               directory
+       flow.sh round <WT> <scope> <judgement file>
+                                              write review/<scope>-round-<r>.md of the scope's next round from
+                                              drafts/<scope>-round-<r>.md and the judgement file, with its verdict, and
+                                              print its path, the verdict, the open findings and whether the cap is reached
        flow.sh record <WT>                   write the pull request head, when the run comes from an issue, and the Level:
                                               line into log.md of the newest work directory, from its run.json
        flow.sh prompt <WT> <kind> [<scope>] [<seat>]
@@ -344,11 +355,11 @@ const mdFiles = (dir: string, prefix: string): readonly (readonly [string, strin
         .map((name) => [`${prefix}/${name}`, readFileSync(join(dir, name), "utf8")] as const)
     : [];
 
-const readReviewDir = (review: string, drafts: string): ReviewDir =>
-  Object.fromEntries([...mdFiles(review, "review"), ...mdFiles(drafts, "drafts")]);
-
 const workdirReview = (workdir: string): ReviewDir =>
-  readReviewDir(join(workdir, "review"), join(workdir, "drafts"));
+  Object.fromEntries([
+    ...mdFiles(join(workdir, "review"), "review"),
+    ...mdFiles(join(workdir, "drafts"), "drafts"),
+  ]);
 
 const requireScope = (scope: string): void => {
   if (!isScope(scope)) {
@@ -382,7 +393,7 @@ const lint = (path: string): StatusObject => {
     basename(path) === DECISIONS
       ? { kind: "decisions", reasons: decisionEntries(readFileSync(path, "utf8")).reasons }
       : lintReasons(
-          readReviewDir(dirname(path), join(dirname(dirname(path)), "drafts")),
+          Object.fromEntries(mdFiles(dirname(path), "review")),
           `review/${basename(path)}`,
         );
   return { status: "ok", ok: found.reasons.length === 0, kind: found.kind, reasons: found.reasons };
@@ -480,6 +491,51 @@ const verify = (wt: string, scope: string): StatusObject => {
   mkdirSync(dirname(draft), { recursive: true });
   writeFileSync(draft, draftText(scope, r, earlierLines, newBlocks, droppedLines));
   return { status: "ok", scope, round: r, draft, dropouts, earlier, new: added, dropped };
+};
+
+const judgementStop = (path: string, { line, why, id }: JudgementFault): StatusObject =>
+  stop("judgement", `${path} line ${line}: ${why}${id === null ? "" : ` ${id}`}`, { line, why });
+
+const round = (wt: string, scope: string, judgementPath: string): StatusObject => {
+  requireScope(scope);
+  const { workdir } = currentRun(wt);
+  if (!isFile(judgementPath)) {
+    throw new Failure(`no such file: ${judgementPath}`);
+  }
+  const dir = workdirReview(workdir);
+  const r = scopeState(dir, scope).round;
+  const key = `drafts/${scope}-round-${r}.md`;
+  if (dir[key] === undefined) {
+    return stop("no-draft", `no draft of round ${r} in ${join(workdir, key)}; run verify first`);
+  }
+  const draft = parseReview(dir, key);
+  const judgement = parseJudgement(readFileSync(judgementPath, "utf8"));
+  if ("why" in judgement) {
+    return judgementStop(judgementPath, judgement);
+  }
+  const fault = judgementFault(judgement, draft);
+  if (fault !== null) {
+    return judgementStop(judgementPath, fault);
+  }
+  let verdict: "approve" | "changes-requested" = "changes-requested";
+  if (judgement.keep.length === 0 && !judgement.earlier.some((entry) => entry.word === "stands")) {
+    const wanted = evidenceWanted(dir, scope, r);
+    if (wanted !== null) {
+      const file = join(workdir, wanted);
+      return stop("no-evidence", `approve needs ${file}`, { file });
+    }
+    verdict = "approve";
+  }
+  const path = join(workdir, "review", `${scope}-round-${r}.md`);
+  writeFileSync(path, roundText(scope, r, draft, judgement, verdict));
+  const after = scopeState(workdirReview(workdir), scope);
+  return {
+    status: "ok",
+    round: path,
+    verdict,
+    open: after.open.map((finding) => finding.id),
+    cap: after.cap,
+  };
 };
 
 const agentOf = (kind: string, seat: string | undefined): string | null => {
@@ -594,9 +650,6 @@ const record = (wt: string): StatusObject => {
     stop("no-review", `no review/ in ${workdir}`);
   }
   const counts = recordCounts(workdirReview(workdir));
-  if (!("tasks" in counts)) {
-    return stop("malformed", `round files that fail lint: ${counts.failed.join("; ")}`);
-  }
   const line = recordLine({
     level: runRecord.level,
     source: runRecord.source,
@@ -723,6 +776,8 @@ const checked = (args: readonly string[]): void => {
         return count === 2 || count === 3;
       case "verify":
         return count === 3;
+      case "round":
+        return count === 4;
       case "prompt":
         switch (third) {
           case "report":
@@ -753,6 +808,10 @@ const checked = (args: readonly string[]): void => {
   if (!path.startsWith("/")) {
     throw new Failure(`<WT> and <file> must be absolute paths: ${path}`);
   }
+  const judgement = args[3] ?? "";
+  if (sub === "round" && !judgement.startsWith("/")) {
+    throw new Failure(`<judgement file> must be an absolute path: ${judgement}`);
+  }
 };
 
 const pairs = (options: readonly string[]): Readonly<Record<string, string>> =>
@@ -776,6 +835,8 @@ const dispatch = (args: readonly string[]): StatusObject => {
       return lint(path);
     case "verify":
       return verify(path, third ?? "");
+    case "round":
+      return round(path, third ?? "", fourth ?? "");
     case "record":
       return record(path);
     case "prompt":
