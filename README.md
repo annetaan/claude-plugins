@@ -14,7 +14,7 @@ If something breaks for you, please open an issue. Pull requests are welcome too
 /plugin install annetaan@annetaan
 ```
 
-The plugin needs `git`, `gh` 2.99.0 or later, and Bun or Node.js 22.18 or later.
+The plugin needs `git`, `gh` 2.99.0 or later, and Bun or Node.js 24 or later.
 
 Installed plugins stay at their version until you update them. To pick up later changes, run this in a shell,
 then `/reload-plugins` in any session that is already open:
