@@ -15,6 +15,8 @@ import { basename, join } from "node:path";
 import { spawn, spawnSync } from "node:child_process";
 import { stampOf } from "../plugins/annetaan/scripts/pure/reports.ts";
 
+process.env["TZ"] = "Asia/Tokyo";
+
 const script = join(import.meta.dirname, "../plugins/annetaan/skills/workflow/scripts/worktree.sh");
 
 const tmp = mkdtempSync(join(tmpdir(), "worktree-create-"));

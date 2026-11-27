@@ -15,6 +15,8 @@ import { join } from "node:path";
 import { spawnSync } from "node:child_process";
 import { stampOf } from "../plugins/annetaan/scripts/pure/reports.ts";
 
+process.env["TZ"] = "Asia/Tokyo";
+
 const script = join(import.meta.dirname, "../plugins/annetaan/skills/pj4-running/scripts/run.sh");
 
 const tmp = mkdtempSync(join(tmpdir(), "run-worktree-"));
