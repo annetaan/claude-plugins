@@ -45,7 +45,7 @@ The evidence is `merge-evidence.md`.
 <end>
 <end>
 <if restart>
-The reply of the last round is `<scope>-round-<last>-reply.md`, and the round file of the last round is `<scope>-round-<last>.md`. The evidence is the one of the latest code change before round <round>, as **The lint** in `<skills>/workflow/review-files.md` defines it. You start in round <round>. Review the whole change as round 1 does, since you have no earlier snapshot, and do not raise again a finding the earlier round files list.
+The reply of the last round is `<scope>-round-<last>-reply.md`, and the round file of the last round is `<scope>-round-<last>.md`. The evidence is the one of the latest code change before round <round>, as **A review round** in `<skills>/workflow/review-files.md` defines it. You start in round <round>. Review the whole change as round 1 does, since you have no earlier snapshot, and do not raise again a finding the earlier round files list.
 <end>
 
 Write your seat file as `<scope>-round-<round>-<seat>.md` under the review files.

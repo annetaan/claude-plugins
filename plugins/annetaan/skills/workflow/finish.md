@@ -43,7 +43,7 @@ Then write the head and the `Level:` line into `log.md`:
 $FLOW/scripts/flow.sh record <WT>
 ```
 
-It reads the `run.json` that `flow.sh begin` wrote. When the run comes from an issue, it writes the head, `Implements #<issue>` and `Part of #<parent>`, at the top of `log.md`, in place of any head already there. It appends one `Level:` line, with what `begin` stored and the review counts, to the end, so the pull request body carries both. A `stop` (`no-log`, `no-review`, `malformed`) is a failed step of the finish: quote `message` and go to the entry's ending, as for a failed push. `malformed` names each round file under `review/` that fails `flow.sh lint`, with its reasons.
+It reads the `run.json` that `flow.sh begin` wrote. When the run comes from an issue, it writes the head, `Implements #<issue>` and `Part of #<parent>`, at the top of `log.md`, in place of any head already there. It appends one `Level:` line, with what `begin` stored and the review counts, to the end, so the pull request body carries both. A `stop` (`no-log`, `no-review`) is a failed step of the finish: quote `message` and go to the entry's ending, as for a failed push.
 
 Then open the pull request.
 

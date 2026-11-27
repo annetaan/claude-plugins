@@ -9,14 +9,13 @@ import {
   readFileSync,
   readdirSync,
   realpathSync,
-  renameSync,
   rmSync,
   statSync,
   utimesSync,
   writeFileSync,
 } from "node:fs";
 import { tmpdir } from "node:os";
-import { basename, dirname, join } from "node:path";
+import { dirname, join } from "node:path";
 import { spawn, spawnSync, type SpawnSyncReturns } from "node:child_process";
 import { setTimeout } from "node:timers/promises";
 
@@ -636,10 +635,6 @@ const twoFindings = (first: string, second: string): string =>
 
 const roundFile = (path: string, earlier: string, fresh: string, verdict: string): void => {
   write(
-    join(dirname(dirname(path)), "drafts", basename(path)),
-    `# Draft\n\n## Earlier findings\n\n${earlier}\n\n## New findings\n\n${fresh}\n\n## Dropped\n\n- a: none\n- b: none\n`,
-  );
-  write(
     path,
     `# Round\n\nSeats: a on opus, b on fable\n\n## Earlier findings\n\n${earlier}\n\n## New findings\n\n${fresh}\n\n## Dropped\n\n- a: none\n- b: none\n\n## Not run\n\nNone.\n\n## Verdict\n\n${verdict}\n`,
   );
@@ -651,34 +646,43 @@ const replyFile = (path: string, ...answers: readonly string[]): void => {
 
 const FIXED = `fixed: the cache is cleared on sign-out. ran: ${CMD}; saw: exit 0`;
 
-test("lint passes the examples in review-files.md", () => {
-  const D = join(tmp, "lint/examples/review");
-  mkdirSync(D, { recursive: true });
-  const names = new Map([
-    ["# Task 2, evidence", "task-2-evidence.md"],
-    ["# Task 2, round 1, seat a", "task-2-round-1-a.md"],
-    ["# Task 2, round 2", "task-2-round-2.md"],
-    ["# Task 2, round 2, reply", "task-2-round-2-reply.md"],
-    ["# task-2, round 2, draft", "../drafts/task-2-round-2.md"],
-  ]);
-  for (const [, block = ""] of read(reviewFiles).matchAll(/^```markdown\n([\s\S]*?)^```$/gm)) {
-    const name = names.get(block.split("\n", 1)[0] ?? "");
-    if (name !== undefined) {
-      write(join(D, name), block);
-    }
-  }
+test("the examples in review-files.md pass lint, and round writes the round example from the draft and judgement examples", () => {
+  setup();
+  const W = begun("--level", "high", "--source", "default");
+  const R = join(W, "review");
   roundFile(
-    join(D, "task-2-round-1.md"),
+    join(R, "task-2-round-1.md"),
     "None.",
     twoFindings("R1.1", "R1.2"),
     "changes-requested",
   );
-  passes(join(D, "task-2-round-1.md"), "round");
-  passes(join(D, "task-2-evidence.md"), "evidence");
-  passes(join(D, "task-2-round-1-a.md"), "seat");
-  passes(join(D, "task-2-round-2.md"), "round");
-  copyFileSync(join(D, "task-2-evidence.md"), join(D, "task-2-round-2-evidence.md"));
-  passes(join(D, "task-2-round-2-reply.md"), "reply");
+  const judgement = join(W, "drafts/task-2-round-2-judgement.md");
+  const names = new Map([
+    ["# Task 2, evidence", join(R, "task-2-evidence.md")],
+    ["# Task 2, round 1, seat a", join(R, "task-2-round-1-a.md")],
+    ["# task-2, round 2, draft", join(W, "drafts/task-2-round-2.md")],
+    ["Seats: a on opus, b on fable", judgement],
+  ]);
+  const blocks = new Map(
+    [...read(reviewFiles).matchAll(/^```markdown\n([\s\S]*?)^```$/gm)].map(
+      ([, block = ""]) => [block.split("\n", 1)[0] ?? "", block] as const,
+    ),
+  );
+  for (const [first, path] of names) {
+    write(path, blocks.get(first) ?? "");
+  }
+  const d = flowJson("round", wt, "task-2", judgement);
+  assert.deepEqual(
+    [d.status, d.verdict, d.open],
+    ["ok", "changes-requested", ["R1.2", "R2.1"]],
+    JSON.stringify(d),
+  );
+  assert.equal(read(d.round), blocks.get("# task-2, round 2"));
+  write(join(R, "task-2-round-2-reply.md"), blocks.get("# Task 2, round 2, reply") ?? "");
+  passes(join(R, "task-2-evidence.md"), "evidence");
+  passes(join(R, "task-2-round-1-a.md"), "seat");
+  copyFileSync(join(R, "task-2-evidence.md"), join(R, "task-2-round-2-evidence.md"));
+  passes(join(R, "task-2-round-2-reply.md"), "reply");
 });
 
 test("lint names each reason of a seat file", () => {
@@ -710,53 +714,6 @@ test("lint names each reason of a seat file", () => {
   breaks(one, "command", ["/seats/a/probe", "/seats/a/probe extra"]);
   breaks(walked, "entry", ["  - saw: ok\n", ""]);
   breaks(walked, "entry", ["  - not run: no browser here", "  - skipped"]);
-});
-
-test("lint names each reason of a round file", () => {
-  const D = join(tmp, "lint/round/review");
-  const first = join(D, "task-4-round-1.md");
-  const second = join(D, "task-4-round-2.md");
-  roundFile(first, "None.", twoFindings("R1.1", "R1.2"), "changes-requested");
-  replyFile(
-    join(D, "task-4-round-1-reply.md"),
-    `- R1.1 ${FIXED}`,
-    "- R1.2 disagree: the value is meant to stay",
-  );
-  roundFile(
-    second,
-    `- R1.1 resolved\n- R1.2 stands: ran: ${CMD}; saw: exit 1; the value has to go.`,
-    captured(finding("R2.1")),
-    "changes-requested",
-  );
-  passes(first, "round");
-  passes(second, "round");
-  breaks(second, "sections", ["## Dropped", "## Skipped"]);
-  breaks(second, "sections", ["## Not run\n\nNone.\n", "## Not run\n"]);
-  breaks(first, "sections", ["## Earlier findings\n\nNone.", "## Earlier findings"]);
-  breaks(second, "id", ["### R2.1 ", "### R2.2 "]);
-  breaks(second, "id", ["### R2.1 ", "### R1.3 "]);
-  breaks(second, "id", ["- R1.1 resolved", "- R1.1 resolved\n- R1.9 resolved"]);
-  breaks(first, "id", ["## Earlier findings\n\nNone.", "## Earlier findings\n\n- R0.1 resolved"]);
-  breaks(second, "finding", ["Breaks: the second sign-in shows the old value", ""]);
-  breaks(second, "finding", ["Found by: a, b", "Found by: a and b"]);
-  breaks(second, "finding", [`Command: ${CMD}`, `Command (seat a): ${CMD}`]);
-  breaks(second, "command", [`Command: ${CMD}`, `Command: ${bareCMD}`]);
-  breaks(second, "command", [
-    "Command: `/abs/skills/workflow/scripts/flow.sh run /abs/wt a ",
-    "Command: `/abs/skills/workflow/scripts/flow.sh run /abs/wt c ",
-  ]);
-  breaks(second, "seats", ["Seats: a on opus, b on fable", ""]);
-  breaks(second, "seats", ["Seats: a on opus, b on fable", "Seats: a on opus\nSeats: b on fable"]);
-  roundFile(join(D, "task-4-round-7.md"), "None.", "None.", "changes-requested");
-  gives(join(D, "task-4-round-7.md"), ["no-round"]);
-  breaks(second, "mark", ["- R1.1 resolved", "- R1.1 fine"]);
-  breaks(second, "mark", ["- R1.2 stands: ran:", "- R1.2 stands ran:"]);
-  breaks(second, "mark", ["- R1.1 resolved", "- R1.1 resolved;"]);
-  breaks(second, "earlier-missing", ["- R1.1 resolved\n", ""]);
-  breaks(second, "verdict", ["\n\nchanges-requested", "\n\nchanges requested: R2.1"]);
-  breaks(second, "verdict", ["\n\nchanges-requested", "\n\nchanges-requested\napprove"]);
-  swap(second, ["\n\nchanges-requested", "\n\napprove"]);
-  gives(second, ["approve-open", "approve-no-evidence"]);
 });
 
 test("lint names each reason of a reply", () => {
@@ -847,132 +804,6 @@ test("lint names each reason of an evidence file", () => {
   breaks(file, "entry", ["  - saw: FAIL stops at zero attempts", "  - ran: again"]);
 });
 
-test("lint allows approve only with no finding open and the evidence of the latest code change", () => {
-  let D = join(tmp, "lint/approve-task/review");
-  roundFile(join(D, "task-1-round-1.md"), "None.", "None.", "approve");
-  gives(join(D, "task-1-round-1.md"), ["approve-no-evidence"]);
-  evidenceFile(join(D, "task-1-evidence.md"));
-  passes(join(D, "task-1-round-1.md"), "round");
-
-  D = join(tmp, "lint/approve-fixed/review");
-  evidenceFile(join(D, "task-1-evidence.md"));
-  roundFile(join(D, "task-1-round-1.md"), "None.", captured(finding("R1.1")), "changes-requested");
-  replyFile(join(D, "task-1-round-1-reply.md"), `- R1.1 ${FIXED}`);
-  roundFile(join(D, "task-1-round-2.md"), "- R1.1 resolved", "None.", "approve");
-  gives(join(D, "task-1-round-2.md"), ["approve-no-evidence"]);
-  evidenceFile(join(D, "task-1-round-1-evidence.md"));
-  passes(join(D, "task-1-round-2.md"), "round");
-  rmSync(join(D, "task-1-round-1-evidence.md"));
-  replyFile(
-    join(D, "task-1-round-1-reply.md"),
-    `- R1.1 ${FIXED}`,
-    "- R1.1 disagree: the rest of it is meant",
-  );
-  gives(join(D, "task-1-round-2.md"), ["approve-no-evidence"]);
-
-  D = join(tmp, "lint/approve-disagree/review");
-  evidenceFile(join(D, "task-1-evidence.md"));
-  roundFile(join(D, "task-1-round-1.md"), "None.", captured(finding("R1.1")), "changes-requested");
-  replyFile(join(D, "task-1-round-1-reply.md"), "- R1.1 disagree: the value is meant to stay");
-  roundFile(
-    join(D, "task-1-round-2.md"),
-    "- R1.1 resolved: the value is meant to stay",
-    "None.",
-    "approve",
-  );
-  passes(join(D, "task-1-round-2.md"), "round");
-  rmSync(join(D, "task-1-evidence.md"));
-  gives(join(D, "task-1-round-2.md"), ["approve-no-evidence"]);
-
-  D = join(tmp, "lint/approve-integration/review");
-  roundFile(join(D, "integration-round-1.md"), "None.", "None.", "approve");
-  gives(join(D, "integration-round-1.md"), ["approve-no-evidence"]);
-  seatFile(join(D, "integration-round-1-a.md"), "none");
-  gives(join(D, "integration-round-1.md"), ["approve-no-evidence"]);
-  seatFile(join(D, "integration-round-1-b.md"), "none", WALK);
-  passes(join(D, "integration-round-1.md"), "round");
-
-  D = join(tmp, "lint/approve-merge/review");
-  roundFile(join(D, "merge-round-1.md"), "None.", "None.", "approve");
-  gives(join(D, "merge-round-1.md"), ["approve-no-evidence"]);
-  evidenceFile(join(D, "merge-evidence.md"));
-  passes(join(D, "merge-round-1.md"), "round");
-
-  D = join(tmp, "lint/approve-open/review");
-  evidenceFile(join(D, "task-1-evidence.md"));
-  roundFile(join(D, "task-1-round-1.md"), "None.", captured(finding("R1.1")), "approve");
-  gives(join(D, "task-1-round-1.md"), ["approve-open"]);
-  roundFile(join(D, "task-1-round-1.md"), "None.", captured(finding("R1.1")), "changes-requested");
-  replyFile(join(D, "task-1-round-1-reply.md"), "- R1.1 disagree: the value is meant to stay");
-  roundFile(
-    join(D, "task-1-round-2.md"),
-    `- R1.1 stands: ran: ${CMD}; saw: exit 1; the value has to go.`,
-    "None.",
-    "approve",
-  );
-  gives(join(D, "task-1-round-2.md"), ["approve-open"]);
-});
-
-test("lint fails a round file whose ids, sections and verdict drifted", () => {
-  const D = join(tmp, "lint/drifted/review");
-  write(
-    join(D, "../drafts/task-1-round-1.md"),
-    `# task-1, round 1, draft
-
-## Earlier findings
-
-None.
-
-## New findings
-
-None.
-
-## Dropped
-
-- a: none
-- b: none
-`,
-  );
-  write(
-    join(D, "task-1-round-1.md"),
-    `# Task 1, round 1
-
-Seats: a on opus, b on fable
-
-## Earlier findings
-
-none
-
-## New findings
-
-### F1. the cache keeps a stale value
-
-Command (seat a): ${bareCMD}
-Printed: exit 1, stale
-Required: the value is fresh
-
-### F2. the store keeps a stale value
-
-Command (seat a): ${bareCMD}
-Printed: exit 1, stale
-Required: the value is fresh
-
-## Dropped
-
-None.
-
-## Not run
-
-None.
-
-## Verdict
-
-changes requested: F1, F2
-`,
-  );
-  gives(join(D, "task-1-round-1.md"), ["sections", "id", "finding", "verdict"]);
-});
-
 test("lint passes each file of a two-round review in the order it is written", () => {
   const D = join(tmp, "lint/flow/review");
   evidenceFile(join(D, "task-1-evidence.md"));
@@ -982,7 +813,6 @@ test("lint passes each file of a two-round review in the order it is written", (
   seatFile(join(D, "task-1-round-1-b.md"), "none");
   passes(join(D, "task-1-round-1-b.md"), "seat");
   roundFile(join(D, "task-1-round-1.md"), "None.", captured(finding("R1.1")), "changes-requested");
-  passes(join(D, "task-1-round-1.md"), "round");
   evidenceFile(join(D, "task-1-round-1-evidence.md"));
   passes(join(D, "task-1-round-1-evidence.md"), "evidence");
   replyFile(join(D, "task-1-round-1-reply.md"), `- R1.1 ${FIXED}`);
@@ -991,8 +821,6 @@ test("lint passes each file of a two-round review in the order it is written", (
   passes(join(D, "task-1-round-2-a.md"), "seat");
   seatFile(join(D, "task-1-round-2-b.md"), "none");
   passes(join(D, "task-1-round-2-b.md"), "seat");
-  roundFile(join(D, "task-1-round-2.md"), "- R1.1 resolved", "None.", "approve");
-  passes(join(D, "task-1-round-2.md"), "round");
 });
 
 test("lint stops on a missing file and names a file outside Names", () => {
@@ -1010,6 +838,12 @@ test("lint stops on a missing file and names a file outside Names", () => {
   );
   evidenceFile(join(D, "integration-evidence.md"));
   gives(join(D, "integration-evidence.md"), ["name"]);
+  roundFile(join(D, "task-2-round-1.md"), "None.", captured(finding("R1.1")), "changes-requested");
+  const round = flowJson("lint", join(D, "task-2-round-1.md"));
+  assert.deepEqual(
+    [round.status, round.ok, round.kind, round.reasons],
+    ["ok", false, null, ["name"]],
+  );
   refused("lint");
   refused("lint", "relative.md");
   refused("lint", join(D, "notes.md"), join(D, "notes.md"));
@@ -1026,7 +860,7 @@ const noSuchScope = (...args: readonly string[]): void => {
   );
 };
 
-test("status reports round, cap, verdict, open and approve for a scope", () => {
+test("status reports round, cap, verdict and open for a scope", () => {
   setup();
   const R = join(begun("--level", "high", "--source", "default"), "review");
   assert.deepEqual(Object.keys(flowJson("status", wt)), [
@@ -1039,16 +873,25 @@ test("status reports round, cap, verdict, open and approve for a scope", () => {
     "parent",
   ]);
   let d = scoped("task-1");
-  assert.deepEqual(
-    [d.scope, d.round, d.cap, d.verdict, d.open, d.approve],
-    ["task-1", 1, false, null, [], { allowed: false, why: ["approve-no-evidence"] }],
-  );
+  assert.deepEqual(Object.keys(d), [
+    "status",
+    "start",
+    "workdir",
+    "level",
+    "source",
+    "issue",
+    "parent",
+    "scope",
+    "round",
+    "cap",
+    "verdict",
+    "open",
+  ]);
+  assert.deepEqual([d.scope, d.round, d.cap, d.verdict, d.open], ["task-1", 1, false, null, []]);
   assert.deepEqual(
     [d.start, d.level, d.source],
     [captured(git(wt, "rev-parse", "HEAD")), "high", "default"],
   );
-  evidenceFile(join(R, "task-1-evidence.md"));
-  assert.deepEqual(scoped("task-1").approve, { allowed: true, why: [] });
   roundFile(
     join(R, "task-1-round-1.md"),
     "None.",
@@ -1057,7 +900,7 @@ test("status reports round, cap, verdict, open and approve for a scope", () => {
   );
   d = scoped("task-1");
   assert.deepEqual(
-    [d.round, d.cap, d.verdict, d.open, d.approve],
+    [d.round, d.cap, d.verdict, d.open],
     [
       2,
       false,
@@ -1066,10 +909,8 @@ test("status reports round, cap, verdict, open and approve for a scope", () => {
         { id: "R1.1", stood: 0, reply: null },
         { id: "R1.2", stood: 0, reply: null },
       ],
-      { allowed: false, why: ["approve-open"] },
     ],
   );
-  evidenceFile(join(R, "task-1-round-1-evidence.md"));
   replyFile(
     join(R, "task-1-round-1-reply.md"),
     `- R1.1 ${FIXED}`,
@@ -1087,13 +928,8 @@ test("status reports round, cap, verdict, open and approve for a scope", () => {
   );
   d = scoped("task-1");
   assert.deepEqual(
-    [d.round, d.verdict, d.open, d.approve],
-    [
-      3,
-      "changes-requested",
-      [{ id: "R1.2", stood: 1, reply: null }],
-      { allowed: false, why: ["approve-open"] },
-    ],
+    [d.round, d.verdict, d.open],
+    [3, "changes-requested", [{ id: "R1.2", stood: 1, reply: null }]],
   );
   replyFile(join(R, "task-1-round-2-reply.md"), "- R1.2 disagree: the value is meant to stay");
   roundFile(
@@ -1152,21 +988,6 @@ test("status counts the cap the same for task, integration and merge", () => {
   assert.deepEqual([d.round, d.cap, d.verdict, d.open], [1, false, null, []]);
 });
 
-test("status allows approve in integration round 1 from a walk", () => {
-  setup();
-  const R = join(begun("--level", "high", "--source", "default"), "review");
-  const d = scoped("integration");
-  assert.deepEqual(
-    [d.round, d.verdict, d.approve],
-    [1, null, { allowed: false, why: ["approve-no-evidence"] }],
-  );
-  seatFile(join(R, "integration-round-1-a.md"), "none");
-  assert.deepEqual(scoped("integration").approve, { allowed: false, why: ["approve-no-evidence"] });
-  seatFile(join(R, "integration-round-1-b.md"), "none", WALK);
-  assert.deepEqual(scoped("integration").approve, { allowed: true, why: [] });
-  assert.ok(!existsSync(join(R, "integration-evidence.md")), "an evidence file was written");
-});
-
 test("status refuses a bad scope before begin, and stops with no-run on a good one", () => {
   setup();
   assert.equal(flowJson("status", wt, "task-1").reason, "no-run");
@@ -1185,32 +1006,59 @@ const findingsFile = (path: string, ...pairs: readonly Pair[]): void => {
   write(path, `# Seat\n\n## Findings\n\n${body === "" ? "None." : body}\n\n## Not run\n\nNone.\n`);
 };
 
-const roundFromDraft = (draft: string, out: string, verdict = "changes-requested"): void => {
-  const [head = "", ...rest] = lines(read(draft));
-  assert.ok(head.endsWith(", draft"), head);
-  const kept = [
-    head.slice(0, -", draft".length),
-    "",
+const verified = (scope: string) => flowJson("verify", wt, scope);
+
+const orNone = (entries: readonly string[]): readonly string[] =>
+  entries.length > 0 ? entries : ["None."];
+
+const judgementOf = (draft: string): string => {
+  const text = lines(read(draft));
+  const kept = text.flatMap((line) => {
+    const id = /^### (R\d+\.\d+) /.exec(line)?.[1];
+    return id === undefined
+      ? []
+      : [`- ${id}`, "  Required: the design holds", "  Breaks: the flow fails"];
+  });
+  const stands = text.flatMap((line) => {
+    const id = /^- (R\d+\.\d+) stands/.exec(line)?.[1];
+    return id === undefined ? [] : [`- ${id} stands: it still fails`];
+  });
+  return [
     "Seats: a on opus, b on fable",
-    ...rest.flatMap((line) =>
-      line.startsWith("Printed:")
-        ? [line, "Required: the design holds", "Breaks: the flow fails"]
-        : [line],
-    ),
+    "",
+    "## Keep",
+    "",
+    ...orNone(kept),
+    "",
+    "## Drop",
+    "",
+    "None.",
+    "",
+    "## Earlier",
+    "",
+    ...orNone(stands),
     "",
     "## Not run",
     "",
     "None.",
     "",
-    "## Verdict",
-    "",
-    verdict,
-  ];
-  writeFileSync(out, `${kept.join("\n")}\n`);
-  passes(out, "round");
+  ].join("\n");
 };
 
-const verified = (scope: string) => flowJson("verify", wt, scope);
+const judgementFile = (scope: string, text: string): string => {
+  const { workdir, round } = scoped(scope);
+  const path = join(workdir, "drafts", `${scope}-round-${round}-judgement.md`);
+  write(path, text);
+  return path;
+};
+
+const roundFromJudgement = (scope: string) => {
+  const { workdir, round } = scoped(scope);
+  const judgement = judgementOf(join(workdir, "drafts", `${scope}-round-${round}.md`));
+  const d = flowJson("round", wt, scope, judgementFile(scope, judgement));
+  assert.equal(d.status, "ok", JSON.stringify(d));
+  return d;
+};
 
 test("verify sorts the findings of both seats by the probe's exit", () => {
   setup();
@@ -1305,7 +1153,7 @@ Printed: exit 2, \`b sees it\`
   );
   assert.ok(hasLine(draft, "### R1.3 b sees it"), "the second verify did not overwrite the draft");
   assert.ok(hasLine(draft, "- a: none"), "the second verify kept the old dropped line");
-  roundFromDraft(draft, join(R, "task-1-round-1.md"));
+  roundFromJudgement("task-1");
 });
 
 const ids = (findings: readonly { id: string }[]) => findings.map((f) => f.id);
@@ -1321,7 +1169,7 @@ test("verify lists a seat with no file as a dropout", () => {
   let d = verified("task-1");
   assert.deepEqual([d.dropouts, ids(d.new), d.dropped], [["b"], ["R1.1"], []]);
   assert.ok(hasLine(join(W, "drafts/task-1-round-1.md"), "- b: no seat file"));
-  roundFromDraft(join(W, "drafts/task-1-round-1.md"), join(R, "task-1-round-1.md"));
+  roundFromJudgement("task-1");
   d = verified("merge");
   assert.deepEqual(
     [d.scope, d.round, d.draft, d.dropouts, d.new, d.dropped],
@@ -1351,7 +1199,7 @@ test("verify at standard reads seat a alone", () => {
     excerpt(read(join(W, "drafts/task-1-round-1.md")), /^## Dropped/),
     "## Dropped\n\n- a: none",
   );
-  roundFromDraft(join(W, "drafts/task-1-round-1.md"), join(R, "task-1-round-1.md"));
+  roundFromJudgement("task-1");
   assert.deepEqual(verified("merge").dropouts, ["a"]);
   assert.ok(
     !lines(read(join(W, "drafts/merge-round-1.md"))).some((line) => line.startsWith("- b:")),
@@ -1394,7 +1242,7 @@ test("verify drops a command that cannot be run again", () => {
     excerpt(read(join(W, "drafts/task-1-round-1.md")), /^## Dropped/),
     "## Dropped\n\n- a: 2, the command could not be run again, no-script (findings 1, 4)\n- a: 1, the command could not be run again, command (finding 2)\n- b: no seat file",
   );
-  roundFromDraft(join(W, "drafts/task-1-round-1.md"), join(R, "task-1-round-1.md"));
+  roundFromJudgement("task-1");
 });
 
 test("verify marks earlier findings resolved, stands and stands again", () => {
@@ -1412,7 +1260,7 @@ test("verify marks earlier findings resolved, stands and stands again", () => {
   );
   findingsFile(join(R, "task-1-round-1-b.md"));
   assert.deepEqual(ids(verified("task-1").new), ["R1.1", "R1.2", "R1.3"]);
-  roundFromDraft(join(W, "drafts/task-1-round-1.md"), join(R, "task-1-round-1.md"));
+  roundFromJudgement("task-1");
   evidenceFile(join(R, "task-1-round-1-evidence.md"));
   replyFile(
     join(R, "task-1-round-1-reply.md"),
@@ -1455,7 +1303,7 @@ test("verify marks earlier findings resolved, stands and stands again", () => {
 
 ## New findings`,
   );
-  roundFromDraft(join(W, "drafts/task-1-round-2.md"), join(R, "task-1-round-2.md"));
+  roundFromJudgement("task-1");
   evidenceFile(join(R, "task-1-round-2-evidence.md"));
   replyFile(
     join(R, "task-1-round-2-reply.md"),
@@ -1487,7 +1335,20 @@ test("verify marks earlier findings resolved, stands and stands again", () => {
 
 ## New findings`,
   );
-  roundFromDraft(join(W, "drafts/task-1-round-3.md"), join(R, "task-1-round-3.md"));
+  roundFromJudgement("task-1");
+  passes(join(R, "task-1-round-1-reply.md"), "reply");
+  passes(join(R, "task-1-round-2-reply.md"), "reply");
+  replyFile(
+    join(R, "task-1-round-3-reply.md"),
+    "- R1.2 disagree: the value is meant to stay",
+    "- R1.3 disagree: the value is meant to stay",
+  );
+  gives(join(R, "task-1-round-3-reply.md"), ["assumed"]);
+  replyFile(
+    join(R, "task-1-round-3-reply.md"),
+    "- R1.2 disagree: assumed: both took the cache for the source; the value is meant to stay",
+  );
+  gives(join(R, "task-1-round-3-reply.md"), ["missing"]);
 });
 
 test("verify exits 1 when an earlier finding's probe is gone", () => {
@@ -1497,7 +1358,7 @@ test("verify exits 1 when an earlier finding's probe is gone", () => {
   const gone = probe("a", "gone", "echo two; exit 1");
   findingsFile(join(R, "task-1-round-1-a.md"), ["the value is two", ranLine("a", gone)]);
   verified("task-1");
-  roundFromDraft(join(W, "drafts/task-1-round-1.md"), join(R, "task-1-round-1.md"));
+  roundFromJudgement("task-1");
   rmSync(gone, { recursive: true });
   const result = flow("verify", wt, "task-1");
   assert.equal(result.status, 1, result.stdout);
@@ -1518,115 +1379,296 @@ test("verify refuses a bad scope before begin, and stops with no-run on a good o
   refused("verify", "relative/wt", "task-1");
 });
 
-test("lint holds a round file to the draft", () => {
+const draftFinding = (id: string, seat: string, title: string, shown = "exit 1"): string =>
+  `### ${id} ${title}\n\nFound by: ${seat}\nCommand: ${CMD}\nPrinted: ${shown}`;
+
+const draftFile = (
+  W: string,
+  scope: string,
+  r: number,
+  earlier: readonly string[],
+  fresh: readonly string[],
+  dropped: readonly string[] = ["- a: none", "- b: none"],
+): void => {
+  write(
+    join(W, "drafts", `${scope}-round-${r}.md`),
+    `# ${scope}, round ${r}, draft\n\n## Earlier findings\n\n${orNone(earlier).join("\n")}\n\n## New findings\n\n${orNone(fresh).join("\n\n")}\n\n## Dropped\n\n${dropped.join("\n")}\n`,
+  );
+};
+
+const NONE_JUDGED =
+  "Seats: a on opus\n\n## Keep\n\nNone.\n\n## Drop\n\nNone.\n\n## Earlier\n\nNone.\n\n## Not run\n\nNone.\n";
+
+test("round writes the round file from the draft and the judgement", () => {
   setup();
   const W = begun("--level", "high", "--source", "default");
   const R = join(W, "review");
-  const one = probe("a", "one", 'test "$(cat a)" = fixed || { echo one fails; exit 1; }');
-  const fine = probe("a", "fine", "echo fine");
-  const two = probe("b", "two", "echo two fails; exit 1");
-  findingsFile(
-    join(R, "task-1-round-1-a.md"),
-    ["one fails", ranLine("a", one)],
-    ["fine", ranLine("a", fine)],
+  roundFile(
+    join(R, "task-1-round-1.md"),
+    "None.",
+    `${twoFindings("R1.1", "R1.2")}\n\n${captured(finding("R1.3"))}`,
+    "changes-requested",
   );
-  findingsFile(join(R, "task-1-round-1-b.md"), ["two fails", ranLine("b", two)]);
-  const d = verified("task-1");
-  assert.deepEqual(
+  draftFile(
+    W,
+    "task-1",
+    2,
     [
-      ...d.new.map((f: { id: string; seat: string }) => [f.id, f.seat]),
-      ...d.dropped.map((f: { number: number; why: string }) => [f.number, f.why]),
+      `- R1.1 resolved: ran: ${CMD}; saw: exit 0`,
+      `- R1.2 stands again: ran: ${CMD}; saw: exit 1, \`stale\``,
+      `- R1.3 stands: ran: ${CMD}; saw: exit 1, \`kept\`; reply: disagree`,
     ],
     [
-      ["R1.1", "a"],
-      ["R1.2", "b"],
-      [2, "exit-0"],
+      draftFinding("R2.1", "a", "the cache keeps a stale value", "exit 1, `stale`"),
+      draftFinding("R2.2", "b", "the second sign-in sees the old value"),
+      draftFinding("R2.3", "b", "the log is long", "exit 2"),
     ],
+    ["- a: none", "- b: 1, the command exited 0, so the failure did not show (finding 2)"],
   );
-  const first = join(R, "task-1-round-1.md");
-  roundFromDraft(join(W, "drafts/task-1-round-1.md"), first);
-  breaks(first, "draft", ["Printed: exit 1, `one fails`", "Printed: exit 1, `one failed`"]);
-  breaks(first, "draft", [ranLine("a", one), ranLine("a", fine)]);
-  copyFileSync(first, join(tmp, "round-1.md"));
-  swap(
-    first,
+  const judgement = judgementFile(
+    "task-1",
     [
-      `### R1.1 one fails\n\nFound by: a\nCommand: ${ranLine("a", one)}\nPrinted: exit 1, \`one fails\`\nRequired: the design holds\nBreaks: the flow fails\n\n`,
+      "Seats: a on opus, b on fable",
       "",
-    ],
-    ["### R1.2 two fails", "### R1.1 two fails"],
-    ["Found by: b", "Found by: a, b"],
+      "## Keep",
+      "",
+      "- R2.2, R2.1",
+      "  Required: sign-in reads the cache after sign-out",
+      "  Breaks: the second sign-in never fetches the value",
+      "",
+      "## Drop",
+      "",
+      "- R2.3: the length of the log breaks no intent",
+      "",
+      "## Earlier",
+      "",
+      "- R1.2 stands: `retryJob` has to check it first",
+      "- R1.3 resolved: the value is meant to stay",
+      "",
+      "## Not run",
+      "",
+      "- `npm run e2e`: no browser here",
+      "",
+    ].join("\n"),
   );
-  passes(first, "round");
-  copyFileSync(join(tmp, "round-1.md"), first);
-  evidenceFile(join(R, "task-1-round-1-evidence.md"));
-  replyFile(
-    join(R, "task-1-round-1-reply.md"),
-    `- R1.1 fixed: a is fixed. ran: ${ranLine("a", one)}; saw: exit 0`,
-    "- R1.2 disagree: two is meant to fail",
+  const d = flowJson("round", wt, "task-1", judgement);
+  const path = join(R, "task-1-round-2.md");
+  assert.deepEqual(d, {
+    status: "ok",
+    round: path,
+    verdict: "changes-requested",
+    open: ["R1.2", "R2.1"],
+    cap: false,
+  });
+  assert.equal(
+    read(path),
+    `# task-1, round 2
+
+Seats: a on opus, b on fable
+
+## Earlier findings
+
+- R1.1 resolved: ran: ${CMD}; saw: exit 0
+- R1.2 stands again: ran: ${CMD}; saw: exit 1, \`stale\`; \`retryJob\` has to check it first
+- R1.3 resolved: ran: ${CMD}; saw: exit 1, \`kept\`; the value is meant to stay
+
+## New findings
+
+### R2.1 the second sign-in sees the old value
+
+Found by: a, b
+Command: ${CMD}
+Printed: exit 1
+Required: sign-in reads the cache after sign-out
+Breaks: the second sign-in never fetches the value
+
+## Dropped
+
+- a: none
+- b: 1, the command exited 0, so the failure did not show (finding 2)
+- b: R2.3, the length of the log breaks no intent
+
+## Not run
+
+- \`npm run e2e\`: no browser here
+
+## Verdict
+
+changes-requested
+`,
   );
-  write(join(wt, "a"), "fixed\n");
-  findingsFile(join(R, "task-1-round-2-a.md"));
-  findingsFile(join(R, "task-1-round-2-b.md"));
+  const s = scoped("task-1");
   assert.deepEqual(
-    verified("task-1").earlier.map((f: { id: string; state: string; reply: string }) => [
-      f.id,
-      f.state,
-      f.reply,
-    ]),
+    [s.round, s.verdict, s.open],
     [
-      ["R1.1", "resolved", "fixed"],
-      ["R1.2", "stands", "disagree"],
+      3,
+      "changes-requested",
+      [
+        { id: "R1.2", stood: 1, reply: null },
+        { id: "R2.1", stood: 0, reply: null },
+      ],
     ],
   );
-  const second = join(R, "task-1-round-2.md");
-  roundFromDraft(join(W, "drafts/task-1-round-2.md"), second);
-  breaks(second, "draft", ["- R1.1 resolved:", "- R1.1 stands:"]);
-  swap(second, ["- R1.2 stands:", "- R1.2 resolved:"]);
-  assert.ok(
-    hasLine(
-      second,
-      `- R1.2 resolved: ran: ${ranLine("b", two)}; saw: exit 1, \`two fails\`; reply: disagree`,
-    ),
-    read(second),
-  );
-  passes(second, "round");
-  renameSync(join(W, "drafts/task-1-round-2.md"), join(tmp, "draft-2.md"));
-  gives(second, ["draft"]);
 });
 
-test("lint holds the exit of a probe that printed nothing to the draft", () => {
+test("round stops with no-evidence naming the file, and gives approve once the file is there", () => {
   setup();
   const W = begun("--level", "high", "--source", "default");
   const R = join(W, "review");
-  findingsFile(join(R, "task-1-round-1-a.md"), [
-    "it fails quietly",
-    ranLine("a", probe("a", "quiet", "exit 1")),
-  ]);
-  findingsFile(join(R, "task-1-round-1-b.md"));
-  verified("task-1");
-  roundFromDraft(join(W, "drafts/task-1-round-1.md"), join(R, "task-1-round-1.md"));
-  replyFile(join(R, "task-1-round-1-reply.md"), "- R1.1 disagree: it is meant to fail");
-  findingsFile(join(R, "task-1-round-2-a.md"));
-  findingsFile(join(R, "task-1-round-2-b.md"));
-  assert.deepEqual(
-    verified("task-1").earlier.map((f: { id: string; exit: number; output: string }) => [
-      f.id,
-      f.exit,
-      f.output,
-    ]),
-    [["R1.1", 1, ""]],
+  const approves = (scope: string, wanted: string, provide: () => void): void => {
+    const judgement = judgementFile(scope, NONE_JUDGED);
+    const r = scoped(scope).round;
+    const d = flowJson("round", wt, scope, judgement);
+    assert.deepEqual(
+      [d.status, d.reason, d.file, d.message],
+      ["stop", "no-evidence", join(W, wanted), `approve needs ${join(W, wanted)}`],
+      scope,
+    );
+    assert.equal(scoped(scope).round, r, `${scope} wrote a round file on no-evidence`);
+    provide();
+    const again = flowJson("round", wt, scope, judgement);
+    assert.deepEqual(
+      [again.status, again.verdict, again.open, again.cap],
+      ["ok", "approve", [], false],
+      scope,
+    );
+    assert.equal(scoped(scope).verdict, "approve", scope);
+  };
+
+  draftFile(W, "task-1", 1, [], []);
+  approves("task-1", "review/task-1-evidence.md", () =>
+    evidenceFile(join(R, "task-1-evidence.md")),
   );
-  const second = join(R, "task-1-round-2.md");
-  roundFromDraft(join(W, "drafts/task-1-round-2.md"), second);
-  breaks(second, "draft", ["; saw: exit 1;", "; saw: exit 17, `segfault`;"]);
-  breaks(second, "draft", ["; saw: exit 1;", "; saw: exit 10;"]);
+
+  evidenceFile(join(R, "task-2-evidence.md"));
+  roundFile(join(R, "task-2-round-1.md"), "None.", captured(finding("R1.1")), "changes-requested");
+  replyFile(join(R, "task-2-round-1-reply.md"), `- R1.1 ${FIXED}`);
+  draftFile(W, "task-2", 2, [`- R1.1 resolved: ran: ${CMD}; saw: exit 0`], []);
+  approves("task-2", "review/task-2-round-1-evidence.md", () =>
+    evidenceFile(join(R, "task-2-round-1-evidence.md")),
+  );
+
+  draftFile(W, "integration", 1, [], []);
+  approves("integration", "review/integration-round-1-a.md", () => {
+    seatFile(join(R, "integration-round-1-a.md"), "none");
+    const stopped = flowJson(
+      "round",
+      wt,
+      "integration",
+      join(W, "drafts/integration-round-1-judgement.md"),
+    );
+    assert.equal(stopped.reason, "no-evidence", "a seat file with no walk gave approve");
+    seatFile(join(R, "integration-round-1-b.md"), "none", WALK);
+  });
+  assert.ok(!existsSync(join(R, "integration-evidence.md")), "an evidence file was written");
+
+  draftFile(W, "merge", 1, [], []);
+  approves("merge", "review/merge-evidence.md", () => evidenceFile(join(R, "merge-evidence.md")));
+});
+
+test("round stops with no-draft and judgement, with each why", () => {
+  setup();
+  const W = begun("--level", "high", "--source", "default");
+  const R = join(W, "review");
+  roundFile(
+    join(R, "task-1-round-1.md"),
+    "None.",
+    twoFindings("R1.1", "R1.2"),
+    "changes-requested",
+  );
+  const good = [
+    "Seats: a on opus, b on fable",
+    "",
+    "## Keep",
+    "",
+    "- R2.1",
+    "  Required: the value is fresh",
+    "  Breaks: the second sign-in shows the old value",
+    "",
+    "## Drop",
+    "",
+    "- R2.2: the log length breaks no intent",
+    "",
+    "## Earlier",
+    "",
+    "- R1.1 stands: it still fails",
+    "",
+    "## Not run",
+    "",
+    "None.",
+    "",
+  ].join("\n");
+  const judgement = judgementFile("task-1", good);
+  let d = flowJson("round", wt, "task-1", judgement);
+  assert.deepEqual([d.status, d.reason], ["stop", "no-draft"]);
+  draftFile(
+    W,
+    "task-1",
+    2,
+    [`- R1.1 stands: ran: ${CMD}; saw: exit 1`, `- R1.2 resolved: ran: ${CMD}; saw: exit 0`],
+    [draftFinding("R2.1", "a", "the value is stale"), draftFinding("R2.2", "b", "the log is long")],
+  );
+  const cases: readonly (readonly [string, string, number, string, string])[] = [
+    ["## Drop", "## Dropped", 9, "shape", ""],
+    ["- R2.2: the log length breaks no intent", "None.", 3, "unjudged", " R2.2"],
+    ["- R2.2:", "- R2.1:", 11, "twice", " R2.1"],
+    ["- R2.1\n", "- R1.1\n", 5, "unknown-id", " R1.1"],
+    ["- R1.1 stands: it still fails", "None.", 13, "no-reason", " R1.1"],
+    ["- R1.1 stands:", "- R1.1 resolved:", 15, "not-disagree", " R1.1"],
+  ];
+  for (const [old, replacement, line, why, id] of cases) {
+    assert.equal(good.split(old).length, 2, old);
+    write(judgement, good.replace(old, replacement));
+    d = flowJson("round", wt, "task-1", judgement);
+    assert.deepEqual(
+      [d.status, d.reason, d.line, d.why, d.message],
+      ["stop", "judgement", line, why, `${judgement} line ${line}: ${why}${id}`],
+    );
+    assert.ok(!existsSync(join(R, "task-1-round-2.md")), `${why} wrote the round file`);
+  }
+  write(judgement, good);
+  assert.equal(flowJson("round", wt, "task-1", judgement).verdict, "changes-requested");
+  d = flowJson("round", wt, "task-1", judgement);
+  assert.deepEqual([d.status, d.reason], ["stop", "no-draft"]);
+});
+
+test("round prints cap after the fifth round without approve", () => {
+  setup();
+  const W = begun("--level", "high", "--source", "default");
+  for (let r = 1; r <= 5; r += 1) {
+    draftFile(W, "task-1", r, r === 1 ? [] : [`- R${r - 1}.1 resolved: ran: ${CMD}; saw: exit 0`], [
+      draftFinding(`R${r}.1`, "a", "the value is stale"),
+    ]);
+    const d = roundFromJudgement("task-1");
+    assert.deepEqual(
+      [d.verdict, d.open, d.cap],
+      ["changes-requested", [`R${r}.1`], r === 5],
+      `round ${r}`,
+    );
+  }
+  assert.deepEqual([scoped("task-1").round, scoped("task-1").cap], [6, true]);
+});
+
+test("round refuses a wrong argument count and a relative or missing judgement path", () => {
+  setup();
+  const W = begun("--level", "high", "--source", "default");
+  const judgement = judgementFile("task-1", NONE_JUDGED);
+  refused("round", wt, "task-1");
+  refused("round", wt, "task-1", judgement, "x");
+  refused("round", "relative/wt", "task-1", judgement);
+  refused("round", wt, "task-1", "drafts/task-1-round-1-judgement.md");
+  const missing = flow("round", wt, "task-1", join(W, "drafts/none.md"));
+  assert.deepEqual(
+    [missing.status, captured(missing.stderr)],
+    [1, `flow: no such file: ${join(W, "drafts/none.md")}`],
+  );
+  const scope = flow("round", wt, "task-x", judgement);
+  assert.deepEqual([scope.status, captured(scope.stderr)], [1, "flow: no such scope: task-x"]);
 });
 
 const recorded = () => flowJson("record", wt);
 
 const reviewed = (R: string): void => {
-  evidenceFile(join(R, "task-1-evidence.md"));
   roundFile(
     join(R, "task-1-round-1.md"),
     "None.",
@@ -1646,9 +1688,6 @@ const reviewed = (R: string): void => {
   roundFile(join(R, "merge-round-1.md"), "None.", captured(finding("R1.1")), "changes-requested");
   seatFile(join(R, "task-1-round-1-a.md"));
   replyFile(join(R, "task-1-round-1-reply.md"), "- R1.1 disagree: meant", "- R1.2 disagree: meant");
-  for (const name of readdirSync(R).filter((file) => /-round-\d\.md$/.test(file))) {
-    passes(join(R, name), "round");
-  }
 };
 
 const LINE = "Level: standard (file) · tasks 2 · task rounds 3 · integration rounds 2 · findings 4";
@@ -1721,30 +1760,14 @@ test("record: level.sh history reads the recorded log.md back", () => {
   );
 });
 
-test("record: a round file that fails lint gives stop malformed and leaves log.md unchanged", () => {
+test("record counts round files it cannot lint", () => {
   const R = join(recordW, "review");
   logBefore = read(join(recordW, "log.md"));
   swap(join(R, "task-2-round-1.md"), ["### R1.1 the", "### F1. the"]);
-  let d = recorded();
-  assert.deepEqual(
-    [d.status, d.reason, d.message],
-    ["stop", "malformed", "round files that fail lint: task-2-round-1.md: id"],
-  );
-  swap(join(R, "task-2-round-1.md"), ["### F1. the", "### R1.1 the"]);
   swap(join(R, "merge-round-1.md"), ["changes-requested", "changes requested: R1.1"]);
-  d = recorded();
-  assert.deepEqual(
-    [d.reason, d.message],
-    ["malformed", "round files that fail lint: merge-round-1.md: verdict"],
-  );
-  swap(join(R, "merge-round-1.md"), ["changes requested: R1.1", "changes-requested"]);
-  renameSync(join(recordW, "drafts/integration-round-2.md"), join(tmp, "draft.md"));
-  d = recorded();
-  assert.deepEqual(
-    [d.reason, d.message],
-    ["malformed", "round files that fail lint: integration-round-2.md: draft"],
-  );
-  renameSync(join(tmp, "draft.md"), join(recordW, "drafts/integration-round-2.md"));
+  assert.ok(!existsSync(join(recordW, "drafts")), "the round files have drafts");
+  const d = recorded();
+  assert.deepEqual([d.status, d.line], ["ok", LINE]);
   assert.equal(read(join(recordW, "log.md")), logBefore);
 });
 
