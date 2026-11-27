@@ -4,7 +4,7 @@
 
 ## Runtime
 
-The runtime is Bun, or Node.js 22.18 or later. Both run `.ts` files directly, Node by type stripping.
+The runtime is Bun, or Node.js 24 or later. Both run `.ts` files directly, Node by type stripping.
 
 The runtime's type definitions are a dev dependency, named in the compiler options: `@types/bun` with `"types": ["bun"]` under Bun, `@types/node` with `"types": ["node"]` under Node. Without them, or with the package alone, `tsc` reports TS2591 on `process` at the edge.
 

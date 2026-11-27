@@ -13,8 +13,8 @@ marketplace in `/plugin`.
 
 ## What it needs
 
-The plugin needs `git`, `gh`, and Bun or Node.js 22.18 or later. Without either runtime, a script stops with
-`annetaan: needs Bun, or Node.js 22.18 or later`.
+The plugin needs `git`, `gh`, and Bun or Node.js 24 or later. Without either runtime, a script stops with
+`annetaan: needs Bun, or Node.js 24 or later`.
 
 ## How the skills fit together
 
