@@ -217,7 +217,7 @@ such as "コンフリクト解消して", with no skill named ([Conflicts](skill
 
 Every run leaves a work report behind, inside the repository under `work-reports/` so that you see them. The skills add `.claude/worktrees/` and `work-reports/` to `.git/info/exclude` before they write anything, without
 asking, when that file has no line for them. That file stays in your clone, so nothing is committed, and `.gitignore` is
-never edited. `/annetaan:cleanup` moves the report into your clone's `work-reports/` once the run is over, and deletes the reports there beyond the 100 newest, by the time stamp in their name. It removes the review seat worktrees beside the run's worktree as well.
+never edited. `/annetaan:cleanup` moves the report into your clone's `work-reports/` once the run is over, and deletes the reports there beyond the 100 newest, by the time stamp in their name. It removes the review seat worktrees beside the run's worktree as well. When a report moves into your clone's `work-reports/`, every `node_modules` and every nested git repository under its `scratch/` and `seats/` stays behind.
 
 `.worktreeinclude` in your clone's root lists, in `.gitignore` syntax, the ignored files copied into every worktree
 the skills create, such as `.env.local` or `mise.local.toml`. Claude Code reads the same file for its own worktrees.

@@ -1,9 +1,10 @@
 import { test, after } from "node:test";
 import assert from "node:assert/strict";
-import { mkdirSync, mkdtempSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { dirname, join } from "node:path";
 import {
+  dropsOnMove,
   freeName,
   isStamped,
   landings,
@@ -11,7 +12,7 @@ import {
   REPORTS_KEPT,
   stampOf,
 } from "../plugins/annetaan/scripts/pure/reports.ts";
-import { stampedIn } from "../plugins/annetaan/scripts/work-reports.ts";
+import { moveReports, stampedIn } from "../plugins/annetaan/scripts/work-reports.ts";
 
 const OLDEST = "2026-01-01-0000-r000";
 const SECOND = "2026-01-01-0100-r001";
@@ -80,6 +81,65 @@ test("two incoming reports that collide on one name both get a free name", () =>
     { report: "a-2", dest: "a-2-2" },
   ]);
   assert.deepEqual(landings(["a", "a-2"], ["a"]), [{ report: "a", dest: "a-3" }]);
+});
+
+test("dropsOnMove drops node_modules and directories holding .git, and nothing else", () => {
+  assert.ok(dropsOnMove("node_modules", []));
+  assert.ok(dropsOnMove("node_modules", ["p"]));
+  assert.ok(dropsOnMove("repo", [".git", "a"]));
+  assert.ok(!dropsOnMove("work", ["keep.ts", "node_modules"]));
+  assert.ok(!dropsOnMove("probe", ["run.sh", "tree"]));
+  assert.ok(!dropsOnMove("node_modules2", []));
+  assert.ok(!dropsOnMove("x", [".gitignore", ".github"]));
+});
+
+test("moveReports leaves node_modules and nested git repositories under scratch/ and seats/ behind", () => {
+  const name = "2026-02-01-0000-moved";
+  const main = join(tmp, "move-main");
+  const wt = join(tmp, "move-wt");
+  const report = join(wt, "work-reports", name);
+  const files: Readonly<Record<string, string>> = {
+    "log.md": "log",
+    "review/task-1-round-1.md": "round",
+    "scratch/work/keep.ts": "keep",
+    "scratch/work/node_modules/p/index.js": "dep",
+    "scratch/work/repo/.git/HEAD": "ref: refs/heads/main",
+    "seats/a/probe/run.sh": "probe",
+    "seats/a/clone/.git": "gitdir: /elsewhere/.git/worktrees/clone",
+  };
+  mkdirSync(main);
+  for (const [path, text] of Object.entries(files)) {
+    mkdirSync(dirname(join(report, path)), { recursive: true });
+    writeFileSync(join(report, path), text);
+  }
+  const landed = join(main, "work-reports", name);
+  assert.deepEqual(moveReports(main, wt), [landed]);
+  for (const kept of [
+    "log.md",
+    "review/task-1-round-1.md",
+    "scratch/work/keep.ts",
+    "seats/a/probe/run.sh",
+  ]) {
+    assert.ok(existsSync(join(landed, kept)), kept);
+  }
+  for (const dropped of ["scratch/work/node_modules", "scratch/work/repo", "seats/a/clone"]) {
+    assert.ok(!existsSync(join(landed, dropped)), dropped);
+  }
+});
+
+test("moveReports moves a report that is a symbolic link as it is, and prunes nothing in its target", () => {
+  const name = "2026-02-01-0000-link";
+  const main = join(tmp, "link-main");
+  const wt = join(tmp, "link-wt");
+  const outside = join(tmp, "link-outside");
+  const dependency = join(outside, "scratch", "work", "node_modules", "p", "index.js");
+  mkdirSync(main);
+  mkdirSync(join(wt, "work-reports"), { recursive: true });
+  mkdirSync(dirname(dependency), { recursive: true });
+  writeFileSync(dependency, "dep");
+  symlinkSync(outside, join(wt, "work-reports", name));
+  assert.deepEqual(moveReports(main, wt), [join(main, "work-reports", name)]);
+  assert.ok(existsSync(dependency));
 });
 
 test("isStamped takes a stamp alone or followed by a dash, and nothing else", () => {
