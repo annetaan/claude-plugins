@@ -13,7 +13,7 @@ The run goes in this order:
    $FLOW/scripts/flow.sh begin <WT> --level <level> --source <source>
    ```
 
-   On a `stop` with `not-ignored`, stop and report, because **The worktree** step 4 in `worktree.md` should have
+   On a `stop` with `not-ignored`, stop and report, because **The worktree** step 3 in `worktree.md` should have
    settled it, and take **Ending with nothing changed** in `worktree.md`, since no branch exists yet.
 4. Phase 1 below.
 5. Phase 2 (a) of SKILL.md, right after the start message.
@@ -84,7 +84,7 @@ Phases 2 to 4 in SKILL.md run as written, with these settled here.
 
 - **Phase 2** runs (a) only, right after the start message. (b) ran before phase 1.
 - **After the last task's commit in phase 4 (d)**: when phase 5 does not run (see **Phase 5**), keep that task's implementation session alive, because it writes the work report in phase 6. Its seat sessions end as usual. After the last task, go to phase 5, or to phase 6 when the plan has one task (see **Phase 5**).
-- **The round cap**: when `cap` of `$FLOW/scripts/flow.sh status <WT> <scope>` is true, stop and report to the user. Lay out what is still open and what each side said, and ask for a decision. **That task's changes are sitting uncommitted in `<WT>`.** Say that, say that the worktree stays as it is, and say that `/annetaan:workflow-cleanup` removes it, discarding the work, once the user decides. If the user says keep going after the cap, keep going: `cap` stays true from then on, and no longer stops the run.
+- **The round cap**: when `cap` of `$FLOW/scripts/flow.sh status <WT> <scope>` is true, stop and report to the user. Lay out what is still open and what each side said, and ask for a decision. **That task's changes are sitting uncommitted in `<WT>`.** Say that, say that the worktree stays as it is, and say that `/annetaan:cleanup` removes it, discarding the work, once the user decides. If the user says keep going after the cap, keep going: `cap` stays true from then on, and no longer stops the run.
 - **When the user says stop** at any point, stop and report.
 
 ## Phase 5: integration review
@@ -158,5 +158,5 @@ Every standalone run that got past the start message ends here, finished or stop
 - the review files, under `<WORKDIR>/review/`
 - the screenshot paths, when the change shows on screen
 - when phase 5 was skipped, one line saying the integration review did not run because the plan had one task
-- **the cleanup**: once the pull request is merged or closed, `/annetaan:workflow-cleanup <PR number>` moves the work report into `<MAIN>/work-reports/`, removes `<WT>` and the branch, fast-forwards the local `<base>` after a merge, and deletes the reports in `<MAIN>/work-reports/` beyond the 100 newest, by the time stamp in their name. A run that stopped with no pull request is cleaned up with `/annetaan:workflow-cleanup` and no number
+- **the cleanup**: once the pull request is merged or closed, `/annetaan:cleanup <PR number>` moves the work report into `<MAIN>/work-reports/`, removes `<WT>` and the branch, fast-forwards the local `<base>` after a merge, and deletes the reports in `<MAIN>/work-reports/` beyond the 100 newest, by the time stamp in their name. A run that stopped with no pull request is cleaned up with `/annetaan:cleanup` and no number
 - for a stopped run, what is still uncommitted in `<WT>`

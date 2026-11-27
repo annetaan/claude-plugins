@@ -14,8 +14,7 @@ import { join } from "node:path";
 import { spawnSync } from "node:child_process";
 
 const scripts = join(import.meta.dirname, "../plugins/annetaan/skills");
-const worktreeSh = join(scripts, "workflow/scripts/worktree.sh");
-const cleanupSh = join(scripts, "pj-cleanup/scripts/cleanup.sh");
+const cleanupSh = join(scripts, "cleanup/scripts/cleanup.sh");
 const flowSh = join(scripts, "workflow/scripts/flow.sh");
 
 const tmp = mkdtempSync(join(tmpdir(), "worktree-submodules-"));
@@ -109,12 +108,11 @@ type Out = {
   readonly reason?: string;
   readonly errors: readonly unknown[];
   readonly loses: readonly string[];
-  readonly worktree: {
+  readonly worktrees: readonly {
     readonly state: string;
     readonly action?: string;
     readonly submodules: readonly SubmoduleEntry[];
-    readonly hasSubmodules: boolean;
-  };
+  }[];
 };
 
 const printed = (cwd: string, script: string, ...args: readonly string[]): Out => {
@@ -168,8 +166,8 @@ const clone = (dir: string, name: string, withOrigin: boolean, init: boolean): C
   return { main, wt, name };
 };
 
-const setup = (init: boolean): Clone => clone("wf", "wf-test", false, init);
-const setupPj = (init: boolean): Clone => clone("pj", "pj-1", true, init);
+const setup = (init: boolean): Clone => clone("run", "run-test", true, init);
+const setupPj = (init: boolean): Clone => clone("pj", "pj-1-2-2026-01-01-0000", true, init);
 
 const commitInSub = (wt: string): void => {
   git(join(wt, "sub"), "commit", "-q", "--allow-empty", "-m", "local");
@@ -199,133 +197,130 @@ const seatsGone = ({ main, name }: Clone): boolean =>
 const gone = ({ main, wt, name }: Clone): boolean =>
   !exists(wt) && !exists(join(main, ".git/worktrees", name));
 
-test("worktree.sh cleanup removes the seats beside a worktree with a submodule", () => {
+test("cleanup.sh run removes the seats beside a run worktree with a submodule", () => {
   const c = setup(true);
   seatRun(c, "a");
   seatRun(c, "b");
-  const out = printed(c.main, worktreeSh, "cleanup", "wf-test");
+  const out = printed(c.main, cleanupSh, "run", "run-test");
   assert.equal(out.status, "done");
   assert.deepEqual(out.errors, []);
   assert.ok(gone(c));
   assert.ok(seatsGone(c));
 });
 
-test("worktree.sh check on a worktree with an initialized clean submodule has empty loses and submodules, and hasSubmodules", () => {
+test("cleanup.sh check on a run worktree with an initialized clean submodule has empty loses and submodules", () => {
   const c = setup(true);
-  const out = printed(c.main, worktreeSh, "check", "wf-test");
+  const out = printed(c.main, cleanupSh, "check", "run-test");
   assert.deepEqual(out.loses, []);
-  assert.deepEqual(out.worktree.submodules, []);
-  assert.equal(out.worktree.hasSubmodules, true);
+  assert.deepEqual(out.worktrees[0]?.submodules, []);
 });
 
-test("worktree.sh cleanup removes a worktree with an initialized clean submodule", () => {
+test("cleanup.sh run removes a run worktree with an initialized clean submodule", () => {
   const c = setup(true);
-  const out = printed(c.main, worktreeSh, "cleanup", "wf-test");
+  const out = printed(c.main, cleanupSh, "run", "run-test");
   assert.equal(out.status, "done");
   assert.ok(gone(c));
   assert.ok(exists(join(c.main, "work-reports", REPORT)));
 });
 
-test("worktree.sh cleanup removes a worktree whose submodule is not initialized", () => {
+test("cleanup.sh run removes a run worktree whose submodule is not initialized", () => {
   const c = setup(false);
-  assert.equal(printed(c.main, worktreeSh, "check", "wf-test").worktree.hasSubmodules, true);
-  assert.equal(printed(c.main, worktreeSh, "cleanup", "wf-test").status, "done");
+  assert.equal(printed(c.main, cleanupSh, "run", "run-test").status, "done");
   assert.ok(gone(c));
 });
 
-test("worktree.sh cleanup refuses with discard when a submodule has an uncommitted change, and removes and moves nothing", () => {
+test("cleanup.sh run on a run worktree refuses with discard when a submodule has an uncommitted change, and removes and moves nothing", () => {
   const c = setup(true);
   writeFileSync(join(c.wt, "sub/new.txt"), "dirty\n");
-  const out = printed(c.main, worktreeSh, "cleanup", "wf-test");
+  const out = printed(c.main, cleanupSh, "run", "run-test");
   assert.equal(out.status, "stop");
   assert.equal(out.reason, "discard");
-  assert.equal(out.worktree.submodules[0]?.path, "sub");
-  assert.deepEqual(out.worktree.submodules[0]?.changes, ["?? new.txt"]);
+  assert.equal(out.worktrees[0]?.submodules[0]?.path, "sub");
+  assert.deepEqual(out.worktrees[0]?.submodules[0]?.changes, ["?? new.txt"]);
   assert.ok(exists(join(c.wt, "sub/new.txt")));
   assert.ok(statSync(join(c.wt, "work-reports", REPORT)).isDirectory());
   assert.equal(exists(join(c.main, "work-reports")), false);
 });
 
-test("worktree.sh cleanup refuses with discard when a submodule has a commit on no remote that the superproject records", () => {
+test("cleanup.sh run on a run worktree refuses with discard when a submodule has a commit on no remote that the superproject records", () => {
   const c = setup(true);
   commitInSub(c.wt);
-  const out = printed(c.main, worktreeSh, "cleanup", "wf-test");
+  const out = printed(c.main, cleanupSh, "run", "run-test");
   assert.equal(out.status, "stop");
   assert.equal(out.reason, "discard");
-  assert.equal(out.worktree.state, "clean");
-  assert.deepEqual(out.loses, ["submodules"]);
-  assert.equal(out.worktree.submodules[0]?.commits, 1);
+  assert.equal(out.worktrees[0]?.state, "clean");
+  assert.deepEqual(out.loses, ["submodules", "commits"]);
+  assert.equal(out.worktrees[0]?.submodules[0]?.commits, 1);
   assert.ok(exists(c.wt));
 });
 
-test("worktree.sh cleanup --discard removes a worktree whose submodule holds work", () => {
+test("cleanup.sh run --discard removes a run worktree whose submodule holds work", () => {
   const c = setup(true);
   commitInSub(c.wt);
-  assert.equal(printed(c.main, worktreeSh, "cleanup", "wf-test", "--discard").status, "done");
+  assert.equal(printed(c.main, cleanupSh, "run", "run-test", "--discard").status, "done");
   assert.ok(gone(c));
 });
 
-test("worktree.sh check does not count a submodule pinned to a commit that only a tag reaches", () => {
+test("cleanup.sh check on a run worktree does not count a submodule pinned to a commit that only a tag reaches", () => {
   const c = setup(true);
   git(join(c.wt, "sub"), "commit", "-q", "--allow-empty", "-m", "tagged");
   git(join(c.wt, "sub"), "tag", "v2");
   git(c.wt, "add", "sub");
   git(c.wt, "commit", "-q", "-m", "bump");
-  const out = printed(c.main, worktreeSh, "check", "wf-test");
-  assert.deepEqual(out.loses, []);
-  assert.deepEqual(out.worktree.submodules, []);
+  const out = printed(c.main, cleanupSh, "check", "run-test");
+  assert.deepEqual(out.loses, ["commits"]);
+  assert.deepEqual(out.worktrees[0]?.submodules, []);
 });
 
-test("worktree.sh check prints hasSubmodules and the submodules that hold work", () => {
+test("cleanup.sh check on a run worktree prints the submodules that hold work", () => {
   const c = setup(true);
   commitInSub(c.wt);
-  const out = printed(c.main, worktreeSh, "check", "wf-test");
+  const out = printed(c.main, cleanupSh, "check", "run-test");
   assert.equal(out.status, "ok");
-  assert.equal(out.worktree.hasSubmodules, true);
   assert.deepEqual(
-    out.worktree.submodules.map((s) => [s.path, s.commits]),
+    out.worktrees[0]?.submodules.map((s) => [s.path, s.commits]),
     [["sub", 1]],
   );
 });
 
-test("cleanup.sh run removes a worktree with an initialized clean submodule", () => {
+test("cleanup.sh run #1 removes a worktree with an initialized clean submodule", () => {
   const c = setupPj(true);
-  const out = printed(c.main, cleanupSh, "run", "1");
+  const out = printed(c.main, cleanupSh, "run", "#1");
   assert.equal(out.status, "done");
-  assert.equal(out.worktree.action, "removed");
+  assert.equal(out.worktrees[0]?.action, "removed");
   assert.ok(gone(c));
   assert.ok(exists(join(c.main, "work-reports", REPORT)));
   assert.deepEqual(out.errors, []);
 });
 
-test("cleanup.sh run refuses with discard when a submodule has a commit on no remote, and removes nothing", () => {
+test("cleanup.sh run #1 refuses with discard when a submodule has a commit on no remote, and removes nothing", () => {
   const c = setupPj(true);
   commitInSub(c.wt);
-  const out = printed(c.main, cleanupSh, "run", "1");
+  const out = printed(c.main, cleanupSh, "run", "#1");
   assert.equal(out.status, "stop");
   assert.equal(out.reason, "discard");
-  assert.deepEqual(out.loses, ["submodules"]);
-  assert.equal(out.worktree.state, "clean");
-  assert.equal(out.worktree.submodules[0]?.commits, 1);
+  assert.deepEqual(out.loses, ["submodules", "commits"]);
+  assert.equal(out.worktrees[0]?.state, "clean");
+  assert.equal(out.worktrees[0]?.submodules[0]?.commits, 1);
   assert.ok(exists(c.wt));
   assert.ok(statSync(join(c.wt, "work-reports", REPORT)).isDirectory());
   assert.equal(exists(join(c.main, "work-reports")), false);
 });
 
-test("cleanup.sh run --discard removes a worktree whose submodule holds work", () => {
+test("cleanup.sh run #1 --discard removes a worktree whose submodule holds work", () => {
   const c = setupPj(true);
   commitInSub(c.wt);
-  assert.equal(printed(c.main, cleanupSh, "run", "1", "--discard").status, "done");
+  assert.equal(printed(c.main, cleanupSh, "run", "#1", "--discard").status, "done");
   assert.ok(gone(c));
 });
 
-test("cleanup.sh run removes the seats beside a worktree with a submodule", () => {
+test("cleanup.sh run #1 removes the seats beside a worktree with a submodule", () => {
   const c = setupPj(true);
   seatRun(c, "b");
-  const before = printed(c.main, cleanupSh, "check", "1");
+  const before = printed(c.main, cleanupSh, "check", "#1");
   assert.equal(before.status, "ok");
   assert.deepEqual(before.loses, []);
-  const out = printed(c.main, cleanupSh, "run", "1");
+  const out = printed(c.main, cleanupSh, "run", "#1");
   assert.equal(out.status, "done");
   assert.deepEqual(out.errors, []);
   assert.ok(gone(c));

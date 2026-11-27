@@ -38,13 +38,13 @@ This skill creates issues, relationships and labels on GitHub. **Start it only w
 
 ```bash
 git rev-parse --show-toplevel
-gh --version          # 2.94.0 or later
+gh --version          # 2.99.0 or later
 gh auth status
 gh repo view --json nameWithOwner,hasIssuesEnabled,defaultBranchRef
 git branch --show-current
 ```
 
-- **Any of these failing stops the skill**: not a git repository, `gh` older than 2.94.0, `gh` not logged in, or
+- **Any of these failing stops the skill**: not a git repository, `gh` older than 2.99.0, `gh` not logged in, or
   issues turned off. Say which one and stop.
 - Keep the default branch's name and the current branch's name for phase 2. A detached HEAD prints no current
   branch.

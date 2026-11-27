@@ -1,6 +1,6 @@
 ---
 name: pj-roadmap
-description: Brings the repository's roadmap file under the pj skills. Checks it against the roadmap format with project.sh --roadmap on the branch the user picks, and rewrites it so that each initiative is one `## ` section with a unique heading, changing the structure and keeping every sentence, when it does not match, or when it matches but holds no `## ` section per initiative and the user asks for a regroup. It does nothing when the file is in the format and the user confirms its sections are the initiatives. Works in a git worktree of its own, asks one approval question, then commits the rewrite on a new branch, pushes it and opens a pull request into that branch, and leaves its merge to the user. /annetaan:workflow-cleanup removes the worktree and the branch afterwards. Use it only when the user names this skill or invokes /annetaan:pj-roadmap, because it pushes a branch and opens a pull request on GitHub.
+description: Brings the repository's roadmap file under the pj skills. Checks it against the roadmap format with project.sh --roadmap on the branch the user picks, and rewrites it so that each initiative is one `## ` section with a unique heading, changing the structure and keeping every sentence, when it does not match, or when it matches but holds no `## ` section per initiative and the user asks for a regroup. It does nothing when the file is in the format and the user confirms its sections are the initiatives. Works in a git worktree of its own, asks one approval question, then commits the rewrite on a new branch, pushes it and opens a pull request into that branch, and leaves its merge to the user. /annetaan:cleanup removes the worktree and the branch afterwards. Use it only when the user names this skill or invokes /annetaan:pj-roadmap, because it pushes a branch and opens a pull request on GitHub.
 ---
 
 # pj-roadmap
@@ -25,8 +25,10 @@ the user. Collapse the `..` in a path to a sibling skill, so that the command te
 This skill uses these files:
 
 - the script `<skills>/pj1-plan/scripts/project.sh`, written `project.sh` below, for `--roadmap`, and with `<P>` to read an open parent's `Roadmap:` line
-- the script `<skills>/workflow/scripts/worktree.sh`, written `worktree.sh` below, for `start`, `create`, `ignore` and, in **Ending with nothing changed**, `check`
-- `<skills>/workflow/worktree.md`, which you read for **The start check**, steps 3 to 5 of **The worktree** and
+- the script `<skills>/workflow/scripts/worktree.sh`, written `worktree.sh` below, for `start`, `create`, `proposal` and
+  `propose`
+- the script `<skills>/cleanup/scripts/cleanup.sh`, for `run` in **Ending with nothing changed**
+- `<skills>/workflow/worktree.md`, which you read for **The start check**, steps 3 and 4 of **The worktree** and
   **Ending with nothing changed**. `$FLOW` in that file means `<skills>/workflow`
 - `<skills>/pj1-plan/format.md`: **The roadmap file** and **Writing bodies**
 - `<skills>/pj1-plan/between-skills.md`: **Issues in a report**, for how a URL stands in a report
@@ -84,18 +86,19 @@ A failed fetch means origin has no `<base>`: say so and stop. Otherwise act on t
 
 ## 3. An open pull request
 
+In `<MAIN>`, before any worktree exists, run:
+
 ```bash
-gh pr list --state open --base <base> --limit 100 --json number,url,headRefName
+<skills>/workflow/scripts/worktree.sh proposal pj-roadmap <base>
 ```
 
-When one has a head that starts with `pj-roadmap-`, give its URL, say that merging it is the user's job and that
-closing it lets this skill run again, and stop.
+A non-null `pr`: give its `url`, say that merging it is the user's job and that closing it lets this skill run again,
+and stop. Exit 1: quote the error and stop.
 
 ## 4. The worktree
 
-Run steps 3 to 5 of **The worktree** in `<skills>/workflow/worktree.md` with `<base>`: `worktree.sh create <base>`
-with the question of **Files `.worktreeinclude` does not name** when it reports `unlisted`, `worktree.sh ignore <name>`
-with its question, then enter `<WT>`. Print `worktree <WT> base <base>` once.
+Run steps 3 and 4 of **The worktree** in `<skills>/workflow/worktree.md` with `<base>`: `worktree.sh create <base> --kind propose`
+with the question of **Files `.worktreeinclude` does not name** when it reports `unlisted`, then enter `<WT>`. Print `worktree <WT> base <base>` once.
 
 ## 5. The rewrite
 
@@ -120,7 +123,7 @@ Draw it, do not write it yet. Read `<WT>/<path>` whole. Work out the entries and
 ## 6. The approval
 
 Show the entries in order, each with where it came from. Show what goes to the preamble and anything you could not
-place. Show the branch `pj-roadmap-<stamp>` and `base: <base>`, where `<stamp>` is `<name>` without `wf-`.
+place. Show the branch `pj-roadmap/<stamp>` and `base: <base>`, where `<stamp>` is `<name>` without `propose-`.
 
 ```
 AskUserQuestion: Rewrite the roadmap and open the pull request?
@@ -137,31 +140,28 @@ AskUserQuestion: Rewrite the roadmap and open the pull request?
 Write the file in `<WT>`. Run `project.sh --roadmap` there, with no ref, and fix the file until `ok` is true. Show
 `git diff --stat -- <path>`.
 
-## 8. Commit and push
-
-```bash
-git checkout -b pj-roadmap-<stamp>
-git add -- <path>
-git commit -m "<subject>"
-git push -u origin pj-roadmap-<stamp>
-```
-
-Write the subject in the repository's commit style, as `git log` shows it. Commit the roadmap file only.
-
-## 9. The pull request
+## 8. The pull request
 
 Write the body to `$TMP/pr.md`, in the repository's language: what the format asks, the entries in order, what moved
-where, and that no sentence was dropped.
+where, and that no sentence was dropped. Write the subject in the repository's commit style, as `git log` shows it.
 
 ```bash
-gh pr create --base <base> --title "<subject>" --body-file "$TMP/pr.md"
+<skills>/workflow/scripts/worktree.sh propose <name> <base> --prefix pj-roadmap --path <path> --subject "<subject>" --title "<subject>" --body "$TMP/pr.md"
 ```
 
-It is not a draft.
+It commits the roadmap file alone on `pj-roadmap/<stamp>`, pushes it and opens a pull request that is never a draft.
+Act on what it prints:
 
-When the push or `gh pr create` fails, quote the error. When `gh pr create` exits non-zero, run
-`gh pr view pj-roadmap-<stamp> --json url` first and carry on with the URL when one exists, as `workflow/finish.md`
-does. Otherwise report that the commit is on the branch in `<WT>`, and that `/annetaan:workflow-cleanup` removes both.
+- `opened`: go on to **Report to the user** with `url`.
+- `unchanged`: say that the file is the same as on `<base>`, and take **Ending with nothing changed** in
+  `<skills>/workflow/worktree.md`.
+- `exists`: give `url`, say that merging or closing it is the user's job, that the commit is on `branch` in `<WT>` and
+  was not pushed, and that `/annetaan:cleanup` removes both.
+- `push-failed`: quote `message`, and say that the commit is on `branch` in `<WT>` and that `/annetaan:cleanup` removes
+  both.
+- `create-failed`: quote `message`, and say that `branch` is pushed with no pull request, and that `/annetaan:cleanup`
+  removes the worktree and the branch on both sides.
+- Exit 1: quote the error and stop, saying where `<WT>` is.
 
 ## Report to the user
 
@@ -169,13 +169,13 @@ Leave the worktree first: `ExitWorktree(action: "keep")`, or `cd <MAIN>` where t
 
 - the pull request URL, standing between spaces as **Issues in a report** says
 - `<WT>` and the rewritten entries, in order
-- the next steps, in order: merge the pull request; `/annetaan:workflow-cleanup <PR number>`, which removes the
+- the next steps, in order: merge the pull request; `/annetaan:cleanup <PR number>`, which removes the
   worktree and the branch and fast-forwards the local `<base>`; then `/annetaan:pj1-plan` with an entry's heading
 
 ## Rules
 
-- Change the roadmap file only, and never in `<MAIN>`, except the `<MAIN>/.worktreeinclude` lines below.
-- Write nothing before the approval of step 6, except the `<MAIN>/.worktreeinclude` lines the answers of step 4 add, as
+- Change the roadmap file only, and never in `<MAIN>`, except the `.git/info/exclude` lines `create` adds and the `<MAIN>/.worktreeinclude` lines below.
+- Write nothing before the approval of step 6, except the `.git/info/exclude` lines `create` adds and the `<MAIN>/.worktreeinclude` lines the answers of step 4 add, as
   **Files `.worktreeinclude` does not name** in `<skills>/workflow/worktree.md` says.
 - A stop from step 5 to the approval of step 6 takes **Ending with nothing changed** in `<skills>/workflow/worktree.md`,
   because `<WT>` exists by then. Steps 1 to 3 stop before any worktree exists, and need nothing removed.

@@ -1,19 +1,22 @@
-import { existsSync, lstatSync, mkdirSync, readdirSync, readFileSync, statSync } from "node:fs";
-import { basename, dirname, join, relative, resolve, sep } from "node:path";
+import { readFileSync, statSync } from "node:fs";
+import { basename, dirname, join } from "node:path";
 import { git, run } from "../../../scripts/command.ts";
 import { pause } from "../../../scripts/clock.ts";
 import {
   checkedOutIn,
+  ensureIgnored,
   hasBranch,
-  ignoreCheck,
+  isAncestor,
   listed,
-  mainWorktree,
   realPath,
+  revParse,
+  submoduleWork,
 } from "../../../scripts/clone.ts";
 import { fetchBranch } from "../../../scripts/fetch.ts";
-import { atLeast, ghVersion } from "../../../scripts/pure/gh-version.ts";
-import { stampOf } from "../../../scripts/pure/reports.ts";
+import { losses } from "../../../scripts/pure/cleanup-steps.ts";
+import { requiredGh } from "../../../scripts/pure/gh-version.ts";
 import { DIGIT, splitLines } from "../../../scripts/pure/text.ts";
+import { projectWorktree } from "../../../scripts/pure/worktree-list.ts";
 import {
   entry,
   Failure,
@@ -22,7 +25,17 @@ import {
   UsageError,
   type StatusObject,
 } from "../../../scripts/status.ts";
+import { moveReports } from "../../../scripts/work-reports.ts";
 import { includeIgnored } from "../../workflow/scripts/include.ts";
+import {
+  addWorktree,
+  listedNames,
+  located,
+  mergeIn,
+  removeWorktree,
+  WORKTREES,
+  type StepError,
+} from "../../workflow/scripts/worktrees.ts";
 import {
   closeIssue,
   editLabels,
@@ -30,7 +43,7 @@ import {
   postComment,
   syncTitles,
 } from "../../pj1-plan/scripts/issue.ts";
-import { readProject } from "../../pj1-plan/scripts/project.ts";
+import { readProject, startableAfter } from "../../pj1-plan/scripts/project.ts";
 import { markerProblem } from "../../pj1-plan/scripts/pure/comment-markers.ts";
 import type { Project } from "../../pj1-plan/scripts/pure/project-view.ts";
 import {
@@ -47,38 +60,23 @@ import {
 import { ceilingSeconds, jobTimeouts, type JobTimeout } from "./pure/workflow-timeouts.ts";
 import { triggers } from "./pure/workflow-triggers.ts";
 
-const USAGE = `usage: run.sh start <P>                       check the clone, gh and the repository, read the project, create its base branch when due, fetch it, read the merge rules
+const USAGE = `usage: run.sh start <P>                       check the clone, gh and the repository, read the project, create its base branch when due, fetch it, read the merge rules, add the ignore paths; on the way to run, assign you to the parent, and stop when someone else is assigned
        run.sh close <P> <n> --comment <file>  comment on and close #<n> as completed, when it is due. For a parent it also lists the projects that can be split now (startable)
-       run.sh worktree <P>                    put the run's worktree on the tip of origin/<base>; a dirty one is saved to work-reports/<stamp>-discarded/stopped.diff and discarded; assigns you to the parent, and stops when someone else is assigned
-       run.sh ignore <P> [--add]              whether .claude/worktrees/ and work-reports/ are ignored; --add writes them to info/exclude
-       run.sh branch <P> <branch>             create <branch> in the run's worktree from the tip of origin/<base>
+       run.sh worktree <P> <k> <branch>       make the worktree pj-<P>-<k>-<stamp> on the tip of origin/<base> and create <branch> there; a <branch> checked out in a pj-<P>-<k>-* worktree, which a killed run left, has that worktree ended as run.sh end ends it, whatever it holds (ended); one checked out anywhere else stops with checked-out; one checked out nowhere and holding commits origin/<base> lacks stops with left, naming the pj-<P>-<k>-* worktree whose HEAD is its tip; any other is deleted and made again
+       run.sh end <P> <name> --since <sha>    move the work reports of the worktree <name> into <MAIN>/work-reports/; remove it and delete its branch when nothing changed since <sha>, otherwise detach its HEAD, delete its branch and keep it for the cleanup
        run.sh merge <P> <k> <m> --comment <file> [--wait <seconds>] [--ceiling <seconds>]
-                                              wait for every check on #<m>, merge it into the base branch, close #<k>, delete the head branch; --wait is how long to wait for a first check to register when one is expected; --ceiling is how long to wait for every check to finish, by default the job timeouts of the workflows that run on the pull request plus 30 minutes; a check still pending then stops with checks-timeout. When CLAUDE_CODE_PRINT_BG_WAIT_CEILING_MS is set above 0, the whole merge ends 5 minutes before it
-       run.sh sync <P> [--push]               merge origin/<from> into the base branch in the run's worktree and push it; --push pushes a merge committed after a conflict
+                                              wait for every check on #<m>, merge it into the base branch, close #<k>, remove the run's worktree when it holds no work, delete the head branch; --wait is how long to wait for a first check to register when one is expected; --ceiling is how long to wait for every check to finish, by default the job timeouts of the workflows that run on the pull request plus 30 minutes; a check still pending then stops with checks-timeout. When CLAUDE_CODE_PRINT_BG_WAIT_CEILING_MS is set above 0, the whole merge ends 5 minutes before it
+       run.sh sync <P> [--push <name>]        make the worktree pj-<P>-sync-<stamp> on the tip of origin/<base>, merge origin/<from> there and push it; --push <name> pushes a merge committed in that worktree after a conflict
        run.sh pr <P> --body <file>            open the pull request from the base branch into <from>, once every sub-issue is closed and the base contains <from>
-       run.sh save <P> --to <file> --since <sha>
-                                              save everything in the run's worktree since <sha>, commits and uncommitted work (tracked changes plus untracked files), to <file> as one binary diff, then put the worktree back on <sha> and delete the run's branch, keeping ignored files
        run.sh stop <P> <k> <blocking|decision|detail|round-cap> --comment <file> [--stub <file> --title <t>]
                                               make the writes of issue.sh that the stop asks of GitHub, the comment on #<k> last: blocking files the stub under <P>, labelled blocker and blocking #<k>; decision takes ready off #<k> and syncs the titles; detail puts blocker on #<k> and takes ready off; round-cap only comments. --stub and --title go with blocking alone
 Every subcommand prints one JSON object with "status" and exits 0. "stop" carries "reason" and "message".
 Exit 1 means a usage error or an unexpected failure.
 `;
 
-type Located = { readonly main: string; readonly wt: string };
-
 type Context = {
   readonly p: number;
   readonly args: readonly string[];
-};
-
-const emit = (fields: StatusObject): string => statusLine(fields);
-
-const located = (p: number): Located => {
-  const main = mainWorktree();
-  if (main === null) {
-    throw new Failure("not inside a git repository");
-  }
-  return { main, wt: join(main, `.claude/worktrees/pj-${p}`) };
 };
 
 const project = (p: number, extra: Readonly<Record<string, unknown>> = {}): Project => {
@@ -243,29 +241,6 @@ const closeFailure = (n: number, commentFile: string): string | null => {
   return out.status === "stop" ? String(out["message"]) : null;
 };
 
-const startableAfter = (
-  ctx: Context,
-  n: number,
-  proj: Project,
-): readonly { readonly number: number; readonly title: string }[] => {
-  const source = n === ctx.p ? proj : projectOrNull(n);
-  if (source === null) {
-    return [];
-  }
-  return source.parent.waitedOnBy
-    .flatMap((m) => {
-      const q = projectOrNull(m);
-      return q !== null && q.parent.startable ? [{ number: m, title: q.parent.title }] : [];
-    })
-    .toSorted((a, b) => a.number - b.number);
-};
-
-const notAWorktree = (ctx: Context, main: string, wt: string): void => {
-  if (listed(main, wt) !== false) {
-    throw new Failure(`${wt} is no worktree of this clone. run.sh worktree ${ctx.p} first`);
-  }
-};
-
 const NO_CHECKS = "no checks reported on the";
 
 type Registered = { readonly n: number | null; readonly error: string | null };
@@ -308,15 +283,60 @@ const checksOn = (m: number): Settled => {
   return { kind: verdict(checks), checks };
 };
 
-const versionText = (v: readonly number[]): string => v.join(".");
+const claim = (
+  p: number,
+  repo: string,
+  out: Readonly<Record<string, unknown>>,
+): { readonly login: string; readonly added: boolean } => {
+  const assignees = (me: string | null = null): readonly string[] => {
+    const r = apiJson([`repos/${repo}/issues/${p}`]);
+    if (r === null) {
+      stop("assign-failed", `cannot read the assignees of #${p}`, {
+        step: "read",
+        ...(me === null ? {} : { assignee: { login: me, added: true } }),
+        ...out,
+      });
+    }
+    const list = field(r, "assignees");
+    return Array.isArray(list) ? list.map((a) => String(field(a, "login"))) : [];
+  };
+  const others = (me: string, logins: readonly string[], added = false): void => {
+    const found = logins.filter((l) => l.toLowerCase() !== me.toLowerCase());
+    if (found.length > 0) {
+      stop("assigned", `#${p} is assigned to ${found.join(", ")}`, {
+        login: me,
+        assignees: found,
+        self: added || found.length < logins.length,
+        ...out,
+      });
+    }
+  };
+  const login = field(apiJson(["user"]), "login");
+  if (typeof login !== "string" || login === "") {
+    return stop("assign-failed", "cannot read the user's login from GitHub", {
+      step: "login",
+      ...out,
+    });
+  }
+  const logins = assignees();
+  others(login, logins);
+  if (logins.length > 0) {
+    return { login, added: false };
+  }
+  const r = run(["gh", "issue", "edit", String(p), "--add-assignee", login]);
+  if (r.code !== 0) {
+    stop("assign-failed", `cannot assign ${login} to #${p}: ${r.stderr.trim()}`, {
+      step: "add",
+      ...out,
+    });
+  }
+  others(login, assignees(login), true);
+  return { login, added: true };
+};
 
 const start = (ctx: Context): string => {
-  const main = mainWorktree();
-  if (main === null) {
-    return stop("not-a-repo", "not inside a git repository");
-  }
-  const wt = join(main, `.claude/worktrees/pj-${ctx.p}`);
-  let out: Record<string, unknown> = { main, worktree: wt };
+  const main = located();
+  let out: Record<string, unknown> = { main };
   if (run(["git", "-C", main, "remote", "get-url", "origin"]).code !== 0) {
     stop("no-origin", "the clone has no remote named origin", out);
   }
@@ -324,16 +344,11 @@ const start = (ctx: Context): string => {
   if (ghRun.code === 127) {
     stop("gh", "gh is not installed", out);
   }
-  const v = ghVersion(ghRun.stdout);
-  if (v === null || !atLeast(v, [2, 94, 0])) {
-    stop(
-      "gh",
-      `gh 2.94.0 or later is required, found ${v === null ? "an unknown version" : versionText(v)}`,
-      out,
-    );
+  const gh = requiredGh(ghRun.stdout);
+  if (gh.kind === "old") {
+    return stop("gh", gh.message, out);
   }
-  const version = v ?? [0, 0, 0];
-  out = { ...out, gh: versionText(version), attach: atLeast(version, [2, 99, 0]) };
+  out = { ...out, gh: gh.version };
   const auth = run(["gh", "auth", "status"]);
   if (auth.code !== 0) {
     stop("gh-auth", `gh is not logged in: ${splitLines(auth.stderr.trim()).at(-1) ?? ""}`, out);
@@ -379,7 +394,16 @@ const start = (ctx: Context): string => {
       parent.merged && parent.state === "OPEN"
         ? [{ number: ctx.p, title: parent.title, base, self: true }]
         : [];
-    return emit({ status: "done", close, ...out });
+    const keptDone = ensureIgnored(main, null);
+    if (keptDone.status === "stop") {
+      return stop(keptDone.reason, keptDone.message, {
+        notIgnored: keptDone.notIgnored,
+        ignored: keptDone.ignored,
+        close,
+        ...out,
+      });
+    }
+    return statusLine({ status: "done", close, ignored: keptDone.ignored, ...out });
   }
   out = {
     ...out,
@@ -388,7 +412,7 @@ const start = (ctx: Context): string => {
       .map((d) => ({ number: d.number, title: d.title, base: d.base, self: false })),
   };
   if (issues.length === 0) {
-    return emit({ status: "empty", ...out });
+    return statusLine({ status: "empty", ...out });
   }
 
   out = { ...out, created: null };
@@ -439,9 +463,20 @@ const start = (ctx: Context): string => {
   if (found.mergeMethod === null) {
     stop("no-merge-method", `the rules on ${base} leave no merge method that ${repo} allows`, out);
   }
-  return emit({
+  const keptRun = ensureIgnored(main, null);
+  if (keptRun.status === "stop") {
+    return stop(keptRun.reason, keptRun.message, {
+      notIgnored: keptRun.notIgnored,
+      ignored: keptRun.ignored,
+      ...out,
+    });
+  }
+  const assignee = claim(ctx.p, repo, out);
+  return statusLine({
     status: "run",
     rules: { selfMerge: found.selfMerge, mergeMethod: found.mergeMethod },
+    ignored: keptRun.ignored,
+    assignee,
     ...out,
   });
 };
@@ -453,6 +488,10 @@ const close = (ctx: Context): string => {
   const proj = project(ctx.p);
   const state = due(proj, n);
   const isParent = n === ctx.p || proj.parent.waitsOn.some((d) => d.number === n);
+  const startable = (): ReturnType<typeof startableAfter> => {
+    const source = !isParent ? null : n === ctx.p ? proj : projectOrNull(n);
+    return source === null ? [] : startableAfter(source, process.cwd());
+  };
   if (state === "unknown") {
     stop(
       "unknown-issue",
@@ -464,273 +503,105 @@ const close = (ctx: Context): string => {
     stop("not-due", `#${n} is not due to close`, { number: n });
   }
   if (state === "already") {
-    return emit({
+    return statusLine({
       status: "closed",
       number: n,
       already: true,
-      startable: isParent ? startableAfter(ctx, n, proj) : [],
+      startable: startable(),
     });
   }
   const failed = closeFailure(n, commentFile);
   if (failed !== null) {
     throw new Failure(`cannot close #${n}: ${failed}`);
   }
-  return emit({
+  return statusLine({
     status: "closed",
     number: n,
     already: false,
-    startable: isParent ? startableAfter(ctx, n, proj) : [],
+    startable: startable(),
   });
-};
-
-type StepError = { readonly step: string; readonly message: string };
-
-const discard = (wt: string): readonly StepError[] =>
-  (
-    [
-      ["reset", ["reset", "--hard"]],
-      ["clean", ["clean", "-fd"]],
-    ] as const
-  ).flatMap(([step, args]) => {
-    const result = run(["git", "-C", wt, ...args]);
-    return result.code === 0 ? [] : [{ step, message: result.stderr.trim() }];
-  });
-
-const claim = (ctx: Context, wt: string): { readonly login: string; readonly added: boolean } => {
-  const assignees = (repo: string, me: string | null = null): readonly string[] => {
-    const r = apiJson([`repos/${repo}/issues/${ctx.p}`]);
-    if (r === null) {
-      stop("assign-failed", `cannot read the assignees of #${ctx.p}`, {
-        step: "read",
-        worktree: wt,
-        ...(me === null ? {} : { assignee: { login: me, added: true } }),
-      });
-    }
-    const list = field(r, "assignees");
-    return Array.isArray(list) ? list.map((a) => String(field(a, "login"))) : [];
-  };
-  const others = (me: string, logins: readonly string[], added = false): void => {
-    const found = logins.filter((l) => l.toLowerCase() !== me.toLowerCase());
-    if (found.length > 0) {
-      stop("assigned", `#${ctx.p} is assigned to ${found.join(", ")}`, {
-        login: me,
-        assignees: found,
-        self: added || found.length < logins.length,
-        worktree: wt,
-      });
-    }
-  };
-  const login = field(apiJson(["user"]), "login");
-  if (typeof login !== "string" || login === "") {
-    return stop("assign-failed", "cannot read the user's login from GitHub", {
-      step: "login",
-      worktree: wt,
-    });
-  }
-  const repo = nameWithOwner(repoView());
-  const logins = assignees(repo);
-  others(login, logins);
-  if (logins.length > 0) {
-    return { login, added: false };
-  }
-  const r = run(["gh", "issue", "edit", String(ctx.p), "--add-assignee", login]);
-  if (r.code !== 0) {
-    stop("assign-failed", `cannot assign ${login} to #${ctx.p}: ${r.stderr.trim()}`, {
-      step: "add",
-      worktree: wt,
-    });
-  }
-  others(login, assignees(repo, login), true);
-  return { login, added: true };
 };
 
 const STATUS = ["status", "--porcelain", "--untracked-files=normal"] as const;
 
-const isRealDirectory = (path: string): boolean => {
-  try {
-    return lstatSync(path).isDirectory();
-  } catch {
-    return false;
-  }
-};
-
-const nestedRepositories = (wt: string, dir: string): readonly string[] => {
-  if (existsSync(join(dir, ".git"))) {
-    return [relative(wt, dir)];
-  }
-  return readdirSync(dir)
-    .toSorted()
-    .filter((name) => name !== ".git" && isRealDirectory(join(dir, name)))
-    .flatMap((name) => nestedRepositories(wt, join(dir, name)));
-};
-
-type Saved = {
-  readonly file: string;
-  readonly head: string;
-  readonly changes: readonly string[];
-  readonly merge: string | null;
-  readonly left: readonly string[];
-  readonly errors: readonly StepError[];
-};
-
 const count = (where: string, range: string): number =>
   Number.parseInt(git(where, ["rev-list", "--count", range]).trim(), 10);
 
-const saveWork = (wt: string, target: string, since: string | null = null): Saved | null => {
-  const dir = dirname(target);
-  if (!isDirectory(dir)) {
-    throw new Failure(`no such directory: ${dir}`);
+const worktreeAtTip = (main: string, p: number, k: number, tip: string): string | null =>
+  listedNames(main, `pj-${p}-${k}-`)
+    .map((name) => join(main, WORKTREES, name))
+    .findLast(
+      (path) =>
+        projectWorktree(basename(path))?.k === k &&
+        listed(main, path) === false &&
+        revParse(path, "HEAD") === tip,
+    ) ?? null;
+
+const issueWorktree = (
+  main: string,
+  p: number,
+  k: number,
+  b: string,
+): { readonly found: string | null; readonly errors: readonly StepError[] } => {
+  try {
+    const holder = checkedOutIn(main, b);
+    if (holder !== null) {
+      return { found: isRunWorktree(main, holder, p, k) ? holder : null, errors: [] };
+    }
+    return {
+      found: hasBranch(main, b) ? worktreeAtTip(main, p, k, revParse(main, b)) : null,
+      errors: [],
+    };
+  } catch (error) {
+    if (error instanceof Failure) {
+      return { found: null, errors: [{ step: "worktree", message: error.message }] };
+    }
+    throw error;
   }
-  if (existsLink(target)) {
-    throw new Failure(`${target} already exists`);
-  }
-  const real = join(realPath(dir), basename(target));
-  if (
-    real.startsWith(realPath(wt) + sep) &&
-    run(["git", "-C", wt, "check-ignore", "-q", real]).code !== 0
-  ) {
-    throw new Failure(
-      `${target} is inside ${wt} and git does not ignore it there, so saving it would change the work it saves`,
-    );
-  }
-  const before = splitLines(git(wt, STATUS));
-  if (before.length === 0 && (since === null || count(wt, `${since}..HEAD`) === 0)) {
+};
+
+const freeBranch = (
+  main: string,
+  p: number,
+  k: number,
+  base: string,
+  b: string,
+): StatusObject | null => {
+  if (!hasBranch(main, b)) {
     return null;
   }
-  const head = since ?? git(wt, ["rev-parse", "HEAD"]).trim();
-  const mergeHead = run(["git", "-C", wt, "rev-parse", "--verify", "--quiet", "MERGE_HEAD"]);
-  const merge = mergeHead.code === 0 ? mergeHead.stdout.trim() : null;
-  const nested = git(wt, ["ls-files", "-z", "--others", "--exclude-standard", "--directory"])
-    .split("\0")
-    .filter((e) => e.endsWith("/"))
-    .flatMap((e) => nestedRepositories(wt, join(wt, e)));
-  const excludes = nested.map((d) => `:(exclude,literal)${d}`);
-  for (const args of [
-    ["add", "-A", "--", ".", ...excludes],
-    ["diff-index", "--cached", "--binary", "-p", head, `--output=${target}`],
-  ]) {
-    const result = run(["git", "-C", wt, ...args]);
-    if (result.code !== 0) {
-      run(["git", "-C", wt, "reset"]);
-      throw new Failure(`git ${args.slice(0, 2).join(" ")} failed: ${result.stderr.trim()}`);
-    }
+  const holder = checkedOutIn(main, b);
+  const ended =
+    holder !== null && isRunWorktree(main, holder, p, k)
+      ? endRun(main, holder, revParse(main, `origin/${base}`))
+      : null;
+  const still = checkedOutIn(main, b);
+  if (still !== null) {
+    return stop("checked-out", `${b} is checked out in ${still}`, {
+      worktree: still,
+      branch: b,
+      ended,
+    });
   }
-  const errors = discard(wt);
-  const left = splitLines(git(wt, STATUS));
-  return {
-    file: target,
-    head,
-    changes: before.slice(0, 20),
-    merge,
-    left: left.slice(0, 20),
-    errors,
-  };
-};
-
-const existsLink = (path: string): boolean => {
-  try {
-    lstatSync(path);
-    return true;
-  } catch {
-    return false;
+  if (!hasBranch(main, b)) {
+    return ended;
   }
-};
-
-const discardedDir = (wt: string): string => {
-  const stamp = stampOf(new Date());
-  mkdirSync(join(wt, "work-reports"), { recursive: true });
-  for (let n = 1; ; n += 1) {
-    const name = n === 1 ? `${stamp}-discarded` : `${stamp}-discarded-${n}`;
-    try {
-      mkdirSync(join(wt, "work-reports", name));
-      return name;
-    } catch (error) {
-      if (!(error instanceof Error && "code" in error && error.code === "EEXIST")) {
-        throw error;
-      }
-    }
+  const ahead = count(main, `origin/${base}..${b}`);
+  if (ahead > 0) {
+    return stop("left", `${b} holds ${ahead} commit(s) that origin/${base} does not have`, {
+      worktree: worktreeAtTip(main, p, k, revParse(main, b)),
+      commits: ahead,
+      branch: b,
+    });
   }
+  git(main, ["branch", "-D", b]);
+  return ended;
 };
 
 const worktree = (ctx: Context): string => {
-  const { main, wt } = located(ctx.p);
-  const base = project(ctx.p).parent.base;
-  if (fetchBranch(main, base).code !== 0) {
-    stop("fetch-failed", `cannot fetch ${base} from origin`, { worktree: wt });
-  }
-  const assignee = claim(ctx, wt);
-  const tip = `origin/${base}`;
-  const prunable = listed(main, wt);
-  let saved: Readonly<Record<string, unknown>> | null = null;
-  let action: string;
-  if (prunable === true) {
-    git(main, ["worktree", "prune"]);
-    git(main, ["worktree", "add", "--detach", wt, tip]);
-    action = "recreated";
-  } else if (prunable === false) {
-    const changes = splitLines(git(wt, STATUS));
-    if (changes.length === 0) {
-      action = "moved";
-    } else {
-      if (run(["git", "-C", wt, "check-ignore", "-q", "work-reports/"]).code !== 0) {
-        stop(
-          "not-ignored",
-          `work-reports/ is not ignored in ${wt}, and ${wt} has uncommitted changes`,
-          {
-            worktree: wt,
-            assignee,
-            changes: changes.slice(0, 20),
-          },
-        );
-      }
-      const name = discardedDir(wt);
-      const done = saveWork(wt, join(wt, "work-reports", name, "stopped.diff"));
-      if (done === null) {
-        throw new Failure(`${wt} has nothing to save`);
-      }
-      saved = { file: done.file, head: done.head, changes: done.changes, merge: done.merge };
-      if (done.left.length > 0 || done.errors.length > 0) {
-        stop("not-clean", `${wt} is not clean after the save and the discard`, {
-          worktree: wt,
-          assignee,
-          saved,
-          left: done.left,
-          errors: done.errors,
-        });
-      }
-      action = "discarded";
-    }
-    git(wt, ["switch", "--detach", tip]);
-  } else if (existsLink(wt)) {
-    return stop("foreign", `${wt} exists and is not a worktree of this clone`, {
-      worktree: wt,
-      assignee,
-    });
-  } else {
-    git(main, ["worktree", "add", "--detach", wt, tip]);
-    action = "created";
-  }
-  return emit({
-    status: "ready",
-    worktree: wt,
-    action,
-    head: git(wt, ["rev-parse", "HEAD"]).trim(),
-    assignee,
-    saved,
-    ...includeIgnored(wt),
-  });
-};
-
-const ignore = (ctx: Context): string => {
-  const { main, wt } = located(ctx.p);
-  notAWorktree(ctx, main, wt);
-  return emit(ignoreCheck(main, wt, ctx.args.includes("--add")));
-};
-
-const branch = (ctx: Context): string => {
-  const { main, wt } = located(ctx.p);
-  notAWorktree(ctx, main, wt);
-  const b = ctx.args[0] ?? "";
+  const k = Number(ctx.args[0]);
+  const b = ctx.args[1] ?? "";
+  const main = located();
   const base = project(ctx.p).parent.base;
   if (run(["git", "check-ref-format", "--branch", b]).code !== 0) {
     throw new Failure(`not a valid branch name: ${b}`);
@@ -738,60 +609,136 @@ const branch = (ctx: Context): string => {
   if (fetchBranch(main, base).code !== 0) {
     stop("fetch-failed", `cannot fetch ${base} from origin`, { branch: b });
   }
-  if (splitLines(git(wt, ["status", "--porcelain"])).length > 0) {
-    stop("dirty", `${wt} has uncommitted changes`, { worktree: wt });
-  }
-  if (hasBranch(wt, b)) {
-    const holder = checkedOutIn(main, b);
-    const mine = holder !== null && realPath(holder) === realPath(wt);
-    if (holder !== null && !mine) {
-      stop("checked-out", `${b} is checked out in ${holder}`, { branch: b, worktree: holder });
-    }
-    const ahead = count(wt, `origin/${base}..${b}`);
-    if (ahead > 0) {
-      stop("unpushed", `${b} holds ${ahead} commit(s) that origin/${base} does not have`, {
-        branch: b,
-        commits: ahead,
-      });
-    }
-    if (mine) {
-      git(wt, ["switch", "--detach"]);
-    }
-    git(wt, ["branch", "-D", b]);
-  }
-  git(wt, ["switch", "--no-track", "-c", b, `origin/${base}`]);
-  return emit({ status: "ok", branch: b, start: git(wt, ["rev-parse", "HEAD"]).trim() });
+  const ended = freeBranch(main, ctx.p, k, base, b);
+  const { name, path } = addWorktree(main, `pj-${ctx.p}-${k}`, `refs/remotes/origin/${base}`);
+  git(path, ["switch", "--quiet", "--no-track", "-c", b, `origin/${base}`]);
+  return statusLine({
+    status: "ready",
+    worktree: path,
+    name,
+    branch: b,
+    start: revParse(path, "HEAD"),
+    ended,
+    ...includeIgnored(path),
+  });
 };
 
-const save = (ctx: Context): string => {
-  const { main, wt } = located(ctx.p);
-  notAWorktree(ctx, main, wt);
-  const given = ctx.args[3] ?? "";
+const removal = (
+  main: string,
+  path: string,
+): { readonly moved: readonly string[]; readonly errors: readonly StepError[] } => {
+  try {
+    const removed = removeWorktree(main, path, false);
+    return { moved: removed.moved, errors: removed.errors };
+  } catch (error) {
+    if (error instanceof Failure) {
+      return { moved: [], errors: [{ step: "worktree", message: error.message }] };
+    }
+    throw error;
+  }
+};
+
+const deleteBranch = (main: string, b: string | null): readonly StepError[] => {
+  if (b === null) {
+    return [];
+  }
+  const deleted = run(["git", "-C", main, "branch", "-D", b]);
+  return deleted.code === 0 ? [] : [{ step: "branch", message: deleted.stderr.trim() }];
+};
+
+const end = (ctx: Context): string => {
+  const name = ctx.args[0] ?? "";
+  const given = ctx.args[2] ?? "";
+  const main = located();
+  const named = projectWorktree(name);
+  if (named === null || named.p !== ctx.p) {
+    throw new Failure(`${name} is no worktree name of project #${ctx.p}`);
+  }
+  const path = join(main, WORKTREES, name);
+  if (listed(main, path) !== false) {
+    throw new Failure(`${path} is no live worktree of this clone`);
+  }
   if (
-    run(["git", "-C", wt, "merge-base", "--is-ancestor", `${given}^{commit}`, "HEAD"]).code !== 0
+    run(["git", "-C", path, "merge-base", "--is-ancestor", `${given}^{commit}`, "HEAD"]).code !== 0
   ) {
-    throw new Failure(`${given} is no commit, or no ancestor of HEAD in ${wt}`);
+    throw new Failure(`${given} is no commit, or no ancestor of HEAD in ${path}`);
   }
-  const since = git(wt, ["rev-parse", `${given}^{commit}`]).trim();
-  const commits = count(wt, `${since}..HEAD`);
-  const symbolic = run(["git", "-C", wt, "symbolic-ref", "--quiet", "--short", "HEAD"]);
-  const branchName = symbolic.code === 0 ? symbolic.stdout.trim() : null;
-  const done = saveWork(wt, resolve(ctx.args[1] ?? ""), since);
-  const steps: readonly (readonly [string, readonly string[]])[] = [
-    ["detach", ["switch", "--detach", since]],
-    ...(branchName === null ? [] : [["branch", ["branch", "-D", branchName]] as const]),
-  ];
-  const errors = [
-    ...(done?.errors ?? []),
-    ...steps.flatMap(([step, args]) => {
-      const result = run(["git", "-C", wt, ...args]);
-      return result.code === 0 ? [] : [{ step, message: result.stderr.trim() }];
-    }),
-  ];
-  if (done === null) {
-    return emit({ status: "clean", worktree: wt, branch: branchName, commits, errors });
+  return statusLine(endRun(main, path, revParse(path, `${given}^{commit}`)));
+};
+
+const endRun = (main: string, path: string, since: string): StatusObject => {
+  const name = basename(path);
+  const moved = moveReports(main, path);
+  const commits = count(path, `${since}..HEAD`);
+  const changes = splitLines(git(path, STATUS));
+  const symbolic = run(["git", "-C", path, "symbolic-ref", "--quiet", "--short", "HEAD"]);
+  const held = symbolic.code === 0 ? symbolic.stdout.trim() : null;
+  if (commits === 0 && changes.length === 0) {
+    const removed = removal(main, path);
+    return {
+      status: "removed",
+      name,
+      moved: [...moved, ...removed.moved],
+      errors: [...removed.errors, ...deleteBranch(main, held)],
+    };
   }
-  return emit({ status: "saved", worktree: wt, branch: branchName, commits, ...done, errors });
+  const detached = run(["git", "-C", path, "update-ref", "--no-deref", "HEAD", "HEAD"]);
+  return {
+    status: "kept",
+    name,
+    worktree: path,
+    moved,
+    head: revParse(path, "HEAD"),
+    commits,
+    changes: changes.slice(0, 20),
+    errors: [
+      ...(detached.code === 0 ? [] : [{ step: "detach", message: detached.stderr.trim() }]),
+      ...deleteBranch(main, held),
+    ],
+  };
+};
+
+const isRunWorktree = (main: string, holder: string, p: number, k: number): boolean => {
+  const named = projectWorktree(basename(holder));
+  return (
+    named !== null &&
+    named.p === p &&
+    named.k === k &&
+    dirname(realPath(holder)) === realPath(join(main, WORKTREES))
+  );
+};
+
+const leaveRun = (
+  main: string,
+  holder: string,
+): {
+  readonly worktree: { readonly name: string; readonly moved: readonly string[] } | null;
+  readonly errors: readonly StepError[];
+} => {
+  try {
+    const lost = losses({
+      dirty: splitLines(git(holder, ["status", "--porcelain"])).length > 0,
+      submodules: submoduleWork(holder).length > 0,
+      branch: null,
+      detached: false,
+    });
+    if (lost.length > 0) {
+      return {
+        worktree: null,
+        errors: [{ step: "worktree", message: `${holder} holds ${lost.join(", ")}, so it stays` }],
+      };
+    }
+    const removed = removeWorktree(main, holder, false);
+    return {
+      worktree: { name: basename(holder), moved: removed.moved },
+      errors: removed.errors.map((e) => ({ step: "worktree", message: e.message })),
+    };
+  } catch (error) {
+    if (error instanceof Failure) {
+      return { worktree: null, errors: [{ step: "worktree", message: error.message }] };
+    }
+    throw error;
+  }
 };
 
 const waitForChecks = (m: number, wait: number): Registered => {
@@ -858,7 +805,7 @@ const merge = (ctx: Context): string => {
       pr: pr?.number ?? null,
     });
   }
-  const { main, wt } = located(ctx.p);
+  const main = located();
   const base = proj.parent.base;
   const view = repoView();
   const found = rules(nameWithOwner(view), base, view, main);
@@ -966,16 +913,16 @@ const merge = (ctx: Context): string => {
     }
   }
 
-  if (fetchBranch(main, base).code !== 0) {
-    errors.push({ step: "fetch", message: `cannot fetch ${base} from origin` });
-  }
-  const switched = run(["git", "-C", wt, "switch", "--detach", `origin/${base}`]);
-  if (switched.code !== 0) {
-    errors.push({ step: "switch", message: switched.stderr.trim() });
-  }
+  const searched = issueWorktree(main, ctx.p, k, b);
+  errors.push(...searched.errors);
+  const holder = searched.found;
+  const left = holder !== null ? leaveRun(main, holder) : null;
+  errors.push(...(left?.errors ?? []));
   let local = "absent";
-  if (hasBranch(wt, b)) {
-    const deleted = run(["git", "-C", wt, "branch", "-D", b]);
+  if (left !== null && left.worktree === null) {
+    local = "kept";
+  } else if (hasBranch(main, b)) {
+    const deleted = run(["git", "-C", main, "branch", "-D", b]);
     if (deleted.code === 0) {
       local = "deleted";
     } else {
@@ -983,7 +930,7 @@ const merge = (ctx: Context): string => {
       errors.push({ step: "delete-local", message: deleted.stderr.trim() });
     }
   }
-  const pushed = run(["git", "-C", wt, "push", "--quiet", "origin", "--delete", b]);
+  const pushed = run(["git", "-C", main, "push", "--quiet", "origin", "--delete", b]);
   let remote: string;
   if (pushed.code === 0) {
     remote = "deleted";
@@ -993,13 +940,14 @@ const merge = (ctx: Context): string => {
     remote = "kept";
     errors.push({ step: "delete-remote", message: pushed.stderr.trim() });
   }
-  return emit({
+  return statusLine({
     status: "merged",
     pr: m,
     branch: { name: b, local, remote },
     method: mergedEarlier ? null : found.mergeMethod,
     mergedEarlier,
     issue: closed,
+    worktree: left?.worktree ?? null,
     errors,
   });
 };
@@ -1054,15 +1002,20 @@ const stopIssue = (ctx: Context): string => {
       });
     }
   }
-  return emit({ status: "stopped", number: k, ...found });
+  return statusLine({ status: "stopped", number: k, ...found });
 };
 
-const contains = (where: string, ref: string, other: string): boolean =>
-  run(["git", "-C", where, "merge-base", "--is-ancestor", other, ref]).code === 0;
+const syncWorktree = (main: string, p: number, name: string): string => {
+  const named = projectWorktree(name);
+  const path = join(main, WORKTREES, name);
+  if (named === null || named.p !== p || named.k !== null || listed(main, path) !== false) {
+    throw new Failure(`${name} is no sync worktree of project #${p} in this clone`);
+  }
+  return path;
+};
 
 const sync = (ctx: Context): string => {
-  const { main, wt } = located(ctx.p);
-  notAWorktree(ctx, main, wt);
+  const main = located();
   const proj = project(ctx.p);
   const { parent, issues } = proj;
   const base = parent.base;
@@ -1080,22 +1033,27 @@ const sync = (ctx: Context): string => {
   if (fetchBranch(main, base).code !== 0 || fetchBranch(main, frm).code !== 0) {
     stop("fetch-failed", `cannot fetch ${base} and ${frm} from origin`, out);
   }
-  const tip = git(wt, ["rev-parse", `origin/${base}`]).trim();
-  if (ctx.args.includes("--push")) {
+  const tip = revParse(main, `origin/${base}`);
+  const given = ctx.args[1];
+  let path: string;
+  let made: Readonly<Record<string, unknown>>;
+  if (given !== undefined) {
+    path = syncWorktree(main, ctx.p, given);
+    made = { worktree: path, name: given };
     if (
-      run(["git", "-C", wt, "rev-parse", "--verify", "--quiet", "MERGE_HEAD"]).code === 0 ||
-      git(wt, ["status", "--porcelain"]).trim() !== ""
+      run(["git", "-C", path, "rev-parse", "--verify", "--quiet", "MERGE_HEAD"]).code === 0 ||
+      git(path, ["status", "--porcelain"]).trim() !== ""
     ) {
-      stop("unfinished", `${wt} still holds an unfinished merge or uncommitted changes`, out);
+      stop("unfinished", `${path} still holds an unfinished merge or uncommitted changes`, out);
     }
-    const parents = git(wt, ["rev-list", "--parents", "-n", "1", "HEAD"])
+    const parents = git(path, ["rev-list", "--parents", "-n", "1", "HEAD"])
       .trim()
       .split(/\s+/u)
       .slice(1);
     if (
       parents.length !== 2 ||
       parents[0] !== tip ||
-      !contains(wt, `origin/${frm}`, parents[1] ?? "")
+      !isAncestor(path, parents[1] ?? "", `origin/${frm}`)
     ) {
       stop(
         "not-the-merge",
@@ -1104,51 +1062,37 @@ const sync = (ctx: Context): string => {
       );
     }
   } else {
-    if (contains(wt, `origin/${base}`, `origin/${frm}`)) {
-      return emit({ status: "current", sha: tip, ...out });
+    const added = addWorktree(main, `pj-${ctx.p}-sync`, `refs/remotes/origin/${base}`);
+    path = added.path;
+    made = { worktree: path, name: added.name, ...includeIgnored(path) };
+    if (isAncestor(main, `origin/${frm}`, `origin/${base}`)) {
+      return statusLine({ status: "current", sha: tip, ...out, ...made });
     }
-    if (git(wt, ["status", "--porcelain"]).trim() !== "") {
-      stop("dirty", `${wt} has uncommitted changes`, { worktree: wt, ...out });
-    }
-    git(wt, ["switch", "--detach", `origin/${base}`]);
-    const merged = run([
-      "git",
-      "-C",
-      wt,
-      "merge",
-      "--no-ff",
-      "-m",
-      `Merge ${frm} into ${base}`,
-      `origin/${frm}`,
-    ]);
-    if (merged.code !== 0) {
-      const files = splitLines(git(wt, ["diff", "--name-only", "--diff-filter=U"]));
-      if (files.length === 0) {
-        run(["git", "-C", wt, "merge", "--abort"]);
-        throw new Failure(
-          `git merge origin/${frm} failed: ${(merged.stderr || merged.stdout).trim()}`,
-        );
-      }
-      return emit({ status: "conflict", start: tip, files, ...out });
+    const merged = mergeIn(path, `refs/remotes/origin/${frm}`, `Merge ${frm} into ${base}`);
+    if (merged.kind === "conflict") {
+      return statusLine({ status: "conflict", start: tip, files: merged.files, ...out, ...made });
     }
   }
-  const sha = git(wt, ["rev-parse", "HEAD"]).trim();
-  const pushed = run(["git", "-C", wt, "push", "--quiet", "origin", `HEAD:refs/heads/${base}`]);
+  const sha = revParse(path, "HEAD");
+  const pushed = run(["git", "-C", path, "push", "--quiet", "origin", `HEAD:refs/heads/${base}`]);
   if (pushed.code !== 0) {
     stop("push-rejected", `cannot push the merge to ${base}: ${pushed.stderr.trim()}`, {
       sha,
+      start: tip,
+      worktree: path,
+      name: made["name"],
       ...out,
     });
   }
   fetchBranch(main, base);
-  return emit({ status: "merged", sha, ...out });
+  return statusLine({ status: "merged", sha, ...out, ...made });
 };
 
 const PULL_NUMBER = new RegExp(`/pull/(${DIGIT}+)$`, "u");
 
 const projectPr = (ctx: Context): string => {
   const body = ctx.args[1] ?? "";
-  const { main } = located(ctx.p);
+  const main = located();
   const proj = project(ctx.p);
   const { parent, issues } = proj;
   const base = parent.base;
@@ -1166,7 +1110,7 @@ const projectPr = (ctx: Context): string => {
   if (fetchBranch(main, base).code !== 0 || fetchBranch(main, frm).code !== 0) {
     stop("fetch-failed", `cannot fetch ${base} and ${frm} from origin`, out);
   }
-  if (!contains(main, `origin/${base}`, `origin/${frm}`)) {
+  if (!isAncestor(main, `origin/${frm}`, `origin/${base}`)) {
     stop("behind", `${base} does not contain origin/${frm}. run.sh sync ${ctx.p} first`, out);
   }
   const listed_ = run([
@@ -1191,7 +1135,7 @@ const projectPr = (ctx: Context): string => {
     .toSorted((a, b) => a.number - b.number);
   const first = found[0];
   if (first !== undefined) {
-    return emit({ status: "exists", pr: first.number, url: first.url, ...out });
+    return statusLine({ status: "exists", pr: first.number, url: first.url, ...out });
   }
   const created = run([
     "gh",
@@ -1215,7 +1159,7 @@ const projectPr = (ctx: Context): string => {
   }
   const url = splitLines(created.stdout.trim()).at(-1) ?? "";
   const m = PULL_NUMBER.exec(url);
-  return emit({ status: "opened", pr: m === null ? null : Number(m[1]), url, ...out });
+  return statusLine({ status: "opened", pr: m === null ? null : Number(m[1]), url, ...out });
 };
 
 const isNumber = (text: string | undefined): boolean =>
@@ -1236,14 +1180,6 @@ const existing = (path: string | undefined): void => {
 const isFile = (path: string): boolean => {
   try {
     return statSync(path).isFile();
-  } catch {
-    return false;
-  }
-};
-
-const isDirectory = (path: string): boolean => {
-  try {
-    return statSync(path).isDirectory();
   } catch {
     return false;
   }
@@ -1271,19 +1207,19 @@ const checked = (argv: readonly string[]): void => {
   number("the project", argv[1]);
   switch (argv[0]) {
     case "start":
-    case "worktree":
       usage(n === 2);
+      return;
+    case "worktree":
+      usage(n === 4);
+      number("the issue", argv[2]);
+      return;
+    case "end":
+      usage(n === 5 && argv[3] === "--since");
       return;
     case "close":
       usage(n === 5 && argv[3] === "--comment");
       number("the issue", argv[2]);
       existing(argv[4]);
-      return;
-    case "ignore":
-      usage(n === 2 || (n === 3 && argv[2] === "--add"));
-      return;
-    case "branch":
-      usage(n === 3);
       return;
     case "merge":
       usage((n === 6 || n === 8 || n === 10) && argv[4] === "--comment");
@@ -1293,14 +1229,11 @@ const checked = (argv: readonly string[]): void => {
       checkedMergeFlags(argv.slice(6));
       return;
     case "sync":
-      usage(n === 2 || (n === 3 && argv[2] === "--push"));
+      usage(n === 2 || (n === 4 && argv[2] === "--push"));
       return;
     case "pr":
       usage(n === 4 && argv[2] === "--body");
       existing(argv[3]);
-      return;
-    case "save":
-      usage(n === 6 && argv[2] === "--to" && argv[4] === "--since");
       return;
     case "stop":
       usage((n === 6 || n === 10) && argv[4] === "--comment");
@@ -1324,12 +1257,10 @@ const SUBCOMMANDS: Readonly<Record<string, (ctx: Context) => string>> = {
   start,
   close,
   worktree,
-  ignore,
-  branch,
+  end,
   merge,
   sync,
   pr: projectPr,
-  save,
   stop: stopIssue,
 };
 

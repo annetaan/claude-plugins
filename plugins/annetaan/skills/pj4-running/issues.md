@@ -44,13 +44,14 @@ Show the user:
 - the base branch, with "created now from `<from>` at `<sha>`" when this run created it, the branch pattern and the
   merge method, `rules.mergeMethod`
 - each parent closed at the start, as `#<Q>`
-- the worktree `<WT>`, where the whole run happens, and that `<MAIN>` is not touched, except for the lines the answers added to `.worktreeinclude`, so the user can keep working
-  there
-- that `#<P>` is assigned to `<login>` (now, when this run assigned it), and that the assignment stays for the life of
-  the project
-- that `<WT>` holds the ignored files `.worktreeinclude` names, copied by `run.sh worktree` on this run or an
-  earlier one and by the Copy answers, and that the first worker prepares the rest the tests need, such as
-  dependencies, and records the steps in the handover notes
+- that each issue runs in a worktree of its own under `<MAIN>/.claude/worktrees/`, made from the tip of
+  `origin/<base>`, and that `<MAIN>` is not touched, except for the lines the answers added to `.worktreeinclude`, so
+  the user can keep working there
+- that `#<P>` is assigned to `<assignee.login>` from `start` (now, when `assignee.added` is true), and that the
+  assignment stays for the life of the project
+- that each worktree holds the ignored files `.worktreeinclude` names, copied by `run.sh worktree` and by the Copy
+  answers, and that the first worker prepares the rest the tests need, such as dependencies, and records the steps
+  in the handover notes
 - how each issue runs: a branch, workflow's **From an issue**, where a design session details the issue against the code
   on the base branch and may redraw its body and the order of the issues left, then one or more reviewed commits (with
   the review files in its work report) and an integration review when there is more than one, a draft pull request into
@@ -80,7 +81,7 @@ Take **Before workflow runs** in SKILL.md with From an issue. Its entry, `workfl
 
 ## Phase 4: one issue at a time
 
-Nothing runs in parallel. There is one worktree, `<WT>`. For each issue `<k>` in the run order:
+Nothing runs in parallel. For each issue `<k>` in the run order:
 
 1. **Re-read the project** with `project.sh <P>`.
    - The issue is closed: skip it.
@@ -111,39 +112,81 @@ Nothing runs in parallel. There is one worktree, `<WT>`. For each issue `<k>` in
      ```
 
      No line printed means none were filed.
-   - **`pr` is null**: make a fresh branch in `<WT>` from the tip of `origin/<base>`, then run From an issue.
+   - **`pr` is null**: make the issue's worktree, with a fresh branch from the tip of `origin/<base>`, then run From
+     an issue.
 
      ```bash
-     $RUNNING/scripts/run.sh branch <P> <branch>
+     $RUNNING/scripts/run.sh worktree <P> <k> <branch>
      ```
 
-     - **`ok`**: go to step 3. A leftover `<branch>` with no commits of its own was deleted and made again.
-     - **`stop`** with `unpushed`: stop the run. Name `<branch>` and the number in `commits`, and say that
-       `git -C <WT> log origin/<base>..<branch>` shows them. A `finish` stop in an earlier run leaves exactly this.
-       The `log.md` of the work report has its `Implements #<k>` head only once `record` has run, which a finish
-       that stopped early did not do, so run `status` first:
+     - **`ready`**: `worktree` is the new worktree `pj-<P>-<k>-<stamp>` under `<MAIN>/.claude/worktrees/`, `name` its
+       name, and `branch` is checked out there. A leftover `<branch>` with no commits of its own was deleted and
+       made again. `ended` is not null when a run of `#<k>` killed before `run.sh end`, or before a `finish` stop's
+       detach, left `<branch>` checked out in its own `pj-<P>-<k>-*` worktree: `run.sh worktree` ended that worktree
+       as `run.sh end` does, whatever it committed, and `ended` is what `end` prints. With `status` `kept`, print
+       `#<k> kept <ended.worktree>: <ended.commits> commit(s)` once: it keeps the killed run's commits and changes on
+       a detached HEAD until `/annetaan:cleanup <P>`, none of them is pushed, and the issue is redone here. Print `#<k> worktree <worktree>`
+       once, so that a context summary finds it again. Keep `name`,
+       and keep `start` as `<START>`. Then act on the three lists `ready` carries.
+       - `copied` not empty: print `copied <paths>` once.
+       - `notIgnored` not empty: say once that `<MAIN>/.worktreeinclude` lists these files but the worktree does not
+         ignore them, so they were not copied. A `.gitignore` rule that only `<MAIN>`'s working tree has is the
+         usual cause. **Never edit `.gitignore`.**
+       - `unlisted` not empty: take **Files `.worktreeinclude` does not name** in `workflow/worktree.md`, with
+         `$RUNNING/../workflow` in place of `$FLOW`. An unattended run does not ask: it prints
+         `not in .worktreeinclude, not copied: <paths>` and goes on.
 
-       ```bash
-       $RUNNING/../workflow/scripts/flow.sh status <WT>
+       The worktree has the ignored files `<MAIN>/.worktreeinclude` names, copied by `run.sh worktree` and by the
+       Copy answers, and none of the others, such as installed dependencies. The first worker prepares what the
+       tests still need and leaves the steps in the handover notes, so later issues find them there. The submodules
+       are not initialized either. When the build or the tests need one, the first worker runs
+       `git submodule update --init` in the worktree and leaves that in the handover notes too.
+
+       Then enter it.
+
+       ```
+       EnterWorktree(path: "<worktree>")
        ```
 
-       When it prints `ok` with an `issue` equal to `<k>`, run `record`, which leaves a head already there as it is:
+       Where that tool is not available, `cd "<worktree>"`. A Bash `cd` moves this session only. workflow tells its
+       sub-sessions to enter the worktree themselves, because their directory resets on every bash call. Go to
+       step 3.
+     - **`stop`** with `left`: stop the run. `<branch>` holds `commits` commits that `origin/<base>` lacks, and
+       no worktree has it checked out. A `finish` stop in an earlier run leaves exactly this: its reviewed commits
+       on `<branch>`, and its worktree on a detached HEAD at the same commit, which `worktree` names, or null when
+       no `pj-<P>-<k>-*` worktree has that HEAD. Name `<branch>`, the number in `commits` and `worktree`, and say that
+       `git -C <MAIN> log origin/<base>..<branch>` shows them. When `worktree` is not null, the `log.md` of its work
+       report has its `Implements #<k>` head only once `record` has run, which a finish that stopped early did not
+       do, so run `status` first:
 
        ```bash
-       $RUNNING/../workflow/scripts/flow.sh record <WT>
+       $RUNNING/../workflow/scripts/flow.sh status <worktree>
        ```
 
-       - **`record` prints `ok`**: the user picks the way out. Pushing `<branch>` with
-         `git -C <WT> push -u origin <branch>` and opening a draft pull request from it into `<base>` with
-         `<workdir>/log.md` as its body (`workdir` from `status`) makes the next run merge it. Deleting `<branch>`
-         makes the next run redo the issue.
-       - **Anything else**: `status` printed `stop` or exited non-zero, its `issue` is not `<k>`, or `record`
-         printed `stop` or exited non-zero. Quote the `message` (stderr on a non-zero exit). Deleting `<branch>` is
-         the only way out, and it makes the next run redo the issue.
-     - **`stop`** with `checked-out`: stop the run, and name the worktree in `worktree` that holds `<branch>`.
+       When it prints `ok`, run `record`, which leaves a head already there as it is:
+
+       ```bash
+       $RUNNING/../workflow/scripts/flow.sh record <worktree>
+       ```
+
+       The user picks one of two ways out.
+       - **Push it**: `git -C <MAIN> push -u origin <branch>`, and open a draft pull request from it into
+         `<base>` with `<workdir>/log.md` as its body (`workdir` from `status`). The next run merges it. When
+         `status` or `record` printed `stop` or exited non-zero, quote the `message` (stderr on a non-zero exit):
+         the work report has no `log.md` to use, and this way out is closed.
+       - **Free the branch**: `git -C <MAIN> branch -D <branch>`. The commits stay on the worktree's detached HEAD until `/annetaan:cleanup <P>`, and the next run redoes the
+         issue in a new worktree.
+
+       With `worktree` null there is no work report: the push opens its pull request with a body that says it
+       implements `#<k>`, and the delete loses the commits.
+     - **`stop`** with `checked-out`: stop the run, and name the worktree in `worktree` that has `<branch>` checked
+       out. It is a worktree outside the issue's own, such as `<MAIN>`, or ending one of the issue's own failed, and
+       `ended.errors` says why.
+     - **`stop`** with `fetch-failed`: quote `message` and stop the run.
 3. **Run From an issue.** These are what it expects you to have settled, so say them in your context before you
    start it: `n` (= `<k>`), `P`, the issue title, the projects `<P>` waits on (the `parent.waitsOn` numbers, or
-   none), the base branch, the branch you just made, the handover notes, and the paths `<WT>` and `<MAIN>`.
+   none), the base branch, the branch you just made, `<START>`, the handover notes, and the paths: the issue's
+   worktree as `<WT>`, and `<MAIN>`.
 
 ### A redrawn issue
 
@@ -260,13 +303,22 @@ workflow hands over to this section by name, with `finished`, `stopped`, `nothin
 screenshots that could not be attached, `decisions`, the decision issues it filed or why none were filed, and
 `stop requested` (yes or no).
 
+First leave the issue's worktree, when this session stands in one, because `run.sh merge` removes it.
+
+```
+ExitWorktree(action: "keep")
+```
+
+Where that tool is not available, `cd "<MAIN>"`.
+
 **With `stop requested: yes`, do not merge.** The user said stop. Fold the handover lines as step 3 says, then go to
 phase 5. The pull request stays a draft, and the next run merges it and reads its decision issues back from GitHub
-(the `pr.state` is `OPEN` case of phase 4 step 2).
+(the `pr.state` is `OPEN` case of phase 4 step 2). The worktree stays with the branch checked out, and that later
+`merge` removes it.
 
 1. Write `$TMP/<k>-closed.md` worded as in the `merged` case of phase 4 step 2, naming `#<m>`. The merge into the base
    branch closes nothing, so `run.sh merge` closes the issue with it.
-2. Merge the pull request, close `#<k>`, move `<WT>` onto the merged base and delete the head branch. The merge waits
+2. Merge the pull request, close `#<k>`, remove the issue's worktree and delete the head branch. The merge waits
    for every check on the pull request to pass, required or not. Run this as a
    background command and wait for it to exit, because waiting on the checks can outlast a foreground command. The
    output goes to files, because the background task's own output file lies outside the run's working directories and
@@ -278,6 +330,7 @@ phase 5. The pull request stays a draft, and the next run merges it and reads it
    ```
 
    - **`stop`** with `review`, `conflict`, `merge-failed` or `not-the-pr`: say so, quote `message`, and go to phase 5.
+     After any `merge` stop the worktree stays with the branch checked out, and the next run's `merge` removes it.
    - **`stop`** with `no-checks`, `checks-unreadable`, `checks-failed` or `checks-timeout`: quote `message`. The pull
      request stays a draft, and the next run merges it. After `checks-failed` the next run stops again until the checks
      pass, from a push to the branch or a rerun of the failed jobs (`gh run rerun <id> --failed`). After
@@ -286,8 +339,11 @@ phase 5. The pull request stays a draft, and the next run merges it and reads it
      pass. Go to phase 5.
    - **`merged`** with a non-empty `errors`: the merge went through, and a later step failed. Report each `step` with
      its `message`, fold the handover lines as step 3 says, then go to phase 5. When `close` failed, the issue stays
-     open with its pull request merged, and the next run closes it.
-   - **`merged`**: go on.
+     open with its pull request merged, and the next run closes it. With `step` `worktree` and `worktree` null, the
+     issue's worktree held work, or its removal failed, so it stays, with its local branch, for
+     `/annetaan:cleanup <P>`.
+   - **`merged`**: `worktree` names the issue's worktree it removed, with the work reports it `moved` into
+     `<MAIN>/work-reports/`, or is null when no worktree of `#<k>` had the head branch checked out. Go on.
 3. **Fold the handover lines into the notes**, as **Folding the handover lines** in SKILL.md says. With no
    handover lines, as on the `OPEN` path of phase 4 step 2, skip this step.
 4. Print one progress line: `#<k> done (<i>/<N>): PR #<m> merged, decisions: <the URLs of the decision issues, or why
@@ -300,32 +356,46 @@ Then take the next issue. When the run order is done, go to phase 5 in SKILL.md.
 report, the decision `#<k> D<d>`, the failing lint or `--check` JSON, or for `finish` the failed step. A stopped run has
 opened no pull request.
 
-When `<WORKDIR>` is set and the reason is not `finish`, save the work first, before any comment, so that `<WT>` is clean
-and detached on `<START>` when the run goes on. The save holds everything since `<START>`, commits included.
+Leave the issue's worktree first, when this session stands in one.
 
-```bash
-$RUNNING/scripts/run.sh save <P> --to <WORKDIR>/stopped.diff --since <START>
+```
+ExitWorktree(action: "keep")
 ```
 
-`finish` calls nothing: its commits and its branch are what the next run finds as `unpushed` in phase 4 step 2.
+Where that tool is not available, `cd "<MAIN>"`. When the reason is not `finish`, end the worktree before any
+comment, with `<name>` from `run.sh worktree` and `<START>`.
 
-Act by what it prints.
+```bash
+$RUNNING/scripts/run.sh end <P> <name> --since <START>
+```
 
-- **`clean`**: no work was left. Name no file.
-- **`saved`**: keep `file`, `head`, `branch`, `commits`, `merge`, `left` and `errors`. The diff in `file` holds the
-  `commits` commits and the uncommitted work, and applies onto `head`, which is `<START>`. `<WT>` is detached on `head`,
-  the branch `branch` is deleted, and `<WT>` is clean apart from what `left` lists. A path in `left` stays in `<WT>` and may not
-  be in `file`, as with a nested git repository. A step in `errors` is a reset, a clean, the detach or the branch
-  delete that failed.
+`end` moves the worktree's work reports into `<MAIN>/work-reports/` first. On `finish`, detach the worktree instead,
+with `<worktree>` from `run.sh worktree`:
+
+```bash
+git -C <worktree> update-ref --no-deref HEAD HEAD
+```
+
+The branch keeps the reviewed commits, the worktree keeps them on a detached HEAD, and the next run finds the branch
+as `left` in phase 4 step 2. A run killed before this detach leaves the branch checked out, and the next run ends that
+worktree and redoes the issue.
+
+Act by what `end` prints.
+
+- **`removed`**: nothing changed since `<START>`. The worktree, its review seats and its branch are gone.
+- **`kept`**: keep `name`, `commits` and `changes`. The worktree holds `commits` commits since `<START>` on a detached
+  HEAD, `head`, and the uncommitted work `changes` lists (a merge in progress among them). Its branch is deleted, so
+  the next run makes it again in a new worktree, and this one stays until `/annetaan:cleanup <P>`. A step in
+  `errors` is the detach or the branch delete that failed.
 - A non-zero exit: an exception to the `run.sh` rule in **Paths: `$RUNNING`** in SKILL.md, because the stop is already under way.
-  Quote the message, say the work stays in `<WT>`, and carry on with the reason's steps, so the stub or the notices are
-  still filed.
+  Quote the message, and carry on with the reason's steps, so the stub or the notices are still filed.
 
 Then act by the reason, and go to phase 5. Every comment below is written to a file under `$TMP` and starts with
-`**[pj4-running]**`. When `save` printed `saved`, each comment of `blocking`, `detail` and `round cap` says that
-the work so far, commits included, is saved on the machine that ran this, at `file`, that the next run redoes the
-issue, and which paths of `left` stay in `<WT>` when there are any. After a `save` that failed or stopped, it says that
-the work stays in `<WT>`. `blocking`, `decision`, `detail` and `round cap` each make one `run.sh stop` call with
+`**[pj4-running]**`. When `end` printed `kept`, each comment of `blocking`, `detail` and `round cap` says: "The work so
+far, `<commits>` commit(s)", with "and uncommitted changes" when `changes` is not empty, "stays in the worktree
+`.claude/worktrees/<name>` on the machine that ran this. The next run redoes the issue in a new worktree.
+`/annetaan:cleanup <P>` removes it once the project is merged." After `removed`, or an `end` that failed, the comment
+says nothing about the work. `blocking`, `decision`, `detail` and `round cap` each make one `run.sh stop` call with
 their comment file, `$TMP/<k>-stopped.md`, as `--comment`, and `run.sh` refuses a file that does not start with
 `**[pj4-running]**`.
 
@@ -366,9 +436,10 @@ their comment file, `$TMP/<k>-stopped.md`, as `--comment`, and `run.sh` refuses 
   $RUNNING/scripts/run.sh stop <P> <k> round-cap --comment "$TMP/<k>-stopped.md"
   ```
 - **`user`**: nothing goes to GitHub.
-- **`work-reports`**: report it. It should not happen after the check in **Paths this clone must ignore** in SKILL.md.
+- **`work-reports`**: report it. It should not happen after `run.sh start` added the paths.
 - **`finish`**: report the failed step of workflow's finish, its message, and the path of `log.md` when there is one.
-  The next run stops on the commits as `unpushed` in phase 4 step 2, which names the way out.
+  Say that `<branch>` keeps the reviewed commits, that the worktree keeps them on a detached HEAD, and that the next
+  run stops on `left` in phase 4 step 2 with both ways out.
 
 Act by what `run.sh stop` prints.
 
@@ -382,7 +453,8 @@ Act by what `run.sh stop` prints.
 - Any other `stop` falls under the `run.sh` rule in **Paths: `$RUNNING`** in SKILL.md.
 
 **`nothing-left`** carries `<WORKDIR>`, `<START>` and the evidence: the design session found that the code on the base
-branch already makes the goal true. Run the same `save` call, so that `<WT>` is clean and the branch is gone. Write a
+branch already makes the goal true. Leave the worktree and run the same `end` call, which removes it and the branch
+when nothing changed since `<START>`. Write a
 comment to `$TMP/<k>-nothing-left.md` that starts with `**[pj4-running]**` and gives the evidence, `ran:` and `saw:`
 per acceptance criterion. `issue.sh close` posts it and closes `#<k>` as completed in one call, so it still counts as a
 closer in `parent.breakage`.
@@ -394,4 +466,5 @@ $RUNNING/../pj1-plan/scripts/issue.sh close <k> --reason completed --comment "$T
 Print `#<k> done (<i>/<N>): nothing left, closed` and take the next issue. No handover rewrite.
 
 **`reordered`** carries `<WORKDIR>` and `<START>`: a redraw gave `#<k>` an open blocker, so the issue is set aside.
-Run the same `save` call, print `#<k> set aside`, rebuild the run order as phase 1 step 2 says, and take the next issue.
+Leave the worktree, run the same `end` call, print `#<k> set aside`, rebuild the run order as phase 1 step 2 says, and
+take the next issue.

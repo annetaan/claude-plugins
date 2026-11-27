@@ -1,19 +1,23 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { atLeast, ghVersion } from "../plugins/annetaan/scripts/pure/gh-version.ts";
+import { requiredGh } from "../plugins/annetaan/scripts/pure/gh-version.ts";
 
-test("ghVersion reads the version gh --version prints, and null from anything else", () => {
+test("requiredGh accepts 2.99.0 and later, comparing the parts as numbers", () => {
   assert.deepEqual(
-    ghVersion("gh version 2.94.0 (2026-01-01)\nhttps://github.com/cli/cli/releases/tag/v2.94.0\n"),
-    [2, 94, 0],
+    requiredGh("gh version 2.99.0 (2026-01-01)\nhttps://github.com/cli/cli/releases/tag/v2.99.0\n"),
+    { kind: "ok", version: "2.99.0" },
   );
-  assert.equal(ghVersion("command not found"), null);
+  assert.deepEqual(requiredGh("gh version 2.100.0"), { kind: "ok", version: "2.100.0" });
+  assert.deepEqual(requiredGh("gh version 3.0.0"), { kind: "ok", version: "3.0.0" });
 });
 
-test("atLeast compares the parts as numbers against 2.94.0 and 2.99.0", () => {
-  assert.ok(atLeast([2, 94, 0], [2, 94, 0]));
-  assert.ok(!atLeast([2, 94, 0], [2, 99, 0]));
-  assert.ok(atLeast([2, 100, 0], [2, 99, 0]));
-  assert.ok(atLeast([3, 0, 0], [2, 99, 0]));
-  assert.ok(!atLeast([2, 98, 9], [2, 99, 0]));
+test("requiredGh refuses a version under 2.99.0 and one it cannot read", () => {
+  assert.deepEqual(requiredGh("gh version 2.98.9"), {
+    kind: "old",
+    message: "gh 2.99.0 or later is required, found 2.98.9",
+  });
+  assert.deepEqual(requiredGh("command not found"), {
+    kind: "old",
+    message: "gh 2.99.0 or later is required, found an unknown version",
+  });
 });

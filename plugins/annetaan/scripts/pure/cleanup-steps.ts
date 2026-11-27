@@ -45,6 +45,7 @@ export type LossFacts = {
   readonly dirty: boolean;
   readonly submodules: boolean;
   readonly branch: BranchFacts | null;
+  readonly detached: boolean;
 };
 
 const losesCommits = (branch: BranchFacts | null): boolean =>
@@ -55,5 +56,15 @@ const losesCommits = (branch: BranchFacts | null): boolean =>
 export const losses = (facts: LossFacts): readonly string[] => [
   ...(facts.dirty ? ["uncommitted"] : []),
   ...(facts.submodules ? ["submodules"] : []),
-  ...(losesCommits(facts.branch) ? ["commits"] : []),
+  ...(facts.detached || losesCommits(facts.branch) ? ["commits"] : []),
 ];
+
+export const targetKind = (name: string): "run" | "propose" | null => {
+  if (/^run-[A-Za-z0-9._-]+$/.test(name)) {
+    return "run";
+  }
+  if (/^propose-[A-Za-z0-9._-]+$/.test(name)) {
+    return "propose";
+  }
+  return null;
+};

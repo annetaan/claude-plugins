@@ -18,7 +18,6 @@ const plugin = join(import.meta.dirname, "../plugins/annetaan");
 const scripts = join(plugin, "skills/workflow/scripts");
 
 const KEPT: readonly (readonly [string, string])[] = [
-  ["skills/pj4-running/scripts/run.ts", 'step: "fetch"'],
   ["skills/workflow/scripts/level.ts", '"git fetch failed"'],
 ];
 
@@ -149,7 +148,7 @@ test(`${RUNS} creates and ${RUNS} level shows from linked worktrees, all at once
 
   const runs = await Promise.all(
     Array.from({ length: RUNS }, (_, i) => [
-      runAsync(main, [join(scripts, "worktree.sh"), "create", "main"]),
+      runAsync(main, [join(scripts, "worktree.sh"), "create", "main", "--kind", "run"]),
       runAsync(main, [join(scripts, "level.sh"), "show", join(tmp, `linked-${i + 1}`)]),
     ]).flat(),
   );

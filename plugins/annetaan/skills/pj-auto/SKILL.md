@@ -99,8 +99,9 @@ Otherwise a step would run. Show a summary first:
 - that each step runs `pj3-doctor` or `pj4-running` whole, in a fresh `claude -p` run, and each one costs a session
 - that the runs ask no approval
 - that each run starts in Claude Code's auto mode: the nine base rules go through without asking, auto mode's
-  classifier runs or refuses every other tool call, and file edits go through inside `<MAIN>`, the project's worktree
-  `<MAIN>/.claude/worktrees/pj-<P>`, and a directory of the run's own in the drive's log directory
+  classifier runs or refuses every other tool call, and file edits go through inside `<MAIN>`, the run's worktrees
+  under `<MAIN>/.claude/worktrees/`, one per issue and one per merge of `<from>`, and a directory of the run's own in
+  the drive's log directory
 - when the drive stops: the project needs the user (`user`), the project is done (`done`), a run ends as needs-user,
   the state does not change after a run (`no-progress`), `pj3-doctor` has run twice on the same key (`doctor-cap`), a
   run fails (`child-failed`), `claude -p` stops a run's background tasks after the 60 minute wait and the run printed no
@@ -111,8 +112,7 @@ Otherwise a step would run. Show a summary first:
 - that merges into the project's base branch happen, and the project's own pull request is never merged
 - the level the runs use, `level <level> (<source>)`, and that each run reads it again from origin's default branch,
   unless `level=<level>` was given, in which case every run gets `level=<level>`
-- that no other session may run on the same project while the drive runs: a dirty worktree is taken for a dead run's
-  and discarded
+- that no other session may run on the same project while the drive runs
 - the permissions: each `blocked` rule from **The permissions**, one line each, as `<rule>: blocked (<by> in <file>)`,
   or one line saying none is blocked. Each issue under `.claude/` as
   `<issue URL> writes <path>`, with the note that the drive stops there and that `/annetaan:pj4-running <P>` run by
@@ -159,9 +159,9 @@ line, and for `bg-killed`, the `err` path. Name the next action from the reason:
   - `waits`: merge the projects it waits on
   - `decisions`: tick the decisions of `<issue URL>` on GitHub, then `/annetaan:pj-auto <P>`
   - `contradictory`: run `/annetaan:pj3-doctor <P>` by hand
-  - `merge-project-pr`: merge the pull request at `url`, then `/annetaan:pj-cleanup <P>`
-- `done`: the project is closed. `/annetaan:pj-cleanup <P>` removes its worktree and base branch and brings the local
-  `<from>` up to date.
+  - `merge-project-pr`: merge the pull request at `url`, then `/annetaan:cleanup <P>`
+- `done`: the project is closed. `/annetaan:cleanup <P>` removes the project's worktrees and its base branch and
+  brings the local `<from>` up to date.
 - `needs-user`: quote the last run's reason, and run the matching skill by hand, `/annetaan:pj3-doctor <P>` or
   `/annetaan:pj4-running <P>`, where the user approves what the drive could not. When a refused call is listed under
   that step, name it as what the user approves in that run.

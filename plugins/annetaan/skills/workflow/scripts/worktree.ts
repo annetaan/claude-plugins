@@ -1,171 +1,57 @@
-import { lstatSync } from "node:fs";
-import { basename, dirname, join } from "node:path";
+import { join } from "node:path";
 import {
-  checkedOutIn,
-  hasBranch,
-  hasSubmodules,
-  ignoreCheck,
+  ensureIgnored,
   isAncestor,
-  listed,
-  mainWorktree,
   onOrigin,
-  realPath,
   revParse,
-  submoduleWork,
   worktreeList,
-  type SubmoduleWork,
 } from "../../../scripts/clone.ts";
 import { git, run } from "../../../scripts/command.ts";
-import { fetchBranch, fetchFromOrigin, withCloneLock } from "../../../scripts/fetch.ts";
-import { losses, updateStep, type UpdateStep } from "../../../scripts/pure/cleanup-steps.ts";
-import { atLeast, ghVersion } from "../../../scripts/pure/gh-version.ts";
-import { oldReports, REPORTS_KEPT, stampOf } from "../../../scripts/pure/reports.ts";
+import { fetchBranch } from "../../../scripts/fetch.ts";
+import { requiredGh } from "../../../scripts/pure/gh-version.ts";
 import { splitLines } from "../../../scripts/pure/text.ts";
 import { entry, Failure, statusLine, stop, UsageError } from "../../../scripts/status.ts";
-import {
-  deleteReports,
-  incomingReports,
-  moveReports,
-  reportsIn,
-  stampedIn,
-  type ReportError,
-} from "../../../scripts/work-reports.ts";
-import { closeSeats } from "./flow.ts";
 import { includeIgnored } from "./include.ts";
+import { newestProposal, type OpenPull, proposalBranch } from "./pure/proposal.ts";
+import {
+  addWorktree,
+  listedNames,
+  located,
+  mergeIn,
+  removeWorktree,
+  WORKTREES,
+} from "./worktrees.ts";
 
 const USAGE = `usage: worktree.sh start                          check the clone, gh and the repository
-       worktree.sh create <base>                  fetch origin/<base> and add a detached worktree wf-<stamp> on its tip,
+       worktree.sh create <base> --kind run|propose
+                                                  fetch origin/<base> and add a detached worktree run-<stamp> or propose-<stamp> on its tip,
+                                                  add .claude/worktrees/ and work-reports/ to info/exclude when it lacks them,
                                                   copy into it the ignored files <MAIN>/.worktreeinclude lists, and print
-                                                  copied, notIgnored and the unlisted ignored files
-       worktree.sh ignore <name> [--add]          whether .claude/worktrees/ and work-reports/ are ignored; --add writes them to info/exclude
-       worktree.sh sync <name> <base>             whether HEAD of the worktree <name> conflicts with origin/<base>; on a conflict, start the merge
+                                                  ignored, copied, notIgnored and the unlisted ignored files
+       worktree.sh sync <name> <base>             whether HEAD of the run-* worktree <name> conflicts with origin/<base>; on a conflict, start the merge
        worktree.sh pr [<number>]                  the open pull request <number>, or the open pull requests of the user that conflict
-       worktree.sh list                           the wf-* worktrees of this clone with the state of their pull request
-       worktree.sh check <name>                   what cleanup would do for the worktree <name>
-       worktree.sh cleanup <name> [--discard]     move the work reports out, remove the worktree, delete the branch, fast-forward the base.
-                                                  --discard removes work that nothing else holds. It also deletes the old reports
+       worktree.sh proposal <prefix> <base>       the newest open pull request into <base> from a branch <prefix>/*, or null
+       worktree.sh propose <name> <base> --prefix <prefix> --path <path> --subject <subject> --title <title> --body <file>
+                                                  in the propose-* worktree <name>, commit <path> alone on <prefix>/<stamp>,
+                                                  push it and open a pull request into <base>
 Every subcommand prints one JSON object with "status" and exits 0. "stop" carries "reason" and "message".
 Exit 1 means a usage error or an unexpected failure.
 `;
 
-type Pr = {
-  readonly number: number;
-  readonly state: string;
-  readonly url: string;
-  readonly title: string;
-  readonly base: string;
-  readonly headSha: string;
-};
+type Kind = "run" | "propose";
 
-type StepError = { readonly step: string; readonly message: string };
-
-const byName = (a: string, b: string): number => (a < b ? -1 : a > b ? 1 : 0);
-
-const exists = (path: string): boolean => {
-  try {
-    lstatSync(path);
-    return true;
-  } catch {
-    return false;
+const resolveName = (main: string, name: string, kind: Kind): string => {
+  if (
+    !new RegExp(`^${kind}-[A-Za-z0-9._-]+$`, "u").test(name) ||
+    !listedNames(main, `${kind}-`).includes(name)
+  ) {
+    stop("unknown", `${name} is no ${kind}-* worktree of this clone`);
   }
-};
-
-const located = (): string => {
-  const main = mainWorktree();
-  if (main === null) {
-    return stop("not-a-repo", "not inside a git repository");
-  }
-  return main;
-};
-
-const wtRoot = (main: string): string => join(main, ".claude/worktrees");
-
-const wfNames = (main: string): readonly string[] => {
-  const root = realPath(wtRoot(main));
-  return worktreeList(main)
-    .slice(1)
-    .map((e) => realPath(e.path))
-    .filter((real) => dirname(real) === root && basename(real).startsWith("wf-"))
-    .map((real) => basename(real))
-    .toSorted(byName);
-};
-
-const resolveName = (main: string, name: string): string => {
-  if (!/^wf-[A-Za-z0-9._-]+$/.test(name) || !wfNames(main).includes(name)) {
-    stop("unknown", `${name} is no wf-* worktree of this clone`);
-  }
-  return join(wtRoot(main), name);
-};
-
-const pullRequest = (
-  main: string,
-  branch: string,
-): { readonly pr: Pr | null; readonly err: string | null } => {
-  const r = run(
-    [
-      "gh",
-      "pr",
-      "list",
-      "--head",
-      branch,
-      "--state",
-      "all",
-      "--json",
-      "number,state,url,title,baseRefName,headRefOid",
-    ],
-    { cwd: main },
-  );
-  if (r.code !== 0) {
-    return { pr: null, err: r.stderr.trim() || r.stdout.trim() || `gh pr list exited ${r.code}` };
-  }
-  type Listed = {
-    readonly number: number;
-    readonly state: string;
-    readonly url: string;
-    readonly title: string;
-    readonly baseRefName: string;
-    readonly headRefOid: string;
-  };
-  let found: readonly Listed[];
-  try {
-    found = JSON.parse(r.stdout) as readonly Listed[];
-  } catch {
-    return { pr: null, err: "unreadable output from gh pr list" };
-  }
-  const p = found.toSorted(
-    (a, b) => Number(b.state === "OPEN") - Number(a.state === "OPEN") || b.number - a.number,
-  )[0];
-  if (p === undefined) {
-    return { pr: null, err: null };
-  }
-  return {
-    pr: {
-      number: p.number,
-      state: p.state.toLowerCase(),
-      url: p.url,
-      title: p.title,
-      base: p.baseRefName,
-      headSha: p.headRefOid,
-    },
-    err: null,
-  };
-};
-
-const headContains = (main: string, tip: string, pr: Pr): boolean => {
-  const head = pr.headSha;
-  if (run(["git", "-C", main, "cat-file", "-e", `${head}^{commit}`]).code !== 0) {
-    if (fetchFromOrigin(main, [`refs/pull/${pr.number}/head`]).code !== 0) {
-      stop("fetch-failed", `cannot fetch the head of pull request #${pr.number} from origin`);
-    }
-  }
-  return isAncestor(main, tip, head);
+  return join(main, WORKTREES, name);
 };
 
 const start = (): string => {
-  const main = mainWorktree();
-  if (main === null) {
-    return stop("not-a-repo", "not inside a git repository");
-  }
+  const main = located();
   if (run(["git", "-C", main, "remote", "get-url", "origin"]).code !== 0) {
     stop("no-origin", "the clone has no remote named origin", { main });
   }
@@ -173,12 +59,11 @@ const start = (): string => {
   if (ghRun.code === 127) {
     stop("gh", "gh is not installed", { main });
   }
-  const v = ghVersion(ghRun.stdout);
-  const out = {
-    main,
-    gh: v === null ? null : v.join("."),
-    attach: v !== null && atLeast(v, [2, 99, 0]),
-  };
+  const gh = requiredGh(ghRun.stdout);
+  if (gh.kind === "old") {
+    return stop("gh", gh.message, { main });
+  }
+  const out = { main, gh: gh.version };
   const auth = run(["gh", "auth", "status"]);
   if (auth.code !== 0) {
     stop("gh-auth", `gh is not logged in: ${splitLines(auth.stderr.trim()).at(-1) ?? ""}`, out);
@@ -198,11 +83,10 @@ const start = (): string => {
     mainBranch: worktreeList(main)[0]?.branch ?? null,
     defaultBranch: repo.defaultBranchRef?.name ?? null,
     gh: out.gh,
-    attach: out.attach,
   });
 };
 
-const create = (base: string): string => {
+const create = (base: string, kind: Kind): string => {
   const main = located();
   if (run(["git", "check-ref-format", "--branch", base]).code !== 0) {
     throw new Failure(`not a valid branch name: ${base}`);
@@ -213,16 +97,16 @@ const create = (base: string): string => {
     }
     stop("fetch-failed", `cannot fetch ${base} from origin`, { base });
   }
-  const stamp = `wf-${stampOf(new Date())}`;
-  const { name, wt } = withCloneLock(main, () => {
-    let found = stamp;
-    for (let n = 2; exists(join(wtRoot(main), found)) || wfNames(main).includes(found); n += 1) {
-      found = `${stamp}-${n}`;
-    }
-    const path = join(wtRoot(main), found);
-    git(main, ["worktree", "add", "--quiet", "--detach", path, `refs/remotes/origin/${base}`]);
-    return { name: found, wt: path };
-  });
+  const { name, path: wt } = addWorktree(main, kind, `refs/remotes/origin/${base}`);
+  const kept = ensureIgnored(main, wt);
+  if (kept.status === "stop") {
+    removeWorktree(main, wt, false);
+    return stop(kept.reason, kept.message, {
+      notIgnored: kept.notIgnored,
+      ignored: kept.ignored,
+      base,
+    });
+  }
   return statusLine({
     status: "ready",
     main,
@@ -230,285 +114,14 @@ const create = (base: string): string => {
     name,
     base,
     head: revParse(wt, "HEAD"),
+    ignored: kept.ignored,
     ...includeIgnored(wt),
   });
 };
 
-const ignore = (name: string, add: boolean): string => {
-  const main = located();
-  return statusLine(ignoreCheck(main, resolveName(main, name), add));
-};
-
-const listRuns = (): string => {
-  const main = located();
-  const trees = new Map(worktreeList(main).map((e) => [realPath(e.path), e.branch]));
-  const runs = wfNames(main).map((name) => {
-    const path = join(wtRoot(main), name);
-    const branch = trees.get(realPath(path)) ?? null;
-    if (branch === null) {
-      return { name, path, branch, state: "no-pr", pr: null };
-    }
-    const { pr, err } = pullRequest(main, branch);
-    if (err !== null) {
-      return { name, path, branch, state: "error", pr: null, error: err };
-    }
-    return pr === null
-      ? { name, path, branch, state: "no-pr", pr: null }
-      : { name, path, branch, state: pr.state, pr };
-  });
-  return statusLine({ status: "ok", main, worktrees: runs });
-};
-
-type Tree = {
-  path: string;
-  state: string;
-  changes?: readonly string[];
-  reports?: readonly string[];
-  submodules?: readonly SubmoduleWork[];
-  hasSubmodules?: boolean;
-  seats?: readonly string[];
-  moved?: readonly string[];
-  action?: string;
-};
-
-type Branch = {
-  name: string;
-  local: string;
-  remote: string;
-  why?: string;
-  worktree?: string;
-};
-
-type Update = UpdateStep | { readonly action: "updated" | "not-updated" };
-
-type Plan = {
-  main: string;
-  name: string;
-  state: string;
-  pr: Pr | null;
-  base: string | null;
-  worktree: Tree;
-  branch: Branch | null;
-  loses: readonly string[];
-  update: Update;
-  oldReports: {
-    path: string;
-    keep: number;
-    names: readonly string[];
-    deleted?: readonly string[];
-  };
-};
-
-const plan = (name: string): Plan => {
-  const main = located();
-  const wt = resolveName(main, name);
-  const prunable = listed(main, wt);
-  const trees = worktreeList(main);
-  const branch = trees.find((e) => realPath(e.path) === realPath(wt))?.branch ?? null;
-
-  let pr: Pr | null = null;
-  if (branch !== null) {
-    const found = pullRequest(main, branch);
-    if (found.err !== null) {
-      stop("gh", `cannot read the pull requests of ${branch}: ${found.err}`);
-    }
-    pr = found.pr;
-  }
-  const state = pr === null ? "no-pr" : pr.state;
-  if (pr !== null && state === "open") {
-    stop("open", `the pull request #${pr.number} of ${branch ?? ""} is still open`, { pr });
-  }
-  const base = pr === null ? null : pr.base;
-
-  let tree: Tree;
-  if (prunable === true) {
-    tree = { path: wt, state: "prunable" };
-  } else {
-    const changes = splitLines(git(wt, ["status", "--porcelain"]));
-    tree = {
-      path: wt,
-      state: changes.length > 0 ? "dirty" : "clean",
-      changes: changes.slice(0, 20),
-      reports: reportsIn(wt),
-      submodules: submoduleWork(wt),
-      hasSubmodules: hasSubmodules(wt),
-    };
-  }
-
-  let br: Branch | null = null;
-  let commitFacts = null;
-  if (branch !== null) {
-    const remote = onOrigin(main, branch);
-    if (remote === null) {
-      stop("fetch-failed", "cannot read the branches on origin");
-    }
-    const local: Branch = {
-      name: branch,
-      local: "delete",
-      remote: remote === true ? "present" : "absent",
-    };
-    const holder = trees.find(
-      (e) => e.branch === branch && realPath(e.path) !== realPath(wt),
-    )?.path;
-    const tip = hasBranch(main, branch) ? revParse(main, `refs/heads/${branch}`) : null;
-    if (holder !== undefined) {
-      Object.assign(local, { local: "keep", why: "checked-out", worktree: holder });
-    } else if (state === "merged" && tip !== null && pr !== null && !headContains(main, tip, pr)) {
-      Object.assign(local, { local: "keep", why: "unpushed" });
-    }
-    br = local;
-    let heldOnOrigin = false;
-    if (state === "no-pr" && tip !== null) {
-      const held = run([
-        "git",
-        "-C",
-        main,
-        "for-each-ref",
-        "--format=%(refname)",
-        "--contains",
-        tip,
-        "refs/remotes/origin",
-      ]).stdout.split(/\s+/);
-      heldOnOrigin = held.some((h) => h !== "" && h !== `refs/remotes/origin/${branch}`);
-    }
-    commitFacts = { state, tip, heldOnOrigin };
-  }
-  const loses = losses({
-    dirty: tree.state === "dirty",
-    submodules: (tree.submodules ?? []).length > 0,
-    branch: commitFacts,
-  });
-
-  let update: Update = { action: "none" };
-  if (state === "merged" && base !== null) {
-    if (fetchBranch(main, base).code !== 0) {
-      stop("fetch-failed", `cannot fetch ${base} from origin`);
-    }
-    const target = revParse(main, `refs/remotes/origin/${base}`);
-    const holderPath = checkedOutIn(main, base);
-    const holder = holderPath !== null && realPath(holderPath) === realPath(wt) ? null : holderPath;
-    const tip = hasBranch(main, base) ? revParse(main, `refs/heads/${base}`) : null;
-    update = updateStep({
-      tip,
-      target,
-      tipIsAncestor: tip !== null && tip !== target && isAncestor(main, tip, target),
-      holder,
-    });
-  }
-
-  return {
-    main,
-    name,
-    state,
-    pr,
-    base,
-    worktree: tree,
-    branch: br,
-    loses,
-    update,
-    oldReports: {
-      path: join(main, "work-reports"),
-      keep: REPORTS_KEPT,
-      names: oldReports(stampedIn(join(main, "work-reports")), incomingReports(main, wt)),
-    },
-  };
-};
-
-const check = (name: string): string => statusLine({ status: "ok", ...plan(name) });
-
-const seatsOf = (
-  path: string,
-): { readonly seats: readonly string[]; readonly error: StepError | null } => {
-  try {
-    return { seats: closeSeats(path), error: null };
-  } catch (error) {
-    if (error instanceof Failure) {
-      return { seats: [], error: { step: "seats", message: `flow: ${error.message}` } };
-    }
-    throw error;
-  }
-};
-
-const cleanup = (name: string, discard: boolean): string => {
-  const out = plan(name);
-  const { main } = out;
-  if (out.loses.length > 0 && !discard) {
-    stop("discard", `${name} holds work that nothing else holds: ${out.loses.join(", ")}`, out);
-  }
-  const tree = out.worktree;
-  const errors: (StepError | ReportError)[] = [];
-  const br = out.branch;
-
-  const seats = seatsOf(tree.path);
-  tree.seats = seats.seats;
-  if (seats.error !== null) {
-    errors.push(seats.error);
-  }
-
-  if (tree.state === "prunable") {
-    git(main, ["worktree", "prune"]);
-    tree.action = "pruned";
-  } else {
-    tree.moved = moveReports(main, tree.path);
-    const force =
-      (discard && tree.state === "dirty") || tree.hasSubmodules === true ? ["--force"] : [];
-    git(main, ["worktree", "remove", ...force, tree.path]);
-    tree.action = "removed";
-  }
-
-  if (br !== null) {
-    if (br.local === "delete") {
-      const r = run(["git", "-C", main, "branch", "-D", br.name]);
-      if (r.code === 0) {
-        br.local = "deleted";
-      } else {
-        br.local = "keep";
-        errors.push({ step: "local-branch", message: r.stderr.trim() });
-      }
-    }
-    if (br.remote === "present") {
-      const r = run(["git", "-C", main, "push", "--quiet", "origin", "--delete", br.name]);
-      if (r.code === 0 || r.stderr.includes("remote ref does not exist")) {
-        br.remote = r.code === 0 ? "deleted" : "absent";
-      } else {
-        errors.push({ step: "remote-branch", message: r.stderr.trim() });
-      }
-    }
-    run(["git", "-C", main, "update-ref", "-d", `refs/remotes/origin/${br.name}`]);
-  }
-
-  const update = out.update;
-  if (update.action === "fast-forward" && out.base !== null) {
-    const r =
-      update.worktree === null
-        ? run(["git", "-C", main, "update-ref", `refs/heads/${out.base}`, update.to, update.from])
-        : run([
-            "git",
-            "-C",
-            update.worktree,
-            "merge",
-            "--ff-only",
-            "--quiet",
-            `origin/${out.base}`,
-          ]);
-    if (r.code === 0) {
-      out.update = { ...update, action: "updated" };
-    } else {
-      out.update = { ...update, action: "not-updated" };
-      errors.push({ step: "update", message: (r.stderr || r.stdout).trim() });
-    }
-  }
-
-  out.oldReports.names = oldReports(stampedIn(join(main, "work-reports")));
-  const deleted = deleteReports(main, out.oldReports.names);
-  out.oldReports.deleted = deleted.deleted;
-  errors.push(...deleted.errors);
-  return statusLine({ status: "done", errors, ...out });
-};
-
 const sync = (name: string, base: string): string => {
   const main = located();
-  const wt = resolveName(main, name);
+  const wt = resolveName(main, name, "run");
   const out = { base };
   if (run(["git", "-C", wt, "rev-parse", "--verify", "--quiet", "MERGE_HEAD"]).code === 0) {
     stop("unfinished", `${wt} holds an unfinished merge`, out);
@@ -541,15 +154,13 @@ const sync = (name: string, base: string): string => {
   if (tree.code === 0) {
     return statusLine({ status: "clean", sha: head, behind, ...out });
   }
-  const merged = run(["git", "-C", wt, "merge", "--no-ff", `origin/${base}`]);
-  const files = splitLines(git(wt, ["diff", "--name-only", "--diff-filter=U"]));
-  if (merged.code === 0 || files.length === 0) {
-    run(["git", "-C", wt, "merge", "--abort"]);
+  const merged = mergeIn(wt, `origin/${base}`, null);
+  if (merged.kind === "merged") {
     throw new Failure(
-      `git merge origin/${base} did not stop on the conflicts merge-tree found: ${(merged.stderr || merged.stdout).trim()}`,
+      `git merge origin/${base} did not stop on the conflicts merge-tree found: it committed ${merged.sha}`,
     );
   }
-  return statusLine({ status: "conflict", start: head, files, behind, ...out });
+  return statusLine({ status: "conflict", start: head, files: merged.files, behind, ...out });
 };
 
 const prInfo = (main: string, number: number): Readonly<Record<string, unknown>> => {
@@ -657,24 +268,174 @@ const pr = (number: string | undefined): string => {
   return statusLine({ status: "pick", candidates });
 };
 
+const openPulls = (main: string, base: string): readonly OpenPull[] => {
+  const r = run(
+    [
+      "gh",
+      "pr",
+      "list",
+      "--state",
+      "open",
+      "--base",
+      base,
+      "--limit",
+      "100",
+      "--json",
+      "number,url,headRefName",
+    ],
+    { cwd: main },
+  );
+  if (r.code !== 0) {
+    throw new Failure(`cannot list the open pull requests into ${base}: ${r.stderr.trim()}`);
+  }
+  try {
+    return JSON.parse(r.stdout) as readonly OpenPull[];
+  } catch {
+    throw new Failure(`gh pr list printed what is not JSON: ${r.stdout.trim()}`);
+  }
+};
+
+const proposal = (prefix: string, base: string): string =>
+  statusLine({ status: "ok", pr: newestProposal(prefix, openPulls(located(), base)) });
+
+const PROPOSE_FLAGS = ["--prefix", "--path", "--subject", "--title", "--body"] as const;
+
+type ProposeFlags = { readonly [K in (typeof PROPOSE_FLAGS)[number]]: string };
+
+const proposeFlags = (rest: readonly string[]): ProposeFlags => {
+  const flags = new Map<string, string>();
+  for (let i = 0; i < rest.length; i += 2) {
+    const flag = rest[i] ?? "";
+    const value = rest[i + 1];
+    if (
+      value === undefined ||
+      !(PROPOSE_FLAGS as readonly string[]).includes(flag) ||
+      flags.has(flag)
+    ) {
+      throw new UsageError("");
+    }
+    flags.set(flag, value);
+  }
+  const value = (flag: (typeof PROPOSE_FLAGS)[number]): string => {
+    const v = flags.get(flag);
+    if (v === undefined) {
+      throw new UsageError(`missing ${flag}`);
+    }
+    return v;
+  };
+  return {
+    "--prefix": value("--prefix"),
+    "--path": value("--path"),
+    "--subject": value("--subject"),
+    "--title": value("--title"),
+    "--body": value("--body"),
+  };
+};
+
+const opened = (branch: string, number: number, url: string): string =>
+  statusLine({ status: "opened", branch, number, url });
+
+const viewedPull = (
+  wt: string,
+  branch: string,
+): { readonly number: number; readonly url: string } | null => {
+  const view = run(["gh", "pr", "view", branch, "--json", "number,url"], { cwd: wt });
+  if (view.code !== 0) {
+    return null;
+  }
+  try {
+    return JSON.parse(view.stdout) as { readonly number: number; readonly url: string };
+  } catch {
+    return null;
+  }
+};
+
+const propose = (name: string, base: string, flags: ProposeFlags): string => {
+  const main = located();
+  const prefix = flags["--prefix"];
+  const path = flags["--path"];
+  const branch = proposalBranch(prefix, name);
+  if (branch === null || !listedNames(main, "propose-").includes(name)) {
+    throw new Failure(`${name} is no propose-* worktree of this clone`);
+  }
+  const wt = join(main, WORKTREES, name);
+  git(wt, ["add", "-f", "--", path]);
+  const same = run([
+    "git",
+    "-C",
+    wt,
+    "diff",
+    "--cached",
+    "--quiet",
+    `refs/remotes/origin/${base}`,
+    "--",
+    path,
+  ]);
+  if (same.code === 0) {
+    git(wt, ["reset", "--quiet", "--", path]);
+    return stop("unchanged", `${path} is the same as on origin/${base}`);
+  }
+  if (same.code !== 1) {
+    throw new Failure(`git diff --cached failed: ${same.stderr.trim()}`);
+  }
+  git(wt, ["checkout", "--quiet", "-b", branch]);
+  git(wt, ["commit", "--quiet", "-m", flags["--subject"], "--", path]);
+  const open = newestProposal(prefix, openPulls(main, base));
+  if (open !== null) {
+    return stop("exists", `pull request #${open.number} from a ${prefix}/* branch is open`, {
+      number: open.number,
+      url: open.url,
+      branch,
+    });
+  }
+  const push = run(["git", "-C", wt, "push", "--quiet", "-u", "origin", branch]);
+  if (push.code !== 0) {
+    return stop("push-failed", push.stderr.trim(), { branch });
+  }
+  const create = run(
+    [
+      "gh",
+      "pr",
+      "create",
+      "--base",
+      base,
+      "--head",
+      branch,
+      "--title",
+      flags["--title"],
+      "--body-file",
+      flags["--body"],
+    ],
+    { cwd: wt },
+  );
+  if (create.code === 0) {
+    const url = splitLines(create.stdout.trim()).at(-1) ?? "";
+    const number = /\/pull\/(\d+)/.exec(url)?.[1];
+    if (number === undefined) {
+      throw new Failure(`gh pr create printed no pull request URL: ${create.stdout.trim()}`);
+    }
+    return opened(branch, Number(number), url);
+  }
+  const found = viewedPull(wt, branch);
+  return found === null
+    ? stop("create-failed", create.stderr.trim(), { branch })
+    : opened(branch, found.number, found.url);
+};
+
 const main = (args: readonly string[]): string => {
-  const [sub, first, second, ...rest] = args;
+  const [sub, first, second, third] = args;
   const count = args.length;
-  if ((sub === "start" || sub === "list") && count === 1) {
-    return sub === "start" ? start() : listRuns();
-  }
-  if (sub === "create" && count === 2 && first !== undefined) {
-    return create(first);
-  }
-  if (sub === "check" && count === 2 && first !== undefined) {
-    return check(first);
+  if (sub === "start" && count === 1) {
+    return start();
   }
   if (
-    sub === "ignore" &&
+    sub === "create" &&
+    count === 4 &&
     first !== undefined &&
-    (count === 2 || (count === 3 && second === "--add"))
+    second === "--kind" &&
+    (third === "run" || third === "propose")
   ) {
-    return ignore(first, count === 3);
+    return create(first, third);
   }
   if (sub === "sync" && count === 3 && first !== undefined && second !== undefined) {
     return sync(first, second);
@@ -682,13 +443,11 @@ const main = (args: readonly string[]): string => {
   if (sub === "pr" && count <= 2) {
     return pr(first);
   }
-  if (
-    sub === "cleanup" &&
-    first !== undefined &&
-    rest.length === 0 &&
-    (count === 2 || (count === 3 && second === "--discard"))
-  ) {
-    return cleanup(first, count === 3);
+  if (sub === "proposal" && count === 3 && first !== undefined && second !== undefined) {
+    return proposal(first, second);
+  }
+  if (sub === "propose" && first !== undefined && second !== undefined) {
+    return propose(first, second, proposeFlags(args.slice(3)));
   }
   throw new UsageError("");
 };

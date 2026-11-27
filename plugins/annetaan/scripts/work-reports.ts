@@ -1,6 +1,6 @@
 import { lstatSync, mkdirSync, readdirSync, renameSync, rmSync, statSync } from "node:fs";
-import { basename, dirname, join } from "node:path";
-import { isStamped, landings, type Landing } from "./pure/reports.ts";
+import { dirname, join } from "node:path";
+import { dropsOnMove, EXPERIMENT_DIRS, isStamped, landings, type Landing } from "./pure/reports.ts";
 import { Failure } from "./status.ts";
 
 export type ReportError = { readonly step: "old-reports"; readonly message: string };
@@ -44,7 +44,7 @@ export const stampedIn = (root: string): readonly string[] =>
   );
 
 const landingsOf = (main: string, wt: string): readonly Landing[] =>
-  landings(entries(join(main, "work-reports")), reportsIn(wt), basename(wt));
+  landings(entries(join(main, "work-reports")), reportsIn(wt));
 
 export const incomingReports = (main: string, wt: string): readonly string[] => {
   const sources = new Set(stampedIn(join(wt, "work-reports")));
@@ -53,12 +53,39 @@ export const incomingReports = (main: string, wt: string): readonly string[] => 
     .map((landing) => landing.dest);
 };
 
+const pruneBelow = (dir: string, name: string): void => {
+  const found = readdirSync(dir, { withFileTypes: true });
+  const names = found.map((entry) => entry.name);
+  if (dropsOnMove(name, names)) {
+    rmSync(dir, { recursive: true });
+    return;
+  }
+  for (const entry of found) {
+    if (entry.isDirectory()) {
+      pruneBelow(join(dir, entry.name), entry.name);
+    }
+  }
+};
+
+const prune = (report: string): void => {
+  if (isLink(report)) {
+    return;
+  }
+  for (const name of EXPERIMENT_DIRS) {
+    const dir = join(report, name);
+    if (isDirectory(dir) && !isLink(dir)) {
+      pruneBelow(dir, name);
+    }
+  }
+};
+
 export const moveReports = (main: string, wt: string): readonly string[] =>
   landingsOf(main, wt).map(({ report, dest }) => {
     const path = join(main, "work-reports", dest);
     if (exists(path)) {
       throw new Failure(`cannot move ${report}: ${path} exists`);
     }
+    prune(join(wt, "work-reports", report));
     mkdirSync(dirname(path), { recursive: true });
     renameSync(join(wt, "work-reports", report), path);
     return path;

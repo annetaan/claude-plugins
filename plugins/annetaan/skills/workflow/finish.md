@@ -71,19 +71,12 @@ gh pr create --base <base> --title "..." --body-file log.md \
   --attach './after.png#After: a filter bar sits above the list'
 ```
 
-- **`--attach` needs gh 2.99.0 or later**, and it works on GitHub.com and GitHub Enterprise Cloud. See below for older versions.
+- **`--attach` needs gh 2.99.0 or later**, which **The start check** in `worktree.md` has confirmed, and it works on GitHub.com and GitHub Enterprise Cloud.
 - **Run it from `<WORKDIR>` and pass the same relative paths the report uses.** gh replaces a path the body already references with the uploaded URL, and appends the attachment when it finds no reference. `./before.png` in the body and an absolute path on the flag do not match, so the images land at the bottom in the wrong order.
 - Alt text follows the path after `#`. Left out, the filename becomes the alt text. Write what the picture shows.
 - Videos attach the same way and render as a player, without alt text. Use one to show a sequence of interactions.
 - Fifty files per command. A failed upload still creates the pull request and only sets a non-zero exit code. **Check the exit code and read the body back.** Reattach what fell out with `gh pr edit <number> --attach`.
-
-**When `attach` is false and there are screenshots**, create the pull request without `--attach`
-(`gh pr create --base <base> --title "..." --body-file <WORKDIR>/log.md`, with no `cd` needed),
-then tell the user in the final message, with `<version>` from `gh` in `worktree.sh start`'s output:
-
-> `before.png` and `after.png` could not be attached automatically. `--attach` needs gh 2.99.0 and this machine has `<version>`. Drag both files onto the pull request body for now. `brew upgrade gh` and the next run attaches them by itself.
-
-List the file paths and the pull request URL alongside. **Say nothing about the gh version when the change produced no screenshots.**
+- A screenshot still missing from the body after `gh pr edit <number> --attach` goes into the final message, with its path and the pull request URL.
 
 When the push fails, quote the error and go to the entry's ending: **Report to the user** in `standalone.md`, or **The stop procedure** in `from-issue.md`. The branch and its commits stay in `<WT>`. When `gh pr create` exits non-zero, run `gh pr view <branch> --json url` first. If a pull request exists (a failed upload still creates one), carry on with its URL and the reattach step above. If none exists, quote the error and go to the entry's ending, as for a failed push. Otherwise go to **The decisions** with the pull request, then carry its URL into the entry's ending.
 

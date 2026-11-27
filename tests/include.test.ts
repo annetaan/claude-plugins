@@ -21,6 +21,7 @@ const scripts = join(import.meta.dirname, "../plugins/annetaan/skills/workflow/s
 const worktreeSh = join(scripts, "worktree.sh");
 const includeSh = join(scripts, "include.sh");
 const skills = join(import.meta.dirname, "../plugins/annetaan/skills");
+const cleanupSh = join(skills, "cleanup/scripts/cleanup.sh");
 
 const tmp = mkdtempSync(join(tmpdir(), "include-"));
 after(() => {
@@ -106,7 +107,7 @@ const setup = (): void => {
 };
 
 const create = (): Out => {
-  const out = printed(bash(main, worktreeSh, "create", "main"));
+  const out = printed(bash(main, worktreeSh, "create", "main", "--kind", "run"));
   assert.equal(out.status, "ready", JSON.stringify(out));
   return out;
 };
@@ -121,6 +122,8 @@ test("create copies the listed ignored files, at the root and nested, keeping th
   writeFileSync(join(main, "apps/web/.env.local"), "nested\n");
   chmodSync(join(main, "apps/web/.env.local"), 0o640);
   writeFileSync(join(main, ".DS_Store"), "mac\n");
+  writeFileSync(join(main, "apps/web/.DS_Store"), "mac\n");
+  writeFileSync(join(main, "editor.local.toml"), "editor\n");
   writeFileSync(join(main, "mise.local.toml"), "mise\n");
   writeFileSync(join(main, ".env.test"), "test\n");
   writeFileSync(join(main, "a[1]*.local.toml"), "weird\n");
@@ -130,7 +133,7 @@ test("create copies the listed ignored files, at the root and nested, keeping th
   appendFileSync(join(main, ".gitignore"), "extra.secret\n");
   writeFileSync(
     join(main, ".worktreeinclude"),
-    "/.env.local\n/apps/web/.env.local\n!/.DS_Store\n/extra.secret\n",
+    "/.env.local\n/apps/web/.env.local\n!/editor.local.toml\n/extra.secret\n",
   );
   out = create();
   wt = out.worktree;
@@ -142,8 +145,17 @@ test("create copies the listed ignored files, at the root and nested, keeping th
 });
 
 test("a !/ line is neither copied nor unlisted", () => {
-  assert.ok(!existsSync(join(wt, ".DS_Store")), ".DS_Store copied");
-  assert.ok(!out.copied.includes(".DS_Store") && !out.unlisted.includes(".DS_Store"));
+  assert.ok(!existsSync(join(wt, "editor.local.toml")), "editor.local.toml copied");
+  assert.ok(
+    !out.copied.includes("editor.local.toml") && !out.unlisted.includes("editor.local.toml"),
+  );
+});
+
+test("a .DS_Store no line names is neither copied nor unlisted, at the root or nested", () => {
+  for (const path of [".DS_Store", "apps/web/.DS_Store"]) {
+    assert.ok(!existsSync(join(wt, path)), `${path} copied`);
+    assert.ok(!out.copied.includes(path) && !out.unlisted.includes(path), path);
+  }
 });
 
 test("an ignored file no line names is unlisted and not copied; ignored directories appear in neither list", () => {
@@ -213,7 +225,7 @@ test("a second create after remember prints no unlisted file and copies the reme
 });
 
 test("cleanup removes a worktree holding copied files without --discard", () => {
-  const c = printed(bash(main, worktreeSh, "cleanup", second.name));
+  const c = printed(bash(main, cleanupSh, "run", second.name));
   assert.equal(c.status, "done", JSON.stringify(c));
   assert.ok(!existsSync(second.worktree), `${second.worktree} still there`);
 });
@@ -275,15 +287,17 @@ test("a file whose name holds a carriage return is unlisted under its real name,
 });
 
 test("every skill that runs step 3 of The worktree names the .worktreeinclude exception in its rules", () => {
+  const matched: string[] = [];
   for (const skill of readdirSync(skills)) {
     const file = join(skills, skill, "SKILL.md");
     if (!existsSync(file)) {
       continue;
     }
     const body = readFileSync(file, "utf8");
-    if (!/Run steps 3 to [0-9] of \*\*The worktree\*\*/.test(body)) {
+    if (!/Run steps 3 (to|and) [0-9] of \*\*The worktree\*\*/.test(body)) {
       continue;
     }
+    matched.push(skill);
     const bare = body
       .split("\n")
       .filter(
@@ -297,4 +311,5 @@ test("every skill that runs step 3 of The worktree names the .worktreeinclude ex
       `${file} keeps a run out of <MAIN> without the .worktreeinclude exception`,
     );
   }
+  assert.deepEqual(matched.toSorted(), ["level", "pj-roadmap"]);
 });

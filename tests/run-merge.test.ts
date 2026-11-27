@@ -6,6 +6,7 @@ import {
   mkdirSync,
   mkdtempSync,
   readFileSync,
+  realpathSync,
   rmSync,
   writeFileSync,
 } from "node:fs";
@@ -155,14 +156,20 @@ const setup = (workflow: string, ruleset: string, checks: string): void => {
   git(seed, "push", "-q", "origin", "HEAD:refs/heads/feat/2");
   git(tmp, "clone", "-q", "origin.git", "clone");
   appendFileSync(join(clone, ".git/info/exclude"), "work-reports/\n.claude/worktrees/\n");
-  git(clone, "worktree", "add", "-q", "--detach", ".claude/worktrees/pj-1", "origin/pj/1");
+  git(clone, "worktree", "add", "-q", "-b", "feat/2", runWorktree, "origin/feat/2");
 };
+
+const runName = "pj-1-2-2026-01-01-0000";
+const runWorktree = join(clone, ".claude/worktrees", runName);
 
 type Merged = {
   readonly status: string;
   readonly reason?: string;
   readonly message?: string;
   readonly issue?: string;
+  readonly branch?: { readonly name: string; readonly local: string; readonly remote: string };
+  readonly worktree?: { readonly name: string; readonly moved: readonly string[] } | null;
+  readonly errors?: readonly { readonly step: string; readonly message: string }[];
 };
 
 const merge = (...extra: readonly string[]): Merged => {
@@ -411,4 +418,68 @@ test("merge closes the issue through issue.sh close", () => {
   assert.deepEqual(writes, [
     "issue close 2 --reason completed --comment **[pj4-running]** closed ",
   ]);
+});
+
+const branchListed = (branch: string): boolean =>
+  git(clone, "branch", "--list", branch).trim() !== "";
+
+test("merge removes the worktree that has the head branch checked out", () => {
+  setup(ON_PR, "[]", "pass");
+  const out = merge();
+  assert.equal(out.status, "merged", JSON.stringify(out));
+  assert.deepEqual(out.worktree, { name: runName, moved: [] });
+  assert.deepEqual(out.branch, { name: "feat/2", local: "deleted", remote: "deleted" });
+  assert.deepEqual(out.errors, []);
+  assert.ok(!existsSync(runWorktree), runWorktree);
+  assert.ok(!branchListed("feat/2"));
+});
+
+test("merge removes a finish stop's worktree whose detached HEAD is the head branch's tip", () => {
+  setup(ON_PR, "[]", "pass");
+  git(runWorktree, "update-ref", "--no-deref", "HEAD", "HEAD");
+  const out = merge();
+  assert.equal(out.status, "merged", JSON.stringify(out));
+  assert.deepEqual(out.worktree, { name: runName, moved: [] });
+  assert.deepEqual(out.branch, { name: "feat/2", local: "deleted", remote: "deleted" });
+  assert.deepEqual(out.errors, []);
+  assert.ok(!existsSync(runWorktree), runWorktree);
+});
+
+test("merge skips a finish stop's worktree whose directory is gone, and deletes the head branch", () => {
+  setup(ON_PR, "[]", "pass");
+  git(runWorktree, "update-ref", "--no-deref", "HEAD", "HEAD");
+  rmSync(runWorktree, { recursive: true, force: true });
+  const out = merge();
+  assert.equal(out.status, "merged", JSON.stringify(out));
+  assert.equal(out.worktree, null);
+  assert.deepEqual(out.branch, { name: "feat/2", local: "deleted", remote: "deleted" });
+  assert.deepEqual(out.errors, []);
+});
+
+test("merge names a failed search for the worktree in errors and still deletes the head branch", () => {
+  setup(ON_PR, "[]", "pass");
+  git(runWorktree, "update-ref", "--no-deref", "HEAD", "HEAD");
+  writeFileSync(join(clone, ".git/worktrees", runName, "HEAD"), "garbage\n");
+  const out = merge();
+  assert.equal(out.status, "merged", JSON.stringify(out));
+  assert.equal(out.worktree, null);
+  assert.deepEqual(out.branch, { name: "feat/2", local: "deleted", remote: "deleted" });
+  assert.deepEqual(
+    (out.errors ?? []).map((e) => e.step),
+    ["worktree"],
+  );
+});
+
+test("merge leaves a worktree that holds uncommitted work, keeps its local branch and names it in errors", () => {
+  setup(ON_PR, "[]", "pass");
+  writeFileSync(join(runWorktree, "a"), "unsaved\n");
+  const out = merge();
+  assert.equal(out.status, "merged", JSON.stringify(out));
+  assert.equal(out.worktree, null);
+  assert.deepEqual(out.branch, { name: "feat/2", local: "kept", remote: "deleted" });
+  assert.deepEqual(out.errors, [
+    { step: "worktree", message: `${realpathSync(runWorktree)} holds uncommitted, so it stays` },
+  ]);
+  assert.equal(readFileSync(join(runWorktree, "a"), "utf8"), "unsaved\n");
+  assert.ok(branchListed("feat/2"));
 });
