@@ -8,7 +8,8 @@ holds its own copy of the role set, the weights, the field list and the header c
 fails when that copy and this file differ, so the two change together.
 
 Role, weight, `echoes`/`needs` and the flags are used before they are defined. Each has its own section at the end
-of this file. Sync, and the anchor match it works by, are defined in `doc-meta/SKILL.md`'s `## Sync` section.
+of this file. Sync, and the anchor match it works by, are defined under **Sync** in `doc-meta/SKILL.md` and run by
+`doc-meta/scripts/sidecar.sh`.
 
 ## File name
 
@@ -189,8 +190,9 @@ document no longer has.
 
 ### Verifying a block against the document
 
-`doc-review` and `doc-revise` both need this, to check a flagged block is still what it was when the human flagged
-it, before answering or acting on it. Strip the leading `> ` from each quoted line, and the bare `>` from a line
+`sidecar.sh verify` runs this check for `doc-review` and `doc-revise`, to check a flagged block is still what it was
+when the human flagged it, before answering or acting on it, and `sidecar.sh quotes` compares the overview's quotes
+the same way for `doc-meta`. The rule below is the definition the script follows. Strip the leading `> ` from each quoted line, and the bare `>` from a line
 that records a blank one (just the outer marker for a block quoted as `> > ...`, since that inner `> ` is source
 text), then join what remains with a newline. The result must appear verbatim, as a contiguous substring, in the
 document, comparing whitespace as the invariant above says.
@@ -204,8 +206,8 @@ sync exists to catch, not this check.
 ### An id is identity, not position
 
 A block id is assigned once and never reused. A gap in the numbering (`b003`, `b004`, `b007`) is normal after a
-block has been deleted, not a bug to close up. Sync assigns a new id by reading `max id` from `## Document` and
-adding one, then writing the new `max id` back. Deleting the block that held the highest id does not lower `max
+block has been deleted, not a bug to close up. `sidecar.sh sync` assigns a new id by reading `max id` from
+`## Document` and adding one, then writing the new `max id` back. Deleting the block that held the highest id does not lower `max
 id` again, which is what keeps a deleted id from being handed to a new block.
 
 ## Roles

@@ -20,6 +20,14 @@ with the document as it changes.
 `$DOCMETA` is not a shell variable. Replace it with the real absolute path when you run bash and when you write a
 prompt for the overview sub-agent.
 
+This skill uses these files:
+
+- the script `$DOCMETA/scripts/sidecar.sh`, written `sidecar.sh` below. Every subcommand prints one JSON object with
+  a `status`. A non-zero exit is a usage error or an unexpected failure: quote its message and stop
+
+Run `mktemp -d` once per run. `$TMP` below is the directory it printed. A shell variable does not outlive one
+command, so write the path in full each time.
+
 ## Steps
 
 1. Read the path given as the argument. It names one document. Read `$DOCMETA/format.md`, which is the only
@@ -50,9 +58,54 @@ prompt for the overview sub-agent.
    Keep for step 8 what the block printed: `appended: <path>` with the exclude file's path when it added the line,
    and `still not ignored` when the second `check-ignore` fails. It fails when a `.gitignore` rule negates the line
    (such as `!<name>.doc-meta.md`) or the sidecar is already tracked. That is the user's to settle.
-3. Split the document into blocks by the rules in `format.md`, and match them against the existing sidecar by
-   `## Sync` below.
-4. Write the sidecar, with `## Whole document` set to `(pending)`.
+3. Split the document into blocks by **Splitting the document into blocks** in `format.md`, and write them to
+   `$TMP/blocks.md`: one `### <n>` line per block, `### <n> verbatim` for a block whose role will be `verbatim`, `n`
+   from 1 in document order, each followed by the block's `>` lines exactly as **Block body** in `format.md` writes
+   them (the three-line record for a fence of more than ten content lines included), a bare `---` line between two
+   blocks at a paragraph break, and nothing else. Copy each block's text from the document, never retyped. Then
+   run:
+
+   ```bash
+   $DOCMETA/scripts/sidecar.sh sync "<document>" "$TMP/blocks.md"
+   ```
+
+   `sync` matches the blocks against the existing sidecar as **Sync** below says, and writes the sidecar, with
+   `## Whole document` set to `(pending)`. Keep its `ok` output for step 8. On a `stop`, it writes nothing:
+
+   - `blocks` `{line}`: the blocks file breaks the shape at that line. Fix it and run `sync` again.
+   - `not-in-document` `{block}`: block `n` is not the document's text after the block before it. Copy that block's
+     text from the document again, check its place in the order, and run `sync` again. When the same block stops a
+     second time, say so with the block's text and stop.
+   - `sidecar` `{line}`: the existing sidecar's `## Blocks` has a heading with no id, or two blocks with one id.
+     Quote the line, tell the user to fix it by hand, and stop. Guessing an id would move a human's flag onto
+     another sentence.
+   - `is-sidecar`, `no-document`: say so and stop.
+4. Fill in the sidecar `sync` wrote:
+
+   - Each `### <id> (pending)` heading becomes a heading in the shape of **Block heading** in `format.md`, with its
+     weight and role, and the block gets its reading aid.
+   - An unchanged block keeps its id, `>` lines, weight, role, `flag:` and `review:`. Its reading aid is written
+     again when its tag is not this run's reading language, or dropped when the block is already in that language.
+   - `echoes` and `needs` are computed again for every block.
+   - The `weights` line is written from the headings. The `Weight sorts little…` line is added or removed by the
+     rule under **`## Document`** in `format.md`.
+   - An empty `purpose`, `reader`, `style` or `source language` line is filled. A filled one is kept.
+
+   Never edit a `>` line, an id, `blocks` or `max id`: `sync` owns them. Then run this until it prints `"ok":true`:
+
+   ```bash
+   $DOCMETA/scripts/sidecar.sh verify "<document>"
+   ```
+
+   For each entry in `reasons`:
+
+   - `pending`: fill that block.
+   - `heading`: rewrite the heading in the shape of **Block heading** in `format.md`.
+   - `weights`: write the line again from the headings.
+   - `no-flag`: put back the empty `flag:` line.
+   - `not-in-document`, `order`, `duplicate-id`, `max-id`, `count`: `sync` wrote these right, so an edit in this
+     step changed a `>` line, an id, `max id` or `blocks`. Put back what `sync` wrote.
+   - A reason that stands after two fixes: say which and stop.
 5. Hand the document and the sidecar to the overview sub-agent:
 
    ```
@@ -65,78 +118,43 @@ prompt for the overview sub-agent.
 
    The sub-agent starts fresh and has not seen this conversation, so name the language explicitly. It has no other
    way to know it.
-6. Verify what comes back before writing it in. For every bullet that names a block id: the id must exist in the
-   sidecar, and the quote given must appear in that block's `>` source text, comparing whitespace as `format.md`'s
-   invariant says, and with the `> ` markers stripped as the "Verifying a block against the document" procedure
-   strips them. Send a bullet that fails this back once, with `SendMessage`, asking for a correction. If it is
-   still wrong on the second try, drop it.
-7. Replace `(pending)` under `## Whole document` with the verified bullets. **Write `(none)` only when the overview
-   pass ran and returned no bullets at all.** When the overview pass returned bullets and step 6 dropped every one
+6. Check what comes back before writing it in. Write the bullets to `$TMP/bullets.md`, one `- ` line each as
+   **`## Whole document`** in `format.md` writes them, a bullet that came back wrapped joined onto one line, and
+   nothing else in the file. Then run:
+
+   ```bash
+   $DOCMETA/scripts/sidecar.sh quotes "<document>" "$TMP/bullets.md"
+   ```
+
+   `bullets` holds one entry per line of the file, `index` from 1. Send a bullet whose `ok` is false back once, with
+   `SendMessage`, naming its `code`: `no-block` is an id the sidecar does not have, `no-quote` an id with no quote,
+   or a quote that is not in that block's text. Put its correction in its place in the file and run `quotes` again.
+   Drop a bullet that is still false.
+7. Replace `(pending)` under `## Whole document` with the bullets `quotes` passed. **Write `(none)` only when the
+   overview pass ran and returned no bullets at all.** When the overview pass returned bullets and step 6 dropped every one
    of them, leave `(pending)`, with that as the reason on the line after it. `(none)` means a full read found
    nothing. Writing it for a read that found something, or for no read at all, says the opposite of what happened,
    and would let an unconverged document count as converged.
-8. Report: the sidecar path, the block count and the weight counts, the sync breakdown (how many blocks were
-   unchanged, changed, new and deleted, and the id of every block whose flag was dropped), the number of
-   `## Whole document` bullets written, any bullet that was dropped in step 6, whether `max id` had to be
-   rebuilt because it was missing (see `format.md`), the exclude file's path when step 2 printed `appended:`, and,
-   when step 2 printed `still not ignored`, that the sidecar is still not ignored, because a `.gitignore` rule
-   negates the line or the sidecar is already tracked.
+8. Report, from the `ok` output of step 3's `sync`: `sidecar`, the block count, the weight counts from the `weights`
+   line step 4 wrote, the counts of `unchanged`, `changed`, `new` and `deleted`, every id in `flagsDropped`, and,
+   when `maxIdRebuilt` is true, that `max id` was rebuilt and may hand out a deleted id again. Then the number of
+   `## Whole document` bullets written, any bullet that was dropped in step 6, the exclude file's path when step 2
+   printed `appended:`, and, when step 2 printed `still not ignored`, that the sidecar is still not ignored, because
+   a `.gitignore` rule negates the line or the sidecar is already tracked.
 
 ## Sync
 
-| Case | Outcome |
-| --- | --- |
-| Text matches | Keep id, weight, role, flag and review. Keep the reading aid unless it is in another language |
-| Text changed | Keep id. Re-derive weight, role and reading aid. Drop flag and review |
-| A new block with no counterpart | New block. Next unused id |
-| An old block with no counterpart | Deletion. Drop it |
+| Case | `sync` | Step 4 |
+| --- | --- | --- |
+| Text matches | Keeps the block whole | Rewrites a reading aid in another language |
+| Text changed | Keeps the id, writes `(pending)` and an empty `flag:`, drops flag and review | Writes weight, role and reading aid |
+| A new block | `max id` plus one, written as `(pending)` | The same as a changed block |
+| An old block with no counterpart | Drops it, with flag and review | - |
 
-The first run and every later run are the same operation.
-
-Split the document into blocks by the rules in `format.md`. Call these the **new blocks**. The blocks in the
-existing sidecar are the **old blocks**. Both lists are in document order. When no sidecar exists yet, the old
-blocks list is empty and `max id` starts at `b000`, so the first block assigned is `b001`.
-
-### Anchors
-
-An old block and a new block are an **anchor pair** when their `>` source text is identical, comparing whitespace
-the way `format.md`'s invariant says (a run of whitespace as one space for a prose block, exactly for a
-`verbatim` block), and the pairs are in the same order on both sides. Walk both lists from the top. Take the first
-new block. Find the first old block, at or after the last anchor, with identical text. Pair them. Move on. Never
-pair an old block with a new block that sits before an earlier anchor on either side. A block the walk skips stays
-unpaired for now.
-
-The source text compared is the `>` quote of the block. For a fence with more than 10 content lines that quote is
-the three line record described in `format.md`, so compare the record.
-
-### Gaps
-
-Consecutive anchors cut both lists into **gaps**. A gap is the run of unpaired old blocks and the run of unpaired
-new blocks between two anchors. There is one gap before the first anchor and one after the last. A gap can be empty
-on one side, or on both.
-
-### Inside a gap
-
-Pair the old blocks with the new blocks by position. The first unpaired old block goes with the first unpaired new
-block, the second with the second, and so on, until one side runs out. Each of these pairs is a **changed block**.
-
-- A changed block keeps its id. Derive weight, role and the reading aid again from the new text. Drop `flag:` and
-  `review:`. The flag was set on text nobody has read in its new form.
-- A new block left over after the pairing is a **new block**. It gets the next unused id: read `max id` from
-  `## Document`, add one, and write that new value back to `max id`. Ids are never reused, because `max id` never
-  goes back down when a block is deleted.
-- An old block left over after the pairing is a **deletion**. Drop it, with its flag and its review.
-
-### Unchanged blocks
-
-An anchor pair is an **unchanged block**. Keep the id, the weight, the role, the reading aid, the `flag:` line and
-the `review:` line as they are. The one exception is a reading aid in a language other than this run's reading
-language (see `format.md`): write it again in the reading language, or drop it when the block is already written in
-that language.
-
-### After the match
-
-Compute `echoes` and `needs` again for every block, changed or not. Leave weight and role alone on unchanged
-blocks.
-
-Report the counts of unchanged, changed, new and deleted blocks, and the id of every block whose flag was dropped.
+An **anchor** is an old block and a new block with identical `>` text, compared as **Invariant** in `format.md` says
+(exactly when the new block is marked `verbatim`), taken in document order on both sides and never backwards: a
+block that sits before an earlier anchor on either side never anchors. Anchors cut both lists into **gaps**, one
+before the first anchor, one between each two and one after the last. Inside a gap the old and new blocks pair by
+position as changed blocks, the first with the first, and what is left over is new blocks on one side or deletions
+on the other. The first run is the same operation with no old blocks and `max id` at `b000`. `sidecar.sh sync` does
+all of this. The paragraph is here to read which id a block kept.

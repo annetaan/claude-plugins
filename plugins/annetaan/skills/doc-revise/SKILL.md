@@ -17,22 +17,37 @@ human wrote.
 
 **`$DOCREVISE` below means `${CLAUDE_SKILL_DIR}`**, the absolute path of this skill's directory.
 
-`$DOCREVISE` is not a shell variable. Replace it with the real absolute path when you run bash.
+`$DOCREVISE` is not a shell variable. Replace it with the real absolute path when you run bash. Collapse the `..` in
+a path to a sibling skill, so that the command text names `<skills>/doc-meta/scripts/sidecar.sh` and not
+`<skills>/doc-revise/../doc-meta/scripts/sidecar.sh`.
 
 The sidecar format is not described here. Read `$DOCREVISE/../doc-meta/format.md`, the only file that describes
 it. The styles are described in `$DOCREVISE/../doc-meta/styles.md`.
 
+This skill uses these files:
+
+- the script `$DOCREVISE/../doc-meta/scripts/sidecar.sh`, written `sidecar.sh` below. Every subcommand prints one
+  JSON object with a `status`. A non-zero exit is a usage error or an unexpected failure: quote its message and stop
+
 ## Steps
 
-1. Read the path given as the argument. It names one document. Derive the sidecar path by the naming rule in
-   `doc-meta/format.md`, and read the document, the sidecar, `doc-meta/format.md` and `doc-meta/styles.md`.
+1. Read the path given as the argument. It names one document. Before reading anything, run:
 
-   **If the sidecar does not exist, say so and stop.** Tell the user to run `/annetaan:doc-meta` first.
+   ```bash
+   $DOCREVISE/../doc-meta/scripts/sidecar.sh verify "<document>"
+   ```
+
+   **On a `stop` with `no-sidecar`, say so and stop.** Tell the user to run `/annetaan:doc-meta` first. On
+   `no-document` or `is-sidecar`, say so and stop.
+
+   Otherwise derive the sidecar path by the naming rule in `doc-meta/format.md`, and read the document, the
+   sidecar, `doc-meta/format.md` and `doc-meta/styles.md`.
 
    **If no block carries a flag at all, say so and stop.**
-2. For every flagged block, verify it against the document by the procedure in `doc-meta/format.md`'s "Verifying a block
-   against the document", the same one `doc-review` uses. **Skip a block that fails this check**, and report it.
-   Acting on a flag whose text has moved under it would edit the wrong sentence.
+2. **Skip every flagged block whose id carries `not-in-document` in the `reasons` of step 1's `verify`**, and report
+   it. Acting on a flag whose text has moved under it would edit the wrong sentence. No other reason skips a block.
+   When `reasons` holds any other code, name those codes in the report on one line, and say that
+   `/annetaan:doc-meta` brings the sidecar back in order.
 3. Apply what survived step 2, and record the id of every block you delete or edit as you apply it:
    - `[delete]`: cut the block's text from the document.
    - `[edit]`: replace the block's text, in the document's own language, whatever language the human's free text
@@ -71,7 +86,7 @@ it. The styles are described in `$DOCREVISE/../doc-meta/styles.md`.
    `$DOCREVISE/../doc-meta`.
 
    The resync runs `doc-meta`'s own Sync, unchanged. Sync, and the terms **anchor** and **gap** it works in, are
-   defined in `doc-meta/SKILL.md`'s `## Sync` section. Sync matches inside a gap by position, not by which id
+   defined under **Sync** in `doc-meta/SKILL.md`. Sync matches inside a gap by position, not by which id
    used to carry which flag. A rewritten paragraph loses every anchor a plain sentence gave it, so the whole
    paragraph becomes one gap, and inside that gap the old and new sentences pair off in order regardless of what
    changed where. **Which old id disappears from a rewritten paragraph is decided by that position pairing, so it
@@ -84,7 +99,8 @@ it. The styles are described in `$DOCREVISE/../doc-meta/styles.md`.
    `review:` dropped either way, since its text changed.
 
    **Reordering does not preserve ids, even though nothing in the moved text changed.** Anchors never look
-   backwards (`doc-meta/SKILL.md`'s Anchors section only pairs at or after the last anchor), so an item that moved
+   backwards (the paragraph under **Sync** in `doc-meta/SKILL.md`: a block before an earlier anchor never
+   anchors), so an item that moved
    past another anchor cannot itself anchor: it is dropped as a deletion where it used to be, and comes back as a
    new block, with a new id, where it now sits. What keeps its id through a reorder is a block whose text did not
    change **and** did not move past another anchor, which an `[edit]` can produce as a side effect: flag `[edit]`
@@ -95,8 +111,16 @@ it. The styles are described in `$DOCREVISE/../doc-meta/styles.md`.
    Drop the `flag:` and the `review:` of a block like that yourself after the resync, when its own text is
    untouched but the reorder it named is done. Step 3 already applied the edit, and a flag left standing on an
    applied edit asks the next run to apply it a second time. In the report, it belongs with the applied edits.
-8. Report: the ids deleted and the ids edited, as recorded in step 3, the `[question]` items still waiting on a
-   human, **the id of every `[keep]` or `[question]` block changed by repair, its text as it stood before, and
-   what forced the change** (the dedicated line from step 6), which paragraphs step 4 rewrote, what each repair
-   item in step 5 found and did, the blocks skipped in step 2, with why, and the flags still standing on the
-   sidecar after the resync in step 7.
+
+   Each case shows in the `ok` output of `sync`, which this session sees while it runs `doc-meta`. A `[delete]`
+   block's id is in `deleted`, or in `changed` when the position pairing handed it to a surviving sentence. A
+   reordered item's old id is in `deleted` and its new id in `new`. An `[edit]` or step-6 block whose text changed
+   is in `changed`, or in `deleted` when the position pairing handed its new text to an earlier id of the same gap,
+   such as a `[delete]` block's, and in `flagsDropped` either way. So the ids step 3 recorded name the flags that
+   were applied, and only these lists say which ids the sidecar kept, changed or lost. Step 8 reports both.
+8. Report: the flags applied, as the ids of the blocks deleted and edited that step 3 recorded; the resync, as the
+   ids in `sync`'s `changed`, `deleted`, `new` and `flagsDropped` from step 7, without matching them to the flags;
+   the `[question]` items still waiting on a human; **the id of every `[keep]` or `[question]` block changed by
+   repair, its text as it stood before, and what forced the change** (the dedicated line from step 6); which
+   paragraphs step 4 rewrote; what each repair item in step 5 found and did; the blocks skipped in step 2, with
+   why; and the flags still standing on the sidecar after the resync in step 7.
