@@ -1,4 +1,4 @@
-import { DIGIT, splitLines, squeeze, wordBoundary } from "../../../../scripts/pure/text.ts";
+import { DIGIT, splitLines, squeeze } from "../../../../scripts/pure/text.ts";
 import { SEATS } from "./agent-table.ts";
 
 export type ReviewDir = Readonly<Record<string, string>>;
@@ -45,7 +45,6 @@ export type ScopeState = {
   readonly cap: boolean;
   readonly verdict: string | null;
   readonly open: readonly Finding[];
-  readonly approve: { readonly allowed: boolean; readonly why: readonly string[] };
 };
 
 export type RunArgs = {
@@ -69,14 +68,7 @@ const FIRST_EVIDENCE_NAME = new RegExp(`^(task-${POSITIVE}|merge)-evidence\\.md$
 const CAP = 5;
 export const FENCE = /^\s*```/u;
 const FINDING_SECTIONS: readonly string[] = ["Findings", "New findings"];
-const ROUND_SECTIONS: readonly string[] = [
-  "Earlier findings",
-  "New findings",
-  "Dropped",
-  "Not run",
-  "Verdict",
-];
-const FREE_SECTIONS: readonly string[] = ["Not run", "Dropped"];
+const FREE_SECTIONS: readonly string[] = ["Not run"];
 const ENTRY_SECTIONS: readonly string[] = [
   "Acceptance criteria",
   "Flows",
@@ -84,10 +76,8 @@ const ENTRY_SECTIONS: readonly string[] = [
   "Walk",
 ];
 export const NO_SECTION: Section = { heading: null, lines: [], blocks: [], loose: [] };
-const FOUND_BY: readonly string[] = ["a", "b", "a, b"];
-const FINDING_ID = `R${POSITIVE}\\.${POSITIVE}`;
-const EARLIER_ID = new RegExp(`^- (${FINDING_ID})${wordBoundary("after")}`, "u");
-const MARK = new RegExp(
+export const FINDING_ID = `R${POSITIVE}\\.${POSITIVE}`;
+export const MARK = new RegExp(
   `^- (${FINDING_ID}) (?:resolved(?:: \\S.*)?|(stands again|stands): \\S.*)$`,
   "u",
 );
@@ -101,14 +91,7 @@ export const REASONS: readonly string[] = [
   "finding",
   "command",
   "entry",
-  "seats",
   "no-round",
-  "mark",
-  "earlier-missing",
-  "verdict",
-  "approve-open",
-  "approve-no-evidence",
-  "draft",
   "line",
   "missing",
   "ran",
@@ -261,37 +244,7 @@ export const openAfter = (parsed: ParsedReview): OpenFindings => {
   return still;
 };
 
-const has = (dir: ReviewDir, key: string): boolean => dir[key] !== undefined;
-
-export const approveBlockers = (
-  dir: ReviewDir,
-  scope: string,
-  r: number,
-  openCount: number,
-): readonly string[] => {
-  const blockers = openCount > 0 ? ["approve-open"] : [];
-  let evidence: boolean | null = null;
-  for (let j = r - 1; j > 0; j -= 1) {
-    const reply = `review/${scope}-round-${j}-reply.md`;
-    if (
-      has(dir, reply) &&
-      answered(parseReview(dir, reply)).some((answer) => answer.answer === "fixed")
-    ) {
-      evidence = has(dir, `review/${scope}-round-${j}-evidence.md`);
-      break;
-    }
-  }
-  if (evidence === null) {
-    evidence =
-      scope === "integration"
-        ? SEATS.some((seat) => {
-            const key = `review/integration-round-1-${seat}.md`;
-            return has(dir, key) && section(parseReview(dir, key), "Walk") !== NO_SECTION;
-          })
-        : has(dir, `review/${scope}-evidence.md`);
-  }
-  return evidence ? blockers : [...blockers, "approve-no-evidence"];
-};
+export const has = (dir: ReviewDir, key: string): boolean => dir[key] !== undefined;
 
 const reviewNames = (dir: ReviewDir): readonly string[] =>
   Object.keys(dir)
@@ -316,7 +269,6 @@ export const scopeState = (dir: ReviewDir, scope: string): ScopeState => {
       ? answered(parseReview(dir, replyKey)).map((answer) => [answer.id, answer.answer] as const)
       : [],
   );
-  const blockers = approveBlockers(dir, scope, last + 1, still.length);
   return {
     scope,
     round: last + 1,
@@ -330,7 +282,6 @@ export const scopeState = (dir: ReviewDir, scope: string): ScopeState => {
       }).length,
       reply: answers.get(id) ?? null,
     })),
-    approve: { allowed: blockers.length === 0, why: blockers },
   };
 };
 
@@ -370,11 +321,7 @@ export const fields = (
 export const findingReasons = (block: Block, names: readonly string[]): ReadonlySet<string> => {
   const got = fields(block, names);
   const reasons = new Set<string>();
-  const foundBy = got["Found by"];
-  if (
-    Object.values(got).some((values) => values.length !== 1) ||
-    (foundBy !== undefined && !FOUND_BY.includes(foundBy[0] ?? ""))
-  ) {
+  if (Object.values(got).some((values) => values.length !== 1)) {
     reasons.add("finding");
   }
   const commands = got["Command"] ?? [];
@@ -403,62 +350,10 @@ export const entryOk = (block: Block, reproduced: boolean): boolean => {
 };
 
 export const holds = (s: Section): boolean => {
-  if (s.heading === "Verdict") {
-    return true;
-  }
   if (s.heading !== null && FREE_SECTIONS.includes(s.heading)) {
     return s.lines.length > 0;
   }
   return s.blocks.length > 0 || (s.lines.length === 1 && s.lines[0] === "None.");
-};
-
-export const copied = (line: string, want: string | undefined): boolean => {
-  if (want === undefined) {
-    return false;
-  }
-  const disagree = want.endsWith(DISAGREE);
-  const base = disagree ? want.slice(0, -DISAGREE.length) : want;
-  const starts = [base];
-  const status = MARK.exec(base);
-  if (disagree && status !== null && status[2] !== undefined) {
-    const at = 3 + (status[1] ?? "").length;
-    starts.push(`${base.slice(0, at)}resolved${base.slice(at + status[2].length)}`);
-  }
-  return starts.some((start) => line === start || line.startsWith(`${start};`));
-};
-
-const sameFields = (
-  x: Readonly<Record<string, readonly string[]>>,
-  y: Readonly<Record<string, readonly string[]>>,
-): boolean => JSON.stringify(x) === JSON.stringify(y);
-
-export const draftReasons = (
-  dir: ReviewDir,
-  key: string,
-  earlier: readonly string[],
-  added: readonly Block[],
-): ReadonlySet<string> => {
-  const draft = `drafts/${baseName(key)}`;
-  if (!has(dir, draft)) {
-    return new Set(["draft"]);
-  }
-  const parsed = parseReview(dir, draft);
-  const lines = new Map(
-    section(parsed, "Earlier findings").blocks.flatMap((block) => {
-      const found = EARLIER_ID.exec(block[0] ?? "");
-      return found === null ? [] : [[found[1] ?? "", block[0] ?? ""] as const];
-    }),
-  );
-  const names = ["Command", "Printed"];
-  const pairs = section(parsed, "New findings").blocks.map((block) => fields(block, names));
-  const earlierOk = earlier.every((line) =>
-    copied(line, lines.get(EARLIER_ID.exec(line)?.[1] ?? "")),
-  );
-  const newOk = added.every((block) => {
-    const got = fields(block, names);
-    return pairs.some((pair) => sameFields(pair, got));
-  });
-  return earlierOk && newOk ? new Set() : new Set(["draft"]);
 };
 
 const wantedSections = (
@@ -469,9 +364,6 @@ const wantedSections = (
 ): readonly string[] => {
   if (kind === "seat") {
     return ["Findings", "Not run", ...(scope === "integration" && r === 1 ? ["Walk"] : [])];
-  }
-  if (kind === "round") {
-    return ROUND_SECTIONS;
   }
   if (kind === "evidence") {
     return [
@@ -488,7 +380,8 @@ const sameList = (x: readonly string[], y: readonly string[]): boolean =>
 export type LintResult = { readonly kind: string | null; readonly reasons: readonly string[] };
 
 export const lintReasons = (dir: ReviewDir, key: string): LintResult => {
-  if (reviewKind(baseName(key)) === null) {
+  const named = reviewKind(baseName(key));
+  if (named === null || named.kind === "round") {
     return { kind: null, reasons: ["name"] };
   }
   const parsed = parseReview(dir, key);
@@ -522,76 +415,6 @@ export const lintReasons = (dir: ReviewDir, key: string): LintResult => {
       }
     });
   }
-  let before: OpenFindings | null = null;
-  if ((kind === "round" || kind === "reply") && (kind === "reply" || r > 1)) {
-    const prior = `review/${scope}-round-${kind === "reply" ? r : r - 1}.md`;
-    if (has(dir, prior)) {
-      before = openAfter(parseReview(dir, prior));
-    } else {
-      found.add("no-round");
-    }
-  }
-  if (kind === "round") {
-    if (parsed.seats.length !== 1) {
-      found.add("seats");
-    }
-    const listedIds = new Set<string>();
-    const marked: string[] = [];
-    const kept: Block[] = [];
-    for (const block of section(parsed, "Earlier findings").blocks) {
-      if (r === 1) {
-        found.add("id");
-        continue;
-      }
-      const first = block[0] ?? "";
-      const id = EARLIER_ID.exec(first)?.[1];
-      if (id !== undefined) {
-        listedIds.add(id);
-        if (before !== null && !before.has(id)) {
-          found.add("id");
-        }
-      }
-      if (!MARK.test(first)) {
-        found.add("mark");
-      } else if (before !== null && id !== undefined && before.has(id)) {
-        marked.push(first);
-      }
-    }
-    if (before !== null && [...before.keys()].some((id) => !listedIds.has(id))) {
-      found.add("earlier-missing");
-    }
-    section(parsed, "New findings").blocks.forEach((block, i) => {
-      const numbered = new RegExp(`^### R${r}\\.${i + 1} \\S`, "u").test(block[0] ?? "");
-      if (!numbered) {
-        found.add("id");
-      }
-      const reasons = findingReasons(block, [
-        "Found by",
-        "Command",
-        "Printed",
-        "Required",
-        "Breaks",
-      ]);
-      for (const reason of reasons) {
-        found.add(reason);
-      }
-      if (numbered && reasons.size === 0) {
-        kept.push(block);
-      }
-    });
-    for (const reason of draftReasons(dir, key, marked, kept)) {
-      found.add(reason);
-    }
-    const verdict = section(parsed, "Verdict").lines;
-    const only = verdict.length === 1 ? verdict[0] : undefined;
-    if (only !== "approve" && only !== "changes-requested") {
-      found.add("verdict");
-    } else if (only === "approve") {
-      for (const reason of approveBlockers(dir, scope, r, openAfter(parsed).size)) {
-        found.add(reason);
-      }
-    }
-  }
   if (kind === "reply") {
     const got = answered(parsed);
     const fixed = got.filter((answer) => answer.answer === "fixed").map((answer) => answer.text);
@@ -601,19 +424,22 @@ export const lintReasons = (dir: ReviewDir, key: string): LintResult => {
     if (fixed.some((text) => !(text.includes("ran:") && text.includes("saw:")))) {
       found.add("ran");
     }
-    if (before !== null) {
+    const round = `review/${scope}-round-${r}.md`;
+    if (has(dir, round)) {
+      const before = openAfter(parseReview(dir, round));
       const ids = new Set(got.map((answer) => answer.id));
       if ([...before.keys()].some((id) => !ids.has(id))) {
         found.add("missing");
       }
-      const prior = before;
       if (
         got.some(
-          (answer) => prior.get(answer.id) === "stands again" && !answer.text.includes("assumed:"),
+          (answer) => before.get(answer.id) === "stands again" && !answer.text.includes("assumed:"),
         )
       ) {
         found.add("assumed");
       }
+    } else {
+      found.add("no-round");
     }
     if (fixed.length > 0 && !has(dir, `review/${scope}-round-${r}-evidence.md`)) {
       found.add("no-evidence");
@@ -654,47 +480,22 @@ export const draftText = (
 ): string =>
   `# ${scope}, round ${r}, draft\n\n## Earlier findings\n\n${earlierLines.join("\n") || "None."}\n\n## New findings\n\n${newBlocks.join("\n\n") || "None."}\n\n## Dropped\n\n${droppedLines.join("\n")}\n`;
 
-export type RecordCounts =
-  | { readonly failed: readonly string[] }
-  | {
-      readonly failed: readonly [];
-      readonly tasks: number;
-      readonly taskRounds: number;
-      readonly integrationRounds: number;
-      readonly findings: number;
-    };
+export type RecordCounts = {
+  readonly tasks: number;
+  readonly taskRounds: number;
+  readonly integrationRounds: number;
+  readonly findings: number;
+};
 
-type RoundName = { readonly scope: string; readonly round: number; readonly name: string };
+type RoundName = { readonly scope: string; readonly name: string };
 
 export const recordCounts = (dir: ReviewDir): RecordCounts => {
-  const rounds = reviewNames(dir)
-    .flatMap((name): readonly RoundName[] => {
-      const kind = reviewKind(name);
-      return kind !== null && kind.kind === "round"
-        ? [{ scope: kind.scope, round: kind.round ?? 0, name }]
-        : [];
-    })
-    .toSorted((x, y) =>
-      x.scope !== y.scope
-        ? x.scope < y.scope
-          ? -1
-          : 1
-        : x.round !== y.round
-          ? x.round - y.round
-          : x.name < y.name
-            ? -1
-            : x.name > y.name
-              ? 1
-              : 0,
-    );
-  const failed = rounds.flatMap(({ name }) => {
-    const { reasons } = lintReasons(dir, `review/${name}`);
-    return reasons.length > 0 ? [`${name}: ${reasons.join(", ")}`] : [];
+  const counted = reviewNames(dir).flatMap((name): readonly RoundName[] => {
+    const kind = reviewKind(name);
+    return kind !== null && kind.kind === "round" && kind.scope !== "merge"
+      ? [{ scope: kind.scope, name }]
+      : [];
   });
-  if (failed.length > 0) {
-    return { failed };
-  }
-  const counted = rounds.filter(({ scope }) => scope !== "merge");
   const tasks = new Set(
     counted.filter(({ scope }) => scope !== "integration").map(({ scope }) => scope),
   );
@@ -705,7 +506,6 @@ export const recordCounts = (dir: ReviewDir): RecordCounts => {
     0,
   );
   return {
-    failed: [],
     tasks: tasks.size,
     taskRounds: counted.length - integrationRounds,
     integrationRounds,

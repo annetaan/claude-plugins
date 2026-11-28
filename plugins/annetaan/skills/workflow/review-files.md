@@ -1,11 +1,12 @@
 # Review files
 
-The review rounds run through Markdown files under `<WORKDIR>/review/`. The review seats, the main session and the
-implementation session each write their own files. A file is final once its writer has linted it (see **The lint**) and
-reported, and nobody edits it after that. The directory is the whole conversation of the review, in order, and it stays
-next to the work report. The seats' probes sit beside it, under
-`<WORKDIR>/seats/` (see **A probe**), and so do the drafts `flow.sh verify` writes, under `<WORKDIR>/drafts/` (see
-**A draft**).
+The review rounds run through Markdown files under `<WORKDIR>/review/`. The review seats, `flow.sh round` and the
+implementation session each write their own files. A round file is final once `flow.sh round` wrote it, every other
+review file is final once its writer has linted it (see **The lint**) and reported, and nobody edits either after that.
+The directory is the whole conversation of the review, in order, and it stays next to the work report. The seats'
+probes sit beside it, under `<WORKDIR>/seats/` (see **A probe**), and so do the drafts `flow.sh verify` writes and the
+judgement files the main session writes, `<scope>-round-<r>-judgement.md`, under `<WORKDIR>/drafts/` (see **A draft**
+and **A review round**).
 
 ## Names
 
@@ -16,11 +17,11 @@ next to the work report. The seats' probes sit beside it, under
 | `task-<k>-round-<r>-<seat>.md` | a seat, what it found in round `r` of task `k` |
 | `integration-round-<r>-<seat>.md` | a seat, what it found in round `r` of the integration review |
 | `merge-round-<r>-<seat>.md` | a seat, what it found in round `r` of a merge that resolves conflicts |
-| `task-<k>-round-<r>.md` | the main session, round `r` of task `k`, from the seat files |
+| `task-<k>-round-<r>.md` | `flow.sh round`, round `r` of task `k`, from the draft and the main session's judgement |
 | `task-<k>-round-<r>-reply.md` | the implementation session, its answer to that round |
-| `integration-round-<r>.md` | the main session, round `r` of the integration review |
+| `integration-round-<r>.md` | `flow.sh round`, round `r` of the integration review, from the draft and the main session's judgement |
 | `integration-round-<r>-reply.md` | the implementation session, its answer to that round |
-| `merge-round-<r>.md` | the main session, round `r` of a merge that resolves conflicts |
+| `merge-round-<r>.md` | `flow.sh round`, round `r` of a merge that resolves conflicts, from the draft and the main session's judgement |
 | `merge-round-<r>-reply.md` | the implementation session, its answer to that round |
 | `task-<k>-evidence.md` | the implementation session, what it ran for task `k` before the first review |
 | `task-<k>-round-<r>-evidence.md` | the implementation session, a full pass after fixes to round `r` |
@@ -138,14 +139,73 @@ Printed: exit 1, `expected a cached value, got undefined`
 - `Printed:` and `saw:` are `exit <n>`, then, when the output has a line that is not blank, `, ` and the last such line as a code span, fenced with one backtick more than the longest run of backticks in it.
 - Each command is run word for word: `<WT>`, the seat and the probe directory come from the command itself, and the `flow.sh` path in it is not run.
 - An earlier finding whose command cannot be run again is an unexpected failure: `verify` exits 1, names the finding and writes no draft.
-- The main session writes the round file from the draft (see **A review round**), and `flow.sh lint` holds the lines it copies to the draft (see **The lint**).
+- `flow.sh round` writes the round file from the draft and the main session's judgement (see **A review round**).
 
 ## A review round
 
-The main session writes this file from the draft `flow.sh verify` wrote for the round (see **A draft**), and adds what takes judgement. It holds every finding it kept, and the verdict.
+`flow.sh round` writes this file from the draft `flow.sh verify` wrote for the round (see **A draft**) and the judgement file the main session writes. The main session writes nothing else of the round. The file holds every finding the main session kept, and the verdict.
+
+The main session writes the judgement file with Write as `<WORKDIR>/drafts/<scope>-round-<r>-judgement.md`, beside the draft, `<r>` being the round `flow.sh status <WT> <scope>` prints. Its shape is exactly this, and blank lines between its lines are ignored:
+
+```text
+Seats: <the models the seats ran on>
+
+## Keep
+
+- R<r>.<n>[, R<r>.<m>...]
+  Required: <text>
+  Breaks: <text>
+
+## Drop
+
+- R<r>.<n>: <reason>
+
+## Earlier
+
+- R<i>.<j> stands: <reason>
+- R<i>.<j> resolved: <reason>
+
+## Not run
+
+- <entry>
+```
+
+The judgement of the draft example in **A draft**:
 
 ```markdown
-# Task 2, round 2
+Seats: a on opus, b on fable
+
+## Keep
+
+- R2.1, R2.2
+  Required: sign-in reads the cache after sign-out (design, Shared state)
+  Breaks: the second sign-in on one page load never fetches the value
+
+## Drop
+
+None.
+
+## Earlier
+
+- R1.2 stands: `retryJob` has to check it before the first call.
+
+## Not run
+
+- `npm run e2e -- signout`: no browser here, in any seat
+```
+
+- `Seats:` comes first and is the only line before `## Keep`. It names the model each seat ran on. A round with one seat reads, for example, `Seats: a on opus`. A fallback (seat `b` on opus) and a dropout (a seat that returned no report) are said here.
+- The four sections come in this order, and each reads `None.` alone when it is empty.
+- `## Keep` and `## Drop` name the draft's new ids, and every one of them is named exactly once across the two.
+- A `## Keep` entry is one finding of the round. Under its line come `Required:`, what the design, its criteria, the plan or the task detail requires, and `Breaks:`, what the failure breaks in the intent, indented, once each and nothing else. Findings with one root cause are one entry, as `R2.1, R2.2` above. Its first id gives the title, `Command:` and `Printed:`, and `Found by:` is the union of the seats of every id named, in the order `a`, `b`.
+- A `## Drop` entry is a finding the main session leaves out because the failure does not break the intent, with the reason.
+- `## Earlier` has one `stands` line for each draft line that says `stands` or `stands again`, with the reason. It has a `resolved` line only for a draft line marked `; reply: disagree`, when the disagree's reason shows that the failure does not break the intent.
+- `## Not run` holds what no seat could run, as `- ` lines.
+
+From the draft example and this judgement, `flow.sh round` writes:
+
+```markdown
+# task-2, round 2
 
 Seats: a on opus, b on fable
 
@@ -178,14 +238,31 @@ Breaks: the second sign-in on one page load never fetches the value
 changes-requested
 ```
 
-- `Seats:` names the model each seat ran on. A round with one seat reads, for example, `Seats: a on opus`. A fallback (seat `b` on opus) and a dropout (a seat that returned no report) are said here.
-- A finding's id is `R<round>.<n>`, and it never changes. A finding points with a path and a symbol, never a line number.
-- A new finding copies its `Command:` and `Printed:` from a finding of the draft, and adds `Required:` and `Breaks:`, what the failure breaks in the intent. `Found by:` names every seat that raised it. Findings with one root cause are one entry, which keeps the `Command:` and `Printed:` of one of them, as `R2.1` above keeps seat `a`'s and drops the draft's `R2.2`. The ids count from 1 again over the findings kept.
-- `## Dropped` copies the draft's lines, which give per seat the findings whose failure did not show and those whose command could not be run again. The main session adds a line per seat for a finding it leaves out because the failure does not break the intent, with the reason.
-- `## Not run` holds what no seat could run. It reads `None.` when there is none.
-- `## Earlier findings` reads `None.` in round 1, so every round file has the same five sections. From round 2 on, it holds each line of the draft's `## Earlier findings`, one per finding still open after the last reply, copied up to the end of its `saw:` part, with `; reply: disagree` left off, and, for a finding that stands, `; ` and the reason after it. The draft's rerun snapshots the tree as it now is: the failure gone is `resolved`, the failure still shown is `stands`, and the second and every later `stands` on one finding is `stands again`, for example `- R1.2 stands again: ran: <command>; saw: exit 1, <last line>; <the reason>`. A `disagree` whose reason shows the failure does not break the intent is the draft's line with `resolved` as the status word, then `; ` and the reason quoted.
-- `## New findings` reads `None.` when there are none.
-- The verdict is the line `approve` or `changes-requested` alone. **`approve` needs no verified finding open, and the evidence file of the latest code change. In integration round 1, where no evidence file exists, a `## Walk` in at least one seat file takes its place.**
+- The title is `# <scope>, round <r>`, and the judgement's `Seats:` line follows it. Every round file has the same five sections, and a section with nothing in it reads `None.`, so `## Earlier findings` reads `None.` in round 1.
+- `## Earlier findings` holds each line of the draft's `## Earlier findings`, one per finding still open after the last reply, with `; reply: disagree` left off. The draft's rerun snapshots the tree as it now is: the failure gone is `resolved`, the failure still shown is `stands`, and the second and every later `stands` on one finding is `stands again`. A `stands` entry of the judgement adds `; ` and its reason and keeps the status word, for example `- R1.2 stands again: ran: <command>; saw: exit 1, <last line>; <the reason>`. A `resolved` entry puts `resolved` in place of the status word and adds `; ` and its reason. A draft line already `resolved` with no entry is copied as it is.
+- `## New findings` holds one finding per `## Keep` entry, in its order, as `R2.1` above keeps seat `a`'s `Command:` and `Printed:` and leaves the draft's `R2.2` out. The ids count from 1 again over the findings kept. A finding's id is `R<round>.<n>`, and it never changes. A finding points with a path and a symbol, never a line number.
+- `## Dropped` holds the draft's lines, which give per seat the findings whose failure did not show and those whose command could not be run again, then one line `- <seat>: <draft id>, <reason>` per `## Drop` entry, `<seat>` being that draft finding's `Found by:`.
+- `## Not run` holds the judgement's lines as written.
+- `## Verdict` is the line `approve` or `changes-requested` alone. **`approve` is written when nothing is kept, no earlier finding stands, and the evidence of the latest code change exists.** Otherwise it is `changes-requested`.
+
+The latest code change before round `r` is the newest reply `<scope>-round-<j>-reply.md`, `j` below `r`, that holds a `fixed` line, because only a fix changes code. When there is one, `approve` needs `<scope>-round-<j>-evidence.md`, which the reply's own lint already asks for as `no-evidence`. When there is none, it needs the evidence written before round 1: `task-<k>-evidence.md` for a task, `merge-evidence.md` for a merge, and for the integration review an `integration-round-1-<seat>.md` that holds `## Walk`. For the walk, `round` names `review/integration-round-1-a.md`, since every level runs seat `a`.
+
+`flow.sh round <WT> <scope> <judgement file>` takes the absolute path of the judgement file. It prints `{"status":"ok","round","verdict","open","cap"}`: the absolute path of the round file it wrote, the verdict, the ids the round leaves open, and whether the round cap is reached after this round. It writes nothing when it stops:
+
+- `no-run`: there is no run.
+- `no-draft`: there is no draft of round `r`, so `flow.sh verify` has not run. A second `round` after the round file was written meets this one too, because `r` has moved on.
+- `judgement`, with `line`, the line of the judgement file, and `why`. The message names the file, the line, the `why` and the id. `why` is one of:
+  - `shape`: a line is out of the shape above. A section missing at the end is `shape` at the last line of the file.
+  - `unknown-id`: an id under `## Keep` or `## Drop` that is no new finding of the draft, or an id under `## Earlier` whose draft line is neither left standing nor marked `; reply: disagree`, a `stands` line for an id the draft marks `resolved` among them
+  - `twice`: an id named a second time, across `## Keep` and `## Drop`, or within `## Earlier`
+  - `not-disagree`: a `resolved` line for a standing draft line not marked `; reply: disagree`
+  - `no-reason`: a draft line marked `stands` or `stands again` has no `## Earlier` line. `line` is the `## Earlier` heading.
+  - `unjudged`: a new finding of the draft is in neither `## Keep` nor `## Drop`. `line` is the `## Keep` heading.
+
+  The first fault in the judgement file's order is named, then those of the draft, earlier findings first.
+- `no-evidence`, with `file`: the judgement keeps nothing and leaves nothing standing, but the evidence of the latest code change is missing. `file` is its absolute path under `<WORKDIR>`.
+
+A judgement path that is relative or no file, a scope that is not `task-<k>`, `integration` or `merge`, or a wrong number of arguments exits 1.
 
 ## A reply
 
@@ -237,25 +314,18 @@ Sticky sessions on the load balancer would keep the store in memory, but a deplo
 
 ## The lint
 
-Each writer lints its own file as the last step before it reports, and fixes the file until `ok` is true: the seat its seat file, seat a its `decisions.md`, the implementation session its evidence file and its reply, the main session its round file.
+Each writer lints its own file as the last step before it reports, and fixes the file until `ok` is true: the seat its seat file, seat a its `decisions.md`, the implementation session its evidence file and its reply.
 
-`flow.sh lint <file>` takes the absolute path of one review file and prints `{"status":"ok","ok":<bool>,"kind":<kind>,"reasons":[...]}`. `kind` is `seat`, `round`, `reply` or `evidence`, read from the file name by the table in **Names**, or `decisions` for a file named `decisions.md` (see **The decisions file**). The file passes when `reasons` is empty and `ok` is true. A file that does not exist stops with `no-file`. A name outside **Names** prints `kind` null and the reason `name`. The lint reads the file, its siblings in the same directory and, for a round file, its draft `<WORKDIR>/drafts/<the round file's name>`, `<WORKDIR>` being the directory above the round file's own, and nothing else: no `run.json`, no git, no probe. Lines inside a code fence are never read as a heading or an entry.
+`flow.sh lint <file>` takes the absolute path of one review file and prints `{"status":"ok","ok":<bool>,"kind":<kind>,"reasons":[...]}`. `kind` is `seat`, `reply` or `evidence`, read from the file name by the table in **Names**, or `decisions` for a file named `decisions.md` (see **The decisions file**). The file passes when `reasons` is empty and `ok` is true. A file that does not exist stops with `no-file`. A name outside these kinds prints `kind` null and the reason `name`, and so does a round file, which `flow.sh round` writes and nobody lints. The lint reads the file and its siblings in the same directory, and nothing else: no draft, no `run.json`, no git, no probe. Lines inside a code fence are never read as a heading or an entry.
 
 | Kind | Reason | Fails when |
 | --- | --- | --- |
-| every kind | `sections` | the `# ` title is not the first line, the `## ` sections are not the ones of the kind in their order, or a section that holds nothing does not read `None.` alone. Seat file: `## Findings`, `## Not run`, then `## Walk` in `integration-round-1-<seat>.md` only. Round file: `## Earlier findings`, `## New findings`, `## Dropped`, `## Not run`, `## Verdict`. Evidence file: `## Acceptance criteria`, then `## Flows` and `## Reproduced first` when present. A reply has its title and no `## ` section |
-| seat, round | `id` | a seat finding is not `### <n>. <title>` with `n` counting from 1, a new finding is not `### R<r>.<n> <title>` with `r` this round and `n` counting from 1, or an earlier entry names an id the round before did not leave open |
-| seat, round | `finding` | a seat finding does not hold exactly one `Command:`, `Printed:` and `Required:` line, or a new finding does not hold exactly one `Found by:`, `Command:`, `Printed:`, `Required:` and `Breaks:` line, or `Found by:` names other than `a`, `b` or `a, b` |
-| seat, round | `command` | a `Command:` is not one backticked `<abs>/flow.sh run <abs WT> <a or b> <abs WT>/work-reports/...` line of five words, with no dollar sign, quote, semicolon, ampersand, pipe, angle bracket or parenthesis |
+| every kind | `sections` | the `# ` title is not the first line, the `## ` sections are not the ones of the kind in their order, or a section that holds nothing does not read `None.` alone. Seat file: `## Findings`, `## Not run`, then `## Walk` in `integration-round-1-<seat>.md` only. Evidence file: `## Acceptance criteria`, then `## Flows` and `## Reproduced first` when present. A reply has its title and no `## ` section |
+| seat | `id` | a finding is not `### <n>. <title>` with `n` counting from 1 |
+| seat | `finding` | a finding does not hold exactly one `Command:`, `Printed:` and `Required:` line |
+| seat | `command` | a `Command:` is not one backticked `<abs>/flow.sh run <abs WT> <a or b> <abs WT>/work-reports/...` line of five words, with no dollar sign, quote, semicolon, ampersand, pipe, angle bracket or parenthesis |
 | seat, evidence | `entry` | an entry of `## Acceptance criteria`, `## Flows` or `## Walk` has neither a `ran:` and a `saw:` sub-bullet nor a `not run:` one, or an entry of `## Reproduced first` is not a `- ran:` with a `saw:` sub-bullet |
-| round | `seats` | no `Seats:` line, or more than one, between the title and the first section |
-| round, reply | `no-round` | round `r` of 2 or more has no round file `r-1` beside it, or a reply has no round file of its round |
-| round | `mark` | an earlier entry is not `- <id> resolved`, `- <id> resolved: <reason>`, `- <id> stands: ...` or `- <id> stands again: ...` |
-| round | `earlier-missing` | an id that round `r-1` left open has no entry under `## Earlier findings` |
-| round | `verdict` | `## Verdict` is not the one line `approve` or `changes-requested` |
-| round | `approve-open` | `approve` while `## New findings` holds a finding or an earlier entry `stands` or `stands again` |
-| round | `approve-no-evidence` | `approve` without the evidence of the latest code change, as below |
-| round | `draft` | the round file has no draft, an earlier entry that passes `mark` for an id round `r-1` left open is not the draft's line for that id, with `; reply: disagree` left off, followed by the end of the line or by `;` (for a line the draft marks `reply: disagree`, the status word may also be `resolved`), or a new finding that passes `id`, `finding` and `command` has a `Command:` and `Printed:` that are not those of one new finding of the draft |
+| reply | `no-round` | a reply has no round file of its round beside it |
 | reply | `line` | a line after the title is not `- R<r>.<n> fixed: ...` or `- R<r>.<n> disagree: ...`, or an indented line under one |
 | reply | `missing` | an id its round leaves open has no line |
 | reply | `ran` | a `fixed` line carries no `ran:` and `saw:` |
@@ -267,8 +337,6 @@ Each writer lints its own file as the last step before it reports, and fixes the
 | decisions | `landed` | `### Where it landed` is empty, or holds a line that is not a `- ` bullet opening with a backticked path |
 | decisions | `overturn` | `### To overturn it` is not one fenced block alone whose first line inside is `/annetaan:workflow ` followed by text |
 
-A round leaves open the ids of its `## New findings` and the earlier entries it marks `stands` or `stands again`. `earlier-missing`, `missing`, `approve-open` and `assumed` all read that one list.
+A round leaves open the ids of its `## New findings` and the earlier entries it marks `stands` or `stands again`. `missing` and `assumed` of a reply read that one list, and so does `open` of `flow.sh status`.
 
-The latest code change before round `r` is the newest reply `<scope>-round-<j>-reply.md`, `j` below `r`, that holds a `fixed` line, because only a fix changes code. When there is one, `approve` needs `<scope>-round-<j>-evidence.md`, which the reply's own lint already asks for as `no-evidence`. When there is none, it needs the evidence written before round 1: `task-<k>-evidence.md` for a task, `merge-evidence.md` for a merge, and for the integration review an `integration-round-1-<seat>.md` that holds `## Walk`.
-
-The lint holds what a later reader parses: ids, marks, sections, the five-word command, the verdict, the lines a round file copies from its draft, and the lines a reply and an evidence entry need. `draft` compares only the copied lines: the ids, the titles, `Found by:`, `Required:`, `Breaks:`, `## Dropped`, `## Not run`, `Seats:` and the verdict are the main session's judgement, so a finding it drops is missing from `## New findings`, and two findings merged by root cause keep one `Command:`, which still matches. What takes judgement stays with the writer and the reader: whether a finding breaks the intent, the wording of `Printed:` in a seat file and its three-line cap, the models on the `Seats:` line, the reasons under `## Dropped`. The lint checks the shape of a command and not its paths, so whether a command runs is found by running it.
+The lint holds what a later reader parses: ids, sections, the five-word command, and the lines a reply and an evidence entry need. What takes judgement stays with the writer and the reader: whether a finding breaks the intent, the wording of `Printed:` in a seat file and its three-line cap. The lint checks the shape of a command and not its paths, so whether a command runs is found by running it.

@@ -165,8 +165,8 @@ answers took for granted and makes one observation that would come out different
 becomes the strongest check that can hold it, a type before a lint rule before a test before a runtime assertion, instead of prose, and a check that has to live outside the task goes into the work report. A task never keeps an old path, an adapter or a shim so that the tests stay green until a later task. A split that passes only with one is one task.
 
 The review rounds run through Markdown files in the run's work report directory. Each seat writes one file per round,
-the main session merges the verified findings into a round file with the verdict, and the implementation session answers each
-finding in a reply file next to it. Each writer lints its file before it reports,
+the main session judges the verified findings, `flow.sh round` writes the round file with the verdict, and the implementation session answers each
+finding in a reply file next to it. Each other writer, the seats and the implementation session, lints its file before it reports,
 and nobody edits it after that, so the directory reads back as the whole review, in order. The directory also holds the evidence files,
 which record what the implementation session ran.
 
@@ -181,7 +181,7 @@ flowchart TD
         direction TB
         detail["design session<br/>details this task against the code<br/>the task before left, while it commits"]
         impl["implementation session<br/>new for this task<br/>writes it, evidence file,<br/>commits nothing"]
-        review["review seats<br/>new for this task<br/>read the tree in the run's worktree,<br/>prove each finding by a probe run,<br/>flow.sh reruns, main session writes the round"]
+        review["review seats<br/>new for this task<br/>read the tree in the run's worktree,<br/>prove each finding by a probe run,<br/>flow.sh reruns and writes the round from the main session's judgement"]
         respond["implementation session<br/>fixes, then writes a reply file"]
         commit["one commit<br/>plus 5 lines of handover notes"]
         detail --> impl --> review
