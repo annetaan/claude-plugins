@@ -36,6 +36,7 @@ const FENCE = /^\s*(```|~~~)/;
 const SPAN = /(`+)(.+?)\1/g;
 const RUN_FILE_BODY = `(?<![/.<$${W}-])(?:(?:design|plan|notes|adaptations|checks|merge)\\.md|detail/task-\\S*?\\.md)(?![${W}-])`;
 const RUN_FILE = new RegExp(RUN_FILE_BODY, "gu");
+const RUN_SKILLS: ReadonlySet<string> = new Set(["workflow", "pj4-running"]);
 const RUN_FILE_WHOLE = new RegExp(`^(?:${RUN_FILE_BODY})$`, "u");
 const SKILL_FILE = new RegExp(`^${SKILLS}/[^/]+/SKILL\\.md$`);
 const DECLARES = new RegExp(`\`\\$(${NAME})\` below means \`\\$\\{CLAUDE_SKILL_DIR\\}\``);
@@ -148,14 +149,16 @@ const check = (tree: string): readonly string[] => {
     return out;
   };
 
-  const resolve = (p: string, target: string): string | null => {
+  const resolve = (
+    p: string,
+    target: string,
+    roots: ReadonlyMap<string, string>,
+  ): string | null => {
     const own = skillOf(p);
     const short = SHORT_TARGET.exec(target);
     if (short !== null) {
-      if (own === null || declares.get(own) !== group(short, 1)) {
-        return null;
-      }
-      return normpath(posix.join(SKILLS, own, group(short, 2)));
+      const root = roots.get(group(short, 1));
+      return root === undefined ? null : normpath(posix.join(SKILLS, root, group(short, 2)));
     }
     if (target.startsWith("<skills>/")) {
       return normpath(posix.join(SKILLS, target.slice("<skills>/".length)));
@@ -186,28 +189,31 @@ const check = (tree: string): readonly string[] => {
     const lines = splitLines(read(p));
     const firstH2 =
       lines.find(({ line, fenced }) => !fenced && line.startsWith("## "))?.i ?? lines.length + 1;
+    const opening = lines
+      .filter(({ i }) => i < firstH2)
+      .map(({ line }) => line)
+      .join("\n");
     const namesIt =
-      name !== undefined &&
-      (p === `${SKILLS}/${own}/SKILL.md` ||
-        lines
-          .filter(({ i }) => i < firstH2)
-          .map(({ line }) => line)
-          .join("\n")
-          .includes(`\`$${name}\``));
+      name !== undefined && (p === `${SKILLS}/${own}/SKILL.md` || opening.includes(`\`$${name}\``));
+    const roots = new Map<string, string>(
+      [...declares].flatMap(([s, n]): (readonly [string, string])[] =>
+        s === own || (own !== null && opening.includes(`\`$${n}\``)) ? [[n, s]] : [],
+      ),
+    );
 
     const find = (i: number, msg: string): void => {
       findings.push(`${p}:${i}: ${msg}`);
     };
 
     for (const { i, line, fenced } of lines) {
-      if (own !== null && name !== undefined) {
-        for (const m of line.matchAll(new RegExp(`\\$${name}/(${PATH}*)`, "g"))) {
+      for (const [n, root] of roots) {
+        for (const m of line.matchAll(new RegExp(`\\$${n}/(${PATH}*)`, "g"))) {
           const target = group(m, 1).replace(/\.+$/, "");
-          if (!exists(posix.join(SKILLS, own, target))) {
-            find(i, `$${name}/${target} does not exist`);
+          if (!exists(posix.join(SKILLS, root, target))) {
+            find(i, `$${n}/${target} does not exist`);
           }
-          if (!namesIt) {
-            find(i, `uses $${name}/ but its opening lines do not name \`$${name}\``);
+          if (n === name && !namesIt) {
+            find(i, `uses $${n}/ but its opening lines do not name \`$${n}\``);
           }
         }
       }
@@ -220,7 +226,7 @@ const check = (tree: string): readonly string[] => {
       if (fenced) {
         continue;
       }
-      if (own === "workflow") {
+      if (own !== null && RUN_SKILLS.has(own)) {
         for (const m of line.matchAll(RUN_FILE)) {
           find(i, `${m[0]} is a file of the run: write it <WORKDIR>/${m[0]}`);
         }
@@ -235,10 +241,10 @@ const check = (tree: string): readonly string[] => {
           if (!exists(posix.join(SKILLS, s))) {
             find(i, `${s} does not exist`);
           }
-        } else if (own === "workflow" && RUN_FILE_WHOLE.test(s)) {
+        } else if (own !== null && RUN_SKILLS.has(own) && RUN_FILE_WHOLE.test(s)) {
           continue;
         } else if (own !== null && s.endsWith(".md")) {
-          const rel = resolve(p, s);
+          const rel = resolve(p, s, roots);
           assert.ok(rel !== null, `${p}:${i}: ${s} resolves to nothing`);
           const others = exists(rel) ? [] : othersHolding(s, own);
           if (others.length > 0) {
@@ -299,7 +305,7 @@ const check = (tree: string): readonly string[] => {
         }
       }
       for (const { at, section, file } of refs) {
-        const rel = resolve(p, file);
+        const rel = resolve(p, file, roots);
         if (rel === null) {
           continue;
         }
@@ -363,6 +369,16 @@ write(join(S, "two/SKILL.md"), [
   "The other skill writes `$ONE/missing.md`, a shell path here.",
 ]);
 write(join(S, "two/guide.md"), ["# Guide", "", "## Steps"]);
+write(join(S, "two/borrowed.md"), [
+  "# Borrowed",
+  "",
+  "> `$ONE` in this file is `<skills>/one`.",
+  "",
+  "## Steps",
+  "",
+  "Read `$ONE/notes.md`, then **A** in `$ONE/notes.md`.",
+]);
+write(join(S, "pj4-running/SKILL.md"), ["---", "name: pj4-running", "---", "# Running"]);
 write(join(S, "workflow/SKILL.md"), [
   "---",
   "name: workflow",
@@ -436,6 +452,19 @@ broken(
   "plan.md is a file of the run: write it <WORKDIR>/plan.md",
 );
 broken("qualified", "one/SKILL.md", "Read `two/none.md`.", "two/none.md does not exist");
+broken(
+  "run-file-running",
+  "pj4-running/SKILL.md",
+  "Keep `notes.md`.",
+  "notes.md is a file of the run: write it <WORKDIR>/notes.md",
+);
+broken("borrowed", "two/borrowed.md", "Read `$ONE/none.md`.", "$ONE/none.md does not exist");
+broken(
+  "borrowed-section",
+  "two/borrowed.md",
+  "Follow **Nope** in `$ONE/notes.md`.",
+  "$ONE/notes.md has no section **Nope**",
+);
 broken("short", "one/SKILL.md", "Read `$ONE/none.md`.", "$ONE/none.md does not exist");
 broken(
   "opening",
