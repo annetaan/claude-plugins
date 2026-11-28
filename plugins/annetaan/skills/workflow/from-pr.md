@@ -7,13 +7,13 @@ opened, long after the run that opened it. The request covers the whole of it: *
 takes the branch, the merge task resolves the conflicts under review, the merge is pushed to the branch, and the
 worktree is cleaned up.
 
-## What it runs of phases 2 to 4
+## What it runs of the shared steps
 
 It asks nothing beyond the questions below.
 
-- **Phase 2 (a)** does not run. The branch is `<head>`.
-- **Phase 2 (b)** runs at the end of **The worktree** below. On a `stop` with `not-ignored`, stop and report, because **The worktree** step 3 in `worktree.md` should have settled it.
-- **Phases 3 and 4** run as **The merge task** in `merge-task.md` says. **The push** and **Cleaning up and the report** below are its ending. No other part of the finish runs, and the report below replaces any other report to the user.
+- It makes no branch. The branch is `<head>`.
+- **Begin** in `SKILL.md` runs at the end of **The worktree** below. On a `stop` with `not-ignored`, stop and report, because **The worktree** step 3 in `worktree.md` should have settled it.
+- The task loop runs as **The merge task** in `merge-task.md` says. **The push** and **Cleaning up and the report** below are its ending. No other part of the finish runs, and the report below replaces any other report to the user.
 
 ## Which pull request
 
@@ -45,8 +45,8 @@ $FLOW/scripts/worktree.sh pr <number>
 Run steps 3 to 5 of **The worktree** in `worktree.md` with `<head>` in place of the base: `worktree.sh create <head> --kind run` puts the new
 worktree on the tip of `origin/<head>`, detached, so a worktree that already has `<head>` checked out, such as the
 one the run that opened the pull request left, is not in the way. A stop there ends this entry, as it would a
-standalone run. Then run **The level** in SKILL.md, and when `level.sh show` exits non-zero, quote the message and leave
-the worktree as **Ending with nothing changed** in `worktree.md` says. Then run phase 2 (b), with `<level>` and `<source>`
+standalone run. Then run **The level** in `SKILL.md`, and when `level.sh show` exits non-zero, quote the message and leave
+the worktree as **Ending with nothing changed** in `worktree.md` says. Then run **Begin** in `SKILL.md`, with `<level>` and `<source>`
 from the JSON **The level** read, before **The merge**, so that `start` is the pull request's head:
 
 ```bash

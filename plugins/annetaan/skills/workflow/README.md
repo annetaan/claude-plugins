@@ -250,8 +250,10 @@ before it touches anything**.
 
 | File | What it is |
 | --- | --- |
-| `SKILL.md` | the procedure for the orchestrator, which is the main session: which file each entry reads, the agents, the prompts, phases 2 to 4 and the rules every entry shares |
-| `standalone.md` | the standalone run: design, the open questions and the start message, the integration review and the finish |
+| `SKILL.md` | the procedure for the orchestrator, which is the main session: which file each entry reads, **Begin**, the run's files, the agents, the prompts and the rules every entry shares |
+| `standalone.md` | the standalone run: design, the open questions and the start message, the branch, bringing the base in and the report |
+| `loop.md` | the task loop every entry runs: detail and implement, review, respond, commit, a broken plan and the round cap |
+| `integration.md` | the review of the whole diff once every task of a plan of two or more is committed |
 | `judgement.md` | the rules every role of workflow and the pj skills reads. It opens with a table that maps each section to the roles that apply it, and holds what a human is asked, model decisions, experiments, assumptions, root cause, evidence, removing before adding, designing as if always required, reader load, the language and runtime when none is settled, effects at the edges, arguments left as given, comments, documents, existing workarounds, what two failed fixes share, and turning a repeated lesson into the strongest check that holds it |
 | `typescript.md` | what only a TypeScript change needs: the runtime, the type check, a new project's checks and the lint rules for effects and arguments, which `judgement.md` cites by section |
 | `from-pr.md` | resolving the conflicts of a pull request that is already open |

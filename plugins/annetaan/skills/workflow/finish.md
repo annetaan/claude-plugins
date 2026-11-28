@@ -1,6 +1,6 @@
 # The work report and the pull request
 
-> This file is read by the main session that loaded the workflow skill. The paths it uses are the ones **Paths: `$FLOW`** in SKILL.md gives.
+> `$FLOW` in this file is the directory it is in, `<skills>/workflow`, written out as **Paths: `$FLOW`** in `SKILL.md` says.
 
 ## The work report
 
@@ -17,12 +17,12 @@ evidence files, what neither the implementation nor the review could run, the `c
 `<WORKDIR>/checks.md`, the model decisions, what the review changed, the files a merge resolved, the screenshots, and
 which commit answers which task. Send its line to the session that worked on the code:
 
-- When **Bringing the base in** in `standalone.md` ran the merge task, that implementation session is alive. `SendMessage` it. This
+- When the entry ran **The merge task** in `merge-task.md` before the finish, that implementation session is alive. `SendMessage` it. This
   comes before the cases below.
-- When phase 5 was skipped, the last task's implementation session is still alive (the entry keeps it after phase 4 (d)). `SendMessage` it.
+- When **The integration review** in `integration.md` did not run, the last task's implementation session is still alive (the entry's file keeps it after **Commit** in `loop.md`). `SendMessage` it.
 - When the integration review asked for fixes, that implementation session is still alive. `SendMessage` it.
 - When the integration review approved with nothing to fix, no session is left. Start `annetaan:workflow-worker`
-  with the line and the `model` and `effort` the JSON prints (**The prompts** in SKILL.md). The prompt names the role,
+  with the line and the `model` and `effort` the JSON prints (**The prompts** in `SKILL.md`). The prompt names the role,
   the run's files and the progress, so it serves a session started for the report alone.
 
 **Keep the file name `log.md`.** Claude Code refuses a Write from a sub-agent when the name of the `.md` file
@@ -78,7 +78,7 @@ gh pr create --base <base> --title "..." --body-file log.md \
 - Fifty files per command. A failed upload still creates the pull request and only sets a non-zero exit code. **Check the exit code and read the body back.** Reattach what fell out with `gh pr edit <number> --attach`.
 - A screenshot still missing from the body after `gh pr edit <number> --attach` goes into the final message, with its path and the pull request URL.
 
-When the push fails, quote the error and go to the entry's ending: **Report to the user** in `standalone.md`, or **The stop procedure** in `from-issue.md`. The branch and its commits stay in `<WT>`. When `gh pr create` exits non-zero, run `gh pr view <branch> --json url` first. If a pull request exists (a failed upload still creates one), carry on with its URL and the reattach step above. If none exists, quote the error and go to the entry's ending, as for a failed push. Otherwise go to **The decisions** with the pull request, then carry its URL into the entry's ending.
+When the push fails, quote the error and go to the entry's ending, as the entry's file says. The branch and its commits stay in `<WT>`. When `gh pr create` exits non-zero, run `gh pr view <branch> --json url` first. If a pull request exists (a failed upload still creates one), carry on with its URL and the reattach step above. If none exists, quote the error and go to the entry's ending, as for a failed push. Otherwise go to **The decisions** with the pull request, then carry its URL into the entry's ending.
 
 ## The decisions
 
@@ -92,7 +92,7 @@ The seat sessions of the last review have ended. This is a new seat a session, a
    $FLOW/scripts/flow.sh prompt <WT> decisions
    ```
 
-   It names `<WORKDIR>/design.md`, `<WORKDIR>/plan.md`, what the user settled, `<WORKDIR>/changes.diff`, `<WORKDIR>/log.md` and `Write: <WORKDIR>/decisions.md`. Start `annetaan:workflow-reviewer-a` with its line and the `model` and `effort` the JSON prints (**The prompts** in SKILL.md). When the seat returns and `<WORKDIR>/decisions.md` does not exist, start the seat once more with the same line.
+   It names `<WORKDIR>/design.md`, `<WORKDIR>/plan.md`, what the user settled, `<WORKDIR>/changes.diff`, `<WORKDIR>/log.md` and `Write: <WORKDIR>/decisions.md`. Start `annetaan:workflow-reviewer-a` with its line and the `model` and `effort` the JSON prints (**The prompts** in `SKILL.md`). When the seat returns and `<WORKDIR>/decisions.md` does not exist, start the seat once more with the same line.
 2. **File the issues.**
 
    ```bash
