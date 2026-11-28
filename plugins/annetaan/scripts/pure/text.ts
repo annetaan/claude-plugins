@@ -17,6 +17,8 @@ const SPACES: ReadonlySet<number> = new Set([
   0x205f, 0x3000,
 ]);
 
+export const SPACE = [...SPACES].map((code) => `\\u{${code.toString(16)}}`).join("");
+
 const splitOn = (text: string, at: ReadonlySet<number>): readonly string[] => {
   const pieces: string[] = [];
   let start = 0;

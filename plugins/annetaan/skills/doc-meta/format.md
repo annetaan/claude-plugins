@@ -3,7 +3,9 @@
 This is the only file that describes the shape of a doc-meta sidecar. `roles/overview.md`, `doc-review/SKILL.md`
 and `doc-revise/SKILL.md` all point here instead of copying any of it. If you find the role set, the field list or
 the splitting rules written out anywhere else, that is a copy and it will drift. Fix it by deleting the copy, not
-by editing both.
+by editing both. The one exception is `doc-meta/scripts/sidecar.sh`, which reads and writes these shapes and so
+holds its own copy of the role set, the weights, the field list and the header comment. A test of this repository
+fails when that copy and this file differ, so the two change together.
 
 Role, weight, `echoes`/`needs` and the flags are used before they are defined. Each has its own section at the end
 of this file. Sync, and the anchor match it works by, are defined in `doc-meta/SKILL.md`'s `## Sync` section.
@@ -41,7 +43,21 @@ A section of its own, not folded into an example. Fields:
   it as the largest id present in `## Blocks`, and say so in doc-meta's report, since that rebuild can hand out
   an id that was already used and deleted.
 
-When `★★★` blocks are more than half of the block count, add one more line after `weights`:
+Each field is one line `- <field>: <value>`, in the order listed above. A field with no value yet is written as
+`- <field>:`, with nothing after the colon. `weights` is written as `- weights: ★☆☆ <n>, ★★☆ <n>, ★★★ <n>`, and
+`max id` as an id, for example `- max id: b012`:
+
+```
+- purpose: Explain how to install the tool.
+- reader: A developer setting it up for the first time.
+- style: procedure
+- source language: en
+- blocks: 12
+- weights: ★☆☆ 3, ★★☆ 5, ★★★ 4
+- max id: b014
+```
+
+When `★★★` blocks are more than half of the block count, add one more line after the fields:
 
 ```
 Weight sorts little in this document. Read Whole document first.
@@ -76,7 +92,8 @@ the block:
 
 ## `## Blocks`
 
-Blocks are grouped by paragraph. A paragraph break in the source is a `---` line between groups. A heading is a
+Blocks are grouped by paragraph. A paragraph break in the source is a line holding only `---` between groups. A
+heading is a
 group of one, on its own. A list item that recurses into further blocks, by the splitting rule below, keeps every
 block that recursion produces (its own lead-in sentences, and each block of its nested list) in the one group the
 list itself is in. The recursion splits a list item into blocks. It never opens a new paragraph group.
@@ -89,6 +106,13 @@ list itself is in. The recursion splits a list item into blocks. It never opens 
 
 `id`, `weight`, `role`, then any `echoes:` and `needs:`, each a comma-separated list when there is more than one
 target (`echoes:b002,b004`). Omit `echoes:` or `needs:` entirely when a block has none.
+
+An id is `b` followed by at least three digits: `b001`, `b042`, `b1000`. A block whose text has not been judged
+yet has the heading `### <id> (pending)` until doc-meta writes its weight and role:
+
+```
+### b004 (pending)
+```
 
 ### Block body
 

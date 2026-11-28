@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import {
   DIGIT,
   escapeRegExp,
+  SPACE,
   splitLines,
   squeeze,
   WORD,
@@ -30,6 +31,21 @@ test("splitLines drops one trailing empty piece and keeps an inner one", () => {
 test("squeeze joins the words split on any whitespace, full-width spaces included", () => {
   assert.equal(squeeze(`  a${IDEOGRAPHIC_SPACE}${IDEOGRAPHIC_SPACE}b\t\nc  `), "a b c");
   assert.equal(squeeze(" \n "), "");
+});
+
+test("SPACE matches exactly the characters squeeze splits on", () => {
+  const space = new RegExp(`^[${SPACE}]$`, "u");
+  const mismatches: number[] = [];
+  for (let code = 0; code <= 0x10ffff; code += 1) {
+    if (code >= 0xd800 && code <= 0xdfff) {
+      continue;
+    }
+    const ch = String.fromCodePoint(code);
+    if (space.test(ch) !== (squeeze(`a${ch}b`) === "a b")) {
+      mismatches.push(code);
+    }
+  }
+  assert.deepEqual(mismatches, []);
 });
 
 test("WORD, DIGIT and wordBoundary treat Japanese as word characters", () => {
