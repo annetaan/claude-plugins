@@ -17,24 +17,37 @@ would cost, the other half of a duplication for a `[keep]`, a proposed sentence 
 
 **`$DOCREVIEW` below means `${CLAUDE_SKILL_DIR}`**, the absolute path of this skill's directory.
 
-`$DOCREVIEW` is not a shell variable. Replace it with the real absolute path when you run bash.
+`$DOCREVIEW` is not a shell variable. Replace it with the real absolute path when you run bash. Collapse the `..` in
+a path to a sibling skill, so that the command text names `<skills>/doc-meta/scripts/sidecar.sh` and not
+`<skills>/doc-review/../doc-meta/scripts/sidecar.sh`.
 
 The sidecar format is not described here. Read `$DOCREVIEW/../doc-meta/format.md`, the only file that describes it.
 The styles are described in `$DOCREVIEW/../doc-meta/styles.md`.
 
+This skill uses these files:
+
+- the script `$DOCREVIEW/../doc-meta/scripts/sidecar.sh`, written `sidecar.sh` below. Every subcommand prints one
+  JSON object with a `status`. A non-zero exit is a usage error or an unexpected failure: quote its message and stop
+
 ## Steps
 
-1. Read the path given as the argument. It names one document. Derive the sidecar path by the naming rule in
-   `doc-meta/format.md`, and read the document, the sidecar, `doc-meta/format.md` and `doc-meta/styles.md`. Every answer below is judged by
-   the rules of the style the sidecar's `## Document` names.
+1. Read the path given as the argument. It names one document. Before reading anything, run:
 
-   **If the sidecar does not exist, say so and stop.** Tell the user to run `/annetaan:doc-meta` on this document
-   first. There is nothing to answer without it.
-2. For every block that carries a non-empty `flag:`, verify it against the document by the procedure in
-   `doc-meta/format.md`'s "Verifying a block against the document". A sidecar can go stale between the last `doc-meta` run
-   and now. **Skip a block that fails this check**, and say so in the report. Do not guess at what the block used
-   to say.
-3. For every flagged block that passes the check, write its `review:` line:
+   ```bash
+   $DOCREVIEW/../doc-meta/scripts/sidecar.sh verify "<document>"
+   ```
+
+   **On a `stop` with `no-sidecar`, say so and stop.** Tell the user to run `/annetaan:doc-meta` on this document
+   first. There is nothing to answer without it. On `no-document` or `is-sidecar`, say so and stop.
+
+   Otherwise derive the sidecar path by the naming rule in `doc-meta/format.md`, and read the document, the
+   sidecar, `doc-meta/format.md` and `doc-meta/styles.md`. Every answer below is judged by the rules of the style
+   the sidecar's `## Document` names.
+2. A sidecar can go stale between the last `doc-meta` run and now. **Skip every flagged block whose id carries
+   `not-in-document` in the `reasons` of step 1's `verify`**, and say so in the report. Do not guess at what the
+   block used to say. No other reason skips a block. When `reasons` holds any other code, name those codes in the
+   report on one line, and say that `/annetaan:doc-meta` brings the sidecar back in order.
+3. For every flagged block that step 2 did not skip, write its `review:` line:
    - `[delete]`: what would be lost. Walk the block's `needs` dependents (any block elsewhere that names this one
      in its own `needs:`) and say what breaks for them. Also note any word or phrase that appears in this block
      and nowhere else in the document, since a reader who searches for it would come up empty.
