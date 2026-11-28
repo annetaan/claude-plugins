@@ -2,7 +2,7 @@
 
 > This file is read by the main session that loaded the pj4-running skill. The paths it uses are the ones **Paths: `$RUNNING`** in SKILL.md gives.
 
-## Phase 1: the order
+## The order
 
 1. Read the project.
 
@@ -24,16 +24,16 @@
    (`pj1-plan/state.md`, **When an issue is workable**), whatever the walk has already taken.
    - **`parent.order` is empty, or `parent.orderCheck.ok` is false**: the run order is the merged-pull-request issues
      alone, and the walk does not start. Show what `orderCheck` names, and give the next step, `/annetaan:pj3-doctor`.
-     With no such issue the run order is empty and phase 1 ends here (step 4).
+     With no such issue the run order is empty and **The order** ends here (step 4).
 3. List the issue the walk stopped at, with why it is not workable (for the roadmap task: it is not blocked by every
    open sub-issue, naming the numbers in `parent.roadmap.missing`, and `/annetaan:pj3-doctor` adds the edges), and the open issues after it as **waiting**. List
    the issues in `orderCheck.missing` too, as not in the order.
 4. **An empty run order** ends the skill here. Report the issue the walk stopped at and why, and the next step,
    `/annetaan:pj3-doctor`. An issue with a merged pull request makes the run order non-empty.
 5. Run `git branch -a` once. Pick a branch pattern in the repository's own naming that holds the issue number, such
-   as `feat/<n>-<slug>`. Phase 2 shows it.
+   as `feat/<n>-<slug>`. **Approval** shows it.
 
-## Phase 2: approval
+## Approval
 
 Show the user:
 
@@ -52,13 +52,13 @@ Show the user:
 - that each worktree holds the ignored files `.worktreeinclude` names, copied by `run.sh worktree` and by the Copy
   answers, and that the first worker prepares the rest the tests need, such as dependencies, and records the steps
   in the handover notes
-- how each issue runs: a branch, workflow's **From an issue**, where a design session details the issue against the code
+- how each issue runs: a branch, `run-issue.md`, where a design session details the issue against the code
   on the base branch and may redraw its body and the order of the issues left, then one or more reviewed commits (with
   the review files in its work report) and an integration review when there is more than one, a draft pull request into
   the base branch, then a merge by pj4-running, which then closes the issue. GitHub does not close it on a merge into a
   branch other than the default branch.
 - that once every sub-issue is closed, the run merges `<from>` into the base branch and pushes the merge there, with
-  workflow's **From a sync** resolving any conflict under review, then opens the project's pull request from the base
+  `run-sync.md`, with workflow's merge task, resolving any conflict under review, then opens the project's pull request from the base
   branch into `<from>`, that merging it is the user's job, and that the parent `#<P>` closes as completed once a run
   sees that merge
 - that the run stops on a blocker, a decision only the user can make (the run adds it to the issue), a detail pass
@@ -75,20 +75,16 @@ An unattended run skips this question, prints the same summary, and starts.
 
 The approval covers this run only (`pj1-plan/between-skills.md`, **Principle**).
 
-## Phase 3: before the first issue
-
-Take **Before workflow runs** in SKILL.md with From an issue. Its entry, `workflow/from-issue.md`, is followed for every issue.
-
-## Phase 4: one issue at a time
+## The issues
 
 Nothing runs in parallel. For each issue `<k>` in the run order:
 
 1. **Re-read the project** with `project.sh <P>`.
    - The issue is closed: skip it.
    - The issue is no longer workable (`pj1-plan/state.md`, **When an issue is workable**), and its `pr` is not merged, as when a
-     human took `ready` off or a stub was filed during this run: the run stops here, as the walk in phase 1 would have.
+     human took `ready` off or a stub was filed during this run: the run stops here, as the walk in **The order** would have.
      Tell the user the reason, put no label on the issue, give `/annetaan:pj3-doctor` as the next step, and go to
-     phase 5.
+     **The end of the run** in `SKILL.md`.
    - The issue is `parent.roadmap.task` and `parent.roadmap.missing` is not empty: the issue is no longer workable
      either, so the same stop applies.
 2. **Take the path `pr` gives.**
@@ -100,10 +96,10 @@ Nothing runs in parallel. For each issue `<k>` in the run order:
      $RUNNING/scripts/run.sh close <P> <k> --comment "$TMP/<k>-closed.md"
      ```
 
-     Print `#<k> done (<i>/<N>): PR #<m> merged earlier, issue closed` and take the next issue. No workflow run and
+     Print `#<k> done (<i>/<N>): PR #<m> merged earlier, issue closed` and take the next issue. No `run-issue.md` and
      no handover rewrite.
    - **`pr.state` is `OPEN`** as `#<m>`: its commits passed review, and only the merge is left. Go to **When
-     workflow returns**, as `finished` with `<m>` and no handover lines. No workflow run and no handover rewrite. Its
+     a run returns**, as `finished` with `<m>` and no handover lines. No `run-issue.md` and no handover rewrite. Its
      `decisions` are the decision issues the run that opened `#<m>` filed, read back from GitHub by their label and
      their `Pull request: #<m>` line:
 
@@ -112,8 +108,8 @@ Nothing runs in parallel. For each issue `<k>` in the run order:
      ```
 
      No line printed means none were filed.
-   - **`pr` is null**: make the issue's worktree, with a fresh branch from the tip of `origin/<base>`, then run From
-     an issue.
+   - **`pr` is null**: make the issue's worktree, with a fresh branch from the tip of `origin/<base>`, then run
+     `run-issue.md`.
 
      ```bash
      $RUNNING/scripts/run.sh worktree <P> <k> <branch>
@@ -183,14 +179,14 @@ Nothing runs in parallel. For each issue `<k>` in the run order:
        out. It is a worktree outside the issue's own, such as `<MAIN>`, or ending one of the issue's own failed, and
        `ended.errors` says why.
      - **`stop`** with `fetch-failed`: quote `message` and stop the run.
-3. **Run From an issue.** These are what it expects you to have settled, so say them in your context before you
+3. **Run `run-issue.md`.** Read it and follow it. These are what it expects you to have settled, so say them in your context before you
    start it: `n` (= `<k>`), `P`, the issue title, the projects `<P>` waits on (the `parent.waitsOn` numbers, or
    none), the base branch, the branch you just made, `<START>`, the handover notes, and the paths: the issue's
    worktree as `<WT>`, and `<MAIN>`.
 
 ### A redrawn issue
 
-workflow hands over to this section by name, with the design session's `Body:`, `Order:` and `Notes:`, and with
+`run-issue.md` comes here with the design session's `Body:`, `Order:` and `Notes:`, and with
 `Stop: ask` when its `Body:` carries a new decision. `<a>` and `<b>` below are issue numbers of open sub-issues of
 `#<P>`.
 
@@ -231,9 +227,9 @@ workflow hands over to this section by name, with the design session's `Body:`, 
    ```
 
    A `moved` stop means a human edited the issue during the pass, and nothing was written. Take the stop `user` in
-   **When workflow returns**, saying so.
+   **When a run returns**, saying so.
 
-   Under `Stop: ask`, steps 1 and 2 are all that run here. Take the stop `decision` in **When workflow returns**.
+   Under `Stop: ask`, steps 1 and 2 are all that run here. Take the stop `decision` in **When a run returns**.
 3. **Write the edges and the order.** For each `Order:` line, one call. Each `relate` runs the cycle check after an
    edge it adds, and takes that edge back off when it made a cycle.
 
@@ -295,9 +291,9 @@ workflow hands over to this section by name, with the design session's `Body:`, 
 Print `#<k> redrawn`. When `#<k>` has an open blocker after step 3 (read `project.sh <P>` again), answer `reordered`.
 Otherwise answer go on.
 
-### When workflow returns
+### When a run returns
 
-workflow hands over to this section by name, with `finished`, `stopped`, `nothing-left` or `reordered`.
+`run-issue.md` ends here, through **The endings** in `run-issue.md`, with `finished`, `stopped`, `nothing-left` or `reordered`.
 
 **`finished`** carries the pull request `<m>`, the SHA of the last commit, the handover lines, the paths of any
 screenshots that could not be attached, `decisions`, the decision issues it filed or why none were filed, and
@@ -312,11 +308,11 @@ ExitWorktree(action: "keep")
 Where that tool is not available, `cd "<MAIN>"`.
 
 **With `stop requested: yes`, do not merge.** The user said stop. Fold the handover lines as step 3 says, then go to
-phase 5. The pull request stays a draft, and the next run merges it and reads its decision issues back from GitHub
-(the `pr.state` is `OPEN` case of phase 4 step 2). The worktree stays with the branch checked out, and that later
+**The end of the run** in `SKILL.md`. The pull request stays a draft, and the next run merges it and reads its decision issues back from GitHub
+(the `pr.state` is `OPEN` case of **The issues** step 2). The worktree stays with the branch checked out, and that later
 `merge` removes it.
 
-1. Write `$TMP/<k>-closed.md` worded as in the `merged` case of phase 4 step 2, naming `#<m>`. The merge into the base
+1. Write `$TMP/<k>-closed.md` worded as in the `merged` case of **The issues** step 2, naming `#<m>`. The merge into the base
    branch closes nothing, so `run.sh merge` closes the issue with it.
 2. Merge the pull request, close `#<k>`, remove the issue's worktree and delete the head branch. The merge waits
    for every check on the pull request to pass, required or not. Run this as a
@@ -329,28 +325,28 @@ phase 5. The pull request stays a draft, and the next run merges it and reads it
    $RUNNING/scripts/run.sh merge <P> <k> <m> --comment "$TMP/<k>-closed.md" > "$TMP/<k>-merge.json" 2> "$TMP/<k>-merge.err"
    ```
 
-   - **`stop`** with `review`, `conflict`, `merge-failed` or `not-the-pr`: say so, quote `message`, and go to phase 5.
+   - **`stop`** with `review`, `conflict`, `merge-failed` or `not-the-pr`: say so, quote `message`, and go to **The end of the run** in `SKILL.md`.
      After any `merge` stop the worktree stays with the branch checked out, and the next run's `merge` removes it.
    - **`stop`** with `no-checks`, `checks-unreadable`, `checks-failed` or `checks-timeout`: quote `message`. The pull
      request stays a draft, and the next run merges it. After `checks-failed` the next run stops again until the checks
      pass, from a push to the branch or a rerun of the failed jobs (`gh run rerun <id> --failed`). After
      `checks-timeout`, a check named in `message` was still pending when the ceiling passed, which the job timeouts of
      the pull request's workflows set; rerun its workflow (`gh run rerun <id>`), and the next run merges once the checks
-     pass. Go to phase 5.
+     pass. Go to **The end of the run** in `SKILL.md`.
    - **`merged`** with a non-empty `errors`: the merge went through, and a later step failed. Report each `step` with
-     its `message`, fold the handover lines as step 3 says, then go to phase 5. When `close` failed, the issue stays
+     its `message`, fold the handover lines as step 3 says, then go to **The end of the run** in `SKILL.md`. When `close` failed, the issue stays
      open with its pull request merged, and the next run closes it. With `step` `worktree` and `worktree` null, the
      issue's worktree held work, or its removal failed, so it stays, with its local branch, for
      `/annetaan:cleanup <P>`.
    - **`merged`**: `worktree` names the issue's worktree it removed, with the work reports it `moved` into
      `<MAIN>/work-reports/`, or is null when no worktree of `#<k>` had the head branch checked out. Go on.
 3. **Fold the handover lines into the notes**, as **Folding the handover lines** in SKILL.md says. With no
-   handover lines, as on the `OPEN` path of phase 4 step 2, skip this step.
+   handover lines, as on the `OPEN` path of **The issues** step 2, skip this step.
 4. Print one progress line: `#<k> done (<i>/<N>): PR #<m> merged, decisions: <the URLs of the decision issues, or why
    none were filed>`. After a context summary, rebuild the run order, the progress and the decision issues of each
    merged issue from these lines and `project.sh <P>`.
 
-Then take the next issue. When the run order is done, go to phase 5 in SKILL.md.
+Then take the next issue. When the run order is done, go to **The end of the run** in `SKILL.md`.
 
 **`stopped`** carries the reason, `<WORKDIR>` (the absolute path, or none), `<START>`, and the text: the `Unplanned:`
 report, the decision `#<k> D<d>`, the failing lint or `--check` JSON, or for `finish` the failed step. A stopped run has
@@ -377,7 +373,7 @@ git -C <worktree> update-ref --no-deref HEAD HEAD
 ```
 
 The branch keeps the reviewed commits, the worktree keeps them on a detached HEAD, and the next run finds the branch
-as `left` in phase 4 step 2. A run killed before this detach leaves the branch checked out, and the next run ends that
+as `left` in **The issues** step 2. A run killed before this detach leaves the branch checked out, and the next run ends that
 worktree and redoes the issue.
 
 Act by what `end` prints.
@@ -390,7 +386,7 @@ Act by what `end` prints.
 - A non-zero exit: an exception to the `run.sh` rule in **Paths: `$RUNNING`** in SKILL.md, because the stop is already under way.
   Quote the message, and carry on with the reason's steps, so the stub or the notices are still filed.
 
-Then act by the reason, and go to phase 5. Every comment below is written to a file under `$TMP` and starts with
+Then act by the reason, and go to **The end of the run** in `SKILL.md`. Every comment below is written to a file under `$TMP` and starts with
 `**[pj4-running]**`. When `end` printed `kept`, each comment of `blocking`, `detail` and `round cap` says: "The work so
 far, `<commits>` commit(s)", with "and uncommitted changes" when `changes` is not empty, "stays in the worktree
 `.claude/worktrees/<name>` on the machine that ran this. The next run redoes the issue in a new worktree.
@@ -437,9 +433,9 @@ their comment file, `$TMP/<k>-stopped.md`, as `--comment`, and `run.sh` refuses 
   ```
 - **`user`**: nothing goes to GitHub.
 - **`work-reports`**: report it. It should not happen after `run.sh start` added the paths.
-- **`finish`**: report the failed step of workflow's finish, its message, and the path of `log.md` when there is one.
+- **`finish`**: report the failed step of **The finish from an issue** in `run-issue.md`, its message, and the path of `log.md` when there is one.
   Say that `<branch>` keeps the reviewed commits, that the worktree keeps them on a detached HEAD, and that the next
-  run stops on `left` in phase 4 step 2 with both ways out.
+  run stops on `left` in **The issues** step 2 with both ways out.
 
 Act by what `run.sh stop` prints.
 
@@ -449,7 +445,7 @@ Act by what `run.sh stop` prints.
   `**[pj4-running]**`, and run the call again.
 - **`stop`** with a `step`: the writes before `step` are on GitHub, and the comment is not. Report `reason`,
   `message`, `step` and `stub` when it is there, say what was left unwritten, and run nothing again, because a second
-  `blocking` call files a second stub. Go to phase 5.
+  `blocking` call files a second stub. Go to **The end of the run** in `SKILL.md`.
 - Any other `stop` falls under the `run.sh` rule in **Paths: `$RUNNING`** in SKILL.md.
 
 **`nothing-left`** carries `<WORKDIR>`, `<START>` and the evidence: the design session found that the code on the base
@@ -466,5 +462,5 @@ $RUNNING/../pj1-plan/scripts/issue.sh close <k> --reason completed --comment "$T
 Print `#<k> done (<i>/<N>): nothing left, closed` and take the next issue. No handover rewrite.
 
 **`reordered`** carries `<WORKDIR>` and `<START>`: a redraw gave `#<k>` an open blocker, so the issue is set aside.
-Leave the worktree, run the same `end` call, print `#<k> set aside`, rebuild the run order as phase 1 step 2 says, and
+Leave the worktree, run the same `end` call, print `#<k> set aside`, rebuild the run order as **The order** step 2 says, and
 take the next issue.

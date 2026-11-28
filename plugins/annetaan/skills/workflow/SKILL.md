@@ -1,6 +1,6 @@
 ---
 name: workflow
-description: Runs one implementation as design, then per task (implement, review rounds, one commit), then an integration review when the plan has more than one task, then a finish step that merges the base in and resolves the conflicts under review when the branch conflicts with it, pushes and opens a pull request, then files each design decision in technology, infrastructure, database or delivery that review seat a finds as an issue labelled `decision`. Also resolves the conflicts of a pull request that is already open, with the same review rounds, and pushes the merge to its branch. A conflict in a project's pull request from `pj/<n>` goes to pj4-running. The standalone run works in a git worktree of its own, `.claude/worktrees/run-<stamp>`, and leaves the main working tree alone, except for adding the user's answers to its `.worktreeinclude`. The review rounds run through Markdown files in the run's work report directory. Use it only when the user names this skill or invokes /annetaan:workflow, when the user asks to resolve the conflicts of a pull request ("resolve the conflicts on #12", "コンフリクト解消して"), or when pj4-running loads it to run one sub-issue of a project or to resolve a merge of the project's source branch, because it spawns several sub-sessions, adds commits, opens a pull request and files issues without asking for approval. Do not use it for a one-off implementation request or for an ordinary code review request.
+description: Runs one implementation as design, then per task (implement, review rounds, one commit), then an integration review when the plan has more than one task, then a finish step that merges the base in and resolves the conflicts under review when the branch conflicts with it, pushes and opens a pull request, then files each design decision in technology, infrastructure, database or delivery that review seat a finds as an issue labelled `decision`. Also resolves the conflicts of a pull request that is already open, with the same review rounds, and pushes the merge to its branch. The standalone run works in a git worktree of its own, `.claude/worktrees/run-<stamp>`, and leaves the main working tree alone, except for adding the user's answers to its `.worktreeinclude`. The review rounds run through Markdown files in the run's work report directory. Use it only when the user names this skill or invokes /annetaan:workflow, or when the user asks to resolve the conflicts of a pull request ("resolve the conflicts on #12", "コンフリクト解消して"), because it spawns several sub-sessions, adds commits, opens a pull request and files issues without asking for approval. Do not use it for a one-off implementation request or for an ordinary code review request.
 ---
 
 # workflow
@@ -19,8 +19,6 @@ You are the main session, and you are the **orchestrator. You do not write code.
 | --- | --- | --- |
 | Standalone | the user names this skill or invokes `/annetaan:workflow` for an implementation | `$FLOW/standalone.md` |
 | From a pull request | the user asks to resolve the conflicts of a pull request | `$FLOW/from-pr.md` |
-| From an issue | pj4-running loads this skill for an issue | `$FLOW/from-issue.md` |
-| From a sync | pj4-running loads it for a merge of `<from>` into a project's base branch that stopped on conflicts | `$FLOW/from-sync.md` |
 
 The task loop is in `loop.md`: **Detail and implement** in `loop.md`, **Review** in `loop.md`, **Respond** in `loop.md`, **Commit** in `loop.md`, **When the plan breaks** in `loop.md` and **The round cap** in `loop.md`. **The integration review** is in `integration.md`, **The merge task** in `merge-task.md`, and the work report, the pull request and the decisions in `finish.md`: **The work report** in `finish.md`, **The pull request** in `finish.md` and **The decisions** in `finish.md`. **Begin** and **The run's files** are below. Each entry's file says which of them it runs, in which order, and how each ends for it. Everything it does not mention runs as written. A request to resolve a conflict is a request to do it: never answer it with a refusal or a suggestion to run something else, unless **From a pull request** in `from-pr.md` says to stop.
 
@@ -30,11 +28,11 @@ The task loop is in `loop.md`: **Detail and implement** in `loop.md`, **Review**
 
 `$FLOW` is not a shell variable. Write it out as the real absolute path in the commands you run. `flow.sh prompt` writes every path of a sub-agent prompt (**The prompts**), and the one prompt written by hand, **Design** in `standalone.md`, writes `$FLOW` out too. Sub-agents have not read this instruction, so a relative path or a literal `$FLOW` finds them nothing.
 
-Parts of this skill live in files next to this one, named by their bare name from here on: `$FLOW/merge-task.md`, `$FLOW/from-issue.md`, `$FLOW/from-sync.md`, `$FLOW/from-pr.md`, `$FLOW/worktree.md`, `$FLOW/finish.md`, `$FLOW/standalone.md`, `$FLOW/loop.md`, `$FLOW/integration.md`.
+Parts of this skill live in files next to this one, named by their bare name from here on: `$FLOW/merge-task.md`, `$FLOW/from-pr.md`, `$FLOW/worktree.md`, `$FLOW/finish.md`, `$FLOW/standalone.md`, `$FLOW/loop.md`, `$FLOW/integration.md`.
 
 The standalone flow also uses the script `$FLOW/scripts/worktree.sh`, written `worktree.sh` in this skill's files. Every subcommand
 prints one JSON object with a `status`. A non-zero exit is a usage error or an unexpected failure: quote its message
-and stop. The standalone flow and From a pull request call it. From an issue and From a sync never do.
+and stop. The standalone flow and From a pull request call it.
 **Ending with nothing changed** in `worktree.md` and the end of From a pull request remove the run's worktree with
 `$FLOW/../cleanup/scripts/cleanup.sh run`, of the skill `cleanup`.
 `$FLOW/scripts/include.sh`, written `include.sh`, has one subcommand, `remember`, which records the answers of **Files `.worktreeinclude` does not name** in `worktree.md` and prints one JSON object with a `status`. The standalone flow, From a pull request, pj4-running, level and pj-roadmap call it, the last two through step 3 of **The worktree** in `worktree.md`.
@@ -67,7 +65,6 @@ $FLOW/scripts/level.sh show <WT> [<level>]
 - **Standalone and From a pull request** run it right after entering `<WT>` (**The worktree** step 4 in
   `worktree.md`). `<level>` comes from `level=<level>` in the args, and is left out when the args carry none. The token sets
   the level of this run only, and it is not part of the request.
-- **From an issue and From a sync** do not run it. They take the JSON pj4-running settled.
 - **Every entry** hands `level` and `source` of that JSON to `flow.sh begin` (**Begin**), which writes them to the
   run's `run.json`. `show` stays the one read of the level in a run.
 
@@ -86,9 +83,7 @@ ahead. Every other call takes its model and effort from `flow.sh prompt` (**The 
 `source` stay the ones `status` printed.
 
 **Begin** has not run yet when `status` stops with `no-run`. Then **Begin** is still ahead, and the level comes as
-at the start: standalone and From a pull request run `show` as the bullets above say,
-and From an issue and From a sync take the JSON pj4-running settled, which pj4-running brings back from its last
-`level` line, as between entries.
+at the start: standalone and From a pull request run `show` as the bullets above say.
 
 A non-zero exit is a usage error, such as `level=<level>` other than `standard` or `high`, or an unexpected failure: quote its message and
 stop, as for `worktree.sh`.
@@ -96,8 +91,7 @@ stop, as for `worktree.sh`.
 ## Before you start
 
 This skill spawns sub-sessions and adds commits. **Start it only when the user names it or invokes
-`/annetaan:workflow`, asks to resolve the conflicts of a pull request, or pj4-running loads it for an issue or a
-sync.** `level=<level>` in the args, `standard` or `high`, sets the repository's level for this run (see **The level**).
+`/annetaan:workflow`, or asks to resolve the conflicts of a pull request.** `level=<level>` in the args, `standard` or `high`, sets the repository's level for this run (see **The level**).
 
 ## Agents
 
@@ -171,7 +165,7 @@ and `SendMessage` with the same `Read <path> first and follow it.` to the sessio
 inputs is no kind. You write it as one line naming the file it asks about: the evidence file the `work` prompt named,
 when it is missing (**Detail and implement** in `loop.md`, and `no-evidence` of `flow.sh round` in step 4 of **Review** there); `<WORKDIR>/detail/task-<k>.md`, when it is
 missing (**Detail and implement** in `loop.md`); the reply of the last round, when it is not in after a context summary (**Review** in `loop.md`); the redraw
-of `<WORKDIR>/plan.md` (**When the plan breaks** in `loop.md`); the `Diverged:` forward and the wait (`from-issue.md`); the
+of `<WORKDIR>/plan.md` (**When the plan breaks** in `loop.md`); the `Diverged:` forward and the wait (`pj4-running/run-issue.md`); the
 screenshots, when they are missing, and the `malformed` forward of `flow.sh decisions` to seat a, naming
 `<WORKDIR>/decisions.md` (`finish.md`).
 
@@ -187,7 +181,7 @@ $FLOW/scripts/flow.sh begin <WT> --level <level> --source <source> [--issue <n> 
 ```
 
 - `<level>` and `<source>` are `level` and `source` of the `level.sh show` JSON the entry holds (**The level**), so
-  `run.json` and the agents' model and effort come from one read. Only From an issue passes `--issue` and `--parent`.
+  `run.json` and the agents' model and effort come from one read. Only a run from an issue passes `--issue` and `--parent`.
 - **`ok`**: keep `start` as `<START>` and `workdir` as `<WORKDIR>`, written out in full in every command, the way
   `$FLOW` is. **`<START>` runs through the whole flow.** The integration review when the plan has more than one task,
   the report and the final message all start from `<START>`.
@@ -222,19 +216,19 @@ read with Read first and written whole with Write, the earlier lines kept, becau
 - **You do not write code.** The implementation session implements and the seats review. Code you write yourself never passes through a review.
 - **A seat never changes the tree of `<WT>`.** It writes only its probes under `<WORKDIR>/seats/<seat>/` and its seat file, and executes only through `flow.sh run`. You write the judgement file of each round and no other file of the review, `flow.sh round` writes the round file, and the implementation session fixes what is found. The seats' worktrees stay beside `<WT>` until the cleanup removes them.
 - **A round file is final once `flow.sh round` wrote it, and every other review file once its writer has linted it and reported.** Each round and each reply is a new file under `<WORKDIR>/review/`, in the shape `$FLOW/review-files.md` gives, and so is each evidence file. The writer of a seat file, a reply or an evidence file fixes it until `flow.sh lint` passes, and nobody edits either kind afterwards.
-- **The design session lives for the whole flow, in the standalone flow and in From an issue. An implementation session and the seat sessions live for one task.** Inside a task they continue through `SendMessage`, because throwing the context away between rounds repeats arguments that were already settled. At the commit they are finished, and the next task starts new ones. The implementation session of a one-task plan also writes the work report.
+- **The design session lives for the whole flow, in the standalone flow and in a run from an issue. An implementation session and the seat sessions live for one task.** Inside a task they continue through `SendMessage`, because throwing the context away between rounds repeats arguments that were already settled. At the commit they are finished, and the next task starts new ones. The implementation session of a one-task plan also writes the work report.
 - **Keep the reports from the sub-agents short.** The role instructions cap them. A report that pastes a diff or a log fills the one context that runs the whole flow, which is yours. When a long one arrives, say so, and ask for the gist next time.
 - **One task is one commit, and a commit happens only after the review approves.** A commit mid-round drops the diff out of the working-tree view the review reads.
 - **No branches, no history rewriting from the sub-sessions.** The main session owns `git checkout -b`, run in `<WT>`. `git rebase`, `git reset --hard` and `--amend` break the `START` comparison. The role instructions say the same.
 - **Each Bash call runs one command with its values written out.** No shell variables, no `$(...)`, no chaining. A command's own redirect into a file, `> <path>`, is part of that one command, as **Commands** in `pj1-plan/between-skills.md` allows. Read the output whole. pj4-running drives this flow in runs that cannot answer a permission question, and auto mode's classifier may refuse a command no rule matches.
 - **A URL in a message to the user stands between spaces.** Only a plain ASCII space or a line break touches either end: no bracket, punctuation or quote, and no particle or full-width punctuation in a language written without spaces. Write it bare, outside backticks and Markdown links. A terminal such as Ghostty ends a link at the first space, so anything touching the URL becomes part of the link and opens the wrong page (`$FLOW/../pj1-plan/between-skills.md`, **Issues in a report**).
-- **Never write into `work-reports/` without checking it is ignored.** Unchecked, the report and the screenshots ride into the next commit. `worktree.sh create` (standalone, From a pull request) and `run.sh start` of pj4-running (From an issue, From a sync) add it to `.git/info/exclude` before anything is written there, and `flow.sh begin` checks it again. Never edit `.gitignore`.
+- **Never write into `work-reports/` without checking it is ignored.** Unchecked, the report and the screenshots ride into the next commit. `worktree.sh create` (standalone, From a pull request) and `run.sh start` of pj4-running (a run from an issue, a sync) add it to `.git/info/exclude` before anything is written there, and `flow.sh begin` checks it again. Never edit `.gitignore`.
 - **The standalone flow never touches `<MAIN>`, except for the lines `include.sh` adds to `<MAIN>/.worktreeinclude`.** Never switch, stash, commit or clean there. Everything runs in `<WT>`.
-- **`worktree.sh` is for the standalone flow and From a pull request.** From an issue and From a sync never call it. **`flow.sh` is called by every entry**, with the absolute `<WT>`, and `lint` with the absolute path of a review file.
+- **`worktree.sh` is for the standalone flow and From a pull request.** pj4-running's runs never call it. **`flow.sh` is called by every entry**, with the absolute `<WT>`, and `lint` with the absolute path of a review file.
 - **Do not move anything under `<WORKDIR>` into version control.** The report, the screenshots and the diff are worth more untracked. Move them only when the user asks.
 - Report a failure when it happens: a failing test, a design that falls apart. **Approved commits are already on the branch and the task in flight is uncommitted in the working tree.** Say both.
-- Standalone, the main session pushes and opens the pull request. From an issue, the main session also pushes and opens the draft pull request. Nothing is merged here. pj4-running
+- Standalone, the main session pushes and opens the pull request. A run from an issue, the main session also pushes and opens the draft pull request. Nothing is merged here. pj4-running
   merges. From a pull request, the main session pushes the merge commit to the pull request's branch, as a
-  fast-forward. From a sync, nothing is pushed. pj4-running pushes the merge commit.
+  fast-forward. A sync pushes nothing. pj4-running pushes the merge commit.
 - **A merge of another branch into the run's branch happens only in The merge task**, and only after `worktree.sh
   sync` or pj4-running's `run.sh sync` found a conflict. A clean merge is left to GitHub.

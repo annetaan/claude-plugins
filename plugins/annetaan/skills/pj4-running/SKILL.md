@@ -1,6 +1,6 @@
 ---
 name: pj4-running
-description: Takes the project from a number given, a sub-issue's number naming its parent, the project this conversation is on, or the only project with sub-issues, and otherwise asks which project to work on. Creates the project's base branch on its first start, once every project it waits on is merged, and closes the parent of a merged project and names the projects that can be split now, as /annetaan:pj2-issues <P>. Works down the run order in the parent's Order list one sub-issue at a time, and stops at the first issue that is not workable. Each one is detailed against the code and run through the workflow skill as reviewed commits, then pj4-running merges its pull request into the base branch and closes the issue itself. Once every sub-issue is closed, merges the branch the base branch was made from into it, with the workflow skill resolving any conflict, then opens the pull request from the base branch into that branch, and leaves its merge to the user. Works on each issue in a git worktree of its own, so the main working tree stays free for the user. Files unplanned work as stub issues and stops on a blocker. The fourth of four skills, after pj1-plan, pj2-issues and pj3-doctor. Run it again on a project whose pull request is open to resolve that pull request's conflicts: it brings the source branch in again under review. Use it only when the user names this skill or invokes /annetaan:pj4-running, when the user asks to resolve the conflicts of a project's pull request (from `pj/<n>`), or when the workflow skill hands such a request over, because it creates branches, pushes, opens and merges pull requests, and edits issues and labels.
+description: Takes the project from a number given, a sub-issue's number naming its parent, the project this conversation is on, or the only project with sub-issues, and otherwise asks which project to work on. Creates the project's base branch on its first start, once every project it waits on is merged, and closes the parent of a merged project and names the projects that can be split now, as /annetaan:pj2-issues <P>. Works down the run order in the parent's Order list one sub-issue at a time, and stops at the first issue that is not workable. Each one is detailed against the code and run through workflow's task loop and review rounds as reviewed commits, with no skill loaded, then pj4-running merges its pull request into the base branch and closes the issue itself. Once every sub-issue is closed, merges the branch the base branch was made from into it, with workflow's merge task resolving any conflict, then opens the pull request from the base branch into that branch, and leaves its merge to the user. Works on each issue in a git worktree of its own, so the main working tree stays free for the user. Files unplanned work as stub issues and stops on a blocker. The fourth of four skills, after pj1-plan, pj2-issues and pj3-doctor. Run it again on a project whose pull request is open to resolve that pull request's conflicts: it brings the source branch in again under review. Use it only when the user names this skill or invokes /annetaan:pj4-running, when the user asks to resolve the conflicts of a project's pull request (from `pj/<n>`), or when the workflow skill hands such a request over, because it creates branches, pushes, opens and merges pull requests, and edits issues and labels.
 ---
 
 # pj4-running
@@ -18,7 +18,7 @@ the merge, the issues, the labels and the notices.
   `git worktree list --porcelain`. `git rev-parse --show-toplevel` would print the worktree you are in, which is
   wrong when the skill starts from another worktree.
 - **`<WT>`** is the worktree of the entry at hand, under `<MAIN>/.claude/worktrees/`. Each issue `<k>` runs in
-  `pj-<P>-<k>-<stamp>`, which `run.sh worktree` makes (`issues.md`, phase 4 step 2). The merge of `<from>` and the
+  `pj-<P>-<k>-<stamp>`, which `run.sh worktree` makes (**The issues** step 2 in `issues.md`). The merge of `<from>` and the
   declared checks run in `pj-<P>-sync-<stamp>`, which `run.sh sync` makes (`project-pr.md`). Each is made fresh from
   the tip of `origin/<base>`.
 
@@ -37,6 +37,9 @@ them nothing.
 Collapse the `..` in a path to a sibling skill, so that the command text names `<skills>/pj1-plan/scripts/project.sh` and not
 `<skills>/pj4-running/../pj1-plan/scripts/project.sh`. A permission rule matches the text of the command, and the rules
 `pj-auto` grants name the collapsed path. This holds in the prompts for sub-agents too.
+
+`$FLOW` in `run-issue.md`, `run-sync.md` and the workflow files they read means `<skills>/workflow`, the collapsed
+`$RUNNING/../workflow`. pj4-running never loads workflow, so nothing replaces `${CLAUDE_SKILL_DIR}` there.
 
 **Read `$RUNNING/../pj1-plan/between-skills.md` and `$RUNNING/../pj1-plan/state.md` before anything else.**
 `pj1-plan/between-skills.md` holds the labels, the base branch, the handover comment, the blockers, the comments, the pull
@@ -57,9 +60,12 @@ This skill uses six more things:
   `status`. A `stop` whose `reason` the section at hand does not name, such as `project` when `project.sh` fails,
   stops the run: quote `message`. A non-zero exit is a usage error or an unexpected failure: quote its message and
   stop the run
-- the `workflow` skill, loaded with the Skill tool as `annetaan:workflow` (see **Before workflow runs**)
+- workflow's files, read by path and never loaded as a skill: `$RUNNING/../workflow/loop.md`,
+  `$RUNNING/../workflow/integration.md`, `$RUNNING/../workflow/finish.md`, `$RUNNING/../workflow/merge-task.md`, and
+  the sections **The level**, **Agents**, **The prompts**, **Begin**, **The run's files** and **Rules for the whole
+  flow** of `$RUNNING/../workflow/SKILL.md`
 
-Parts of this skill live in files next to this one, named by their bare name from here on: `$RUNNING/issues.md` (phases 1 to 4) and `$RUNNING/project-pr.md` (**The project's pull request**). Phase 5 is in this file.
+Parts of this skill live in files next to this one, named by their bare name from here on: `$RUNNING/issues.md` (**The order**, **Approval**, **The issues**, **A redrawn issue**, **When a run returns**), `$RUNNING/project-pr.md` (**The project's pull request**), `$RUNNING/run-issue.md` (a sub-issue's run) and `$RUNNING/run-sync.md` (a conflicted sync). **The end of the run** is in this file.
 
 **Language**: talk to the user in the user's language. Write issue, comment and pull request text in the repository's
 language (`pj1-plan/format.md`, **Writing bodies**). The tokens in (`pj1-plan/format.md`, **Fixed tokens**) stay in English.
@@ -69,7 +75,7 @@ language (`pj1-plan/format.md`, **Writing bodies**). The tokens in (`pj1-plan/fo
 This skill creates branches, pushes, opens and merges pull requests, and edits issues and labels. **Start it only when the user names it or invokes `/annetaan:pj4-running`, asks to resolve the conflicts of a project's pull request, or workflow's From a pull request hands one over.**
 
 **A conflict in the project's pull request** that appears after it was opened, because `<from>` moved, is resolved by
-a run like any other: every sub-issue is closed, so `start` returns `done`, and phase 5 brings `<from>` in again under
+a run like any other: every sub-issue is closed, so `start` returns `done`, and **The end of the run** brings `<from>` in again under
 review, pushes the merge to `<base>`, and finds the pull request `exists`. The request to resolve it is the
 invocation, and the run asks nothing.
 
@@ -128,15 +134,15 @@ branch from the tip of `<from>` when the base branch is missing and every projec
 - **`empty`**: the project has no sub-issue yet. It has not been split. Give the next step,
   `/annetaan:pj2-issues <P>`, and end.
 - **`done`**: every sub-issue is closed. When `project.merged` is true, `close` held `<P>`. Report its close, and
-  end. Otherwise keep the values as for `run`, take **The level**, and go straight to phase 5, which brings `<from>` in and opens the project's pull request.
+  end. Otherwise keep the values as for `run`, take **The level**, and go straight to **The end of the run**, which brings `<from>` in and opens the project's pull request.
 - `done` and `run` carry `ignored`, the paths `start` added to `.git/info/exclude` because that file had no line for them.
   When it is not empty, print `ignored <paths>` once, adding that `.git/info/exclude` stays in the clone and commits
   nothing.
 - **`run`**: keep `main` as `<MAIN>`, `project.base` as `<base>`, `project.from` as `<from>`, and keep `created`,
   `rules` and `assignee`. `start` read the parent's assignees on the way to `run`, and assigned the user when nobody
   was assigned. Print `#<P> assigned to <assignee.login>` when `assignee.added` is true. When `created` is not null,
-  this run created the base branch. Print `<base> created from <from> at <short sha>`, and keep the SHA for phase 2.
-  Go through the rest of this section, then take **The level**, then read `issues.md` and follow it from phase 1.
+  this run created the base branch. Print `<base> created from <from> at <short sha>`, and keep the SHA for **Approval** in `issues.md`.
+  Go through the rest of this section, then take **The level**, then read `issues.md` and follow it from **The order**.
 
 When `rules.selfMerge` is `unknown`, the rules on the base branch could not be read. The rules call failed, or the
 branch is protected and reading its classic protection needs admin rights. Ask once.
@@ -190,13 +196,13 @@ reads the file from origin's default branch with `git show`.
 $RUNNING/../workflow/scripts/level.sh show <MAIN> [<level>]
 ```
 
-Print `level <level> (<source>)` once, and `warning` on a line of its own when it is set. Keep the JSON: From an issue
-and From a sync take it as settled. A non-zero exit, such as `level=<level>` other than `standard` or `high`, stops the run: quote its
+Print `level <level> (<source>)` once, and `warning` on a line of its own when it is set. Keep the JSON: `run-issue.md`
+and `run-sync.md` take it as settled. A non-zero exit, such as `level=<level>` other than `standard` or `high`, stops the run: quote its
 message. An unattended run ends as needs-user.
 
 ## Unplanned work
 
-workflow hands over to this section by name. An `Unplanned:` report marked `later` arrives while the task goes on.
+`run-issue.md` and `run-sync.md` come here. An `Unplanned:` report marked `later` arrives while the task goes on.
 
 1. Write `$TMP/stub-<j>.md` in the shape of `pj1-plan/format.md` **Stubs**. Its `## Goal` holds what was found, why it matters,
    and "found while working on #<k>".
@@ -230,27 +236,12 @@ $RUNNING/../pj1-plan/scripts/issue.sh handover <P> --body "$TMP/handover.md"
 
 A `moved` stop means a human changed the comment since the read: read it again and merge.
 
-## Before workflow runs
-
-Take this with an entry name, `<entry>`, which is `From an issue` or `From a sync`, before that entry runs. Take it every time, never only when the notes are empty.
-
-1. Load workflow.
-
-   ```
-   Skill(skill: "annetaan:workflow", args: "<entry>, driven by pj4-running")
-   ```
-
-   Follow that entry's file, `workflow/from-issue.md` or `workflow/from-sync.md`. **Load it again, and read the entry file again, when a context summary has dropped it.**
-2. Read the handover comment with the command in `pj1-plan/between-skills.md` under "The handover comment". Keep its lines
-   as the handover notes. With no comment, the notes are empty. Every fold writes the notes back to the comment, so
-   reading it again loses nothing and picks up a human's edit.
-
-## Phase 5: end of the run
+## The end of the run
 
 Every way the run ends comes here: the run order is done, the run stopped, or the user said stop.
 
 1. `project.sh <P>`. **When every sub-issue is closed** and the project is not `merged`, bring `<from>` in and open
-   the project's pull request: read `project-pr.md` and run **The project's pull request**, then come back to step 2. Ask nothing, because the approval in phase 2,
+   the project's pull request: read `project-pr.md` and run **The project's pull request**, then come back to step 2. Ask nothing, because **Approval** in `issues.md`,
    or for `start`'s `done` the invocation itself, covered it. Skip this step when the run stopped in `start`.
 2. Leave the worktree this session stands in, when it stands in one. `run.sh merge` and `run.sh end` already dealt
    with its branch, so nothing else runs here.
@@ -305,13 +296,13 @@ An unattended run prints its last line as `pj1-plan/between-skills.md` says unde
 - `start` returned `stop` with `waits`. The projects waited on are readable on GitHub.
 - `start` returned `done` with `project.merged` true, and `close` closed `<P>` or found it `already` closed.
 - `start` returned `done` and **The project's pull request** in `project-pr.md` came to `opened` or `exists`.
-- Phase 1's run order was empty, including when `orderCheck` is not ok and no issue has a merged pull request.
+- The run order of **The order** in `issues.md` was empty, including when `orderCheck` is not ok and no issue has a merged pull request.
 - **The declared checks** in `project-pr.md` filed a stub for a check that failed.
-- Phase 4 step 1 stopped because the issue was no longer workable.
-- **When workflow returns** in `issues.md` got `stopped` with the reason `blocking` or `detail`, whatever `run.sh end`
+- **The issues** step 1 in `issues.md` stopped because the issue was no longer workable.
+- **When a run returns** in `issues.md` got `stopped` with the reason `blocking` or `detail`, whatever `run.sh end`
   printed, `removed` or `kept`, or a non-zero exit, which the report quotes. A kept worktree does not stop the next
   run.
-- The run order was worked to the end, and phase 5's project pull request came to `opened` or `exists`, or not every
+- The run order was worked to the end, and the project pull request of **The end of the run** came to `opened` or `exists`, or not every
   sub-issue is closed yet.
 
 Every other ending is `unattended: needs-user <one line>`. An ending not on this list is needs-user, so a stop this
@@ -326,7 +317,7 @@ section does not name never reads as done.
 - **Take a project only when nobody else is assigned to its parent.** `run.sh start` assigns the user and leaves
   the assignment in place for the life of the project.
 - **Only this session writes to GitHub, and it writes issues, relationships, labels and comments only through
-  `issue.sh` and `run.sh`.** workflow runs in this same session and pushes and opens the draft pull request there. Every comment starts with `**[pj4-running]**`.
+  `issue.sh` and `run.sh`.** `run-issue.md` pushes and opens the draft pull request in this same session. Every comment starts with `**[pj4-running]**`.
 - **One task at a time.**
 - **Every command of an entry runs in that entry's worktree.** Between entries the main session stands in `<MAIN>`
   and runs only `project.sh`, `issue.sh`, `run.sh` and `level.sh show` there. Never switch, stash, commit or clean
@@ -346,4 +337,4 @@ section does not name never reads as done.
 - **Edit an existing sub-issue's body, the edges between existing sub-issues and the parent's `## Order` only in **A redrawn issue** in `issues.md`, and a
   sub-issue's title only through `run.sh stop` on a `decision` stop.** The one other write is a stub filed by **Unplanned work** or by `run.sh stop` on a `blocking` stop, with its `--blocking` edge.
 - An unattended run never calls `AskUserQuestion` and ends with one `unattended:` line.
-- After a context summary, take whether the run is unattended from the last `project #<P>` line, `$TMP` from the last `tmp` line, and rebuild the run from the progress lines and `project.sh <P>`. While an entry is running, enter again the worktree the last `#<k> worktree <path>` or `sync worktree <path>` line names, when `git rev-parse --show-toplevel` prints anything else. Inside a workflow entry the level comes back as **The level** in `workflow/SKILL.md` says, from `flow.sh status <WT>` and `level.sh show <WT> <level>`, and from the last `level` line only between entries, running `level.sh show <MAIN>` again with that level when the line says `override` and without one otherwise. Read `issues.md` again when the run is in phases 1 to 4, and `project-pr.md` when it is in **The project's pull request**. A run inside a workflow entry takes **Before workflow runs** again for that entry.
+- After a context summary, take whether the run is unattended from the last `project #<P>` line, `$TMP` from the last `tmp` line, and rebuild the run from the progress lines and `project.sh <P>`. While an entry is running, enter again the worktree the last `#<k> worktree <path>` or `sync worktree <path>` line names, when `git rev-parse --show-toplevel` prints anything else. Inside a workflow entry the level comes back as **The level** in `workflow/SKILL.md` says, from `flow.sh status <WT>` and `level.sh show <WT> <level>`, and from the last `level` line only between entries, running `level.sh show <MAIN>` again with that level when the line says `override` and without one otherwise. Read `issues.md` again when the run is in **The order**, **Approval**, **The issues**, **A redrawn issue** or **When a run returns**, and `project-pr.md` when it is in **The project's pull request**. A run inside `run-issue.md` or `run-sync.md` reads that file again, with the workflow file it was in and the sections of `workflow/SKILL.md` it reads.

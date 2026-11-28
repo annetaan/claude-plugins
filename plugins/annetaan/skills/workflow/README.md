@@ -20,7 +20,7 @@ request. For larger work, pj4-running runs it once per sub-issue of a project (s
 
 ## Use it
 
-Name the skill, or invoke `/annetaan:workflow`. It never starts on its own. You name it, pj4-running runs it for one sub-issue of a project, or you ask it to resolve the conflicts of a pull request (see [Conflicts](#conflicts)), because it spawns
+Name the skill, or invoke `/annetaan:workflow`. It never starts on its own. You name it, pj4-running runs its task loop for one sub-issue of a project, or you ask it to resolve the conflicts of a pull request (see [Conflicts](#conflicts)), because it spawns
 several sessions and adds commits.
 
 ```
@@ -88,7 +88,8 @@ from each session, folded together into `<WORKDIR>/notes.md`, where `<WORKDIR>` 
 
 ## Driven from an issue
 
-pj4-running works through a project's sub-issues one at a time and runs each one through this skill. The issue's text
+pj4-running works through a project's sub-issues one at a time and runs each one through this skill's task loop,
+review rounds and finish from its own `pj4-running/run-issue.md`, without loading the skill. The issue's text
 is the design in its goal, its boundary and its decisions you ticked. A design session first **details the
 issue against the code on the project's base branch**, which earlier issues have changed since the issue was drawn,
 and it may redraw the issue's body and the order of the issues left. It stays for the whole run. That run has no approval
@@ -108,8 +109,8 @@ commits that passed review. The shape of the issues is in [pj1-plan/format.md](.
 of the pull requests in [pj1-plan/between-skills.md](../pj1-plan/between-skills.md).
 
 Once every sub-issue of a project is closed, pj4-running merges the branch the project came from into the project's
-branch before it opens the project's pull request. When that merge stops on conflicts, pj4-running runs this skill
-once more, as one task that resolves them with its review rounds. Its commit is the merge commit, and pj4-running
+branch before it opens the project's pull request. When that merge stops on conflicts, pj4-running runs this skill's
+merge task from `pj4-running/run-sync.md`, as one task that resolves them with its review rounds. Its commit is the merge commit, and pj4-running
 pushes it. A stop before that commit leaves the merge in progress in the worktree, and the next run redoes it.
 
 ## Conflicts
@@ -252,16 +253,14 @@ before it touches anything**.
 | --- | --- |
 | `SKILL.md` | the procedure for the orchestrator, which is the main session: which file each entry reads, **Begin**, the run's files, the agents, the prompts and the rules every entry shares |
 | `standalone.md` | the standalone run: design, the open questions and the start message, the branch, bringing the base in and the report |
-| `loop.md` | the task loop every entry runs: detail and implement, review, respond, commit, a broken plan and the round cap |
+| `loop.md` | the task loop every entry and pj4-running's run of an issue runs: detail and implement, review, respond, commit, a broken plan and the round cap |
 | `integration.md` | the review of the whole diff once every task of a plan of two or more is committed |
 | `judgement.md` | the rules every role of workflow and the pj skills reads. It opens with a table that maps each section to the roles that apply it, and holds what a human is asked, model decisions, experiments, assumptions, root cause, evidence, removing before adding, designing as if always required, reader load, the language and runtime when none is settled, effects at the edges, arguments left as given, comments, documents, existing workarounds, what two failed fixes share, and turning a repeated lesson into the strongest check that holds it |
 | `typescript.md` | what only a TypeScript change needs: the runtime, the type check, a new project's checks and the lint rules for effects and arguments, which `judgement.md` cites by section |
 | `from-pr.md` | resolving the conflicts of a pull request that is already open |
-| `from-issue.md` | one sub-issue, detailed against the code and run as a plan of one or more commits, for pj4-running |
-| `from-sync.md` | a merge of the source branch into a project's base branch that stopped on conflicts, for pj4-running |
-| `merge-task.md` | the merge task, which resolves conflicts under review, for the standalone finish, from-pr and from-sync |
+| `merge-task.md` | the merge task, which resolves conflicts under review, for the standalone finish, from-pr and pj4-running's run of a sync |
 | `worktree.md` | the start check and the run's worktree, for the standalone run and from-pr |
-| `finish.md` | the work report, the pull request and the decision issues, for the standalone run and from-issue |
+| `finish.md` | the work report, the pull request and the decision issues, for the standalone run and pj4-running's run of an issue |
 | `prompts/` | the templates `flow.sh prompt` fills into the prompt of each sub-agent call, one per kind, and `worktree-line.md`, the line every prompt ends with |
 | `roles/design.md` | the role for the design session, which writes the design and the plan into the work directory |
 | `roles/work.md` | the role for the implementation session |
