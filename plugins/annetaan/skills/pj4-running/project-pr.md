@@ -21,7 +21,7 @@ $RUNNING/scripts/run.sh sync <P>
 `sync` fetches `<base>` and `<from>`, makes the sync worktree `pj-<P>-sync-<stamp>` under `<MAIN>/.claude/worktrees/`
 on the tip of `origin/<base>`, and merges `origin/<from>` there. `current`, `merged` and `conflict` carry `worktree`,
 its path, and `name`. Print `sync worktree <worktree>` once, so that a context summary finds it again, and keep
-`name`. Act on `copied`, `notIgnored` and `unlisted` as the `ready` case of phase 4 step 2 in `issues.md` says. Then
+`name`. Act on `copied`, `notIgnored` and `unlisted` as the `ready` case of **The issues** step 2 in `issues.md` says. Then
 act by `status`.
 
 - **`current`**: `<base>` contains `<from>` already. Go to **The declared checks** with `sha`.
@@ -34,11 +34,10 @@ act by `status`.
   EnterWorktree(path: "<worktree>")
   ```
 
-  Where that tool is not available, `cd "<worktree>"`. Take **Before workflow runs** in SKILL.md with From a sync,
-  then run workflow's **From a sync** (`workflow/from-sync.md`) there. These are what it expects you to have settled,
+  Where that tool is not available, `cd "<worktree>"`. Read `run-sync.md` and follow it there. These are what it expects you to have settled,
   so say them in your context before you start it: `P`, `<base>`, `<from>`, `files`, `start` as `<START>`, the
-  handover notes, and the paths: the sync worktree as `<WT>`, and `<MAIN>`. workflow hands **Unplanned work** in
-  SKILL.md a `later` report as it does for a task, worded "found while merging `<from>` into `<base>`". It comes back
+  handover notes, and the paths: the sync worktree as `<WT>`, and `<MAIN>`. `run-sync.md` hands **Unplanned work** in
+  `SKILL.md` a `later` report as it does for a task, worded "found while merging `<from>` into `<base>`". It comes back
   here. Leave the sync worktree first, whatever it returns.
 
   ```
@@ -56,15 +55,15 @@ act by `status`.
 
     `merged`: print `<from> merged into <base> as <short sha>`. Go to **The declared checks** with `sha`, unless the
     user said stop: then end the sync worktree as below with `--since <sha>`, since the merge is on origin now, and
-    go to phase 5 step 2. A `stop` is handled as below.
+    go to step 2 of **The end of the run** in `SKILL.md`. A `stop` is handled as below.
   - **`stopped`**: report the reason and the text of the `Unplanned:` or `Diverged:` report. There is no issue to
     comment on, so nothing goes to GitHub. End the sync worktree as below with `--since <start>`, which keeps it when
-    it holds the merge in progress, and say so. The next run redoes the merge in a new sync worktree. Go to phase 5
-    step 2.
+    it holds the merge in progress, and say so. The next run redoes the merge in a new sync worktree. Go to step 2 of
+    **The end of the run** in `SKILL.md`.
 - **`stop`** with `push-rejected`, `unfinished` or `not-the-merge`: quote `message`. After `push-rejected`, a rule on
   `<base>` refuses a direct push, or `<base>` moved since the fetch. After the other two, the sync worktree is not as
   `sync` expects. End the sync worktree with `--since <start>`, `start` being the one `push-rejected` carries or the
-  one `conflict` gave, which keeps it when it holds the merge, and go to phase 5 step 2. The next run redoes the
+  one `conflict` gave, which keeps it when it holds the merge, and go to step 2 of **The end of the run** in `SKILL.md`. The next run redoes the
   merge.
 - **`stop`** with `base-gone`, `merged`, `not-due` or `fetch-failed`: as for the pull request below. No sync worktree
   was made.
@@ -95,7 +94,7 @@ it as **Ending the sync worktree** says, with the `sha` of `current` or `merged`
 
 - **Every check passes**: go on to the pull request.
 - **A check fails**: file a stub as **Unplanned work** in SKILL.md says, worded "found while verifying project #<P>:
-  `<check>` fails", after the `end`. Open no pull request and go to phase 5 step 2. The next step is
+  `<check>` fails", after the `end`. Open no pull request and go to step 2 of **The end of the run** in `SKILL.md`. The next step is
   `/annetaan:pj3-doctor`.
 - **A check cannot be run here** (a missing service, a command the run may not start): keep it as
   `not run: <why>` and go on.
