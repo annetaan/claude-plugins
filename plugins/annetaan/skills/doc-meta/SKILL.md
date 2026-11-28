@@ -25,32 +25,31 @@ prompt for the overview sub-agent.
 1. Read the path given as the argument. It names one document. Read `$DOCMETA/format.md`, which is the only
    description of the sidecar's shape, and `$DOCMETA/styles.md`, which the `style` field refers to. If the path is itself a sidecar (its name ends in `.doc-meta.md`), say so
    and stop.
-2. Check whether the sidecar would be tracked by git. Inside a git repository (`ROOT` below is
-   `git rev-parse --show-toplevel`):
+2. Make git ignore the sidecar, where `<dir>` is the document's directory and `<name>.doc-meta.md` the sidecar's
+   file name as `format.md` **File name** builds it. Outside a git repository
+   (`git -C '<dir>' rev-parse --show-toplevel` fails), do nothing here and continue.
+
+   Inside one, run `git -C '<dir>' check-ignore -q '<name>.doc-meta.md'`. When it passes, continue. When it fails,
+   add `*.doc-meta.md` to the exclude file git resolves, unless that file already holds the line, and check again:
 
    ```bash
-   git check-ignore -q '<dir>/<name>.doc-meta.md'
+   X=$(git -C '<dir>' rev-parse --path-format=absolute --git-path info/exclude)
+   if ! grep -Fxq '*.doc-meta.md' "$X" 2>/dev/null; then
+     mkdir -p "$(dirname "$X")"
+     if [ -s "$X" ] && [ -n "$(tail -c1 "$X")" ]; then printf '\n' >> "$X"; fi
+     printf '*.doc-meta.md\n' >> "$X"
+     printf 'appended: %s\n' "$X"
+   fi
+   git -C '<dir>' check-ignore -q '<name>.doc-meta.md' || printf 'still not ignored\n'
    ```
 
-   When this fails (the sidecar is **not** ignored), ask with `AskUserQuestion` whether `*.doc-meta.md` may be
-   added to `.gitignore` (the same convention the `workflow` skill uses for `work-reports/`).
+   Continue in every case, without asking. The sidecar is written whether or not it is ignored, and doc-meta never
+   commits it. `info/exclude` stays in the clone, reaches every worktree of it and commits nothing, so `.gitignore`
+   is never edited.
 
-   - **Yes**: append the line and commit only that path, before touching the sidecar, so the `.gitignore` change
-     never rides in with anything else, and nothing else already staged in the user's tree rides in with it either:
-
-     ```bash
-     printf '*.doc-meta.md\n' >> "$ROOT/.gitignore"
-     git -C "$ROOT" add .gitignore
-     git -C "$ROOT" commit -m "chore: ignore *.doc-meta.md" -- .gitignore
-     ```
-
-     `add` first, because `commit -- .gitignore` fails outright when `.gitignore` has never been tracked (common
-     in a repository that has none yet), and the path scope on `commit` keeps out anything else already staged.
-
-   - **No**: continue anyway. The sidecar still gets written. It is the user's repository to track as they choose,
-     and doc-meta itself never commits it.
-
-   Outside a git repository, do nothing here and continue.
+   Keep for step 8 what the block printed: `appended: <path>` with the exclude file's path when it added the line,
+   and `still not ignored` when the second `check-ignore` fails. It fails when a `.gitignore` rule negates the line
+   (such as `!<name>.doc-meta.md`) or the sidecar is already tracked. That is the user's to settle.
 3. Split the document into blocks by the rules in `format.md`, and match them against the existing sidecar by
    `## Sync` below.
 4. Write the sidecar, with `## Whole document` set to `(pending)`.
@@ -78,8 +77,10 @@ prompt for the overview sub-agent.
    and would let an unconverged document count as converged.
 8. Report: the sidecar path, the block count and the weight counts, the sync breakdown (how many blocks were
    unchanged, changed, new and deleted, and the id of every block whose flag was dropped), the number of
-   `## Whole document` bullets written, any bullet that was dropped in step 6, and whether `max id` had to be
-   rebuilt because it was missing (see `format.md`).
+   `## Whole document` bullets written, any bullet that was dropped in step 6, whether `max id` had to be
+   rebuilt because it was missing (see `format.md`), the exclude file's path when step 2 printed `appended:`, and,
+   when step 2 printed `still not ignored`, that the sidecar is still not ignored, because a `.gitignore` rule
+   negates the line or the sidecar is already tracked.
 
 ## Sync
 

@@ -132,9 +132,8 @@ A skill whose `description` matches a request normally starts without being name
 spawns several sessions, adds commits, creates a worktree and pushes a branch on its own, and files issues labelled `decision`. `cleanup` deletes
 branches and removes a worktree. `pj-roadmap` and `level` create a worktree, push a branch and open a pull request. The pj
 skills create, edit and close issues and labels on GitHub, and `pj4-running` also creates each project's branch,
-pushes, opens and merges pull requests. The doc skills make a file next to your document, rewrite the document itself,
-and can add one commit of their own to `.gitignore` after asking. `experience-video` installs npm packages, downloads a
-browser on its first run and writes a directory of files. `pr-humans` posts a comment on each pull request it records.
+pushes, opens and merges pull requests. The doc skills make a file next to your document and rewrite the document
+itself. `experience-video` installs npm packages, downloads a browser on its first run and writes a directory of files. `pr-humans` posts a comment on each pull request it records.
 Any of these is enough reason to wait, so each skill here starts only when you name it or invoke its slash form. One
 request is the exception: asking to resolve the conflicts of a pull request, in any words, starts `workflow`, or
 `pj4-running` for a project's pull request, because the request itself says what to do.
