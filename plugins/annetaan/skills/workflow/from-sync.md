@@ -22,12 +22,12 @@ pj4-running's `run.sh start` has already added `work-reports/` to the clone's `.
 runs in `<WT>`.
 Never touch `<MAIN>`.
 
-## What it runs of phases 2 to 4
+## What it runs of the shared steps
 
 This entry asks nothing. Its ending is **What it hands back to pj4-running** below, which replaces any report to the user and any part of the finish.
 
-- **Phase 2 (a)** does not run.
-- **Phase 2 (b)** runs with `<level>` and `<source>` from the JSON pj4-running settled, with no `--issue` and no
+- It makes no branch.
+- **Begin** in `SKILL.md` runs with `<level>` and `<source>` from the JSON pj4-running settled, with no `--issue` and no
   `--parent`:
 
   ```bash
@@ -39,12 +39,12 @@ This entry asks nothing. Its ending is **What it hands back to pj4-running** bel
   `start`. On a `stop` with `not-ignored`, leave the working tree as it is, push nothing, and return `stopped` with the
   reason `work-reports`. Never ask about `.gitignore` here.
 
-  After a context summary, a `no-run` from `flow.sh status <WT>` means phase 2 (b) has not run, and the level is the
-  JSON pj4-running settled (**The level** in SKILL.md).
+  After a context summary, a `no-run` from `flow.sh status <WT>` means **Begin** has not run, and the level is the
+  JSON pj4-running settled (**The level** in `SKILL.md`).
 
   Then write the handover notes pj4-running settled to `<WORKDIR>/notes.md` with Write, and nothing when they are
   empty.
-- **Phases 3 and 4** run as **The merge task** in `merge-task.md` says, below.
+- The task loop runs as **The merge task** in `merge-task.md` says, below.
 
 ## The merge task
 

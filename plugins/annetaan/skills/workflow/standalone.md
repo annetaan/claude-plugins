@@ -5,9 +5,9 @@
 The run goes in this order:
 
 1. Read `worktree.md` and run **The start check**, then **The worktree** there.
-2. **The level** in SKILL.md. When `level.sh show` exits non-zero, the worktree already exists: quote the message and
+2. **The level** in `SKILL.md`. When `level.sh show` exits non-zero, the worktree already exists: quote the message and
    take **Ending with nothing changed** in `worktree.md`.
-3. Phase 2 (b) of SKILL.md, with `<level>` and `<source>` from the `level.sh show` JSON:
+3. **Begin** in `SKILL.md`, with `<level>` and `<source>` from the `level.sh show` JSON:
 
    ```bash
    $FLOW/scripts/flow.sh begin <WT> --level <level> --source <source>
@@ -15,12 +15,16 @@ The run goes in this order:
 
    On a `stop` with `not-ignored`, stop and report, because **The worktree** step 3 in `worktree.md` should have
    settled it, and take **Ending with nothing changed** in `worktree.md`, since no branch exists yet.
-4. Phase 1 below.
-5. Phase 2 (a) of SKILL.md, right after the start message.
-6. Phases 3 and 4 in SKILL.md as **Phases 2 to 4 in the standalone flow** below settles them, then phases 5 and 6
-   below.
+4. **Design** below.
+5. **The branch** below, right after the start message.
+6. For each task, **Detail and implement** in `loop.md`, **Review** in `loop.md`, **Respond** in `loop.md` and
+   **Commit** in `loop.md`, as **The shared steps in the standalone flow** below settles them.
+7. **The integration review** in `integration.md`, when the plan has two or more tasks.
+8. **Bringing the base in** below.
+9. **The work report** in `finish.md`, **The pull request** in `finish.md` and **The decisions** in `finish.md`.
+10. **Report to the user** below.
 
-## Phase 1: design
+## Design
 
 Create the design session's scratch directory first:
 
@@ -47,11 +51,11 @@ When the design comes back:
 - **If feasibility is "no" or "conditional"**, hand that to the user and wait. Do not walk past it.
 - **An open question with no `Only you know:` line goes back.** `SendMessage` the design session to decide it and record it under Model decisions. It rewrites `<WORKDIR>/design.md`, and `<WORKDIR>/plan.md` when the plan changes.
 - **The plan is `<WORKDIR>/plan.md`**, an ordered list of tasks, each with the files it touches. When `<WORKDIR>/design.md`, `<WORKDIR>/plan.md` or `<WORKDIR>/detail/task-1.md` is missing, use `SendMessage` to make the design session write it.
-- **The round cap is five per scope, a task or the integration review, and it is fixed.** Mention it once in the start message. Do not negotiate the number (see **The round cap** in SKILL.md).
+- **The round cap is five per scope, a task or the integration review, and it is fixed.** Mention it once in the start message. Do not negotiate the number (see **The round cap** in `loop.md`).
 
 **Keep the design session alive for the whole flow.** You go back to it twice. Before every task from task 2
-onward, to have it detail that task against the tree the task before left, while that task is committed (phase
-4 (d)). And whenever the plan breaks,
+onward, to have it detail that task against the tree the task before left, while that task is committed
+(**Commit** in `loop.md`). And whenever the plan breaks,
 to have it redraw the remaining tasks.
 
 ### The open questions and the start message
@@ -67,7 +71,7 @@ rewrites the design for that answer, and rewrites `<WORKDIR>/plan.md` when the p
 no open question, ask nothing.
 
 Then present the design summary, the three lines of it in the design session's report, and the plan in one **start
-message**, and go on to phase 2 (a) in the same turn, without waiting for an answer. The start message states:
+message**, and go on to **The branch** in the same turn, without waiting for an answer. The start message states:
 
 - the Model decisions, one line each
 - the name of the new branch, and `base: <base>`
@@ -78,45 +82,25 @@ message**, and go on to phase 2 (a) in the same turn, without waiting for an ans
 
 **You pick the branch name yourself.** Match the naming the repository already uses (`git branch -a`), choose one that `git branch -a` does not list yet, and write it into the start message. Do not spend a question on it.
 
-## Phases 2 to 4 in the standalone flow
+## The branch
 
-Phases 2 to 4 in SKILL.md run as written, with these settled here.
+```bash
+git -C <WT> checkout -b <branch name>
+```
 
-- **Phase 2** runs (a) only, right after the start message. (b) ran before phase 1.
-- **After the last task's commit in phase 4 (d)**: when phase 5 does not run (see **Phase 5**), keep that task's implementation session alive, because it writes the work report in phase 6. Its seat sessions end as usual. After the last task, go to phase 5, or to phase 6 when the plan has one task (see **Phase 5**).
-- **The round cap**: when `cap` of `$FLOW/scripts/flow.sh status <WT> <scope>` is true, stop and report to the user. Lay out what is still open and what each side said, and ask for a decision. **That task's changes are sitting uncommitted in `<WT>`.** Say that, say that the worktree stays as it is, and say that `/annetaan:cleanup` removes it, discarding the work, once the user decides. If the user says keep going after the cap, keep going: `cap` stays true from then on, and no longer stops the run.
+The name is the one you put in the start message. When git refuses because the name exists, pick another and say so in one line.
+
+## The shared steps in the standalone flow
+
+The shared steps run as written, with these settled here.
+
+- **The branch** runs right after the start message. **Begin** in `SKILL.md` already ran before **Design**.
+- **After the last task's commit** (**Commit** in `loop.md`): when **The integration review** in `integration.md` does not run, keep that task's implementation session alive, because it writes the work report in **The work report** in `finish.md`. Its seat sessions end as usual. After the last task, go to **The integration review**, or to **Bringing the base in** when it does not run (the plan has one task).
+- **The round cap** of any scope, `integration` included, and **When no seat reports** under **Review** in `loop.md` when none reports again: when `cap` of `$FLOW/scripts/flow.sh status <WT> <scope>` is true, stop and report to the user. Lay out what is still open and what each side said, and ask for a decision. **That task's changes are sitting uncommitted in `<WT>`.** Say that, say that the worktree stays as it is, and say that `/annetaan:cleanup` removes it, discarding the work, once the user decides. If the user says keep going after the cap, keep going: `cap` stays true from then on, and no longer stops the run.
+- **A change to the design itself** under **When the plan breaks** in `loop.md` goes back to the user the same way a "no" or "conditional" in **Design** does.
 - **When the user says stop** at any point, stop and report.
 
-## Phase 5: integration review
-
-**Phase 5 runs only when the plan has two or more tasks.** With one task, the task review already read the working
-tree against HEAD, and HEAD was still `START`. That is the same diff phase 5 would read, and there is no task boundary
-to look at. Count the tasks in the plan as it stands when its last task is committed. A redraw under **When the plan breaks** in SKILL.md
-changes the count. With one task, a redraw can happen only while task 1 is in flight. When it grows the plan
-to several tasks, task 1's (d) ends its sessions as usual and phase 5 runs after the new last task. When it leaves
-one task, phase 5 is skipped. Once two tasks are committed, phase 5 runs. When a redraw leaves no task to run after
-task 1 is committed, phase 5 runs too, because task 1's (d) has already ended its sessions.
-
-From an issue runs this phase too, with the stop procedure of `from-issue.md` in place of the report to the user, and goes to **Phase 6 from an issue** after it.
-
-Once every task is committed, **review the whole diff once.** A review inside a task cannot see the task boundaries: interfaces that do not line up, a rename done on one side only, work duplicated between tasks.
-
-The target is the working tree against `START` (`git diff <START>` plus untracked files), which is every commit put
-together. The working tree should be empty at this point. Fixes from the integration review land uncommitted in the
-working tree, so later rounds see them in the same diff.
-
-**The integration review starts new seats**, model and effort included, with the steps of phase 4 (b) in SKILL.md: every seat in one message, `flow.sh verify`, the judgement, `flow.sh round`. `<scope>` is `integration`, so the files are `integration-round-<r>-<seat>.md` and `integration-round-<r>.md`. Each seat's prompt is `$FLOW/scripts/flow.sh prompt <WT> seat integration <seat>`. It names `<WORKDIR>/design.md`, `<WORKDIR>/plan.md` and `<WORKDIR>/notes.md` and no detail file, carries the commit that closed each task as the progress, and asks for **the boundaries** between the tasks and, in round 1, for the walk of every acceptance criterion and every flow under `## Walk`, since no evidence file exists before round 1. A restart from round 2 on (phase 4 (b), **When no seat reports**) leaves the walk out, because the lint allows `## Walk` only in round 1.
-
-**`changes-requested` starts a new implementation session as well**, with `$FLOW/scripts/flow.sh prompt <WT> work integration` and its `Agent` call. That prompt names the same files, carries every task as the progress, and asks for the answer to the round file just written, and each reply that changes code comes with `integration-round-<r>-evidence.md`. From there the (b), (c) loop is the same as phase 4, with `again integration` and `respond integration`, the `integration-round-<r>`
-files, and the `integration` scope has the same cap, counted the same way, by `cap` of
-`$FLOW/scripts/flow.sh status <WT> integration`. No session gets rebuilt during those rounds. Fixes become **one commit** after the review approves, by `$FLOW/scripts/flow.sh prompt <WT> commit integration`, with a
-subject that says what it is, such as "integration review fixes". No fixes means no commit.
-
-Review says `approve`, every finding is resolved, tests pass. Phase 6 starts when all three hold.
-
-## Phase 6: finish
-
-### Bringing the base in
+## Bringing the base in
 
 The base may have moved while the tasks ran. A pull request that would conflict from the start is settled here,
 under review, before anything is pushed.
@@ -139,11 +123,7 @@ $FLOW/scripts/worktree.sh sync <name> <base>
 - **`stop`** with `fetch-failed`, `dirty` or `unfinished`: quote `message` and go to **Report to the user**. The
   task commits are on the branch, and nothing was pushed.
 
-### The work report and the pull request
-
-Read `finish.md` and run **The work report**, then **The pull request**, then **The decisions**.
-
-### Report to the user
+## Report to the user
 
 **First leave the worktree**: `ExitWorktree(action: "keep")`, or `cd <MAIN>` where that tool is not available.
 
@@ -157,6 +137,6 @@ Every standalone run that got past the start message ends here, finished or stop
 - **the path of the work report** (`<WORKDIR>/log.md`), which opens in an editor with the screenshots inline
 - the review files, under `<WORKDIR>/review/`
 - the screenshot paths, when the change shows on screen
-- when phase 5 was skipped, one line saying the integration review did not run because the plan had one task
+- when **The integration review** did not run, one line saying the integration review did not run because the plan had one task
 - **the cleanup**: once the pull request is merged or closed, `/annetaan:cleanup <PR number>` moves the work report into `<MAIN>/work-reports/`, removes `<WT>` and the branch, fast-forwards the local `<base>` after a merge, and deletes the reports in `<MAIN>/work-reports/` beyond the 100 newest, by the time stamp in their name. A run that stopped with no pull request is cleaned up with `/annetaan:cleanup` and no number
 - for a stopped run, what is still uncommitted in `<WT>`

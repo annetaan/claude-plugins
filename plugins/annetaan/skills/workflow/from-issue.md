@@ -25,13 +25,13 @@ pj4-running has already run its checks (`gh`) on `<WT>`, and its `run.sh start` 
 `.git/info/exclude`.
 Every command below runs in `<WT>`. Never touch `<MAIN>`. The user works in it during the run.
 
-## What it runs of phases 2 to 5
+## What it runs of the shared steps
 
 This entry asks nothing. Its ending is **What it hands back to pj4-running** below, which replaces any report to the user.
 
-- **Phase 1** does not run. **The detail pass** below takes its place.
-- **Phase 2 (a)** does not run. pj4-running owns the branch.
-- **Phase 2 (b)** runs right after pj4-running made the branch and before **The detail pass**, with `<level>` and
+- **Design** in `standalone.md` does not run. **The detail pass** below takes its place.
+- It makes no branch. pj4-running owns the branch.
+- **Begin** in `SKILL.md` runs right after pj4-running made the branch and before **The detail pass**, with `<level>` and
   `<source>` from the `level.sh show` JSON pj4-running settled:
 
   ```bash
@@ -51,15 +51,16 @@ This entry asks nothing. Its ending is **What it hands back to pj4-running** bel
   A non-zero exit is quoted and takes **The stop procedure** with the reason `user`. Then write the handover notes
   pj4-running settled to `<WORKDIR>/notes.md` with Write, and nothing when they are empty.
 
-  After a context summary, a `no-run` from `flow.sh status <WT>` means phase 2 (b) has not run, and the level is the
-  JSON pj4-running settled (**The level** in SKILL.md). `<WT>` was made for this run, so a work directory in it is
+  After a context summary, a `no-run` from `flow.sh status <WT>` means **Begin** has not run, and the level is the
+  JSON pj4-running settled (**The level** in `SKILL.md`). `<WT>` was made for this run, so a work directory in it is
   this run's.
-- **The detail pass** and **phases 3 and 4** run as **The detail pass** and **Phases 3 and 4** below say.
-- **Phase 5** runs after the last task when the plan has two or more tasks, as **Phase 5: integration review** in
-  `standalone.md` says, with its round cap ending in **The stop procedure** below. With one task it does not run, and
-  the task's implementation session stays alive as the standalone flow keeps it, because it writes the work report in
-  **Phase 6 from an issue**. Its seat sessions end as usual.
-- **The round cap**, and the user saying stop, end in **The stop procedure**, with no question to the user.
+- **The detail pass** and the task loop run as **The detail pass** and **The task loop** below say.
+- **The integration review** in `integration.md` runs after the last task when the plan has two or more tasks, with
+  its round cap ending in **The stop procedure** below, then **The finish from an issue**. With one task it does not
+  run, and the task's implementation session stays alive after **Commit** in `loop.md`, because it writes the work
+  report in **The finish from an issue**. Its seat sessions end as usual.
+- **The round cap**, the user saying stop, and a change to the design itself under **When the plan breaks** in
+  `loop.md` end in **The stop procedure**, with no question to the user.
 
 ## The detail pass
 
@@ -88,25 +89,25 @@ By what comes back:
 
 ## The design, the plan and the detail
 
-- **The design**, for every prompt in phases 3 to 5, is `<WORKDIR>/design.md`. Write it again with the same
-  `project.sh <P> --design <n>` command as in phase 2 (b) after every pass of pj4-running's **A redrawn issue** that
+- **The design**, for every prompt of the task loop and the integration review, is `<WORKDIR>/design.md`. Write it again with the same
+  `project.sh <P> --design <n>` command as right after `begin` after every pass of pj4-running's **A redrawn issue** that
   answers go on, so that it holds the issue as it now reads on GitHub.
 - **The plan and the detail**: the design session's `<WORKDIR>/plan.md` and `<WORKDIR>/detail/task-<k>.md`.
-- **The commit**: the `commit` prompt of phase 4 (d) asks for a subject that follows the repository's style and names
+- **The commit**: the `commit` prompt of **Commit** in `loop.md` asks for a subject that follows the repository's style and names
   the task, and for a plan of one task the issue title, the first line of `<WORKDIR>/design.md`.
 
-## Phases 3 and 4
+## The task loop
 
-They run as written in SKILL.md, phase 4 (a) and (d) included: from task 2 onward the design session details each task
+The sections of `loop.md` run as written, **Detail and implement** in `loop.md` and **Commit** in `loop.md` included: from task 2 onward the design session details each task
 while the task before it is committed. Each
-task gets a new implementation session and new review seats, five rounds, one commit. **When the plan breaks** and a
+task gets a new implementation session and new review seats, five rounds, one commit. **When the plan breaks** in `loop.md` and a
 `Diverged:` report go to the design session with `SendMessage`. A new `Body:` from it goes through **A redrawn issue**
 again, and `Stop: ask` is the stop `decision`. Existing decisions stay byte for byte in every redraw. `flow.sh prompt`
 reads the issue from `run.json`, so the prompts carry the issue's lines on their own: the implementation session
 follows **Work outside the task**, each seat is told that the issue's checked decisions bind, and every review request
 names `<WORKDIR>/adaptations.md`.
 
-Keep the handover lines from phase 4 (d) for pj4-running.
+Keep the handover lines from **Commit** for pj4-running.
 
 ## Reports from the implementation session
 
@@ -115,11 +116,11 @@ Keep the handover lines from phase 4 (d) for pj4-running.
   returns** in `pj4-running/issues.md`.
 - **`Diverged:`**: send it to the design session with `SendMessage`, and tell the implementation session to wait. The
   answer is a redraw of the plan, a new `Body:` for **A redrawn issue**, or `Stop: ask`. After a redraw, the
-  implementation session goes on or a new one starts, as the plan breaking in SKILL.md says.
+  implementation session goes on or a new one starts, as **When the plan breaks** in `loop.md` says.
 - **Adaptations** the implementation session lists: append each to `<WORKDIR>/adaptations.md`, a Read of it when it
   exists, then Write with the earlier lines kept. The review requests and `log.md` read them there.
 
-## Phase 6 from an issue
+## The finish from an issue
 
 1. **The work report.** Read `finish.md` and run **The work report** there. Its `report` prompt also asks for the
    adaptations in `<WORKDIR>/adaptations.md` and what the detail pass redrew in the issue.
@@ -145,21 +146,22 @@ Keep the handover lines from phase 4 (d) for pj4-running.
 ## The stop procedure
 
 It runs on the round cap, an `Unplanned:` with `blocking`, a `Stop: ask` or a redraw that did not pass
-(**The detail pass**, **Phases 3 and 4**), a human edit that **A redrawn issue** found or a non-zero exit of `project.sh --design` (the stop `user`), `begin`
+(**The detail pass**, **The task loop**), a change to the design itself that **When the plan breaks** in `loop.md`
+hands to the entry (the stop `decision`), a human edit that **A redrawn issue** found or a non-zero exit of `project.sh --design` (the stop `user`), `begin`
 stopping with `not-ignored`, or the user saying stop. The reasons it hands back are
 `round cap`, `blocking`, `decision`, `detail`, `work-reports`, `user` and `finish`.
 
 The case is decided by whether every task of the plan is committed and the integration review, when it runs, has
 approved. Look for the commits in `git log --oneline <START>..HEAD`.
 
-- **Every task is committed, and the integration review approved or did not run.** The stop came during phase 6, and the
-  working tree is clean. Run steps 1 to 4 of **Phase 6 from an issue** to the end: the report, the push, the draft
+- **Every task is committed, and the integration review approved or did not run.** The stop came during **The finish from an issue**, and the
+  working tree is clean. Run steps 1 to 4 of **The finish from an issue** to the end: the report, the push, the draft
   pull request and the decisions. Then return `finished`, with `stop requested: yes` when the user said stop.
 - **Anything less.** Leave the working tree as it is. Push nothing. Send nothing more to the sessions in flight. Return
   `stopped`. pj4-running leaves the worktree and ends it with `run.sh end`, which removes it when nothing changed
   since `<START>` and otherwise keeps it, its commits on a detached HEAD, for `/annetaan:cleanup`. The next run
   redoes the issue in a new worktree. The seats' worktrees stay beside `<WT>` until it is removed.
-- **A step of phase 6 fails before the pull request exists.** Return `stopped` with the reason `finish`, the step
+- **A step of the finish fails before the pull request exists**, a step of **The finish from an issue**. Return `stopped` with the reason `finish`, the step
   that failed, its error message, and the path of `log.md` when step 1 wrote it. A `stop` from `flow.sh record` in
   step 2 is such a failure, with step 2 named and its `message` as the error.
 
@@ -169,7 +171,7 @@ approved. Look for the commits in `git log --oneline <START>..HEAD`.
   screenshots that could not be attached, `decisions` (the URLs in `filed` of **The decisions** in `finish.md`, or
   its stop message), and `stop requested` (yes or no).
 - **`stopped`**: the reason (`round cap`, `blocking`, `decision`, `detail`, `user`, `work-reports` or `finish`),
-  `<WORKDIR>` (the absolute path, when phase 2 (b) made it, otherwise none), `<START>`, and the text of the `Unplanned:`
+  `<WORKDIR>` (the absolute path, when **Begin** made it, otherwise none), `<START>`, and the text of the `Unplanned:`
   report, the decision `#<n> D<k>` the design session asked, or the failing lint or `--check` JSON, or for `finish` the
   step that failed, its message and the path of `log.md` when there is one. A run that returns `stopped` has opened no
   pull request. pj4-running leaves the worktree. On `finish` it detaches the worktree and keeps the branch, with its

@@ -4,7 +4,7 @@
 
 ## The start check
 
-Run one command and keep every answer. Phase 1 needs them.
+Run one command and keep every answer. The steps after it need them.
 
 ```bash
 $FLOW/scripts/worktree.sh start
@@ -21,7 +21,7 @@ It prints `status: ok` with `main`, `mainBranch`, `defaultBranch` and `gh`, the 
 
 ## The worktree
 
-The standalone flow works in a git worktree of its own, `.claude/worktrees/run-<stamp>` inside `<MAIN>`, detached at the tip of the base branch on origin. `<MAIN>` stays as the user left it, except for the lines the answers of **Files `.worktreeinclude` does not name** add to `<MAIN>/.worktreeinclude`. Run these steps before phase 1, so that design reads the code in `<WT>`.
+The standalone flow works in a git worktree of its own, `.claude/worktrees/run-<stamp>` inside `<MAIN>`, detached at the tip of the base branch on origin. `<MAIN>` stays as the user left it, except for the lines the answers of **Files `.worktreeinclude` does not name** add to `<MAIN>/.worktreeinclude`. Run these steps before **Design** in `standalone.md`, so that design reads the code in `<WT>`.
 
 1. **The base.** The branch the request names, otherwise `defaultBranch`.
 2. **The base question.** Only when the repository's instructions in context (`CLAUDE.md`) ask for the base branch to be confirmed on every run. They are free-form, so you judge whether they do. Ask one `AskUserQuestion` with these options in this order, leaving out any that repeat an earlier one: the branch the request names `(Recommended)`; `defaultBranch` (`(Recommended)` when it comes first); `mainBranch` when it is set and differs from the default branch. The tool adds Other on its own. The answer is the base. **When fewer than two options remain**, ask a two-option confirm question instead: `Use <base> (Recommended)` and `Another branch - type its name under Other`, where `<base>` is the one candidate. An answer under Other is the base.
@@ -52,7 +52,7 @@ The standalone flow works in a git worktree of its own, `.claude/worktrees/run-<
    Where that tool is not available, `cd <WT>`. Print `worktree <WT> base <base>` once. **Every command from here to
    the end of the run runs in `<WT>`.** After a context summary, run `git rev-parse --show-toplevel`, and enter
    `<WT>` again when it prints anything else.
-5. **Every sub-agent stays in `<WT>`.** A sub-session does not start there by itself. From here on, `flow.sh prompt` ends every prompt it writes with `$FLOW/prompts/worktree-line.md`, which sends the session into `<WT>` and keeps it out of `<MAIN>`, and the one prompt written by hand, phase 1 in `standalone.md`, ends with that text too.
+5. **Every sub-agent stays in `<WT>`.** A sub-session does not start there by itself. From here on, `flow.sh prompt` ends every prompt it writes with `$FLOW/prompts/worktree-line.md`, which sends the session into `<WT>` and keeps it out of `<MAIN>`, and the one prompt written by hand, **Design** in `standalone.md`, ends with that text too.
 6. `<WT>` has the ignored files `<MAIN>/.worktreeinclude` names, copied at step 3 and by the Copy answers of **Files `.worktreeinclude` does not name**, and none of the others, such as installed dependencies. The first worker prepares what the tests still need and leaves the steps in the handover notes, so later tasks find them there. The submodules of `<WT>` are not initialized either. When the build or the tests need one, the first worker runs `git submodule update --init` in `<WT>` and leaves that in the handover notes too.
 
 ### Files `.worktreeinclude` does not name
@@ -80,7 +80,7 @@ A non-zero exit is quoted and stops the run, as for `worktree.sh`. The file sits
 
 ### Ending with nothing changed
 
-When the run ends before phase 2 creates its branch, leave the worktree and remove it.
+When the run ends before it creates its branch (**The branch** in `standalone.md`), leave the worktree and remove it.
 
 1. When you have entered `<WT>` (**The worktree** step 4), `ExitWorktree(action: "keep")`, or `cd <MAIN>` where that tool is not available.
 2. Remove it:

@@ -1,7 +1,9 @@
 # The merge task
 
-A merge that stopped on conflicts runs as one task with review rounds, and its commit is the merge commit. Three
-places start it: **Bringing the base in** in phase 6, in `standalone.md`, **From a pull request** in `from-pr.md`, and **From a sync** in `from-sync.md`. There is no
+> `$FLOW` in this file is the directory it is in, `<skills>/workflow`, written out as **Paths: `$FLOW`** in `SKILL.md` says.
+
+A merge that stopped on conflicts runs as one task with review rounds, and its commit is the merge commit. An entry's
+file starts it and gives the values under **What the caller has settled**. There is no
 design session, no approval, no question and no integration review.
 
 ## What the caller has settled
@@ -37,7 +39,8 @@ git diff --name-only --diff-filter=U
 
 ## The rounds
 
-Phases 3 and 4 run as written for task 1, with a new implementation session and the review seats, five rounds, and
+**Detail and implement** in `loop.md`, **Review** in `loop.md`, **Respond** in `loop.md` and **Commit** in
+`loop.md` run as written for task 1, with a new implementation session and the review seats, five rounds, and
 every prompt written by `flow.sh prompt` with the scope `merge`: `flow.sh prompt <WT> work merge`,
 `seat merge <seat>`, `again merge`, `respond merge` and `commit merge`. They differ from a task's in these.
 
@@ -49,8 +52,8 @@ every prompt written by `flow.sh prompt` with the scope `merge`: `flow.sh prompt
   conflicted files take part in.
 - The `seat` prompt has each seat review the resolution, each conflicted file against both sides with
   `git diff HEAD -- <file>` and `git diff MERGE_HEAD -- <file>`, and any change outside those files.
-- `<scope>` of phase 4 (b) is `merge`. The round files are `merge-round-<r>.md`, each written by `flow.sh round` from the draft `drafts/merge-round-<r>.md` that `flow.sh verify` writes and the judgement, the replies `merge-round-<r>-reply.md`, and the evidence of a reply that changed code `merge-round-<r>-evidence.md`.
-- **The commit**, in phase 4 (d), is the `commit merge` prompt: `git add -A`, then `git commit --no-edit`, which
+- `<scope>` of **Review** in `loop.md` is `merge`. The round files are `merge-round-<r>.md`, each written by `flow.sh round` from the draft `drafts/merge-round-<r>.md` that `flow.sh verify` writes and the judgement, the replies `merge-round-<r>-reply.md`, and the evidence of a reply that changed code `merge-round-<r>-evidence.md`.
+- **The commit**, in **Commit** in `loop.md`, is the `commit merge` prompt: `git add -A`, then `git commit --no-edit`, which
   records the merge with both parents and the message git prepared, then the checks that `git status --porcelain`
   prints nothing and that `MERGE_HEAD` is gone, with the notes for the next session.
 
